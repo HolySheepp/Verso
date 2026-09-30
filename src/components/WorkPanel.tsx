@@ -54,24 +54,20 @@ export function WorkPanel({ height }: { height: number }) {
   if (exclude.includes(stamp) || (stamp.startsWith('c:') && !findCustom(customs, stamp))) stamp = fallback;
   const stampLabel = '選擇標記，目前：' + markName(customs, stamp);
 
-  // 整段貼上時自動記錄（貼上的內容取代了全部譯文）
-  const pendingPaste = useRef<string | null>(null);
   const press = useRef<{ t: number } | null>(null);
 
   const onTarget = (v: string) => {
     if (!tgtEditable || showHist) return;
-    const pasted = pendingPaste.current;
-    pendingPaste.current = null;
     s.updateEntry({ tgt: v });
-    if (pasted != null && v && v === pasted) s.record(v);
   };
 
+  // 整段貼上（貼上的內容取代全部譯文）時，先記下貼上前的譯文
   const onPaste = (ev: React.ClipboardEvent<HTMLTextAreaElement>) => {
     if (!tgtEditable || showHist) return;
     const ta = ev.currentTarget;
     const txt = ev.clipboardData.getData('text');
     const whole = ta.selectionStart === 0 && ta.selectionEnd === ta.value.length;
-    pendingPaste.current = whole && txt ? txt : null;
+    if (whole && txt && cur.tgt && txt !== cur.tgt) s.record(cur.tgt);
   };
 
   const viewTip = viewOn ? '返回目前譯文' : texts.length ? '查看修改（按住預覽）' : '查看修改（尚無記錄）';

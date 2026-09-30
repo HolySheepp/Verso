@@ -2,7 +2,8 @@
 
 export type CheckId =
   | 'tags' | 'numbers' | 'ending' | 'fullwidth' | 'pairs'
-  | 'edgeSpace' | 'doubleSpace' | 'repeatPunct' | 'cjk' | 'ellipsis';
+  | 'edgeSpace' | 'doubleSpace' | 'repeatPunct' | 'cjk' | 'ellipsis'
+  | 'curlyQuotes' | 'capital';
 
 export const CHECKS: { id: CheckId; label: string }[] = [
   { id: 'tags', label: '標籤與變數' },
@@ -15,6 +16,8 @@ export const CHECKS: { id: CheckId; label: string }[] = [
   { id: 'repeatPunct', label: '連續重複標點' },
   { id: 'cjk', label: '殘留中文' },
   { id: 'ellipsis', label: '刪節號' },
+  { id: 'curlyQuotes', label: '中文引號' },
+  { id: 'capital', label: '大小寫' },
 ];
 
 export type CheckSettings = Record<CheckId, boolean>;
@@ -40,7 +43,10 @@ function countOf(list: string[]) {
   return m;
 }
 
-const ENDINGS = ['."', '—"', '?"', '!"', '.”', '—”', '?”', '!”', '.', '—', '?', '!'];
+const ENDINGS = ['."', '—"', '?"', '!"', '.', '—', '?', '!'];
+
+/** 句尾：指定標點，後面可以再接右括號，例如 .) */
+const endsWell = (s: string) => ENDINGS.some((e) => s.endsWith(e) || s.endsWith(e + ')'));
 
 /** 檢查一條譯文，回傳所有問題（不看開關） */
 export function runChecks(src: string, tgt: string): Issue[] {
@@ -68,12 +74,12 @@ export function runChecks(src: string, tgt: string): Issue[] {
 
   // 只有刪節號：必須剛好 6 個半形句點，可以包在引號裡
   const bare = tgt.trim();
-  const dots = bare.match(/^["“]?(\.+)["”]?$/);
+  const dots = bare.match(/^"?(\.+)"?$/);
   if (dots && dots[1].length !== 6) add('ellipsis', String(dots[1].length), `刪節號要 6 個句點（目前 ${dots[1].length} 個）`);
 
   // 句尾標點
   const end = tgt.trimEnd();
-  if (end && !ENDINGS.some((e) => end.endsWith(e))) add('ending', '', '句尾缺少標點');
+  if (end && !endsWell(end)) add('ending', '', '句尾缺少標點');
 
   // 全形符號
   const fw = Array.from(new Set(tgt.match(/[　-〿＀-￯]/g) ?? []));
@@ -84,13 +90,23 @@ export function runChecks(src: string, tgt: string): Issue[] {
   if (cnt('(') !== cnt(')')) add('pairs', '()', '括號 ( ) 沒有成對');
   if (cnt('[') !== cnt(']')) add('pairs', '[]', '括號 [ ] 沒有成對');
   if (cnt('"') % 2) add('pairs', '"', '引號 " 沒有成對');
-  if (cnt('“') !== cnt('”')) add('pairs', '“”', '引號 “ ” 沒有成對');
 
   // 空白與重複標點
   if (/^\s|\s$/.test(tgt)) add('edgeSpace', '', '開頭或結尾有多餘空白');
   if (/ {2,}/.test(tgt)) add('doubleSpace', '', '有連續兩個空格');
   const rep = Array.from(new Set((tgt.match(/([!?,;:—\-])\1+/g) ?? [])));
   if (rep.length) add('repeatPunct', rep.join(''), '重複標點 ' + rep.join(' '));
+
+  // 中文引號：譯文引號只能用 " 和 '
+  const curly = Array.from(new Set(tgt.match(/[“”‘’]/g) ?? []));
+  if (curly.length) add('curlyQuotes', curly.join(''), '有中文引號 ' + curly.join(' '));
+
+  // 大小寫：句首、句尾標點與刪節號後要大寫；破折號後要小寫（I 除外）
+  const firstLetter = tgt.match(/^[\s"'(\[.]*([A-Za-z])/);
+  if (firstLetter && /[a-z]/.test(firstLetter[1])) add('capital', 'start', '句首要大寫');
+  if (/[.?!]["')]*\s+["'(]*[a-z]/.test(tgt)) add('capital', 'sentence', '句號、問號、驚嘆號或刪節號後要大寫');
+  else if (/\.{3,}["')]*\s*["'(]*[a-z]/.test(tgt)) add('capital', 'sentence', '句號、問號、驚嘆號或刪節號後要大寫');
+  if (/—\s*["'(]*(?!I\b|I')[A-Z]/.test(tgt)) add('capital', 'dash', '破折號後要小寫');
 
   // 殘留中文
   if (/[㐀-䶿一-鿿]/.test(tgt)) add('cjk', '', '譯文裡有中文字');

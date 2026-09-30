@@ -45,7 +45,29 @@ describe('標點檢測', () => {
     expect(ids('', 'Go  now.')).toEqual(['doubleSpace']);
     expect(ids('', 'What?!')).toEqual([]);
     expect(ids('', 'What??')).toEqual(['repeatPunct']);
-    expect(ids('', 'Well... go.')).toEqual([]);
+    expect(ids('', 'Well... Go.')).toEqual([]);
+  });
+
+  it('以括號結尾可以通過', () => {
+    expect(ids('', 'Go now (quietly.)')).toEqual([]);
+    expect(ids('', 'Go now (quietly)')).toEqual(['ending']);
+  });
+
+  it('中文引號不能出現', () => {
+    expect(msgs('', '“Go,” he said.')).toEqual(['有中文引號 “ ”']);
+    expect(ids('', 'It’s fine.')).toEqual(['curlyQuotes']);
+    expect(ids('', '"It\'s fine."')).toEqual([]);
+  });
+
+  it('句首、句尾標點和刪節號後要大寫，破折號後要小寫', () => {
+    expect(msgs('', 'go now.')).toEqual(['句首要大寫']);
+    expect(ids('', '"go now."')).toEqual(['capital']);
+    expect(ids('', 'Stop. go now.')).toEqual(['capital']);
+    expect(ids('', 'Well... go now.')).toEqual(['capital']);
+    expect(ids('', 'Well...Go now.')).toEqual([]);
+    expect(msgs('', 'Wait—Go now.')).toEqual(['破折號後要小寫']);
+    expect(ids('', 'Wait—go now.')).toEqual([]);
+    expect(ids('', 'Wait—I know.')).toEqual([]);
   });
 
   it('只有刪節號時必須剛好 6 個句點', () => {
