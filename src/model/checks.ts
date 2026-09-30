@@ -101,11 +101,11 @@ export function runChecks(src: string, tgt: string): Issue[] {
   const curly = Array.from(new Set(tgt.match(/[“”‘’]/g) ?? []));
   if (curly.length) add('curlyQuotes', curly.join(''), '有中文引號 ' + curly.join(' '));
 
-  // 大小寫：句首、句尾標點與刪節號後要大寫；破折號後要小寫（I 除外）
+  // 大小寫：句首、句號/問號/驚嘆號後要大寫；破折號後要小寫（I 除外）
   const firstLetter = tgt.match(/^[\s"'(\[.]*([A-Za-z])/);
   if (firstLetter && /[a-z]/.test(firstLetter[1])) add('capital', 'start', '句首要大寫');
-  if (/[.?!]["')]*\s+["'(]*[a-z]/.test(tgt)) add('capital', 'sentence', '句號、問號、驚嘆號或刪節號後要大寫');
-  else if (/\.{3,}["')]*\s*["'(]*[a-z]/.test(tgt)) add('capital', 'sentence', '句號、問號、驚嘆號或刪節號後要大寫');
+  // 刪節號後不檢查（例如 Are you... are you mad?），只有整句以刪節號開頭時，刪節號後的字算句首
+  if (/(?:^|[^.])[.?!]["')]*\s+["'(]*[a-z]/.test(tgt)) add('capital', 'sentence', '句號、問號、驚嘆號後要大寫');
   if (/—\s*["'(]*(?!I\b|I')[A-Z]/.test(tgt)) add('capital', 'dash', '破折號後要小寫');
 
   // 殘留中文

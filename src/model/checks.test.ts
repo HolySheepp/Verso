@@ -63,8 +63,12 @@ describe('標點檢測', () => {
     expect(msgs('', 'go now.')).toEqual(['句首要大寫']);
     expect(ids('', '"go now."')).toEqual(['capital']);
     expect(ids('', 'Stop. go now.')).toEqual(['capital']);
-    expect(ids('', 'Well... go now.')).toEqual(['capital']);
+    expect(ids('', 'Are you... are you mad?')).toEqual([]);
     expect(ids('', 'Well...Go now.')).toEqual([]);
+    expect(ids('', '...Hello?')).toEqual([]);
+    expect(msgs('', '...hello?')).toEqual(['句首要大寫']);
+    expect(ids('', '"...hello?"')).toEqual(['capital']);
+    expect(ids('', 'Stop! go.')).toEqual(['capital']);
     expect(msgs('', 'Wait—Go now.')).toEqual(['破折號後要小寫']);
     expect(ids('', 'Wait—go now.')).toEqual([]);
     expect(ids('', 'Wait—I know.')).toEqual([]);
