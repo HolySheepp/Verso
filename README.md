@@ -1,13 +1,13 @@
 # Verso
 
-翻譯工作台桌面 App（Tauri 2 + React + TypeScript）。版本 0.5.0。
+翻譯工作台桌面 App（Tauri 2 + React + TypeScript）。版本 0.5.1。
 
 ## 開發
 
 ```
 npm install
 npm run dev        # 瀏覽器預覽 http://localhost:1420
-npm run tauri dev  # 桌面 App（需要 Rust 與 C++ 編譯工具）
+npm run tauri dev  # 桌面 App（需要 Rust 與 C++ 編譯工具），也可以直接雙擊「啟動Verso.bat」
 npm test           # 標記與記錄槽位規則測試
 ```
 
