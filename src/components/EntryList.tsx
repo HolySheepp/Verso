@@ -41,6 +41,8 @@ export function EntryList() {
   // 接收鍵盤、複製貼上用的隱藏文字框；點條目欄時焦點交給它，這樣 Ctrl+C／V 才會作用在條目欄
   const sink = useRef<HTMLTextAreaElement>(null);
   const drag = useRef<Cell | null>(null);
+  // 滑鼠按住期間記下按下的位置：這段時間不自動捲動，也要真的移動了才算拖動選取
+  const pressAt = useRef<{ x: number; y: number } | null>(null);
   const [menu, setMenu] = useState<{ x: number; y: number } | null>(null);
   const [editing, setEditing] = useState<{ i: number; c: CellCol; text: string } | null>(null);
   const readOnly = s.mode === 'view';
@@ -54,6 +56,8 @@ export function EntryList() {
     if (!list || !row) return;
     const keyboard = handledMove.current !== s.moveSeq;
     handledMove.current = s.moveSeq;
+    // 滑鼠按著時不捲動：捲動會讓游標下的格子變成別格，被當成拖動選取
+    if (pressAt.current) return;
     row.scrollIntoView({ block: 'nearest' });
     if (!keyboard) return;
     const rowsEls = Array.from(list.querySelectorAll<HTMLElement>('.rw'));
@@ -130,14 +134,16 @@ export function EntryList() {
       return;
     }
     drag.current = cell;
+    pressAt.current = { x: ev.clientX, y: ev.clientY };
     pick([cellKey(i, c)], cell);
   };
   const onCellEnter = (ev: React.MouseEvent, i: number, c: CellCol) => {
-    if (!drag.current || !(ev.buttons & 1)) return;
+    if (!drag.current || !(ev.buttons & 1) || !pressAt.current) return;
+    if (Math.abs(ev.clientX - pressAt.current.x) + Math.abs(ev.clientY - pressAt.current.y) < 4) return;
     pick(rectKeys(visible, drag.current, { i, c }), drag.current);
   };
   useEffect(() => {
-    const up = () => { drag.current = null; };
+    const up = () => { drag.current = null; pressAt.current = null; };
     window.addEventListener('mouseup', up);
     return () => window.removeEventListener('mouseup', up);
   }, []);
