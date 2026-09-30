@@ -298,7 +298,7 @@ export function PasteDialog() {
             <button type="button" className="btn btn-ghost" onClick={close}
               style={{ height: 36, padding: '0 16px', background: 'var(--btn)', border: '1px solid var(--line4)', borderRadius: 8, fontSize: 13 }}>取消</button>
             <button type="button" className="btn btn-primary" disabled={firstBad >= 0} onClick={create}
-              style={{ height: 36, padding: '0 18px', background: '#2f6fe4', border: 0, borderRadius: 8, color: '#ffffff', fontSize: 13, fontWeight: 600 }}>建立</button>
+              style={{ height: 36, padding: '0 18px', background: 'var(--primary)', border: 0, borderRadius: 8, color: '#ffffff', fontSize: 13, fontWeight: 600 }}>建立</button>
           </div>
         </div>
       </div>

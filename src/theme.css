@@ -1,6 +1,19 @@
 /* 主題變數與共用樣式，取自設計檔 Main.dc.html */
-.vd{--bg0:#15171c;--bgdeep:#17191e;--bar:#1a1c22;--bar2:#1a1c21;--panel:#1c1e24;--pop:#1f2229;--card:#20232a;--btn:#22252c;--hv1:#23262e;--hv2:#252932;--line0:#262930;--chip:#262a32;--sel:#262b36;--tabon:#262a33;--hv3:#2a2e37;--line:#2a2d35;--line2:#2c3038;--segon:#2c3140;--line3:#2f333c;--scroll:#343843;--line4:#353944;--line5:#3a3f4a;--tabline:#3d5d99;--line6:#4a505c;--dis:#454a55;--mute3:#5b6170;--mute2:#6b7180;--mute:#858c9c;--text2:#a3a9b6;--textsoft:#c9cdd6;--text:#e7e9ee;--texthi:#f1f3f7;--accent:#4f8cff;--accent2:#6ea8ff;--accent3:#9cc2ff;--link:#7fb0ff;--linkhv:#a9c9ff;--pdis:#2a3550;--pdistx:#8a93a8;--warntx:#f3b96b;--errtx:#f19a86;--ov1:rgba(255,255,255,0.035);--ov2:rgba(255,255,255,0.08);--scrim:rgba(8,9,12,0.62);--db:rgba(232,185,58,0.13);--dbon:rgba(232,185,58,0.24);--dbline:rgba(232,185,58,0.28);color-scheme:dark}
-.vl{--bg0:#f3f4f6;--bgdeep:#f6f7f9;--bar:#fafbfc;--bar2:#f7f8fa;--panel:#ffffff;--pop:#ffffff;--card:#f7f8fa;--btn:#ffffff;--hv1:#f1f3f6;--hv2:#f0f2f5;--line0:#eceef2;--chip:#eef0f4;--sel:#e8effd;--tabon:#ffffff;--hv3:#eceff4;--line:#e3e6eb;--line2:#e4e7ec;--segon:#e5ecfb;--line3:#dde1e7;--scroll:#cfd4dc;--line4:#d3d8df;--line5:#c9ced6;--tabline:#9bb8f0;--line6:#b9bfc9;--dis:#c3c8d0;--mute3:#a0a6b1;--mute2:#8b919c;--mute:#6b7280;--text2:#4b5260;--textsoft:#2f3440;--text:#1a1d24;--texthi:#111318;--accent:#2f6fe4;--accent2:#2f6fe4;--accent3:#2458c2;--link:#2458c2;--linkhv:#1d4aa6;--pdis:#b9cbee;--pdistx:#ffffff;--warntx:#a8620a;--errtx:#c2412a;--ov1:rgba(0,0,0,0.028);--ov2:rgba(0,0,0,0.06);--scrim:rgba(20,24,32,0.32);--db:rgba(232,185,58,0.2);--dbon:rgba(232,185,58,0.32);--dbline:rgba(214,160,30,0.5);color-scheme:light}
+.vd{--bg0:#15171c;--bgdeep:#17191e;--bar:#1a1c22;--bar2:#1a1c21;--panel:#1c1e24;--pop:#1f2229;--card:#20232a;--btn:#22252c;--hv1:#23262e;--hv2:#252932;--line0:#262930;--chip:#262a32;--tabon:#262a33;--hv3:#2a2e37;--line:#2a2d35;--line2:#2c3038;--line3:#2f333c;--scroll:#343843;--line4:#353944;--line5:#3a3f4a;--line6:#4a505c;--dis:#454a55;--mute3:#5b6170;--mute2:#6b7180;--mute:#858c9c;--text2:#a3a9b6;--textsoft:#c9cdd6;--text:#e7e9ee;--texthi:#f1f3f7;--accent:#4f8cff;--warntx:#f3b96b;--errtx:#f19a86;--ov1:rgba(255,255,255,0.035);--ov2:rgba(255,255,255,0.08);--scrim:rgba(8,9,12,0.62);--db:rgba(232,185,58,0.13);--dbon:rgba(232,185,58,0.24);--dbline:rgba(232,185,58,0.28);color-scheme:dark}
+.vl{--bg0:#f3f4f6;--bgdeep:#f6f7f9;--bar:#fafbfc;--bar2:#f7f8fa;--panel:#ffffff;--pop:#ffffff;--card:#f7f8fa;--btn:#ffffff;--hv1:#f1f3f6;--hv2:#f0f2f5;--line0:#eceef2;--chip:#eef0f4;--tabon:#ffffff;--hv3:#eceff4;--line:#e3e6eb;--line2:#e4e7ec;--line3:#dde1e7;--scroll:#cfd4dc;--line4:#d3d8df;--line5:#c9ced6;--line6:#b9bfc9;--dis:#c3c8d0;--mute3:#a0a6b1;--mute2:#8b919c;--mute:#6b7280;--text2:#4b5260;--textsoft:#2f3440;--text:#1a1d24;--texthi:#111318;--accent:#2f6fe4;--warntx:#a8620a;--errtx:#c2412a;--ov1:rgba(0,0,0,0.028);--ov2:rgba(0,0,0,0.06);--scrim:rgba(20,24,32,0.32);--db:rgba(232,185,58,0.2);--dbon:rgba(232,185,58,0.32);--dbline:rgba(214,160,30,0.5);color-scheme:light}
+
+/* 主題色（--accent）可以換：內建幾種，或使用者自訂的 hex（寫在根元素的 style 上）。
+   其他跟主題色有關的顏色都從 --accent 推算，換色時一起變。 */
+.vd{--accent2:color-mix(in srgb,var(--accent) 78%,#fff);--accent3:color-mix(in srgb,var(--accent) 55%,#fff);--link:var(--accent2);--linkhv:var(--accent3);--tabline:color-mix(in srgb,var(--accent) 55%,var(--bar));--segon:color-mix(in srgb,var(--accent) 14%,var(--chip));--sel:color-mix(in srgb,var(--accent) 14%,var(--pop));--pdis:color-mix(in srgb,var(--accent) 28%,var(--panel));--pdistx:#8a93a8;--primary:color-mix(in srgb,var(--accent) 84%,#000);--primary-hv:color-mix(in srgb,var(--accent) 94%,#000);--acc-soft:color-mix(in srgb,var(--accent) 15%,transparent);--acc-soft2:color-mix(in srgb,var(--accent) 21%,transparent);--acc-line:color-mix(in srgb,var(--accent) 58%,transparent)}
+.vl{--accent2:var(--accent);--accent3:color-mix(in srgb,var(--accent) 80%,#000);--link:var(--accent3);--linkhv:color-mix(in srgb,var(--accent) 65%,#000);--tabline:color-mix(in srgb,var(--accent) 50%,#fff);--segon:color-mix(in srgb,var(--accent) 12%,#fff);--sel:color-mix(in srgb,var(--accent) 10%,#fff);--pdis:color-mix(in srgb,var(--accent) 35%,#fff);--pdistx:#ffffff;--primary:var(--accent);--primary-hv:color-mix(in srgb,var(--accent) 88%,#000);--acc-soft:color-mix(in srgb,var(--accent) 12%,transparent);--acc-soft2:color-mix(in srgb,var(--accent) 18%,transparent);--acc-line:color-mix(in srgb,var(--accent) 50%,transparent)}
+/* 內建主題色：深色主題用亮一點的版本，淺色主題用深一點的版本 */
+.vd[data-accent=green]{--accent:#4cc38a}.vl[data-accent=green]{--accent:#1f9d62}
+.vd[data-accent=purple]{--accent:#ac86f9}.vl[data-accent=purple]{--accent:#7342d7}
+.vd[data-accent=teal]{--accent:#30c9e8}.vl[data-accent=teal]{--accent:#1395ae}
+.vd[data-accent=amber]{--accent:#f0a93b}.vl[data-accent=amber]{--accent:#b7720c}
+.vd[data-accent=rose]{--accent:#f06b8e}.vl[data-accent=rose]{--accent:#d23f68}
+/* 切換主題的當下暫停所有過場動畫，整個畫面同一格一起變色，不會一塊一塊慢慢變 */
+.theme-switching,.theme-switching *,.theme-switching *::before,.theme-switching *::after{transition:none !important}
 html,body,#root{height:100%}
 body{margin:0;background:#15171c;font-family:"IBM Plex Sans","Noto Sans TC",system-ui,sans-serif;overflow:hidden}
 .mono{font-family:"JetBrains Mono",monospace}
@@ -13,7 +26,7 @@ input,textarea{font-family:inherit}
 .rw:hover{box-shadow:inset 0 0 0 999px var(--ov1)}
 .mk:hover{background:var(--ov2) !important}
 .btn-ghost:hover{background:var(--line2) !important;border-color:var(--line6) !important}
-.btn-primary:hover{background:#3d7bf0 !important}
+.btn-primary:hover{background:var(--primary-hv) !important}
 .btn-primary:disabled{background:var(--pdis) !important;color:var(--pdistx) !important;cursor:not-allowed}
 .fs:hover{border-color:var(--line6) !important;background:var(--hv1) !important}
 .dd:hover{background:var(--hv3) !important}
@@ -43,7 +56,7 @@ textarea[data-hist="1"]:focus{border-color:var(--accent) !important}
 /* 以下為元件化後抽出的共用樣式，數值同設計檔 */
 .btn-side{width:36px;height:36px;display:flex;align-items:center;justify-content:center;background:var(--btn);border:1px solid var(--line3);border-radius:8px;color:var(--text2)}
 .btn-std{height:38px;display:flex;align-items:center;background:var(--btn);border:1px solid var(--line4);border-radius:8px;font-size:13px;font-weight:500}
-.btn-main{height:38px;display:flex;align-items:center;gap:8px;padding:0 18px;background:#2f6fe4;border:0;border-radius:8px;color:#ffffff;font-size:13px;font-weight:600}
+.btn-main{height:38px;display:flex;align-items:center;gap:8px;padding:0 18px;background:var(--primary);border:0;border-radius:8px;color:#ffffff;font-size:13px;font-weight:600}
 .pop{padding:6px;background:var(--pop);border:1px solid var(--line4);border-radius:10px;box-shadow:0 16px 40px rgba(0,0,0,0.45)}
 .pop-title{padding:6px 10px;font-size:11px;font-weight:600;letter-spacing:0.8px;color:var(--mute)}
 .pop-sep{height:1px;background:var(--line3);margin:4px}
@@ -63,17 +76,21 @@ textarea[data-hist="1"]:focus{border-color:var(--accent) !important}
 .paste-box:focus-within{border-color:var(--accent) !important}
 .switch{appearance:none;-webkit-appearance:none;flex-shrink:0;width:34px;height:20px;margin:0;border-radius:10px;background:var(--line5);position:relative;cursor:pointer;transition:background 150ms}
 .switch::after{content:'';position:absolute;left:3px;top:3px;width:14px;height:14px;border-radius:50%;background:#ffffff;transition:transform 150ms}
-.switch:checked{background:#2f6fe4}
+.switch:checked{background:var(--primary)}
 .switch:checked::after{transform:translateX(14px)}
 .switch:focus-visible{outline:2px solid var(--accent);outline-offset:2px}
 .pb-row{cursor:default;border-radius:4px}
 .pb-row:hover:not([data-editing]){background:var(--ov2)}
 .pb-edit:focus{outline:none}
-.pb-row[data-selected]{background:rgba(79,140,255,0.14);box-shadow:inset 0 0 0 1px rgba(79,140,255,0.55)}
-.pb-row[data-selected]:hover:not([data-editing]){background:rgba(79,140,255,0.2)}
+.pb-row[data-selected]{background:var(--acc-soft);box-shadow:inset 0 0 0 1px var(--acc-line)}
+.pb-row[data-selected]:hover:not([data-editing]){background:var(--acc-soft2)}
 .cell{cursor:default}
-.cell-sel{background:rgba(79,140,255,0.16);box-shadow:inset 0 0 0 1px rgba(79,140,255,0.6)}
+.cell-sel{background:var(--acc-soft);box-shadow:inset 0 0 0 1px var(--acc-line)}
 .cell-edit{flex-grow:1;min-width:0;margin:-4px 0;padding:3px 6px;resize:none;box-sizing:border-box;background:var(--panel);border:1px solid var(--accent);border-radius:4px;color:var(--text);font-size:inherit;line-height:1.45;font-style:normal;user-select:text}
 .cell-edit:focus{outline:none}
 .row-pick{cursor:pointer;border-radius:3px}
 .row-pick:hover{background:var(--ov2)}
+
+/* 還沒有檔案時，檔案框高亮並微微閃動 */
+@keyframes verso-attention{0%,100%{box-shadow:0 0 0 0 color-mix(in srgb,var(--accent) 45%,transparent)}50%{box-shadow:0 0 0 5px color-mix(in srgb,var(--accent) 12%,transparent)}}
+.fs.attention{border-color:var(--accent) !important;animation:verso-attention 1.8s ease-in-out infinite}

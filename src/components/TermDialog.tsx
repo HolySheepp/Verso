@@ -44,9 +44,9 @@ export function TermDialog() {
           <div style={two}>
             <div style={col}>
               <label htmlFor="verso-g-dict" style={labelS}>加入字典</label>
-              <select id="verso-g-dict" className="field" value={d.dict} onChange={(e) => patch({ dict: e.target.value })} style={{ padding: '0 10px' }}>
-                {project.dicts.map((v) => <option key={v} value={v}>{v}</option>)}
-              </select>
+              {/* 可以選現有字典，也可以直接打新字典的名稱 */}
+              <input id="verso-g-dict" className="field" list="verso-g-dicts" value={d.dict} onChange={(e) => patch({ dict: e.target.value })} placeholder="字典名稱" />
+              <datalist id="verso-g-dicts">{project.dicts.map((v) => <option key={v} value={v} />)}</datalist>
             </div>
             <div style={col}>
               <label htmlFor="verso-g-proj" style={labelS}>套用專案</label>
@@ -69,7 +69,7 @@ export function TermDialog() {
             <button type="button" className="btn btn-ghost" onClick={close}
               style={{ height: 36, padding: '0 16px', background: 'var(--btn)', border: '1px solid var(--line4)', borderRadius: 8, fontSize: 13 }}>取消</button>
             <button type="button" className="btn btn-primary" disabled={saveOff} onClick={() => saveTerm(d)}
-              style={{ height: 36, padding: '0 18px', background: '#2f6fe4', border: 0, borderRadius: 8, color: '#ffffff', fontSize: 13, fontWeight: 600 }}>儲存</button>
+              style={{ height: 36, padding: '0 18px', background: 'var(--primary)', border: 0, borderRadius: 8, color: '#ffffff', fontSize: 13, fontWeight: 600 }}>儲存</button>
           </div>
         </div>
       </div>

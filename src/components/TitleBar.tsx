@@ -1,6 +1,7 @@
 import { isTauri } from '@tauri-apps/api/core';
 import { getCurrentWindow } from '@tauri-apps/api/window';
 import { useStore } from '../state/store';
+import { useEffectiveTheme } from './useTheme';
 import type { Mode } from '../model/types';
 import {
   IconEye, IconGear, IconLogo, IconMoon, IconPen, IconShield, IconSrcEdit, IconSun,
@@ -30,7 +31,7 @@ export function TitleBar() {
   const projectName = useStore((s) => s.project?.name ?? '');
   const saveError = useStore((s) => s.saveStatus === 'error');
   const mode = useStore((s) => s.mode);
-  const theme = useStore((s) => s.theme);
+  const theme = useEffectiveTheme();
   const set = useStore((s) => s.set);
   const themeLabel = theme === 'light' ? '切換為深色模式' : '切換為淺色模式';
 
@@ -57,7 +58,7 @@ export function TitleBar() {
               onClick={() => set({ mode: id, stampOpen: false })}
               style={{
                 height: 24, display: 'flex', alignItems: 'center', gap: 6, padding: '0 12px', border: 0, borderRadius: 6,
-                fontSize: 12.5, fontWeight: 500, background: on ? '#2f6fe4' : 'transparent', color: on ? '#ffffff' : 'var(--text2)',
+                fontSize: 12.5, fontWeight: 500, background: on ? 'var(--primary)' : 'transparent', color: on ? '#ffffff' : 'var(--text2)',
               }}>
               <Icon size={13} sw={2.2} />{label}
             </button>

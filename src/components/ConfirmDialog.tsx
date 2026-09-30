@@ -26,7 +26,7 @@ export function ConfirmDialog({ title, body, choices, zIndex = 50 }: Props) {
           {choices.map((c) => (
             <button key={c.label} type="button" className={'btn ' + (c.primary ? 'btn-primary' : 'btn-ghost')} onClick={c.onClick} autoFocus={c.primary}
               style={c.primary
-                ? { height: 36, padding: '0 18px', background: '#2f6fe4', border: 0, borderRadius: 8, color: '#ffffff', fontSize: 13, fontWeight: 600 }
+                ? { height: 36, padding: '0 18px', background: 'var(--primary)', border: 0, borderRadius: 8, color: '#ffffff', fontSize: 13, fontWeight: 600 }
                 : { height: 36, padding: '0 16px', background: 'var(--btn)', border: '1px solid var(--line4)', borderRadius: 8, fontSize: 13, color: c.danger ? 'var(--errtx)' : undefined }}>
               {c.label}
             </button>

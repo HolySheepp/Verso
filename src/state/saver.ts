@@ -2,14 +2,16 @@
 import { isTauri } from '@tauri-apps/api/core';
 import { getCurrentWindow } from '@tauri-apps/api/window';
 import { io } from '../data/fsio';
-import { sampleProject } from '../data/sample';
 import {
   listProjects, loadConfig, loadDicts, loadProject, reloadFile, saveConfig, writeDict, writeFile, writeMeta,
   type AppConfig, type LastPosition,
 } from '../data/persist';
 import { emptyHistory } from '../model/history';
 import type { CustomMark, FileDoc, GlossaryTerm, ProjectData } from '../model/types';
-import { DEFAULT_DICTS, currentOf, useStore } from './store';
+import { currentOf, useStore } from './store';
+
+/** 存檔資料夾裡還沒有專案時，用這個名字建立 */
+const MY_PROJECT = '我的專案';
 
 /** 上次存檔時的內容（資料都是不可變更新，所以比對參照就知道有沒有改過） */
 let saved = {
@@ -25,7 +27,7 @@ const dictSignature = (terms: GlossaryTerm[]) => JSON.stringify(terms.map((t) =>
 
 function dictGroups(p: ProjectData) {
   const groups = new Map<string, GlossaryTerm[]>();
-  p.glossary.filter((t) => !t.sample).forEach((t) => {
+  p.glossary.forEach((t) => {
     if (!groups.has(t.dict)) groups.set(t.dict, []);
     groups.get(t.dict)!.push(t);
   });
@@ -45,11 +47,7 @@ function markSaved(p: ProjectData) {
 /** 有沒有還沒存的修改；範例專案永遠不算 */
 export function isDirty(): boolean {
   const p = useStore.getState().project;
-  if (!p || p.sample) {
-    // 範例模式下貼入的字典仍然要存
-    if (!p) return false;
-    return [...dictGroups(p)].some(([d, t]) => saved.dicts.get(d) !== dictSignature(t));
-  }
+  if (!p) return false;
   if (p.customMarks !== saved.customs) return true;
   if (p.files.some((f) => saved.files.get(f.name) !== f)) return true;
   return [...dictGroups(p)].some(([d, t]) => saved.dicts.get(d) !== dictSignature(t));
@@ -71,7 +69,8 @@ export async function saveNow(): Promise<boolean> {
   useStore.setState({ saveStatus: 'saving' });
   let ok = true;
   const done = { files: new Map(saved.files), customs: saved.customs, dicts: new Map(saved.dicts) };
-  if (!p.sample) {
+  // 還沒有檔案時不必建立專案資料夾（只存字典）
+  if (p.files.length || saved.files.size) {
     const customsChanged = p.customMarks !== saved.customs;
     for (const f of p.files) {
       // 自訂標記改了名稱也要重寫，因為「標記」欄寫的是名稱
@@ -88,7 +87,7 @@ export async function saveNow(): Promise<boolean> {
   saved = done;
   const dirty = isDirty();
   useStore.setState({ saveStatus: !ok ? 'error' : dirty ? 'dirty' : 'saved' });
-  if (ok && !p.sample) void persistConfig({ lastProject: p.name });
+  if (ok && p.files.length) void persistConfig({ lastProject: p.name });
   return ok;
 }
 
@@ -100,7 +99,7 @@ async function persistConfig(patch: Partial<AppConfig> = {}) {
   const s = useStore.getState();
   config = {
     ...config, ...patch,
-    saveRoot: s.saveRoot, autosaveMin: s.autosaveMin, theme: s.theme,
+    saveRoot: s.saveRoot, autosaveMin: s.autosaveMin, theme: s.theme, accent: s.accent, customAccents: s.customAccents,
     shortcuts: s.shortcuts, checkSettings: s.checkSettings, disabledDicts: s.disabledDicts,
   };
   try { await saveConfig(config); } catch { /* 設定存不下不影響使用 */ }
@@ -128,6 +127,8 @@ export async function startApp() {
     saveRoot,
     autosaveMin: config.autosaveMin ?? 1,
     theme: config.theme ?? st.theme,
+    accent: config.accent ?? st.accent,
+    customAccents: config.customAccents ?? [],
     shortcuts: config.shortcuts ? { input: { ...st.shortcuts.input, ...config.shortcuts.input }, list: { ...st.shortcuts.list, ...config.shortcuts.list } } : st.shortcuts,
     checkSettings: config.checkSettings ? { ...st.checkSettings, ...config.checkSettings } : st.checkSettings,
     disabledDicts: config.disabledDicts ?? [],
@@ -138,21 +139,14 @@ export async function startApp() {
   try {
     const projects = await listProjects(saveRoot);
     const name = config.lastProject && projects.includes(config.lastProject) ? config.lastProject : projects[0];
-    if (name) {
-      const r = await loadProject(saveRoot, name);
-      if (r.project.files.length) { project = r.project; last = r.last; }
-    }
-  } catch { /* 讀不到就用範例 */ }
+    if (name) { const r = await loadProject(saveRoot, name); project = r.project; last = r.last; }
+  } catch { /* 讀不到就從空專案開始 */ }
 
   if (!project) {
-    // 範例：加上存檔資料夾裡已有的字典
-    project = sampleProject();
-    try {
-      const { dicts, terms } = await loadDicts(saveRoot);
-      project = { ...project, glossary: [...project.glossary, ...terms], dicts: [...new Set([...project.dicts, ...dicts])] };
-    } catch { /* 沒有字典就算了 */ }
-  } else {
-    project = { ...project, dicts: [...new Set([...DEFAULT_DICTS, ...project.dicts])] };
+    // 還沒有任何專案：從空的「我的專案」開始，加上存檔資料夾裡已有的字典
+    let dicts: string[] = [], terms: ProjectData['glossary'] = [];
+    try { ({ dicts, terms } = await loadDicts(saveRoot)); } catch { /* 沒有字典就算了 */ }
+    project = { name: MY_PROJECT, files: [], customMarks: [], nextMarkId: 1, glossary: terms, dicts, projects: [MY_PROJECT, '所有專案（共用）'], refs: [] };
   }
   useStore.setState({ project, file: 0, sheetBy: {}, selBy: {}, history: emptyHistory(), saveStatus: 'saved' });
   markSaved(project);
@@ -173,13 +167,13 @@ function watch() {
       if (!dirty && s.saveStatus === 'dirty') useStore.setState({ saveStatus: 'saved' });
     }
     // 設定改了就存到設定檔
-    if (s.theme !== prev.theme || s.shortcuts !== prev.shortcuts || s.checkSettings !== prev.checkSettings
+    if (s.theme !== prev.theme || s.accent !== prev.accent || s.customAccents !== prev.customAccents || s.shortcuts !== prev.shortcuts || s.checkSettings !== prev.checkSettings
       || s.disabledDicts !== prev.disabledDicts || s.autosaveMin !== prev.autosaveMin || s.saveRoot !== prev.saveRoot) {
       clearTimeout(configTimer);
       configTimer = setTimeout(() => void persistConfig(), 400);
     }
-    // 範例變成「我的專案」時馬上存
-    if (prev.project?.sample && s.project && !s.project.sample) void saveNow();
+    // 建立第一個檔案時馬上存，讓專案資料夾出現
+    if (prev.project && s.project && !prev.project.files.length && s.project.files.length) void saveNow();
   });
 
   // 定時檢查：到了間隔就自動存；存檔失敗的話每 10 秒重試
@@ -209,7 +203,7 @@ function watch() {
 async function finishAndClose() {
   closing = true;
   const p = useStore.getState().project;
-  if (p && !p.sample) { try { await writeMeta(useStore.getState().saveRoot, p, lastPosition()); } catch { /* 忽略 */ } }
+  if (p && p.files.length) { try { await writeMeta(useStore.getState().saveRoot, p, lastPosition()); } catch { /* 忽略 */ } }
   await persistConfig();
   if (isTauri()) await getCurrentWindow().destroy();
 }
@@ -226,7 +220,7 @@ export function requestFile(i: number) {
 async function discardChanges(target?: string) {
   const s = useStore.getState();
   const p = s.project;
-  if (!p || p.sample) return;
+  if (!p) return;
   const files: FileDoc[] = [];
   for (const f of p.files) {
     if (saved.files.get(f.name) === f) { files.push(f); continue; }

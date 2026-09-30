@@ -1,5 +1,4 @@
 import { create } from 'zustand';
-import { activeSource } from '../data/source';
 import { emptyHistory, recordText, selectSlot, type HistoryStore } from '../model/history';
 import { effectiveMark, findCustom, toStoredMark } from '../model/marks';
 import { TGT_COL, cellKey, parseKey, type Cell } from '../model/cells';
@@ -9,15 +8,12 @@ import type { CustomMark, Entry, FileDoc, GlossaryTerm, MarkId, Mode, ProjectDat
 
 export type Filter = 'all' | 'untranslated' | 'doubt' | 'think' | 'issues';
 export type SideTab = 'dict' | 'search' | 'web' | 'ref';
-export type Theme = 'dark' | 'light';
+export type Theme = 'dark' | 'light' | 'system';
 export type SaveStatus = 'saved' | 'dirty' | 'saving' | 'error';
 
 /** 有未存修改時要先問使用者：關閉 App，或切換到別的檔案 */
 export type AskSave = { kind: 'close' } | { kind: 'switch'; file: number };
 
-/** 常用的字典名稱，就算還沒有詞條也會出現在選單裡 */
-export const DEFAULT_DICTS = ['專有名詞', '一般術語', 'UI 用語'];
-const MY_PROJECT = '我的專案';
 
 /** keys：用快捷鍵打開的選單，可以按數字選取 */
 export interface RowMenu { index: number; x: number; y: number; keys?: boolean; active?: number }
@@ -66,6 +62,12 @@ interface State {
   /** 各模式「標記並下一條」要留下的標記 */
   stamps: Partial<Record<Mode, MarkId>>;
   theme: Theme;
+  /** 主題色：內建色的名稱，或自訂的 #rrggbb */
+  accent: string;
+  /** 使用者存下來的自訂主題色（最多 5 個） */
+  customAccents: string[];
+  /** 色盤拖動中的預覽色（還沒儲存） */
+  accentPreview: string | null;
   hideNav: boolean;
   hideSide: boolean;
   sideW: number | null;
@@ -112,7 +114,6 @@ interface State {
 }
 
 interface Actions {
-  load(): Promise<void>;
   set(p: Partial<State>): void;
   closePopups(): void;
   setFile(f: number): void;
@@ -163,10 +164,12 @@ export type Store = State & Actions;
 const noPopups = { fileMenuOpen: false, rowMenu: null, stampOpen: false } as const;
 const noView = { viewOn: false, peek: false } as const;
 
+const EMPTY_FILE: FileDoc = { name: '', sheets: [{ name: '', entries: [] }] };
+
 /** 目前的頁簽、條目位置 */
 export function currentOf(s: Pick<State, 'project' | 'file' | 'sheetBy' | 'selBy'>) {
-  // 檔案被移除時退回第一個檔案，避免畫面整個壞掉
-  const fileDoc = s.project!.files[s.file] ?? s.project!.files[0];
+  // 檔案被移除時退回第一個檔案；專案裡還沒有檔案時給一個空的，避免畫面整個壞掉
+  const fileDoc = s.project!.files[s.file] ?? s.project!.files[0] ?? EMPTY_FILE;
   const sheetIdx = s.sheetBy[s.file] ?? 0;
   const sheet: Sheet = fileDoc.sheets[sheetIdx] ?? fileDoc.sheets[0];
   const sel = Math.min(s.selBy[selKey(s.file, sheetIdx)] ?? 0, Math.max(0, sheet.entries.length - 1));
@@ -261,6 +264,9 @@ export const useStore = create<Store>((set, get) => {
     mode: 'translate',
     stamps: {},
     theme: 'dark',
+    accent: 'blue',
+    customAccents: [],
+    accentPreview: null,
     hideNav: false,
     hideSide: false,
     sideW: null,
@@ -291,11 +297,6 @@ export const useStore = create<Store>((set, get) => {
     askSave: null,
     askDeleteMark: null,
     cellSel: null,
-
-    async load() {
-      const project = await activeSource.load();
-      set({ project, file: 0, sheetBy: {}, selBy: {}, history: emptyHistory() });
-    },
 
     set: (p) => set(p),
     closePopups: () => set(noPopups),
@@ -454,12 +455,14 @@ export const useStore = create<Store>((set, get) => {
     saveTerm(d) {
       const project = get().project;
       if (!project) return;
-      const data = { term: d.term.trim(), en: d.en.trim(), note: d.note.trim(), dict: d.dict, proj: d.proj };
+      const dictName = d.dict.trim() || '未分類';
+      const data = { term: d.term.trim(), en: d.en.trim(), note: d.note.trim(), dict: dictName, proj: d.proj };
       if (!data.term || !data.en) return;
       const glossary: GlossaryTerm[] = d.id
         ? project.glossary.map((g) => (g.id === d.id ? { ...g, ...data } : g))
         : [...project.glossary, { id: 'u' + Date.now(), ...data }];
-      set({ project: { ...project, glossary }, termDraft: null });
+      const dicts = project.dicts.includes(dictName) ? project.dicts : [...project.dicts, dictName];
+      set({ project: { ...project, glossary, dicts }, termDraft: null });
     },
 
     deleteTerm(id) {
@@ -492,18 +495,8 @@ export const useStore = create<Store>((set, get) => {
     },
 
     addFile(f) {
-      let project = get().project;
+      const project = get().project;
       if (!project) return;
-      // 還在看範例時，第一次建立的檔案會變成「我的專案」，範例檔案和範例字典都不再顯示
-      if (project.sample) {
-        const glossary = project.glossary.filter((t) => !t.sample);
-        project = {
-          name: MY_PROJECT, files: [], customMarks: [], nextMarkId: 1, glossary,
-          dicts: [...new Set([...DEFAULT_DICTS, ...glossary.map((t) => t.dict)])],
-          projects: [MY_PROJECT, '所有專案（共用）'], refs: [],
-        };
-        set({ selBy: {}, sheetBy: {}, reported: {}, history: emptyHistory() });
-      }
       // 同名的檔案加上編號
       let name = f.name, k = 2;
       while (project.files.some((x) => x.name === name)) name = `${f.name} (${k++})`;

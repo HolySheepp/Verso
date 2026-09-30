@@ -375,7 +375,11 @@ export function EntryList() {
             </div>
           );
         })}
-        {rows.length === 0 && <div style={{ padding: '48px 0', textAlign: 'center', color: 'var(--mute)' }}>這個篩選條件下沒有條目</div>}
+        {rows.length === 0 && (
+          <div style={{ padding: '48px 0', textAlign: 'center', color: 'var(--mute)' }}>
+            {project.files.length === 0 ? '目前沒有檔案，請新增檔案' : sheet.entries.length === 0 ? '這個頁簽沒有條目' : '這個篩選條件下沒有條目'}
+          </div>
+        )}
       </div>
       {menu && (
         <ContextMenu x={menu.x} y={menu.y} label="條目"

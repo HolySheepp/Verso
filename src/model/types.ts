@@ -65,8 +65,6 @@ export type CustomMark =
 
 export interface GlossaryTerm {
   id: string;
-  /** 範例資料，不存檔 */
-  sample?: boolean;
   term: string;
   en: string;
   dict: string;
@@ -81,8 +79,6 @@ export interface RefDoc {
 
 export interface ProjectData {
   name: string;
-  /** 範例專案：不存檔；第一次手動貼入檔案時換成「我的專案」 */
-  sample?: boolean;
   /** 下一個自訂標記的編號 */
   nextMarkId?: number;
   files: FileDoc[];

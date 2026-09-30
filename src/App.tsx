@@ -15,6 +15,7 @@ import { DictPasteDialog } from './components/DictPasteDialog';
 import { Shortcuts } from './components/Shortcuts';
 import { ConfirmDialog } from './components/ConfirmDialog';
 import { resolveAskSave, startApp } from './state/saver';
+import { useEffectiveTheme } from './components/useTheme';
 import { IconCheck, IconChevD, IconChevL } from './components/icons';
 
 const clamp = (v: number, lo: number, hi: number) => Math.max(lo, Math.min(hi, v));
@@ -33,7 +34,6 @@ function StatusBar() {
   const files = useStore((s) => s.project!.files);
   const mode = useStore((s) => s.mode);
   const status = useStore((s) => s.saveStatus);
-  const sample = useStore((s) => !!s.project?.sample);
   let done = 0, total = 0;
   files.forEach((f) => f.sheets.forEach((sh) => sh.entries.forEach((e) => { total++; if (isDone(e)) done++; })));
   return (
@@ -46,8 +46,7 @@ function StatusBar() {
         <span>模式：{MODES.find((m) => m.id === mode)!.label}</span>
       </div>
       <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
-        {sample ? <span>範例資料，不會存檔</span>
-          : status === 'saved' ? <><IconCheck size={12} sw={2.4} stroke="var(--accent2)" /><span>已儲存</span></>
+        {status === 'saved' ? <><IconCheck size={12} sw={2.4} stroke="var(--accent2)" /><span>已儲存</span></>
           : status === 'saving' ? <span>儲存中…</span>
           : status === 'error' ? <span style={{ color: 'var(--errtx)' }}>未存檔，稍後自動重試</span>
           : <span>有未儲存的修改</span>}
@@ -61,6 +60,18 @@ export default function App() {
   const { w, h } = useWindowSize();
 
   useEffect(() => { void startApp(); }, []);
+
+  // 深淺主題與主題色
+  const theme = useEffectiveTheme();
+  const accent = s.accentPreview ?? s.accent;
+  useEffect(() => {
+    // 切換的當下先停掉所有過場動畫，整個畫面同一格一起變色
+    const root = document.documentElement;
+    root.classList.add('theme-switching');
+    document.body.style.background = theme === 'light' ? '#f3f4f6' : '#15171c';
+    void root.offsetHeight;
+    requestAnimationFrame(() => requestAnimationFrame(() => root.classList.remove('theme-switching')));
+  }, [theme]);
 
   if (!s.project) return null;
 
@@ -78,7 +89,10 @@ export default function App() {
   const anyPop = !!s.rowMenu || s.stampOpen || s.fileMenuOpen;
 
   return (
-    <div data-root="1" className={s.theme === 'light' ? 'vl' : 'vd'} style={{
+    <div data-root="1" className={theme === 'light' ? 'vl' : 'vd'}
+      data-accent={accent.startsWith('#') ? undefined : accent}
+      style={{
+      ...(accent.startsWith('#') ? { ['--accent' as string]: accent } : {}),
       width: '100%', height: '100vh', minWidth: 1024, minHeight: 640, position: 'relative', display: 'flex', flexDirection: 'column',
       background: 'var(--bg0)', color: 'var(--text)', overflow: 'hidden', fontSize: 13,
     }}>

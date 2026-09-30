@@ -7,11 +7,14 @@ import { IconPlus, IconTrash, IconWinClose } from './icons';
 import { CHECKS } from '../model/checks';
 import { ConfirmDialog } from './ConfirmDialog';
 import { pickSaveRoot } from '../state/saver';
+import { ColorPicker } from './ColorPicker';
+import { useEffectiveTheme } from './useTheme';
+import { ACCENTS, MAX_CUSTOM_ACCENTS } from '../model/color';
 import { ACTION_LABELS, CONTEXTS, CONTEXT_ACTIONS, comboOf, createTabHold, type ActionId, type ShortcutContext } from '../model/shortcuts';
 
 // 設定目前只有「標記」「檢查」分類有內容，其他分類只有外觀
 const SECTIONS = ['一般', '工作模式', '標記', '檢查', '快捷鍵', '外觀'];
-const READY = ['一般', '標記', '檢查', '快捷鍵'];
+const READY = ['一般', '標記', '檢查', '快捷鍵', '外觀'];
 
 const h3: React.CSSProperties = { margin: 0, fontSize: 12, fontWeight: 600, letterSpacing: 1, color: 'var(--text2)' };
 
@@ -27,9 +30,12 @@ export function SettingsDialog() {
   const [text, setText] = useState('');
   const [color, setColor] = useState('#4fb3a9');
   const [section, setSection] = useState('標記');
-  useEffect(() => { if (open) setSection('標記'); }, [open]);
+  // 開色盤時設定視窗先收起來，讓使用者直接在主畫面上看顏色
+  const [picking, setPicking] = useState(false);
+  useEffect(() => { if (open) { setSection('標記'); setPicking(false); } }, [open]);
 
   if (!open) return null;
+  if (picking) return <AccentPicker onDone={() => setPicking(false)} />;
 
   const tc = checkMarkText(text);
   const preview: MarkVisual | null = type === 'sym' ? { kind: 'sym', sym, color } : tc.ok ? { kind: 'text', text, color } : null;
@@ -74,7 +80,7 @@ export function SettingsDialog() {
             })}
           </nav>
           <div style={{ flexGrow: 1, minWidth: 0, overflowY: 'auto', padding: '20px 24px', display: 'flex', flexDirection: 'column', gap: 22 }}>
-            {section === '一般' ? <GeneralSection /> : section === '檢查' ? <ChecksSection /> : section === '快捷鍵' ? <ShortcutsSection /> : <>
+            {section === '外觀' ? <AppearanceSection onPick={() => setPicking(true)} /> : section === '一般' ? <GeneralSection /> : section === '檢查' ? <ChecksSection /> : section === '快捷鍵' ? <ShortcutsSection /> : <>
             <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
               <h3 style={h3}>內建標記</h3>
               <div style={{ display: 'grid', gridTemplateColumns: 'repeat(2, minmax(0, 1fr))', gap: 8 }}>
@@ -170,7 +176,7 @@ export function SettingsDialog() {
                   </span>
                 </div>
                 <button type="button" className="btn btn-primary" disabled={addOff} onClick={add}
-                  style={{ height: 36, display: 'flex', alignItems: 'center', gap: 6, padding: '0 16px', background: '#2f6fe4', border: 0, borderRadius: 8, color: '#ffffff', fontSize: 13, fontWeight: 600 }}>
+                  style={{ height: 36, display: 'flex', alignItems: 'center', gap: 6, padding: '0 16px', background: 'var(--primary)', border: 0, borderRadius: 8, color: '#ffffff', fontSize: 13, fontWeight: 600 }}>
                   <IconPlus size={13} sw={2.6} />新增標記
                 </button>
               </div>
@@ -343,6 +349,83 @@ function GeneralSection() {
             style={{ width: 72, textAlign: 'center' }} />
           分鐘
         </label>
+      </div>
+    </div>
+  );
+}
+
+/** 目前實際使用的主題色（色票顯示、色盤起始色用） */
+function currentAccentHex(accent: string, theme: 'dark' | 'light') {
+  if (accent.startsWith('#')) return accent;
+  const a = ACCENTS.find((x) => x.id === accent) ?? ACCENTS[0];
+  return theme === 'light' ? a.light : a.dark;
+}
+
+function AccentPicker({ onDone }: { onDone(): void }) {
+  const accent = useStore((s) => s.accent);
+  const customs = useStore((s) => s.customAccents);
+  const set = useStore((s) => s.set);
+  const theme = useEffectiveTheme();
+  return (
+    <ColorPicker initial={currentAccentHex(accent, theme)}
+      onPreview={(hex) => set({ accentPreview: hex })}
+      onCancel={() => { set({ accentPreview: null }); onDone(); }}
+      onSave={(hex) => {
+        // 自訂色最多 5 個；滿了就只換顏色，不再加進清單
+        const next = customs.includes(hex) || customs.length >= MAX_CUSTOM_ACCENTS ? customs : [...customs, hex];
+        set({ accent: hex, customAccents: next, accentPreview: null });
+        onDone();
+      }} />
+  );
+}
+
+function AppearanceSection({ onPick }: { onPick(): void }) {
+  const themeMode = useStore((s) => s.theme);
+  const accent = useStore((s) => s.accent);
+  const customs = useStore((s) => s.customAccents);
+  const set = useStore((s) => s.set);
+  const theme = useEffectiveTheme();
+  const seg = (on: boolean): React.CSSProperties => ({
+    height: 28, padding: '0 14px', border: 0, borderRadius: 6, fontSize: 12.5,
+    background: on ? 'var(--segon)' : 'transparent', color: on ? 'var(--text)' : 'var(--text2)',
+  });
+  const swatch = (on: boolean, color: string): React.CSSProperties => ({
+    width: 28, height: 28, padding: 0, borderRadius: '50%', background: color, cursor: 'pointer',
+    border: `2px solid ${on ? 'var(--text)' : 'transparent'}`, boxShadow: '0 0 0 2px var(--panel) inset',
+  });
+  return (
+    <div style={{ display: 'flex', flexDirection: 'column', gap: 22 }}>
+      <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
+        <h3 style={h3}>主題</h3>
+        <div role="group" aria-label="主題" className="seg-group" style={{ alignSelf: 'flex-start' }}>
+          {([['dark', '深色'], ['light', '淺色'], ['system', '跟隨系統']] as const).map(([id, label]) => (
+            <button key={id} type="button" className="seg" aria-pressed={themeMode === id} onClick={() => set({ theme: id })} style={seg(themeMode === id)}>{label}</button>
+          ))}
+        </div>
+      </div>
+      <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
+        <h3 style={h3}>主題色</h3>
+        <div role="radiogroup" aria-label="主題色" style={{ display: 'flex', flexWrap: 'wrap', alignItems: 'center', gap: 10 }}>
+          {ACCENTS.map((a) => (
+            <button key={a.id} type="button" role="radio" aria-checked={accent === a.id} aria-label={a.label} title={a.label}
+              onClick={() => set({ accent: a.id })} style={swatch(accent === a.id, theme === 'light' ? a.light : a.dark)} />
+          ))}
+          {customs.length > 0 && <span style={{ width: 1, height: 22, background: 'var(--line3)' }} />}
+          {customs.map((hex) => (
+            <button key={hex} type="button" role="radio" aria-checked={accent === hex} aria-label={hex} title={hex}
+              onClick={() => set({ accent: hex })}
+              onContextMenu={(e) => {
+                // 右鍵刪除自訂色；刪的是正在用的顏色就退回預設藍
+                e.preventDefault();
+                set({ customAccents: customs.filter((c) => c !== hex), ...(accent === hex ? { accent: 'blue' } : {}) });
+              }}
+              style={swatch(accent === hex, hex)} />
+          ))}
+          <button type="button" className="ib" aria-label="自訂主題色" title="自訂主題色" onClick={onPick}
+            style={{ width: 28, height: 28, padding: 0, borderRadius: '50%', display: 'flex', alignItems: 'center', justifyContent: 'center', background: 'transparent', border: '1px dashed var(--line6)', color: 'var(--text2)' }}>
+            <IconPlus size={13} sw={2.4} />
+          </button>
+        </div>
       </div>
     </div>
   );

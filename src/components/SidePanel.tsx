@@ -21,7 +21,7 @@ function TermCard({ g }: { g: GlossaryTerm }) {
         <span style={{ fontSize: 15, fontWeight: 500 }}>{g.term}</span>
         <span style={{
           fontSize: 10.5, padding: '2px 7px', borderRadius: 10, whiteSpace: 'nowrap',
-          color: proper ? 'var(--warntx)' : 'var(--accent3)', background: proper ? 'rgba(240,165,74,0.14)' : 'rgba(79,140,255,0.14)',
+          color: proper ? 'var(--warntx)' : 'var(--accent3)', background: proper ? 'rgba(240,165,74,0.14)' : 'var(--acc-soft)',
         }}>{g.dict}</span>
       </div>
       <div style={{ fontSize: 14, color: 'var(--accent3)' }}>{g.en}</div>
@@ -62,7 +62,7 @@ function DictTab() {
             placeholder="搜尋專有名詞或譯名" style={{ width: '100%', padding: '0 12px 0 32px' }} />
         </div>
         <button type="button" className="ib" aria-label="新增詞條" title="新增詞條"
-          onClick={() => set({ termDraft: { id: null, term: q && results.length === 0 ? q : '', en: '', note: '', dict: project.dicts[0], proj: project.projects[0] } })}
+          onClick={() => set({ termDraft: { id: null, term: q && results.length === 0 ? q : '', en: '', note: '', dict: project.dicts[0] ?? '', proj: project.projects[0] } })}
           style={{ width: 36, height: 36, flexShrink: 0, display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 0, background: 'var(--btn)', border: '1px solid var(--line4)', borderRadius: 8, color: 'var(--text2)' }}>
           <IconPlus size={15} sw={2.2} />
         </button>

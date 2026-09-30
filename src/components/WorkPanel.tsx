@@ -140,7 +140,7 @@ function WorkPanelInner({ height }: { height: number }) {
                 <IconFeather size={14} />
               </button>
               <button type="button" className="hb tip" data-tip={viewTip} aria-label="查看修改" aria-pressed={viewOn} disabled={!texts.length}
-                style={{ color: viewOn ? 'var(--accent2)' : 'var(--mute)', background: viewOn ? 'rgba(79,140,255,0.16)' : 'transparent' }}
+                style={{ color: viewOn ? 'var(--accent2)' : 'var(--mute)', background: viewOn ? 'var(--acc-soft)' : 'transparent' }}
                 onPointerDown={(ev) => {
                   if (!texts.length) return;
                   try { ev.currentTarget.setPointerCapture(ev.pointerId); } catch { /* 無法捕捉時照常運作 */ }
@@ -177,8 +177,8 @@ function WorkPanelInner({ height }: { height: number }) {
                         onClick={() => s.pickSlot(i)}
                         style={{
                           width: 22, height: 22, padding: 0, display: 'flex', alignItems: 'center', justifyContent: 'center', borderRadius: 5,
-                          fontSize: 11, fontWeight: 500, background: on ? '#2f6fe4' : 'var(--chip)', color: on ? '#ffffff' : 'var(--text2)',
-                          border: `1px solid ${on ? '#2f6fe4' : 'var(--line4)'}`,
+                          fontSize: 11, fontWeight: 500, background: on ? 'var(--primary)' : 'var(--chip)', color: on ? '#ffffff' : 'var(--text2)',
+                          border: `1px solid ${on ? 'var(--primary)' : 'var(--line4)'}`,
                         }}>{i + 1}</button>
                     );
                   })}

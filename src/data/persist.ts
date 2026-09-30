@@ -15,7 +15,9 @@ export interface AppConfig {
   /** 自動存檔間隔（分鐘） */
   autosaveMin?: number;
   lastProject?: string;
-  theme?: 'dark' | 'light';
+  theme?: 'dark' | 'light' | 'system';
+  accent?: string;
+  customAccents?: string[];
   shortcuts?: Bindings;
   checkSettings?: CheckSettings;
   disabledDicts?: string[];

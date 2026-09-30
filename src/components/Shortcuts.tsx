@@ -54,7 +54,7 @@ export function Shortcuts() {
       if (s.settingsOpen || s.termDraft || s.pasteOpen || s.dictPasteOpen) {
         if (ev.key === 'Escape' && !s.pasteOpen && !s.dictPasteOpen) {
           ev.preventDefault();
-          s.set({ settingsOpen: false, termDraft: null });
+          s.set({ settingsOpen: false, termDraft: null, accentPreview: null });
         }
         return;
       }

@@ -85,6 +85,8 @@ export function FileNav({ tabW }: { tabW: number }) {
     setDragDx(0);
   };
   const carMask = `linear-gradient(90deg, transparent 0, #000 40px, #000 ${carW - 40}px, transparent ${carW}px)`;
+  // 專案裡還沒有檔案：不顯示頁簽，檔案框高亮閃動，提示使用者新增檔案
+  const noFiles = project.files.length === 0;
   const badgeOrder: MarkId[] = ['doubt', 'think', ...project.customMarks.map((c) => `c:${c.id}` as MarkId)];
 
   return (
@@ -103,7 +105,7 @@ export function FileNav({ tabW }: { tabW: number }) {
           transform: `translateX(${(1 - sheetIdx) * step + dragDx}px)`,
           transition: dragging ? 'transform 140ms ease-out' : 'transform 320ms cubic-bezier(0.2, 0.8, 0.2, 1)',
         }}>
-          {fileDoc.sheets.map((sh, i) => {
+          {!noFiles && fileDoc.sheets.map((sh, i) => {
             const on = i === sheetIdx, near = Math.abs(i - sheetIdx) === 1;
             const pct = sh.entries.length ? Math.round((doneOf(sh.entries) / sh.entries.length) * 100) : 0;
             const kinds = badgeOrder
@@ -155,14 +157,14 @@ export function FileNav({ tabW }: { tabW: number }) {
       </button>
 
       <div style={{ flexGrow: 1, position: 'relative', minWidth: 160, marginLeft: 4 }}>
-        <button type="button" className="fs" aria-haspopup="listbox" aria-expanded={menuOpen} aria-label="選擇檔案"
+        <button type="button" className={'fs' + (noFiles && !menuOpen ? ' attention' : '')} aria-haspopup="listbox" aria-expanded={menuOpen} aria-label="選擇檔案"
           onClick={() => s.set({ fileMenuOpen: !menuOpen, rowMenu: null, stampOpen: false })}
           style={{
             width: '100%', height: 36, display: 'flex', alignItems: 'center', gap: 10, padding: '0 12px',
             background: 'var(--panel)', border: '1px solid var(--line3)', borderRadius: 8, textAlign: 'left',
           }}>
           <IconFile size={15} stroke="var(--mute)" style={{ flexShrink: 0 }} />
-          <span style={{ flexGrow: 1, minWidth: 0, overflow: 'hidden', whiteSpace: 'nowrap', textOverflow: 'ellipsis', fontSize: 12.5, color: 'var(--textsoft)' }}>{fileDoc.name}</span>
+          <span style={{ flexGrow: 1, minWidth: 0, overflow: 'hidden', whiteSpace: 'nowrap', textOverflow: 'ellipsis', fontSize: 12.5, color: noFiles ? 'var(--accent2)' : 'var(--textsoft)' }}>{noFiles ? '新增檔案' : fileDoc.name}</span>
           <span style={{ flexShrink: 0, display: 'flex', alignItems: 'center', gap: 5, fontSize: 11, color: 'var(--text2)', padding: '2px 8px', borderRadius: 10, background: 'var(--chip)' }}>
             繁中<span role="img" aria-label="譯為" style={{ display: 'flex' }}><IconArrowR size={10} sw={2.4} /></span>EN
           </span>

@@ -20,7 +20,7 @@ export function CopyConfirm({ untranslated, pending, onCancel, onConfirm }: Prop
           <button type="button" className="btn btn-ghost" onClick={onCancel}
             style={{ height: 36, padding: '0 16px', background: 'var(--btn)', border: '1px solid var(--line4)', borderRadius: 8, fontSize: 13 }}>取消</button>
           <button type="button" className="btn btn-primary" onClick={onConfirm} autoFocus
-            style={{ height: 36, padding: '0 18px', background: '#2f6fe4', border: 0, borderRadius: 8, color: '#ffffff', fontSize: 13, fontWeight: 600 }}>仍要複製</button>
+            style={{ height: 36, padding: '0 18px', background: 'var(--primary)', border: 0, borderRadius: 8, color: '#ffffff', fontSize: 13, fontWeight: 600 }}>仍要複製</button>
         </div>
       </div>
     </div>

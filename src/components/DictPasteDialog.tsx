@@ -86,7 +86,7 @@ export function DictPasteDialog() {
             <button type="button" className="btn btn-ghost" onClick={() => set({ dictPasteOpen: false })}
               style={{ height: 36, padding: '0 16px', background: 'var(--btn)', border: '1px solid var(--line4)', borderRadius: 8, fontSize: 13 }}>取消</button>
             <button type="button" className="btn btn-primary" disabled={!canSave} onClick={() => addTerms(dictName, pairs)}
-              style={{ height: 36, padding: '0 18px', background: '#2f6fe4', border: 0, borderRadius: 8, color: '#ffffff', fontSize: 13, fontWeight: 600 }}>加入</button>
+              style={{ height: 36, padding: '0 18px', background: 'var(--primary)', border: 0, borderRadius: 8, color: '#ffffff', fontSize: 13, fontWeight: 600 }}>加入</button>
           </div>
         </div>
       </div>
