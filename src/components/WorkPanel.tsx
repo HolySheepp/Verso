@@ -5,7 +5,7 @@ import type { MarkId, Mode } from '../model/types';
 import { MarkIcon } from './MarkIcon';
 import { MarkMenu } from './MarkMenu';
 import {
-  IconWarn,
+  IconWarn, IconCopyPair,
   IconBraces, IconCheck, IconChevL, IconChevR, IconCopy, IconEraser, IconEye, IconFeather, IconLock, IconPen, IconUndo, IconUse,
 } from './icons';
 
@@ -220,6 +220,10 @@ export function WorkPanel({ height }: { height: number }) {
               <IconCopy size={15} />
             </button>
           )}
+          <button type="button" className="ib btn-side" aria-label="複製原文和譯文" title="複製原文和譯文"
+            onClick={() => { void navigator.clipboard?.writeText(cur.src + '\n' + cur.tgt); }}>
+            <IconCopyPair size={15} />
+          </button>
         </div>
       </div>
 

@@ -67,6 +67,8 @@ interface State {
   termDraft: TermDraft | null;
   pasteOpen: boolean;
   dictPasteOpen: boolean;
+  /** 右側字典分頁中停用的字典（查詢時不列出） */
+  disabledDicts: string[];
 
   checkSettings: CheckSettings;
   /** 各條目在檢查當下報出的問題（以條目 uid 為 key），不存進檔案 */
@@ -176,6 +178,7 @@ export const useStore = create<Store>((set, get) => {
     termDraft: null,
     pasteOpen: false,
     dictPasteOpen: false,
+    disabledDicts: [],
     checkSettings: defaultCheckSettings(),
     reported: {},
 
@@ -227,6 +230,11 @@ export const useStore = create<Store>((set, get) => {
     },
 
     updateEntry(patch) {
+      // 第一次改動譯文前（這條還沒有記錄時），自動記下原本的譯文
+      const { entry } = cur();
+      if (entry && patch.tgt !== undefined && patch.tgt !== entry.tgt && entry.tgt && !get().history.byEntry[entry.uid]) {
+        set({ history: recordText(get().history, entry.uid, entry.tgt) });
+      }
       patchEntry(cur().sel, (e) => {
         const next = { ...e, ...patch };
         if (patch.tgt !== undefined && patch.tgt !== e.tgt) next.pending = false;

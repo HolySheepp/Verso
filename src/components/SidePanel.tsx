@@ -1,3 +1,4 @@
+import { useState } from 'react';
 import { currentOf, useStore, type SideTab } from '../state/store';
 import type { GlossaryTerm } from '../model/types';
 import {
@@ -40,9 +41,16 @@ function DictTab() {
   const cur = currentOf(useStore()).entry!;
   const dq = useStore((s) => s.dictQuery);
   const set = useStore((s) => s.set);
+  const disabled = useStore((s) => s.disabledDicts);
+  const [pickOpen, setPickOpen] = useState(false);
   const q = dq.trim(), ql = q.toLowerCase();
-  const results = !ql ? [] : project.glossary.filter((g) => g.term.includes(q) || g.en.toLowerCase().includes(ql));
-  const matches = project.glossary.filter((g) => g.term && cur.src.includes(g.term));
+  // 只查啟用中的字典
+  const active = project.glossary.filter((g) => !disabled.includes(g.dict));
+  const results = !ql ? [] : active.filter((g) => g.term.includes(q) || g.en.toLowerCase().includes(ql));
+  const matches = active.filter((g) => g.term && cur.src.includes(g.term));
+  const activeCount = project.dicts.filter((d) => !disabled.includes(d)).length;
+  const toggleDict = (d: string) =>
+    set({ disabledDicts: disabled.includes(d) ? disabled.filter((x) => x !== d) : [...disabled, d] });
 
   return (
     <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
@@ -62,6 +70,24 @@ function DictTab() {
           style={{ width: 36, height: 36, flexShrink: 0, display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 0, background: 'var(--btn)', border: '1px solid var(--line4)', borderRadius: 8, color: 'var(--text2)' }}>
           <IconPaste size={15} />
         </button>
+      </div>
+      <div>
+        <button type="button" className="ib" aria-expanded={pickOpen} onClick={() => setPickOpen(!pickOpen)}
+          style={{ height: 26, display: 'flex', alignItems: 'center', gap: 6, padding: '0 6px 0 2px', background: 'transparent', border: 0, borderRadius: 6, color: 'var(--text2)', fontSize: 12 }}>
+          <IconChevD size={12} sw={2.4} style={{ transform: `rotate(${pickOpen ? 0 : -90}deg)`, transition: 'transform 160ms' }} />
+          啟用的字典
+          <span style={{ color: 'var(--mute)' }}>{activeCount} / {project.dicts.length}</span>
+        </button>
+        {pickOpen && (
+          <div role="group" aria-label="啟用的字典" style={{ display: 'flex', flexDirection: 'column', gap: 2, marginTop: 4, padding: 4, background: 'var(--card)', border: '1px solid var(--line2)', borderRadius: 8 }}>
+            {project.dicts.map((d) => (
+              <label key={d} className="dd" style={{ height: 30, display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 10, padding: '0 8px', borderRadius: 6, cursor: 'pointer', fontSize: 12.5 }}>
+                <span style={{ minWidth: 0, overflow: 'hidden', whiteSpace: 'nowrap', textOverflow: 'ellipsis' }}>{d}</span>
+                <input type="checkbox" role="switch" className="switch" checked={!disabled.includes(d)} onChange={() => toggleDict(d)} />
+              </label>
+            ))}
+          </div>
+        )}
       </div>
       {dq && (
         <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
