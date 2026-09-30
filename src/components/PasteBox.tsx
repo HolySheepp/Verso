@@ -1,5 +1,6 @@
 import { useRef } from 'react';
 import { readColumn } from '../model/clipboard';
+import { usedLength } from '../model/paste';
 import { IconWinClose } from './icons';
 
 interface Props {
@@ -9,7 +10,9 @@ interface Props {
 }
 
 /** 貼入一整欄的方框：點一下再按 Ctrl+V，優先讀剪貼簿裡的表格格式 */
-export function PasteBox({ label, rows, onRows }: Props) {
+export function PasteBox({ label, rows: raw, onRows }: Props) {
+  // 結尾的空白行不顯示、不計入行數
+  const rows = raw && raw.slice(0, usedLength(raw));
   // 用一個看不見的文字框接收貼上，這樣不管點在方框哪裡、按 Ctrl+V 都一定會觸發貼上
   const input = useRef<HTMLTextAreaElement>(null);
 

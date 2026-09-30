@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react';
 import { useStore } from '../state/store';
 import { PasteBox } from './PasteBox';
+import { usedLength } from '../model/paste';
 import { IconWinClose } from './icons';
 
 const NEW = '__new__';
@@ -23,11 +24,13 @@ export function DictPasteDialog() {
 
   const dictName = target === NEW ? newName.trim() : target;
   let error = '';
-  if (src && tgt && src.length !== tgt.length) error = `兩欄行數不一致：原文 ${src.length}、譯文 ${tgt.length}`;
+  // 結尾的空白行不算
+  const sn = src ? usedLength(src) : 0, tn = tgt ? usedLength(tgt) : 0;
+  if (src && tgt && sn !== tn) error = `兩欄行數不一致：原文 ${sn}、譯文 ${tn}`;
   else if (target === NEW && newName.trim() && dicts.includes(newName.trim())) error = '已有同名字典';
   // 原文或譯文空白的行略過
   const pairs: [string, string][] = src && tgt && !error
-    ? src.map((s, i): [string, string] => [s.trim(), (tgt[i] ?? '').trim()]).filter(([a, b]) => a && b)
+    ? src.slice(0, sn).map((s, i): [string, string] => [s.trim(), (tgt[i] ?? '').trim()]).filter(([a, b]) => a && b)
     : [];
   const canSave = !error && !!dictName && pairs.length > 0;
 

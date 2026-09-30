@@ -25,7 +25,9 @@ export function PasteDialog() {
   if (!open) return null;
 
   const sheet = sheets[Math.min(cur, sheets.length - 1)];
-  const patchSheet = (i: number, p: Partial<DraftSheet>) => setSheets(sheets.map((sh, j) => (j === i ? { ...sh, ...p } : sh)));
+  // 用最新的狀態更新，連續貼上多欄時不會互相蓋掉
+  const patchSheet = (i: number, fn: (sh: DraftSheet) => Partial<DraftSheet>) =>
+    setSheets((prev) => prev.map((sh, j) => (j === i ? { ...sh, ...fn(sh) } : sh)));
   const results = sheets.map((sh) => checkColumns(sh.cols));
   const firstBad = results.findIndex((r) => !r.ok);
   const error = firstBad < 0 ? '' : (sheets.length > 1 ? `「${sheets[firstBad].name}」` : '') + results[firstBad].msg;
@@ -77,7 +79,7 @@ export function PasteDialog() {
                 <div key={i} style={{ display: 'flex', alignItems: 'center', borderBottom: `2px solid ${on ? 'var(--accent)' : 'transparent'}`, marginBottom: -1 }}>
                   {renaming === i ? (
                     <input className="field" autoFocus value={sh.name} aria-label="頁簽名稱"
-                      onChange={(e) => patchSheet(i, { name: e.target.value })}
+                      onChange={(e) => { const name = e.target.value; patchSheet(i, () => ({ name })); }}
                       onBlur={() => setRenaming(null)}
                       onKeyDown={(e) => { if (e.key === 'Enter' || e.key === 'Escape') setRenaming(null); }}
                       style={{ height: 28, width: 140, margin: '4px 0', padding: '0 8px' }} />
@@ -105,7 +107,7 @@ export function PasteDialog() {
           <div role="tabpanel" style={{ flexGrow: 1, minHeight: 0, display: 'grid', gridTemplateColumns: '0.7fr 0.8fr 1.5fr 1.5fr', gap: 12 }}>
             {COLS.map((c) => (
               <PasteBox key={cur + c.key} label={c.label} rows={sheet.cols[c.key]}
-                onRows={(rows) => patchSheet(cur, { cols: { ...sheet.cols, [c.key]: rows } })} />
+                onRows={(rows) => patchSheet(cur, (sh) => ({ cols: { ...sh.cols, [c.key]: rows } }))} />
             ))}
           </div>
         </div>

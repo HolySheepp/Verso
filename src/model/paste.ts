@@ -18,20 +18,34 @@ export const emptyColumns = (): Columns => ({ id: null, speaker: null, src: null
 let seq = 0;
 export const newUid = () => 'e' + Date.now().toString(36) + (seq++).toString(36);
 
-/** 檢查一個頁簽：原文必填，已貼的各欄行數要一致 */
+/** 去掉結尾的空白行後的行數（整欄複製時結尾常會多出大量空白行） */
+export function usedLength(rows: string[]): number {
+  let n = rows.length;
+  while (n > 0 && !rows[n - 1].trim()) n--;
+  return n;
+}
+
+/**
+ * 檢查一個頁簽：原文必填，已貼的各欄行數要一致。
+ * 以原文的行數為準；其他欄結尾的空白行不算，但實際貼入的行數不能比原文少。
+ */
 export function checkColumns(c: Columns): { ok: boolean; msg: string } {
-  if (!c.src?.length) return { ok: false, msg: '還沒貼原文' };
+  const base = c.src ? usedLength(c.src) : 0;
+  if (!base) return { ok: false, msg: '還沒貼原文' };
   const pasted = COLS.filter((col) => c[col.key]);
-  const counts = pasted.map((col) => c[col.key]!.length);
-  if (counts.some((n) => n !== counts[0])) {
-    return { ok: false, msg: '各欄行數不一致：' + pasted.map((col, i) => `${col.label} ${counts[i]}`).join('、') };
+  const fits = pasted.every((col) => {
+    const rows = c[col.key]!;
+    return usedLength(rows) <= base && rows.length >= base;
+  });
+  if (!fits) {
+    return { ok: false, msg: '各欄行數不一致：' + pasted.map((col) => `${col.label} ${usedLength(c[col.key]!)}`).join('、') };
   }
   return { ok: true, msg: '' };
 }
 
 /** 貼入的條目一律待確認；發話者空白記為「無」 */
 export function columnsToEntries(c: Columns): Entry[] {
-  const src = c.src ?? [];
+  const src = (c.src ?? []).slice(0, usedLength(c.src ?? []));
   return src.map((s, i) => {
     const tgt = c.tgt?.[i] ?? '';
     return {

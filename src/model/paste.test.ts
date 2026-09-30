@@ -35,6 +35,15 @@ describe('手動貼入', () => {
     expect(r.ok).toBe(false);
     expect(r.msg).toBe('各欄行數不一致：id 2、原文 3');
   });
+  it('結尾多出的空白行不算', () => {
+    const c = { ...emptyColumns(), id: ['1', '2', '', '', ''], src: ['a', 'b', '', ' '], tgt: ['A', '', '', ''] };
+    expect(checkColumns(c).ok).toBe(true);
+    const es = columnsToEntries(c);
+    expect(es.map((e) => [e.id, e.src, e.tgt])).toEqual([['1', 'a', 'A'], ['2', 'b', '']]);
+  });
+  it('其他欄實際貼入的行數比原文少時擋下', () => {
+    expect(checkColumns({ ...emptyColumns(), src: ['a', 'b', 'c'], tgt: ['A', 'B'] }).msg).toBe('各欄行數不一致：原文 3、譯文 2');
+  });
   it('原文必填', () => {
     expect(checkColumns({ ...emptyColumns(), id: ['1'] }).ok).toBe(false);
   });
