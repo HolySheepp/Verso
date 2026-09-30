@@ -3,6 +3,7 @@ import { currentOf, useStore, visibleIssues, type Filter } from '../state/store'
 import { effectiveMark, markName, markVisual } from '../model/marks';
 import { writeColumn } from '../model/clipboard';
 import { MarkIcon } from './MarkIcon';
+import { rowMenuPos } from './rowMenu';
 import { CopyConfirm } from './CopyConfirm';
 import { IconCheck, IconCopy, IconScan, IconWarn } from './icons';
 
@@ -58,14 +59,7 @@ export function EntryList() {
   });
 
   const openMark = (ev: React.MouseEvent<HTMLButtonElement>, i: number) => {
-    const b = ev.currentTarget;
-    const root = b.closest('[data-root]') as HTMLElement;
-    const r = b.getBoundingClientRect(), rr = root.getBoundingClientRect();
-    const h = 44 + (6 + customs.length) * 32 + (customs.length ? 9 : 0) + 42;
-    const x = r.left - rr.left + 2;
-    let y = r.bottom - rr.top + 2;
-    if (y + h > root.offsetHeight - 10) y = r.top - rr.top - h - 2;
-    set({ rowMenu: { index: i, x: Math.round(x), y: Math.round(Math.max(8, y)) }, stampOpen: false, fileMenuOpen: false });
+    set({ rowMenu: { index: i, ...rowMenuPos(ev.currentTarget, customs.length) }, stampOpen: false, fileMenuOpen: false });
   };
 
   const rows = sheet.entries

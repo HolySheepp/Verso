@@ -1,6 +1,6 @@
 import { useStore } from '../state/store';
 import { BUILTIN_MARKS, markVisual } from '../model/marks';
-import type { MarkId } from '../model/types';
+import type { CustomMark, MarkId } from '../model/types';
 import { MarkIcon } from './MarkIcon';
 import { IconCheck, IconPlus } from './icons';
 
@@ -11,15 +11,27 @@ interface Props {
   exclude?: MarkId[];
   onPick(id: MarkId): void;
   style: React.CSSProperties;
+  /** 用快捷鍵打開時，每項前面顯示數字，按數字就能選 */
+  numbered?: boolean;
+}
+
+/** 選單裡各標記的順序（按數字選取時用同一個順序） */
+export function markMenuIds(customs: CustomMark[], exclude: MarkId[] = []): MarkId[] {
+  return [
+    ...BUILTIN_MARKS.filter((b) => !exclude.includes(b.id)).map((b) => b.id as MarkId),
+    ...customs.map((c) => `c:${c.id}` as MarkId),
+  ];
 }
 
 /** 標記選單：條目的「變更標記」和「標記並下一條」共用 */
-export function MarkMenu({ title, ariaLabel, current, exclude = [], onPick, style }: Props) {
+export function MarkMenu({ title, ariaLabel, current, exclude = [], onPick, style, numbered = false }: Props) {
   const customs = useStore((s) => s.project!.customMarks);
   const set = useStore((s) => s.set);
 
+  const order = markMenuIds(customs, exclude);
   const item = (id: MarkId, label: string) => {
     const on = current === id;
+    const n = order.indexOf(id) + 1;
     return (
       <button key={id} type="button" className="dd pop-item" role="menuitemradio" aria-checked={on} onClick={() => onPick(id)}
         style={{ background: on ? 'var(--sel)' : 'transparent' }}>
@@ -27,6 +39,7 @@ export function MarkMenu({ title, ariaLabel, current, exclude = [], onPick, styl
           <MarkIcon mark={markVisual(customs, id)} size={16} menu />
         </span>
         <span style={{ flexGrow: 1 }}>{label}</span>
+        {numbered && n <= 9 && <span className="mono" style={{ fontSize: 11, color: 'var(--mute)' }}>{n}</span>}
         {on && <IconCheck size={13} sw={2.6} stroke="var(--accent2)" />}
       </button>
     );

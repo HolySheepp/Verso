@@ -12,6 +12,7 @@ import { TermDialog } from './components/TermDialog';
 import { SettingsDialog } from './components/SettingsDialog';
 import { PasteDialog } from './components/PasteDialog';
 import { DictPasteDialog } from './components/DictPasteDialog';
+import { Shortcuts } from './components/Shortcuts';
 import { IconCheck, IconChevD, IconChevL } from './components/icons';
 
 const clamp = (v: number, lo: number, hi: number) => Math.max(lo, Math.min(hi, v));
@@ -119,12 +120,14 @@ export default function App() {
         <MarkMenu title="變更標記" ariaLabel="變更標記"
           current={effectiveMark(sheet.entries[s.rowMenu.index])}
           style={{ position: 'absolute', left: s.rowMenu.x, top: s.rowMenu.y, boxShadow: '0 16px 40px rgba(0,0,0,0.5)' }}
+          numbered={!!s.rowMenu.keys}
           onPick={(id) => { s.setEntryMark(s.rowMenu!.index, id); s.set({ rowMenu: null }); }} />
       )}
 
       <TermDialog />
       <SettingsDialog />
       <PasteDialog />
+      <Shortcuts />
       <DictPasteDialog />
     </div>
   );

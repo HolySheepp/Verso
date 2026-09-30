@@ -1,7 +1,8 @@
 import { create } from 'zustand';
 import { activeSource } from '../data/source';
 import { emptyHistory, recordText, selectSlot, type HistoryStore } from '../model/history';
-import { toStoredMark } from '../model/marks';
+import { effectiveMark, findCustom, toStoredMark } from '../model/marks';
+import { defaultBindings, type ActionId, type Bindings, type ShortcutContext } from '../model/shortcuts';
 import { defaultCheckSettings, enabledIssues, type CheckId, type CheckSettings, type Issue } from '../model/checks';
 import type { CustomMark, Entry, FileDoc, GlossaryTerm, MarkId, Mode, ProjectData, Sheet } from '../model/types';
 
@@ -9,7 +10,16 @@ export type Filter = 'all' | 'untranslated' | 'doubt' | 'think' | 'issues';
 export type SideTab = 'dict' | 'search' | 'web' | 'ref';
 export type Theme = 'dark' | 'light';
 
-export interface RowMenu { index: number; x: number; y: number }
+/** keys：用快捷鍵打開的選單，可以按數字選取 */
+export interface RowMenu { index: number; x: number; y: number; keys?: boolean }
+
+/** 「標記並下一條」在各模式下不能選的標記 */
+export const STAMP_EXCLUDE: Record<Mode, MarkId[]> = {
+  translate: ['untranslated', 'translated'],
+  verify: ['untranslated', 'translated', 'verified'],
+  view: ['untranslated', 'translated'],
+  source: ['untranslated', 'translated'],
+};
 
 export interface TermDraft {
   id: string | null;
@@ -71,6 +81,7 @@ interface State {
   disabledDicts: string[];
 
   checkSettings: CheckSettings;
+  shortcuts: Bindings;
   /** 各條目在檢查當下報出的問題（以條目 uid 為 key），不存進檔案 */
   reported: Record<string, string[]>;
 }
@@ -99,6 +110,12 @@ interface Actions {
   checkAll(): void;
   skipCheck(): void;
   setCheck(id: CheckId, on: boolean): void;
+  setBinding(ctx: ShortcutContext, action: ActionId, combos: string[]): void;
+  /** 主要按鈕：驗證模式是驗證並下一條，其他模式是下一條 */
+  mainNext(): void;
+  stampNext(): void;
+  /** 在目前篩選下看得到的條目間移動，不留標記 */
+  step(delta: 1 | -1): void;
 }
 
 export type Store = State & Actions;
@@ -180,6 +197,7 @@ export const useStore = create<Store>((set, get) => {
     dictPasteOpen: false,
     disabledDicts: [],
     checkSettings: defaultCheckSettings(),
+    shortcuts: defaultBindings(),
     reported: {},
 
     async load() {
@@ -356,8 +374,58 @@ export const useStore = create<Store>((set, get) => {
       set({ reported });
     },
 
+    setBinding(ctx, action, combos) {
+      const b = get().shortcuts;
+      set({ shortcuts: { ...b, [ctx]: { ...b[ctx], [action]: combos } } });
+    },
+
+    mainNext() {
+      const s = get();
+      if (s.mode === 'verify') s.setEntryMark(cur().sel, 'verified');
+      get().next();
+    },
+
+    stampNext() {
+      const s = get();
+      if (s.mode === 'view') return;
+      s.setEntryMark(cur().sel, currentStamp(s));
+      get().next();
+    },
+
+    step(delta) {
+      const s = get();
+      const rows = visibleRows(s);
+      const { sel, sheetIdx } = cur();
+      const pos = rows.indexOf(sel);
+      let target: number | undefined;
+      if (pos >= 0) target = rows[pos + delta];
+      else target = delta > 0 ? rows.find((i) => i > sel) : [...rows].reverse().find((i) => i < sel);
+      if (target !== undefined) s.select(s.file, sheetIdx, target);
+    },
+
     setCheck(id, on) {
       set({ checkSettings: { ...get().checkSettings, [id]: on } });
     },
   };
 });
+
+/** 目前「標記並下一條」會留下的標記 */
+export function currentStamp(s: Pick<State, 'mode' | 'stamps' | 'project'>): MarkId {
+  const exclude = STAMP_EXCLUDE[s.mode];
+  const fallback: MarkId = s.mode === 'verify' ? 'doubt' : 'think';
+  const stamp = s.stamps[s.mode] ?? fallback;
+  if (exclude.includes(stamp) || (stamp.startsWith('c:') && !findCustom(s.project?.customMarks ?? [], stamp))) return fallback;
+  return stamp;
+}
+
+/** 目前篩選下，條目列表裡看得到的條目 */
+export function visibleRows(s: State): number[] {
+  const { sheet } = currentOf(s);
+  const out: number[] = [];
+  sheet.entries.forEach((e, i) => {
+    if (s.filter === 'all') out.push(i);
+    else if (s.filter === 'issues') { if (visibleIssues(e, s.reported, s.checkSettings).length) out.push(i); }
+    else if (effectiveMark(e) === s.filter) out.push(i);
+  });
+  return out;
+}

@@ -1,7 +1,8 @@
 import { useRef } from 'react';
-import { currentOf, useStore, visibleIssues } from '../state/store';
-import { findCustom, markName, markVisual } from '../model/marks';
-import type { MarkId, Mode } from '../model/types';
+import { STAMP_EXCLUDE, currentOf, currentStamp, useStore, visibleIssues } from '../state/store';
+import { markName, markVisual } from '../model/marks';
+import { keyOf, type ActionId } from '../model/shortcuts';
+import type { Mode } from '../model/types';
 import { MarkIcon } from './MarkIcon';
 import { MarkMenu } from './MarkMenu';
 import {
@@ -14,14 +15,6 @@ const MODE_HINTS: Record<Mode, string> = {
   verify: '可修正譯文',
   view: '唯讀',
   source: '只能編輯原文，原始版本會保留',
-};
-
-/** 「標記並下一條」在各模式下不能選的標記 */
-const STAMP_EXCLUDE: Record<Mode, MarkId[]> = {
-  translate: ['untranslated', 'translated'],
-  verify: ['untranslated', 'translated', 'verified'],
-  view: ['untranslated', 'translated'],
-  source: ['untranslated', 'translated'],
 };
 
 const labelRow: React.CSSProperties = { display: 'flex', alignItems: 'center', justifyContent: 'space-between', height: 18 };
@@ -49,9 +42,9 @@ export function WorkPanel({ height }: { height: number }) {
 
   // 標記並下一條：各模式分別記住選的標記
   const exclude = STAMP_EXCLUDE[mode];
-  const fallback: MarkId = mode === 'verify' ? 'doubt' : 'think';
-  let stamp: MarkId = s.stamps[mode] ?? fallback;
-  if (exclude.includes(stamp) || (stamp.startsWith('c:') && !findCustom(customs, stamp))) stamp = fallback;
+  const stamp = currentStamp(s);
+  // 懸停提示：只顯示快捷鍵本身
+  const keyTip = (a: ActionId, ctx: 'input' | 'list' = 'input') => keyOf(s.shortcuts, ctx, a) || undefined;
   const stampLabel = '選擇標記，目前：' + markName(customs, stamp);
 
   const press = useRef<{ t: number } | null>(null);
@@ -133,7 +126,7 @@ export function WorkPanel({ height }: { height: number }) {
               }} />
 
             <div role="toolbar" aria-label="譯文記錄" aria-orientation="vertical" style={{ position: 'absolute', right: 6, top: 6, display: 'flex', flexDirection: 'column', gap: 2 }}>
-              <button type="button" className="hb tip" data-tip="記錄" aria-label="記錄" disabled={!tgtEditable || showHist}
+              <button type="button" className="hb tip" data-tip={['記錄', keyTip('record')].filter(Boolean).join('  ')} aria-label="記錄" disabled={!tgtEditable || showHist}
                 onClick={() => s.record()}>
                 <IconFeather size={14} />
               </button>
@@ -228,7 +221,7 @@ export function WorkPanel({ height }: { height: number }) {
         </span>
         <div style={{ display: 'flex', gap: 10, alignItems: 'center' }}>
           {mode === 'view' && (
-            <button type="button" className="btn btn-ghost btn-std" onClick={() => s.prev()} style={{ gap: 6, padding: '0 16px' }}>
+            <button type="button" className="btn btn-ghost btn-std" onClick={() => s.prev()} title={keyTip('prevEntry', 'list')} style={{ gap: 6, padding: '0 16px' }}>
               <IconChevL size={14} sw={2.2} />上一條
             </button>
           )}
@@ -240,7 +233,7 @@ export function WorkPanel({ height }: { height: number }) {
                 <MarkIcon mark={markVisual(customs, stamp)} size={16} menu />
               </button>
               <button type="button" className="btn btn-ghost btn-std"
-                onClick={() => { s.setEntryMark(sel, stamp); s.next(); }}
+                onClick={() => s.stampNext()} title={keyTip('stampNext')}
                 style={{ padding: '0 16px', borderLeft: 0, borderRadius: '0 8px 8px 0' }}>標記並下一條</button>
               {s.stampOpen && (
                 <MarkMenu title="按下後留下的標記" ariaLabel="選擇按鈕要留下的標記" current={stamp} exclude={exclude}
@@ -250,12 +243,12 @@ export function WorkPanel({ height }: { height: number }) {
             </div>
           )}
           {mode === 'verify' && (
-            <button type="button" className="btn btn-primary btn-main" onClick={() => { s.setEntryMark(sel, 'verified'); s.next(); }}>
+            <button type="button" className="btn btn-primary btn-main" onClick={() => s.mainNext()} title={keyTip('main')}>
               <IconCheck size={14} sw={2.6} />驗證並下一條
             </button>
           )}
           {mode !== 'verify' && (
-            <button type="button" className="btn btn-primary btn-main" onClick={() => s.next()}>
+            <button type="button" className="btn btn-primary btn-main" onClick={() => s.next()} title={keyTip('main')}>
               下一條<IconChevR size={14} sw={2.2} />
             </button>
           )}

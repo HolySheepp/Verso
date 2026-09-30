@@ -5,10 +5,11 @@ import type { CustomMark, SymbolId } from '../model/types';
 import { MarkIcon } from './MarkIcon';
 import { IconPlus, IconTrash, IconWinClose } from './icons';
 import { CHECKS } from '../model/checks';
+import { ACTION_LABELS, CONTEXTS, CONTEXT_ACTIONS, comboOf, type ActionId, type ShortcutContext } from '../model/shortcuts';
 
 // 設定目前只有「標記」「檢查」分類有內容，其他分類只有外觀
 const SECTIONS = ['一般', '工作模式', '標記', '檢查', '快捷鍵', '外觀'];
-const READY = ['標記', '檢查'];
+const READY = ['標記', '檢查', '快捷鍵'];
 
 const h3: React.CSSProperties = { margin: 0, fontSize: 12, fontWeight: 600, letterSpacing: 1, color: 'var(--text2)' };
 
@@ -70,7 +71,7 @@ export function SettingsDialog() {
             })}
           </nav>
           <div style={{ flexGrow: 1, minWidth: 0, overflowY: 'auto', padding: '20px 24px', display: 'flex', flexDirection: 'column', gap: 22 }}>
-            {section === '檢查' ? <ChecksSection /> : <>
+            {section === '檢查' ? <ChecksSection /> : section === '快捷鍵' ? <ShortcutsSection /> : <>
             <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
               <h3 style={h3}>內建標記</h3>
               <div style={{ display: 'grid', gridTemplateColumns: 'repeat(2, minmax(0, 1fr))', gap: 8 }}>
@@ -192,6 +193,84 @@ function ChecksSection() {
           );
         })}
       </div>
+    </div>
+  );
+}
+
+function ShortcutsSection() {
+  const bindings = useStore((s) => s.shortcuts);
+  const setBinding = useStore((s) => s.setBinding);
+  const [ctx, setCtx] = useState<ShortcutContext>('input');
+  const [recording, setRecording] = useState<ActionId | null>(null);
+  const [error, setError] = useState('');
+
+  // 錄製中：下一個組合鍵就是新的快捷鍵；Backspace 清空；點別處取消
+  useEffect(() => {
+    if (!recording) return;
+    const onKey = (ev: KeyboardEvent) => {
+      ev.preventDefault();
+      ev.stopPropagation();
+      if (ev.key === 'Backspace' && !ev.ctrlKey && !ev.altKey && !ev.shiftKey && !ev.metaKey) {
+        setBinding(ctx, recording, []);
+        setRecording(null);
+        setError('');
+        return;
+      }
+      const combo = comboOf(ev);
+      if (!combo) return;
+      const taken = CONTEXT_ACTIONS[ctx].find((a) => a !== recording && bindings[ctx][a]?.includes(combo));
+      if (taken) {
+        setError(`「${combo}」已被「${ACTION_LABELS[taken]}」使用`);
+        return;
+      }
+      setBinding(ctx, recording, [combo]);
+      setRecording(null);
+      setError('');
+    };
+    const onDown = (ev: MouseEvent) => {
+      if (!(ev.target as HTMLElement).closest('[data-recording]')) { setRecording(null); setError(''); }
+    };
+    window.addEventListener('keydown', onKey, true);
+    window.addEventListener('mousedown', onDown, true);
+    return () => { window.removeEventListener('keydown', onKey, true); window.removeEventListener('mousedown', onDown, true); };
+  }, [recording, ctx, bindings, setBinding]);
+
+  const chip: React.CSSProperties = {
+    display: 'inline-flex', alignItems: 'center', height: 24, padding: '0 8px', borderRadius: 6,
+    background: 'var(--chip)', border: '1px solid var(--line4)', fontSize: 12, color: 'var(--text)',
+  };
+
+  return (
+    <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
+      <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
+        <label htmlFor="verso-sc-ctx" style={{ fontSize: 12, color: 'var(--text2)' }}>情境</label>
+        <select id="verso-sc-ctx" className="field" value={ctx} style={{ width: 200, padding: '0 10px' }}
+          onChange={(e) => { setCtx(e.target.value as ShortcutContext); setRecording(null); setError(''); }}>
+          {CONTEXTS.map((c) => <option key={c.id} value={c.id}>{c.label}</option>)}
+        </select>
+      </div>
+      <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
+        {CONTEXT_ACTIONS[ctx].map((a) => {
+          const rec = recording === a;
+          const combos = bindings[ctx][a] ?? [];
+          return (
+            <button key={a} type="button" className="dd" data-recording={rec ? '1' : undefined}
+              onClick={() => { setRecording(rec ? null : a); setError(''); }}
+              style={{
+                display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 12, height: 44, padding: '0 12px',
+                background: rec ? 'var(--sel)' : 'var(--card)', border: `1px solid ${rec ? 'var(--accent)' : 'var(--line2)'}`, borderRadius: 8, textAlign: 'left',
+              }}>
+              <span style={{ fontSize: 13 }}>{ACTION_LABELS[a]}</span>
+              <span style={{ display: 'flex', gap: 6 }}>
+                {rec ? <span style={{ ...chip, background: 'transparent', borderStyle: 'dashed', color: 'var(--mute)' }}>按下新的組合鍵</span>
+                  : combos.length ? combos.map((c) => <span key={c} className="mono" style={chip}>{c}</span>)
+                  : <span style={{ fontSize: 12, color: 'var(--mute3)' }}>—</span>}
+              </span>
+            </button>
+          );
+        })}
+      </div>
+      {error && <span role="alert" style={{ fontSize: 12.5, color: 'var(--errtx)' }}>{error}</span>}
     </div>
   );
 }
