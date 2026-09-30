@@ -11,6 +11,9 @@ import { IconCheck, IconCopy, IconScan, IconWarn } from './icons';
 const HEAD_COLS = '40px 36px 64px minmax(0, 1fr) minmax(0, 1fr)';
 const ROW_COLS = '36px 64px minmax(0, 1fr) minmax(0, 1fr)';
 
+/** 往下／往上移動時，前方保留幾條看得到 */
+const KEEP_VISIBLE = 3;
+
 const FILTERS: { id: Filter; label: string }[] = [
   { id: 'all', label: '全部' },
   { id: 'untranslated', label: '未翻譯' },
@@ -30,10 +33,28 @@ export function EntryList() {
   const [confirm, setConfirm] = useState<{ untranslated: number; pending: number } | null>(null);
   const [copied, setCopied] = useState(false);
 
-  // 換條目時讓目前這條保持在可見範圍
+  // 換條目時讓目前這條保持在可見範圍。
+  // 用下一條或快捷鍵往下（上）移動時，下方（上方）至少保留 3 條看得到；滑鼠點選只確保這條看得到。
+  const handledMove = useRef(s.moveSeq);
   useEffect(() => {
-    listRef.current?.querySelector('[aria-current="true"]')?.scrollIntoView({ block: 'nearest' });
-  }, [s.file, sheetIdx, sel]);
+    const list = listRef.current;
+    const row = list?.querySelector('[aria-current="true"]')?.closest('.rw') as HTMLElement | null;
+    if (!list || !row) return;
+    const keyboard = handledMove.current !== s.moveSeq;
+    handledMove.current = s.moveSeq;
+    row.scrollIntoView({ block: 'nearest' });
+    if (!keyboard) return;
+    const rowsEls = Array.from(list.querySelectorAll<HTMLElement>('.rw'));
+    const k = rowsEls.indexOf(row);
+    const box = list.getBoundingClientRect();
+    if (s.moveDir > 0) {
+      const edge = rowsEls[Math.min(k + KEEP_VISIBLE, rowsEls.length - 1)].getBoundingClientRect();
+      if (edge.bottom > box.bottom) list.scrollTop += edge.bottom - box.bottom;
+    } else {
+      const edge = rowsEls[Math.max(k - KEEP_VISIBLE, 0)].getBoundingClientRect();
+      if (edge.top < box.top) list.scrollTop -= box.top - edge.top;
+    }
+  }, [s.file, sheetIdx, sel, s.moveSeq]);
 
   // 複製譯文欄：未翻譯的留空，待確認的照原本譯文輸出
   const doCopy = async () => {

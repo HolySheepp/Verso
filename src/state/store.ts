@@ -77,6 +77,9 @@ interface State {
   termDraft: TermDraft | null;
   pasteOpen: boolean;
   dictPasteOpen: boolean;
+  /** 用下一條、快捷鍵移動選取時遞增，條目列表據此保留前後 3 條可見（滑鼠點選不算） */
+  moveSeq: number;
+  moveDir: 1 | -1;
   /** 右側字典分頁中停用的字典（查詢時不列出） */
   disabledDicts: string[];
 
@@ -195,6 +198,8 @@ export const useStore = create<Store>((set, get) => {
     termDraft: null,
     pasteOpen: false,
     dictPasteOpen: false,
+    moveSeq: 0,
+    moveDir: 1,
     disabledDicts: [],
     checkSettings: defaultCheckSettings(),
     shortcuts: defaultBindings(),
@@ -238,13 +243,13 @@ export const useStore = create<Store>((set, get) => {
       const { sheet, sheetIdx, sel, entry } = cur();
       // 翻譯、驗證模式下按下一條，代表確認了這條
       if (entry?.pending && (s.mode === 'translate' || s.mode === 'verify')) patchEntry(sel, (e) => ({ ...e, pending: false }));
-      if (sel < sheet.entries.length - 1) get().select(s.file, sheetIdx, sel + 1);
+      if (sel < sheet.entries.length - 1) { get().select(s.file, sheetIdx, sel + 1); set({ moveSeq: get().moveSeq + 1, moveDir: 1 }); }
       else { leaveCurrent(); set({ stampOpen: false }); }
     },
 
     prev() {
       const { sheetIdx, sel } = cur();
-      if (sel > 0) get().select(get().file, sheetIdx, sel - 1);
+      if (sel > 0) { get().select(get().file, sheetIdx, sel - 1); set({ moveSeq: get().moveSeq + 1, moveDir: -1 }); }
     },
 
     updateEntry(patch) {
@@ -400,7 +405,7 @@ export const useStore = create<Store>((set, get) => {
       let target: number | undefined;
       if (pos >= 0) target = rows[pos + delta];
       else target = delta > 0 ? rows.find((i) => i > sel) : [...rows].reverse().find((i) => i < sel);
-      if (target !== undefined) s.select(s.file, sheetIdx, target);
+      if (target !== undefined) { s.select(s.file, sheetIdx, target); set({ moveSeq: get().moveSeq + 1, moveDir: delta }); }
     },
 
     setCheck(id, on) {
