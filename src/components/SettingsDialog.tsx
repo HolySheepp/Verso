@@ -1,0 +1,169 @@
+import { useState } from 'react';
+import { useStore } from '../state/store';
+import { BUILTIN_MARKS, MARK_COLORS, SYMBOLS, checkMarkText, markVisual, type MarkVisual } from '../model/marks';
+import type { CustomMark, SymbolId } from '../model/types';
+import { MarkIcon } from './MarkIcon';
+import { IconPlus, IconTrash, IconWinClose } from './icons';
+
+// 設定目前只有「標記」分類有內容，其他分類只有外觀
+const SECTIONS = ['一般', '工作模式', '標記', '快捷鍵', '外觀'];
+
+const h3: React.CSSProperties = { margin: 0, fontSize: 12, fontWeight: 600, letterSpacing: 1, color: 'var(--text2)' };
+
+export function SettingsDialog() {
+  const open = useStore((s) => s.settingsOpen);
+  const customs = useStore((s) => s.project!.customMarks);
+  const { set, addCustomMark, deleteCustomMark } = useStore.getState();
+
+  const [name, setName] = useState('');
+  const [type, setType] = useState<'sym' | 'text'>('sym');
+  const [sym, setSym] = useState<SymbolId>('star');
+  const [text, setText] = useState('');
+  const [color, setColor] = useState('#4fb3a9');
+
+  if (!open) return null;
+
+  const tc = checkMarkText(text);
+  const preview: MarkVisual | null = type === 'sym' ? { kind: 'sym', sym, color } : tc.ok ? { kind: 'text', text, color } : null;
+  const addOff = !preview || !name;
+
+  const add = () => {
+    if (addOff) return;
+    const id = 'u' + Date.now();
+    const c: CustomMark = type === 'sym' ? { id, name, kind: 'sym', sym, color } : { id, name, kind: 'text', text, color };
+    addCustomMark(c);
+    setName('');
+    setText('');
+  };
+
+  const seg = (on: boolean): React.CSSProperties => ({
+    height: 28, padding: '0 12px', border: 0, borderRadius: 6, fontSize: 12.5,
+    background: on ? 'var(--segon)' : 'transparent', color: on ? 'var(--text)' : 'var(--text2)',
+  });
+
+  return (
+    <div className="scrim" style={{ zIndex: 40 }}>
+      <div role="dialog" aria-modal="true" aria-labelledby="verso-settings-title" className="dialog"
+        style={{ width: 820, height: 640, boxShadow: '0 24px 64px rgba(0,0,0,0.55)' }}>
+        <div style={{ height: 56, flexShrink: 0, display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '0 12px 0 22px', borderBottom: '1px solid var(--line)' }}>
+          <h2 id="verso-settings-title" style={{ margin: 0, fontSize: 16, fontWeight: 600 }}>設定</h2>
+          <button type="button" className="ib" aria-label="關閉設定" onClick={() => set({ settingsOpen: false })}
+            style={{ width: 36, height: 36, display: 'flex', alignItems: 'center', justifyContent: 'center', background: 'transparent', border: 0, borderRadius: 8, color: 'var(--text2)' }}>
+            <IconWinClose size={14} sw={1.4} />
+          </button>
+        </div>
+        <div style={{ flexGrow: 1, minHeight: 0, display: 'flex' }}>
+          <nav aria-label="設定分類" style={{ width: 180, flexShrink: 0, display: 'flex', flexDirection: 'column', gap: 2, padding: 12, borderRight: '1px solid var(--line)', background: 'var(--bar)' }}>
+            {SECTIONS.map((sec) => {
+              const on = sec === '標記';
+              return (
+                <button key={sec} type="button" className="dd" aria-current={on ? 'page' : undefined}
+                  style={{ height: 34, padding: '0 12px', border: 0, borderRadius: 7, textAlign: 'left', background: on ? 'var(--sel)' : 'transparent', color: on ? 'var(--text)' : 'var(--text2)', fontWeight: on ? 500 : 400 }}>
+                  {sec}
+                </button>
+              );
+            })}
+          </nav>
+          <div style={{ flexGrow: 1, minWidth: 0, overflowY: 'auto', padding: '20px 24px', display: 'flex', flexDirection: 'column', gap: 22 }}>
+            <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
+              <h3 style={h3}>內建標記</h3>
+              <div style={{ display: 'grid', gridTemplateColumns: 'repeat(2, minmax(0, 1fr))', gap: 8 }}>
+                {BUILTIN_MARKS.map((b) => (
+                  <div key={b.id} style={{ display: 'flex', alignItems: 'center', gap: 10, padding: '10px 12px', background: 'var(--card)', border: '1px solid var(--line2)', borderRadius: 8 }}>
+                    <span style={{ width: 18, height: 18, display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}><MarkIcon mark={{ kind: b.id }} size={18} menu /></span>
+                    <span style={{ display: 'flex', flexDirection: 'column', gap: 2, minWidth: 0 }}>
+                      <span style={{ fontSize: 13, fontWeight: 500 }}>{b.label}</span>
+                      <span style={{ fontSize: 11.5, color: 'var(--mute)' }}>{b.desc}</span>
+                    </span>
+                  </div>
+                ))}
+              </div>
+            </div>
+
+            <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
+              <h3 style={h3}>自訂標記</h3>
+              {customs.map((c) => (
+                <div key={c.id} style={{ display: 'flex', alignItems: 'center', gap: 12, height: 44, padding: '0 8px 0 12px', background: 'var(--card)', border: '1px solid var(--line2)', borderRadius: 8 }}>
+                  <span style={{ width: 18, height: 18, display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}><MarkIcon mark={markVisual(customs, `c:${c.id}`)} size={18} /></span>
+                  <span style={{ flexGrow: 1, fontSize: 13 }}>{c.name}</span>
+                  <span style={{ fontSize: 11.5, color: 'var(--mute)', padding: '2px 8px', borderRadius: 9, background: 'var(--chip)' }}>{c.kind === 'sym' ? '符號' : '文字'}</span>
+                  <button type="button" className="ib" aria-label={'刪除標記「' + c.name + '」'} title="刪除" onClick={() => deleteCustomMark(c.id)}
+                    style={{ width: 32, height: 32, display: 'flex', alignItems: 'center', justifyContent: 'center', background: 'transparent', border: 0, borderRadius: 6, color: 'var(--mute)' }}>
+                    <IconTrash size={14} />
+                  </button>
+                </div>
+              ))}
+              {customs.length === 0 && <div className="empty" style={{ padding: 16 }}>還沒有自訂標記</div>}
+            </div>
+
+            <div style={{ display: 'flex', flexDirection: 'column', gap: 14, padding: 16, background: 'var(--bar)', border: '1px solid var(--line2)', borderRadius: 10 }}>
+              <h3 style={h3}>新增自訂標記</h3>
+              <div style={{ display: 'flex', gap: 12, alignItems: 'flex-end' }}>
+                <div style={{ flexGrow: 1, display: 'flex', flexDirection: 'column', gap: 6 }}>
+                  <label htmlFor="verso-mark-name" style={{ fontSize: 12, color: 'var(--text2)' }}>名稱</label>
+                  <input id="verso-mark-name" type="text" className="field" value={name} onChange={(e) => setName(e.target.value)} placeholder="例如：需問企劃" />
+                </div>
+                <div role="group" aria-label="標記樣式" className="seg-group">
+                  <button type="button" className="seg" aria-pressed={type === 'sym'} onClick={() => setType('sym')} style={seg(type === 'sym')}>符號庫</button>
+                  <button type="button" className="seg" aria-pressed={type === 'text'} onClick={() => setType('text')} style={seg(type === 'text')}>自行輸入</button>
+                </div>
+              </div>
+
+              {type === 'sym' && (
+                <div role="radiogroup" aria-label="符號庫" style={{ display: 'grid', gridTemplateColumns: 'repeat(12, minmax(0, 1fr))', gap: 6 }}>
+                  {SYMBOLS.map((g) => {
+                    const on = sym === g.id;
+                    return (
+                      <button key={g.id} type="button" role="radio" aria-checked={on} aria-label={g.label} title={g.label} className="dd" onClick={() => setSym(g.id)}
+                        style={{ height: 40, display: 'flex', alignItems: 'center', justifyContent: 'center', background: on ? 'var(--sel)' : 'var(--card)', border: `1px solid ${on ? 'var(--accent)' : 'var(--line2)'}`, borderRadius: 8 }}>
+                        <MarkIcon mark={{ kind: 'sym', sym: g.id, color }} size={18} />
+                      </button>
+                    );
+                  })}
+                </div>
+              )}
+
+              {type === 'text' && (
+                <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
+                  <label htmlFor="verso-mark-text" style={{ fontSize: 12, color: 'var(--text2)' }}>標記文字</label>
+                  <input id="verso-mark-text" type="text" className="field" value={text} onChange={(e) => setText(e.target.value.trim())} placeholder="例如 TM、長、?"
+                    style={{ width: 200, fontSize: 14, borderColor: text && !tc.ok ? '#d9725e' : undefined }} />
+                  {text && !tc.ok && <span role="alert" style={{ fontSize: 12, color: 'var(--errtx)' }}>{tc.msg}</span>}
+                </div>
+              )}
+
+              <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
+                <span style={{ fontSize: 12, color: 'var(--text2)' }}>顏色</span>
+                <div role="radiogroup" aria-label="標記顏色" style={{ display: 'flex', gap: 8 }}>
+                  {MARK_COLORS.map((w) => {
+                    const on = color === w.hex;
+                    return (
+                      <button key={w.hex} type="button" role="radio" aria-checked={on} aria-label={w.label} onClick={() => setColor(w.hex)}
+                        style={{ width: 26, height: 26, padding: 0, borderRadius: '50%', background: w.hex, border: `2px solid ${on ? 'var(--text)' : 'transparent'}`, boxShadow: '0 0 0 2px var(--bar) inset' }} />
+                    );
+                  })}
+                </div>
+              </div>
+
+              <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', paddingTop: 12, borderTop: '1px solid var(--line)' }}>
+                <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+                  <span style={{ fontSize: 12, color: 'var(--mute)' }}>預覽</span>
+                  <span style={{ display: 'flex', alignItems: 'center', gap: 10, height: 34, padding: '0 12px', background: 'var(--card)', border: '1px solid var(--line2)', borderRadius: 8 }}>
+                    {preview
+                      ? <MarkIcon mark={preview} size={16} />
+                      : <span style={{ width: 16, height: 16, boxSizing: 'border-box', border: '1px dashed var(--line6)', borderRadius: 4 }} />}
+                    <span style={{ fontSize: 13 }}>{name || '未命名標記'}</span>
+                  </span>
+                </div>
+                <button type="button" className="btn btn-primary" disabled={addOff} onClick={add}
+                  style={{ height: 36, display: 'flex', alignItems: 'center', gap: 6, padding: '0 16px', background: '#2f6fe4', border: 0, borderRadius: 8, color: '#ffffff', fontSize: 13, fontWeight: 600 }}>
+                  <IconPlus size={13} sw={2.6} />新增標記
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+}
