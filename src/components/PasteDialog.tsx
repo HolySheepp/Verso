@@ -156,15 +156,14 @@ export function PasteDialog() {
     const minDx = lefts[0] - lefts[from];
     const maxDx = lefts[n - 1] + widths[n - 1] - widths[from] - lefts[from];
     const dx = Math.max(minDx, Math.min(maxDx, ev.clientX - p.x));
-    const center = lefts[from] + dx + widths[from] / 2;
+    // 被拖的頁簽邊緣一越過旁邊頁簽的中心點就交換：往左看左邊緣，往右看右邊緣
+    const left = lefts[from] + dx, right = left + widths[from];
     let to = from;
-    for (let j = 0; j < n; j++) {
-      const c = lefts[j] + widths[j] / 2;
-      if (j < from && center < c) { to = j; break; }
+    for (let j = 0; j < from; j++) {
+      if (left < lefts[j] + widths[j] / 2) { to = j; break; }
     }
     for (let j = n - 1; j > from; j--) {
-      const c = lefts[j] + widths[j] / 2;
-      if (center > c) { to = j; break; }
+      if (right > lefts[j] + widths[j] / 2) { to = j; break; }
     }
     setTabDrag({ ...d, dx, to });
   };
