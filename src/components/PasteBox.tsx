@@ -2,6 +2,8 @@ import { useEffect, useRef, useState } from 'react';
 import { readColumns } from '../model/clipboard';
 import type { Col } from '../model/paste';
 import { IconWinClose } from './icons';
+import { ContextMenu } from './ContextMenu';
+import { focusOnMount } from './windowDrag';
 
 interface Props {
   label: string;
@@ -10,6 +12,9 @@ interface Props {
   onPaste(columns: string[][]): void;
   /** 在方框裡編輯後的整欄 */
   onChange(col: Col | null): void;
+  /** 點選或右鍵選到的那一行（整個視窗只有一行是選到的） */
+  selected: number | null;
+  onSelect(i: number | null): void;
 }
 
 interface Menu { i: number; x: number; y: number }
@@ -18,7 +23,7 @@ interface Menu { i: number; x: number; y: number }
  * 貼入一整欄的方框：點一下再按 Ctrl+V，優先讀剪貼簿裡的表格格式。
  * 貼上後可以雙擊某一行編輯，右鍵可以編輯、清空、刪除、插入。
  */
-export function PasteBox({ label, col, onPaste, onChange }: Props) {
+export function PasteBox({ label, col, onPaste, onChange, selected, onSelect }: Props) {
   // 用一個看不見的文字框接收貼上，這樣不管點在方框哪裡、按 Ctrl+V 都一定會觸發貼上
   const input = useRef<HTMLTextAreaElement>(null);
   const [editing, setEditing] = useState<{ i: number; text: string } | null>(null);
@@ -52,9 +57,11 @@ export function PasteBox({ label, col, onPaste, onChange }: Props) {
     if (kind === 'edit') setEditing({ i, text: rows[i] });
     if (kind === 'clear') setRows(rows.map((r, j) => (j === i ? '' : r)));
     if (kind === 'delete') setRows(rows.filter((_, j) => j !== i));
+    if (kind === 'delete') onSelect(i < rows.length - 1 ? i : i > 0 ? i - 1 : null);
     if (kind === 'insert') {
       setRows([...rows.slice(0, i + 1), '', ...rows.slice(i + 1)]);
       setEditing({ i: i + 1, text: '' });
+      onSelect(i + 1);
     }
   };
 
@@ -88,15 +95,15 @@ export function PasteBox({ label, col, onPaste, onChange }: Props) {
         <textarea ref={input} aria-label={label} value="" onChange={() => {}} onPaste={handlePaste} spellCheck={false}
           style={{ position: 'absolute', left: 0, top: 0, width: 1, height: 1, padding: 0, border: 0, opacity: 0, resize: 'none', pointerEvents: 'none' }} />
         {rows ? rows.map((r, i) => (
-          <div key={i} className="pb-row" data-editing={editing?.i === i ? '1' : undefined}
+          <div key={i} className="pb-row" data-editing={editing?.i === i ? '1' : undefined} data-selected={selected === i ? '1' : undefined}
+            onMouseDown={(ev) => { if (ev.button === 0) onSelect(i); }}
             onDoubleClick={() => setEditing({ i, text: r })}
-            onContextMenu={(ev) => { ev.preventDefault(); commit(); setMenu({ i, x: ev.clientX, y: ev.clientY }); }}
+            onContextMenu={(ev) => { ev.preventDefault(); commit(); onSelect(i); setMenu({ i, x: ev.clientX, y: ev.clientY }); }}
             style={{ display: 'flex', gap: 8, padding: '2px 10px', fontSize: 12.5, lineHeight: 1.5 }}>
             <span className="mono" style={{ width: 28, flexShrink: 0, textAlign: 'right', fontSize: 10.5, color: 'var(--mute3)', lineHeight: '19px' }}>{i + 1}</span>
             {editing?.i === i ? (
-              <textarea className="pb-edit" autoFocus value={editing.text} spellCheck={false}
+              <textarea className="pb-edit" ref={focusOnMount} value={editing.text} spellCheck={false}
                 rows={Math.max(1, editing.text.split('\n').length)}
-                onFocus={(ev) => ev.currentTarget.select()}
                 onChange={(ev) => setEditing({ i, text: ev.target.value })}
                 onKeyDown={(ev) => {
                   if (ev.key === 'Enter' && !ev.shiftKey) { ev.preventDefault(); commit(); input.current?.focus(); }
@@ -121,19 +128,10 @@ export function PasteBox({ label, col, onPaste, onChange }: Props) {
       </div>
 
       {menu && (
-        <>
-          <div onMouseDown={() => setMenu(null)} onContextMenu={(ev) => { ev.preventDefault(); setMenu(null); }}
-            style={{ position: 'fixed', inset: 0, zIndex: 60 }} />
-          <div role="menu" aria-label={label + '第 ' + (menu.i + 1) + ' 行'} className="pop"
-            onKeyDown={(ev) => { if (ev.key === 'Escape') setMenu(null); }}
-            style={{ position: 'fixed', left: Math.min(menu.x, window.innerWidth - 150), top: Math.min(menu.y, window.innerHeight - 160), zIndex: 61, width: 128 }}>
-            {([['edit', '編輯'], ['clear', '清空'], ['delete', '刪除'], ['insert', '插入']] as const).map(([k, t], j) => (
-              <button key={k} type="button" role="menuitem" className="dd pop-item" autoFocus={j === 0}
-                onClick={() => act(k, menu.i)}
-                style={{ background: 'transparent', color: k === 'delete' ? 'var(--errtx)' : undefined }}>{t}</button>
-            ))}
-          </div>
-        </>
+        <ContextMenu x={menu.x} y={menu.y} label={label + '第 ' + (menu.i + 1) + ' 行'}
+          items={[{ key: 'edit', label: '編輯' }, { key: 'clear', label: '清空' }, { key: 'delete', label: '刪除', danger: true }, { key: 'insert', label: '插入' }]}
+          onPick={(k) => act(k as 'edit' | 'clear' | 'delete' | 'insert', menu.i)}
+          onClose={() => setMenu(null)} />
       )}
     </div>
   );

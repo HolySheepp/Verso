@@ -2,6 +2,8 @@ import { useEffect, useState } from 'react';
 import { useStore } from '../state/store';
 import { COLS, checkColumns, columnsToEntries, emptyColumns, spreadColumns, type Columns } from '../model/paste';
 import { PasteBox } from './PasteBox';
+import { ContextMenu } from './ContextMenu';
+import { dragWindow, focusOnMount } from './windowDrag';
 import { IconPlus, IconWinClose } from './icons';
 
 interface DraftSheet { name: string; cols: Columns }
@@ -16,11 +18,16 @@ export function PasteDialog() {
   const [sheets, setSheets] = useState<DraftSheet[]>([newSheet(1)]);
   const [cur, setCur] = useState(0);
   const [renaming, setRenaming] = useState<number | null>(null);
+  const [selRow, setSelRow] = useState<{ key: string; i: number } | null>(null);
+  const [tabMenu, setTabMenu] = useState<{ i: number; x: number; y: number } | null>(null);
 
   // 每次打開都是空白的
   useEffect(() => {
-    if (open) { setName(''); setSheets([newSheet(1)]); setCur(0); setRenaming(null); }
+    if (open) { setName(''); setSheets([newSheet(1)]); setCur(0); setRenaming(null); setSelRow(null); setTabMenu(null); }
   }, [open]);
+
+  // 換頁簽時清掉選到的那一行
+  useEffect(() => { setSelRow(null); }, [cur]);
 
   if (!open) return null;
 
@@ -47,6 +54,19 @@ export function PasteDialog() {
     setCur(sheets.length);
   };
 
+  const insertSheet = (i: number) => {
+    setSheets([...sheets.slice(0, i + 1), newSheet(sheets.length + 1), ...sheets.slice(i + 1)]);
+    setCur(i + 1);
+  };
+
+  const onTabMenu = (key: string, i: number) => {
+    setTabMenu(null);
+    if (key === 'rename') { setCur(i); setRenaming(i); }
+    if (key === 'clear') patchSheet(i, () => ({ cols: emptyColumns() }));
+    if (key === 'delete' && sheets.length > 1) removeSheet(i);
+    if (key === 'insert') insertSheet(i);
+  };
+
   const removeSheet = (i: number) => {
     const next = sheets.filter((_, j) => j !== i);
     setSheets(next);
@@ -54,7 +74,7 @@ export function PasteDialog() {
   };
 
   return (
-    <div className="scrim" style={{ zIndex: 45 }}>
+    <div className="scrim" style={{ zIndex: 45 }} onMouseDown={dragWindow}>
       <div role="dialog" aria-modal="true" aria-labelledby="verso-paste-title" className="dialog"
         style={{ width: 960, height: 640, maxWidth: 'calc(100% - 48px)', maxHeight: 'calc(100% - 48px)', boxShadow: '0 24px 64px rgba(0,0,0,0.5)' }}>
         <div style={{ height: 52, flexShrink: 0, display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '0 10px 0 20px', borderBottom: '1px solid var(--line)' }}>
@@ -78,7 +98,7 @@ export function PasteDialog() {
               return (
                 <div key={i} style={{ display: 'flex', alignItems: 'center', borderBottom: `2px solid ${on ? 'var(--accent)' : 'transparent'}`, marginBottom: -1 }}>
                   {renaming === i ? (
-                    <input className="field" autoFocus value={sh.name} aria-label="頁簽名稱"
+                    <input className="field" ref={focusOnMount} value={sh.name} aria-label="頁簽名稱"
                       onChange={(e) => { const name = e.target.value; patchSheet(i, () => ({ name })); }}
                       onBlur={() => setRenaming(null)}
                       onKeyDown={(e) => { if (e.key === 'Enter' || e.key === 'Escape') setRenaming(null); }}
@@ -86,6 +106,7 @@ export function PasteDialog() {
                   ) : (
                     <button type="button" role="tab" className="stab" aria-selected={on} title="雙擊改名"
                       onClick={() => setCur(i)} onDoubleClick={() => setRenaming(i)}
+                      onContextMenu={(ev) => { ev.preventDefault(); setCur(i); setTabMenu({ i, x: ev.clientX, y: ev.clientY }); }}
                       style={{ height: 36, padding: '0 10px', background: 'transparent', border: 0, fontSize: 13, fontWeight: 500, color: on ? 'var(--text)' : 'var(--mute)', whiteSpace: 'nowrap' }}>
                       {sh.name || '頁簽 ' + (i + 1)}
                     </button>
@@ -108,7 +129,9 @@ export function PasteDialog() {
             {COLS.map((c) => (
               <PasteBox key={cur + c.key} label={c.label} col={sheet.cols[c.key]}
                 onPaste={(values) => patchSheet(cur, (sh) => ({ cols: { ...sh.cols, ...spreadColumns(COLS.map((x) => x.key), c.key, values) } }))}
-                onChange={(col) => patchSheet(cur, (sh) => ({ cols: { ...sh.cols, [c.key]: col } }))} />
+                onChange={(col) => patchSheet(cur, (sh) => ({ cols: { ...sh.cols, [c.key]: col } }))}
+                selected={selRow?.key === c.key ? selRow.i : null}
+                onSelect={(i) => setSelRow(i === null ? null : { key: c.key, i })} />
             ))}
           </div>
         </div>
@@ -123,6 +146,17 @@ export function PasteDialog() {
           </div>
         </div>
       </div>
+      {tabMenu && (
+        <ContextMenu x={tabMenu.x} y={tabMenu.y} label={'頁簽「' + (sheets[tabMenu.i]?.name ?? '') + '」'}
+          items={[
+            { key: 'rename', label: '重新命名' },
+            { key: 'clear', label: '清空' },
+            { key: 'delete', label: '刪除', danger: true, disabled: sheets.length <= 1 },
+            { key: 'insert', label: '插入' },
+          ]}
+          onPick={(k) => onTabMenu(k, tabMenu.i)}
+          onClose={() => setTabMenu(null)} />
+      )}
     </div>
   );
 }

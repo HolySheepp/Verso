@@ -69,3 +69,5 @@ textarea[data-hist="1"]:focus{border-color:var(--accent) !important}
 .pb-row{cursor:default;border-radius:4px}
 .pb-row:hover:not([data-editing]){background:var(--ov2)}
 .pb-edit:focus{outline:none}
+.pb-row[data-selected]{background:rgba(79,140,255,0.14);box-shadow:inset 0 0 0 1px rgba(79,140,255,0.55)}
+.pb-row[data-selected]:hover:not([data-editing]){background:rgba(79,140,255,0.2)}

@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react';
 import { useStore } from '../state/store';
 import { PasteBox } from './PasteBox';
+import { dragWindow } from './windowDrag';
 import { fitsRows, spreadColumns, type Col } from '../model/paste';
 import { IconWinClose } from './icons';
 
@@ -15,9 +16,10 @@ export function DictPasteDialog() {
   const [newName, setNewName] = useState('');
   const [src, setSrc] = useState<Col | null>(null);
   const [tgt, setTgt] = useState<Col | null>(null);
+  const [selRow, setSelRow] = useState<{ key: string; i: number } | null>(null);
 
   useEffect(() => {
-    if (open) { setTarget(NEW); setNewName(''); setSrc(null); setTgt(null); }
+    if (open) { setTarget(NEW); setNewName(''); setSrc(null); setTgt(null); setSelRow(null); }
   }, [open]);
 
   if (!open) return null;
@@ -41,7 +43,7 @@ export function DictPasteDialog() {
   const canSave = !error && !!dictName && pairs.length > 0;
 
   return (
-    <div className="scrim" style={{ zIndex: 45 }}>
+    <div className="scrim" style={{ zIndex: 45 }} onMouseDown={dragWindow}>
       <div role="dialog" aria-modal="true" aria-labelledby="verso-dict-paste-title" className="dialog"
         style={{ width: 640, height: 560, maxWidth: 'calc(100% - 48px)', maxHeight: 'calc(100% - 48px)', boxShadow: '0 24px 64px rgba(0,0,0,0.5)' }}>
         <div style={{ height: 52, flexShrink: 0, display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '0 10px 0 20px', borderBottom: '1px solid var(--line)' }}>
@@ -65,8 +67,10 @@ export function DictPasteDialog() {
             )}
           </div>
           <div style={{ flexGrow: 1, minHeight: 0, display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12 }}>
-            <PasteBox label="原文" col={src} onChange={setSrc} onPaste={(v) => spread('src', v)} />
-            <PasteBox label="譯文" col={tgt} onChange={setTgt} onPaste={(v) => spread('tgt', v)} />
+            <PasteBox label="原文" col={src} onChange={setSrc} onPaste={(v) => spread('src', v)}
+              selected={selRow?.key === 'src' ? selRow.i : null} onSelect={(i) => setSelRow(i === null ? null : { key: 'src', i })} />
+            <PasteBox label="譯文" col={tgt} onChange={setTgt} onPaste={(v) => spread('tgt', v)}
+              selected={selRow?.key === 'tgt' ? selRow.i : null} onSelect={(i) => setSelRow(i === null ? null : { key: 'tgt', i })} />
           </div>
         </div>
 
