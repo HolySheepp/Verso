@@ -120,7 +120,7 @@ export default function App() {
         <MarkMenu title="變更標記" ariaLabel="變更標記"
           current={effectiveMark(sheet.entries[s.rowMenu.index])}
           style={{ position: 'absolute', left: s.rowMenu.x, top: s.rowMenu.y, boxShadow: '0 16px 40px rgba(0,0,0,0.5)' }}
-          numbered={!!s.rowMenu.keys}
+          numbered={!!s.rowMenu.keys} active={s.rowMenu.keys ? s.rowMenu.active : undefined}
           onPick={(id) => { s.setEntryMark(s.rowMenu!.index, id); s.set({ rowMenu: null }); }} />
       )}
 

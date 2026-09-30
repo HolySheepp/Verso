@@ -1,3 +1,4 @@
+import { useRef, useState } from 'react';
 import { currentOf, useStore } from '../state/store';
 import { isDone, markName, markVisual } from '../model/marks';
 import type { Entry, MarkId } from '../model/types';
@@ -24,6 +25,47 @@ export function FileNav({ tabW }: { tabW: number }) {
   const menuOpen = s.fileMenuOpen;
 
   const carW = tabW * 3 + 16;
+  const step = tabW + 8;
+
+  // 用滑鼠左右拖動頁簽欄：旁邊頁簽的邊緣碰到中線時，就切換到那個頁簽並滑到中間
+  const [dragDx, setDragDx] = useState(0);
+  const [dragging, setDragging] = useState(false);
+  const drag = useRef<{ x: number; moved: boolean; id: number } | null>(null);
+  const justDragged = useRef(false);
+  const n = fileDoc.sheets.length;
+
+  const onPointerDown = (ev: React.PointerEvent<HTMLDivElement>) => {
+    if (ev.button !== 0) return;
+    drag.current = { x: ev.clientX, moved: false, id: ev.pointerId };
+  };
+  const onPointerMove = (ev: React.PointerEvent<HTMLDivElement>) => {
+    const d = drag.current;
+    if (!d) return;
+    let dx = ev.clientX - d.x;
+    if (!d.moved) {
+      if (Math.abs(dx) < 5) return;
+      d.moved = true;
+      setDragging(true);
+      try { ev.currentTarget.setPointerCapture(d.id); } catch { /* 無法捕捉時照常運作 */ }
+    }
+    const cross = tabW / 2 + 8;
+    const idx = currentOf(useStore.getState()).sheetIdx;
+    if (dx <= -cross && idx < n - 1) { s.setSheet(idx + 1); d.x = ev.clientX; dx = 0; }
+    else if (dx >= cross && idx > 0) { s.setSheet(idx - 1); d.x = ev.clientX; dx = 0; }
+    // 已經是第一個或最後一個頁簽時，只能拉動一點點
+    if ((dx < 0 && idx >= n - 1) || (dx > 0 && idx <= 0)) dx = Math.sign(dx) * Math.min(Math.abs(dx) * 0.3, cross * 0.4);
+    setDragDx(dx);
+  };
+  const endDrag = () => {
+    const d = drag.current;
+    drag.current = null;
+    if (d?.moved) {
+      justDragged.current = true;
+      setTimeout(() => { justDragged.current = false; }, 0);
+    }
+    setDragging(false);
+    setDragDx(0);
+  };
   const carMask = `linear-gradient(90deg, transparent 0, #000 40px, #000 ${carW - 40}px, transparent ${carW}px)`;
   const badgeOrder: MarkId[] = ['doubt', 'think', ...project.customMarks.map((c) => `c:${c.id}` as MarkId)];
 
@@ -32,10 +74,16 @@ export function FileNav({ tabW }: { tabW: number }) {
       <button type="button" className="ib" aria-label="上一個頁簽" style={navBtn} onClick={() => s.setSheet(sheetIdx - 1)}>
         <IconChevL sw={2.2} />
       </button>
-      <div style={{ width: carW, height: 44, flexShrink: 0, overflow: 'hidden', position: 'relative', WebkitMaskImage: carMask, maskImage: carMask }}>
+      <div onPointerDown={onPointerDown} onPointerMove={onPointerMove} onPointerUp={endDrag} onPointerCancel={endDrag}
+        onClickCapture={(ev) => { if (justDragged.current) { ev.stopPropagation(); ev.preventDefault(); justDragged.current = false; } }}
+        style={{
+          width: carW, height: 44, flexShrink: 0, overflow: 'hidden', position: 'relative', WebkitMaskImage: carMask, maskImage: carMask,
+          cursor: dragging ? 'grabbing' : undefined, touchAction: 'none', userSelect: 'none',
+        }}>
         <div style={{
           display: 'flex', gap: 8, height: 44, alignItems: 'center',
-          transform: `translateX(${(1 - sheetIdx) * (tabW + 8)}px)`, transition: 'transform 320ms cubic-bezier(0.2, 0.8, 0.2, 1)',
+          transform: `translateX(${(1 - sheetIdx) * step + dragDx}px)`,
+          transition: dragging ? 'transform 140ms ease-out' : 'transform 320ms cubic-bezier(0.2, 0.8, 0.2, 1)',
         }}>
           {fileDoc.sheets.map((sh, i) => {
             const on = i === sheetIdx, near = Math.abs(i - sheetIdx) === 1;

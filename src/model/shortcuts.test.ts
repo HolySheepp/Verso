@@ -12,6 +12,7 @@ describe('快捷鍵', () => {
     expect(comboOf(ev('m', 'KeyM', { ctrlKey: true }))).toBe('Ctrl+M');
     expect(comboOf(ev('Tab', 'Tab', { ctrlKey: true, shiftKey: true }))).toBe('Ctrl+Shift+Tab');
     expect(comboOf(ev('Control', 'ControlLeft', { ctrlKey: true }))).toBeNull();
+    expect(comboOf(ev('ArrowRight', 'ArrowRight', { ctrlKey: true }), true)).toBe('Ctrl+Tab+→');
   });
   it('兩種情境的預設快捷鍵', () => {
     const b = defaultBindings();
@@ -20,5 +21,8 @@ describe('快捷鍵', () => {
     expect(actionFor(b, 'list', 'Backspace')).toBe('clearTgt');
     expect(actionFor(b, 'input', 'Backspace')).toBeNull();
     expect(actionFor(b, 'input', 'Esc')).toBe('leaveInput');
+    expect(actionFor(b, 'list', 'Alt+↓')).toBe('nextEntry');
+    expect(actionFor(b, 'list', 'Ctrl+R')).toBe('record');
+    expect(actionFor(b, 'input', 'Ctrl+Tab+←')).toBe('prevSheet');
   });
 });

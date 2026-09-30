@@ -13,6 +13,8 @@ interface Props {
   style: React.CSSProperties;
   /** 用快捷鍵打開時，每項前面顯示數字，按數字就能選 */
   numbered?: boolean;
+  /** 用上下鍵移動到的那一項（按 Enter 會選它） */
+  active?: number;
 }
 
 /** 選單裡各標記的順序（按數字選取時用同一個順序） */
@@ -24,7 +26,7 @@ export function markMenuIds(customs: CustomMark[], exclude: MarkId[] = []): Mark
 }
 
 /** 標記選單：條目的「變更標記」和「標記並下一條」共用 */
-export function MarkMenu({ title, ariaLabel, current, exclude = [], onPick, style, numbered = false }: Props) {
+export function MarkMenu({ title, ariaLabel, current, exclude = [], onPick, style, numbered = false, active }: Props) {
   const customs = useStore((s) => s.project!.customMarks);
   const set = useStore((s) => s.set);
 
@@ -34,7 +36,10 @@ export function MarkMenu({ title, ariaLabel, current, exclude = [], onPick, styl
     const n = order.indexOf(id) + 1;
     return (
       <button key={id} type="button" className="dd pop-item" role="menuitemradio" aria-checked={on} onClick={() => onPick(id)}
-        style={{ background: on ? 'var(--sel)' : 'transparent' }}>
+        style={{
+          background: n - 1 === active ? 'var(--hv3)' : on ? 'var(--sel)' : 'transparent',
+          boxShadow: n - 1 === active ? 'inset 0 0 0 1px var(--accent)' : undefined,
+        }}>
         <span style={{ width: 16, height: 16, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
           <MarkIcon mark={markVisual(customs, id)} size={16} menu />
         </span>

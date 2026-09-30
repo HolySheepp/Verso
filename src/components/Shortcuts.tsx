@@ -1,6 +1,7 @@
 import { useEffect } from 'react';
 import { currentOf, useStore } from '../state/store';
-import { actionFor, comboOf, type ActionId } from '../model/shortcuts';
+import { actionFor, comboOf, createTabHold, type ActionId } from '../model/shortcuts';
+import { effectiveMark } from '../model/marks';
 import { markMenuIds } from './MarkMenu';
 import { rowMenuPos } from './rowMenu';
 
@@ -28,10 +29,15 @@ function focusWorkInput(mode: string) {
 /** 全域快捷鍵：依焦點是否在譯文框分成兩種情境 */
 export function Shortcuts() {
   useEffect(() => {
+    const tab = createTabHold();
+
     const onKey = (ev: KeyboardEvent) => {
       if (ev.defaultPrevented || ev.isComposing) return;
       const s = useStore.getState();
       if (!s.project) return;
+
+      // 擋掉瀏覽器的重新整理，避免整個軟體被刷新、內容遺失
+      if (ev.key === 'F5' || ((ev.ctrlKey || ev.metaKey) && ev.code === 'KeyR')) ev.preventDefault();
 
       // 對話框開著時只處理 Esc 關閉設定與詞條視窗；貼入視窗怕內容遺失，不用 Esc 關
       if (s.settingsOpen || s.termDraft || s.pasteOpen || s.dictPasteOpen) {
@@ -42,15 +48,26 @@ export function Shortcuts() {
         return;
       }
 
-      // 用快捷鍵打開的標記選單：按數字選取
-      if (s.rowMenu?.keys && /^Digit[1-9]$/.test(ev.code) && !ev.ctrlKey && !ev.altKey && !ev.metaKey) {
-        ev.preventDefault();
+      // 用快捷鍵打開的標記選單：按數字直接選，或用上下鍵移動、Enter 確認
+      if (s.rowMenu?.keys && !ev.ctrlKey && !ev.altKey && !ev.metaKey) {
         const ids = markMenuIds(s.project.customMarks);
-        const id = ids[Number(ev.code.slice(5)) - 1];
-        if (id) s.setEntryMark(s.rowMenu.index, id);
-        s.set({ rowMenu: null });
-        return;
+        const menu = s.rowMenu;
+        const pick = (id: string | undefined) => {
+          if (id) s.setEntryMark(menu.index, id as (typeof ids)[number]);
+          s.set({ rowMenu: null });
+        };
+        if (/^Digit[1-9]$/.test(ev.code)) { ev.preventDefault(); pick(ids[Number(ev.code.slice(5)) - 1]); return; }
+        if (ev.key === 'ArrowDown' || ev.key === 'ArrowUp') {
+          ev.preventDefault();
+          const d = ev.key === 'ArrowDown' ? 1 : -1;
+          s.set({ rowMenu: { ...menu, active: ((menu.active ?? 0) + d + ids.length) % ids.length } });
+          return;
+        }
+        if (ev.key === 'Enter') { ev.preventDefault(); pick(ids[menu.active ?? 0]); return; }
       }
+
+      // Ctrl+Tab 按住時等下一個鍵（例如 →），不直接動作
+      if (tab.down(ev)) { ev.preventDefault(); return; }
       // Esc 先關掉開著的選單
       if (ev.key === 'Escape' && (s.rowMenu || s.stampOpen || s.fileMenuOpen)) {
         ev.preventDefault();
@@ -58,16 +75,31 @@ export function Shortcuts() {
         return;
       }
 
+      const combo = comboOf(ev, tab.held());
+      if (!combo) return;
+      if (tab.held()) { tab.markUsed(); ev.preventDefault(); }
+      if (handle(combo)) ev.preventDefault();
+    };
+
+    /** 依目前焦點的情境執行快捷鍵，有執行就回傳 true */
+    const handle = (combo: string) => {
+      const s = useStore.getState();
+      if (!s.project || s.settingsOpen || s.termDraft || s.pasteOpen || s.dictPasteOpen) return false;
       const el = document.activeElement;
       const inWork = isWorkInput(el, s.mode);
-      if (!inWork && isOtherInput(el)) return;
-      const combo = comboOf(ev);
-      if (!combo) return;
+      if (!inWork && isOtherInput(el)) return false;
       const action = actionFor(s.shortcuts, inWork ? 'input' : 'list', combo);
-      if (!action) return;
-      ev.preventDefault();
+      if (!action) return false;
       run(action, el as HTMLElement | null);
+      return true;
     };
+
+    // 只按 Ctrl+Tab 就放開時，放開那一刻才算
+    const onKeyUp = (ev: KeyboardEvent) => {
+      const combo = tab.up(ev);
+      if (combo) handle(combo);
+    };
+    const onBlur = () => tab.reset();
 
     const run = (action: ActionId, el: HTMLElement | null) => {
       const s = useStore.getState();
@@ -96,14 +128,22 @@ export function Shortcuts() {
         case 'markMenu': {
           const btn = document.querySelector<HTMLElement>('.rw .row[aria-current="true"]')?.parentElement?.querySelector<HTMLElement>('.mk');
           const pos = btn ? rowMenuPos(btn, s.project!.customMarks.length) : { x: 40, y: 120 };
-          s.set({ rowMenu: { index: sel, ...pos, keys: true }, stampOpen: false, fileMenuOpen: false });
+          const ids = markMenuIds(s.project!.customMarks);
+          const active = Math.max(0, ids.indexOf(effectiveMark(currentOf(s).sheet.entries[sel])));
+          s.set({ rowMenu: { index: sel, ...pos, keys: true, active }, stampOpen: false, fileMenuOpen: false });
           break;
         }
       }
     };
 
     window.addEventListener('keydown', onKey);
-    return () => window.removeEventListener('keydown', onKey);
+    window.addEventListener('keyup', onKeyUp);
+    window.addEventListener('blur', onBlur);
+    return () => {
+      window.removeEventListener('keydown', onKey);
+      window.removeEventListener('keyup', onKeyUp);
+      window.removeEventListener('blur', onBlur);
+    };
   }, []);
   return null;
 }

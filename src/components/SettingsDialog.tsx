@@ -5,7 +5,7 @@ import type { CustomMark, SymbolId } from '../model/types';
 import { MarkIcon } from './MarkIcon';
 import { IconPlus, IconTrash, IconWinClose } from './icons';
 import { CHECKS } from '../model/checks';
-import { ACTION_LABELS, CONTEXTS, CONTEXT_ACTIONS, comboOf, type ActionId, type ShortcutContext } from '../model/shortcuts';
+import { ACTION_LABELS, CONTEXTS, CONTEXT_ACTIONS, comboOf, createTabHold, type ActionId, type ShortcutContext } from '../model/shortcuts';
 
 // 設定目前只有「標記」「檢查」分類有內容，其他分類只有外觀
 const SECTIONS = ['一般', '工作模式', '標記', '檢查', '快捷鍵', '外觀'];
@@ -202,37 +202,53 @@ function ShortcutsSection() {
   const setBinding = useStore((s) => s.setBinding);
   const [ctx, setCtx] = useState<ShortcutContext>('input');
   const [recording, setRecording] = useState<ActionId | null>(null);
-  const [error, setError] = useState('');
+  // 衝突提示顯示在那一項下面
+  const [error, setError] = useState<{ action: ActionId; msg: string } | null>(null);
 
   // 錄製中：下一個組合鍵就是新的快捷鍵；Backspace 清空；點別處取消
   useEffect(() => {
     if (!recording) return;
-    const onKey = (ev: KeyboardEvent) => {
-      ev.preventDefault();
-      ev.stopPropagation();
-      if (ev.key === 'Backspace' && !ev.ctrlKey && !ev.altKey && !ev.shiftKey && !ev.metaKey) {
-        setBinding(ctx, recording, []);
-        setRecording(null);
-        setError('');
-        return;
-      }
-      const combo = comboOf(ev);
-      if (!combo) return;
+    const tab = createTabHold();
+    const finish = (combo: string) => {
       const taken = CONTEXT_ACTIONS[ctx].find((a) => a !== recording && bindings[ctx][a]?.includes(combo));
       if (taken) {
-        setError(`「${combo}」已被「${ACTION_LABELS[taken]}」使用`);
+        setError({ action: recording, msg: `「${combo}」已被「${ACTION_LABELS[taken]}」使用` });
         return;
       }
       setBinding(ctx, recording, [combo]);
       setRecording(null);
-      setError('');
+      setError(null);
+    };
+    const onKey = (ev: KeyboardEvent) => {
+      ev.preventDefault();
+      ev.stopPropagation();
+      if (ev.key === 'Backspace' && !ev.ctrlKey && !ev.altKey && !ev.shiftKey && !ev.metaKey && !tab.held()) {
+        setBinding(ctx, recording, []);
+        setRecording(null);
+        setError(null);
+        return;
+      }
+      if (tab.down(ev)) return;
+      const combo = comboOf(ev, tab.held());
+      if (!combo) return;
+      if (tab.held()) tab.markUsed();
+      finish(combo);
+    };
+    const onUp = (ev: KeyboardEvent) => {
+      const combo = tab.up(ev);
+      if (combo) finish(combo);
     };
     const onDown = (ev: MouseEvent) => {
-      if (!(ev.target as HTMLElement).closest('[data-recording]')) { setRecording(null); setError(''); }
+      if (!(ev.target as HTMLElement).closest('[data-recording]')) { setRecording(null); setError(null); }
     };
     window.addEventListener('keydown', onKey, true);
+    window.addEventListener('keyup', onUp, true);
     window.addEventListener('mousedown', onDown, true);
-    return () => { window.removeEventListener('keydown', onKey, true); window.removeEventListener('mousedown', onDown, true); };
+    return () => {
+      window.removeEventListener('keydown', onKey, true);
+      window.removeEventListener('keyup', onUp, true);
+      window.removeEventListener('mousedown', onDown, true);
+    };
   }, [recording, ctx, bindings, setBinding]);
 
   const chip: React.CSSProperties = {
@@ -245,7 +261,7 @@ function ShortcutsSection() {
       <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
         <label htmlFor="verso-sc-ctx" style={{ fontSize: 12, color: 'var(--text2)' }}>情境</label>
         <select id="verso-sc-ctx" className="field" value={ctx} style={{ width: 200, padding: '0 10px' }}
-          onChange={(e) => { setCtx(e.target.value as ShortcutContext); setRecording(null); setError(''); }}>
+          onChange={(e) => { setCtx(e.target.value as ShortcutContext); setRecording(null); setError(null); }}>
           {CONTEXTS.map((c) => <option key={c.id} value={c.id}>{c.label}</option>)}
         </select>
       </div>
@@ -254,8 +270,9 @@ function ShortcutsSection() {
           const rec = recording === a;
           const combos = bindings[ctx][a] ?? [];
           return (
-            <button key={a} type="button" className="dd" data-recording={rec ? '1' : undefined}
-              onClick={() => { setRecording(rec ? null : a); setError(''); }}
+            <div key={a} style={{ display: 'flex', flexDirection: 'column', gap: 4 }}>
+            <button type="button" className="dd" data-recording={rec ? '1' : undefined}
+              onClick={() => { setRecording(rec ? null : a); setError(null); }}
               style={{
                 display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 12, height: 44, padding: '0 12px',
                 background: rec ? 'var(--sel)' : 'var(--card)', border: `1px solid ${rec ? 'var(--accent)' : 'var(--line2)'}`, borderRadius: 8, textAlign: 'left',
@@ -267,10 +284,11 @@ function ShortcutsSection() {
                   : <span style={{ fontSize: 12, color: 'var(--mute3)' }}>—</span>}
               </span>
             </button>
+            {error?.action === a && <span role="alert" style={{ fontSize: 12, color: 'var(--errtx)', padding: '0 12px' }}>{error.msg}</span>}
+            </div>
           );
         })}
       </div>
-      {error && <span role="alert" style={{ fontSize: 12.5, color: 'var(--errtx)' }}>{error}</span>}
     </div>
   );
 }

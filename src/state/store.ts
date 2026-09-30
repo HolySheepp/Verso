@@ -11,7 +11,7 @@ export type SideTab = 'dict' | 'search' | 'web' | 'ref';
 export type Theme = 'dark' | 'light';
 
 /** keys：用快捷鍵打開的選單，可以按數字選取 */
-export interface RowMenu { index: number; x: number; y: number; keys?: boolean }
+export interface RowMenu { index: number; x: number; y: number; keys?: boolean; active?: number }
 
 /** 「標記並下一條」在各模式下不能選的標記 */
 export const STAMP_EXCLUDE: Record<Mode, MarkId[]> = {
