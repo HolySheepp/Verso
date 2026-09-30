@@ -112,6 +112,7 @@ export function FileNav({ tabW }: { tabW: number }) {
             const tip = kinds.map((k) => markName(project.customMarks, k.id) + ' ' + k.n).join('、');
             return (
               <button key={s.file + ':' + i} type="button" className="tb" aria-current={on ? 'page' : undefined} onClick={() => s.setSheet(i)}
+                onDoubleClick={() => setRenaming({ i, name: sh.name })}
                 onContextMenu={(ev) => { ev.preventDefault(); s.setSheet(i); setTabMenu({ i, x: ev.clientX, y: ev.clientY }); }}
                 tabIndex={on || near ? 0 : -1}
                 style={{

@@ -93,6 +93,12 @@ export function PasteBox({ label, col, onPaste, onChange, selected, onSelect }: 
           background: 'var(--bg0)', border: `1px ${rows ? 'solid' : 'dashed'} var(--line4)`, borderRadius: 8, cursor: 'text',
         }}>
         <textarea ref={input} className="pb-sink" aria-label={label} value="" onChange={() => {}} onPaste={handlePaste} spellCheck={false}
+          onKeyDown={(ev) => {
+            // 選到某一行時：Backspace 清除、Delete 刪除
+            if (selected === null || !rows || selected >= rows.length || ev.ctrlKey || ev.altKey || ev.metaKey) return;
+            if (ev.key === 'Backspace') { ev.preventDefault(); act('clear', selected); }
+            if (ev.key === 'Delete') { ev.preventDefault(); act('delete', selected); }
+          }}
           style={{ position: 'absolute', left: 0, top: 0, width: 1, height: 1, padding: 0, border: 0, opacity: 0, resize: 'none', pointerEvents: 'none' }} />
         {rows ? rows.map((r, i) => (
           <div key={i} className="pb-row" data-editing={editing?.i === i ? '1' : undefined} data-selected={selected === i ? '1' : undefined}

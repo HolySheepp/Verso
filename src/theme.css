@@ -75,3 +75,5 @@ textarea[data-hist="1"]:focus{border-color:var(--accent) !important}
 .cell-sel{background:rgba(79,140,255,0.16);box-shadow:inset 0 0 0 1px rgba(79,140,255,0.6)}
 .cell-edit{flex-grow:1;min-width:0;margin:-4px 0;padding:3px 6px;resize:none;box-sizing:border-box;background:var(--panel);border:1px solid var(--accent);border-radius:4px;color:var(--text);font-size:inherit;line-height:1.45;font-style:normal;user-select:text}
 .cell-edit:focus{outline:none}
+.row-pick{cursor:pointer;border-radius:3px}
+.row-pick:hover{background:var(--ov2)}

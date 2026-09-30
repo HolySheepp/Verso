@@ -143,7 +143,47 @@ export function EntryList() {
   }, []);
 
   // 編輯某一格（雙擊或右鍵選單的「編輯」）
-  const startEdit = (i: number, c: CellCol) => { if (!readOnly) setEditing({ i, c, text: getCell(sheet.entries[i], c) }); };
+  // 原文、譯文要在下面工作欄的輸入框編輯；#、發話者只在原文修正模式可以直接在格子裡改
+  const canEdit = (c: CellCol) =>
+    c === TGT_COL ? s.mode === 'translate' || s.mode === 'verify' : s.mode === 'source';
+  const startEdit = (i: number, c: CellCol) => {
+    if (!canEdit(c)) return;
+    if (c >= 2) {
+      if (i !== sel) s.select(s.file, sheetIdx, i);
+      // 等工作欄換成這一條再把游標放進輸入框
+      setTimeout(() => {
+        const el = document.getElementById(c === TGT_COL ? 'verso-target' : 'verso-source') as HTMLTextAreaElement | null;
+        if (!el || el.readOnly) return;
+        el.focus();
+        el.setSelectionRange(el.value.length, el.value.length);
+      }, 0);
+      return;
+    }
+    setEditing({ i, c, text: getCell(sheet.entries[i], c) });
+  };
+
+  // 點條目最左邊（標記右邊那一小格）選整條；Shift、Ctrl 一樣可以延伸或加選
+  const rowKeys = (i: number) => [0, 1, 2, 3].map((c) => cellKey(i, c));
+  const onRowPick = (ev: React.MouseEvent, i: number) => {
+    if (ev.button !== 0) return;
+    ev.preventDefault();
+    if (editing) commitEdit();
+    sink.current?.focus();
+    const cell: Cell = { i, c: 0 };
+    if (ev.shiftKey) {
+      const a = visible.indexOf(anchor.i), b = visible.indexOf(i);
+      const [p0, p1] = a < b ? [a, b] : [b, a];
+      pick(visible.slice(Math.max(0, p0), p1 + 1).flatMap(rowKeys), anchor);
+      return;
+    }
+    if (ev.ctrlKey || ev.metaKey) {
+      const add = rowKeys(i).some((k) => !selected.has(k));
+      const next = add ? [...new Set([...keys, ...rowKeys(i)])] : keys.filter((k) => parseKey(k).i !== i);
+      pick(next.length ? next : rowKeys(i), cell);
+      return;
+    }
+    pick(rowKeys(i), cell);
+  };
   const commitEdit = () => {
     const ed = editing;
     setEditing(null);
@@ -292,7 +332,7 @@ export function EntryList() {
                 style={{ width: 24, minHeight: 38, display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 0, background: 'transparent', border: 0, borderRadius: 4 }}>
                 <MarkIcon mark={markVisual(customs, m)} size={14} />
               </button>
-              <span style={{ display: 'flex', alignItems: 'center', justifyContent: 'flex-start' }}>
+              <span className="row-pick" onMouseDown={(ev) => onRowPick(ev, i)} style={{ display: 'flex', alignItems: 'center', justifyContent: 'flex-start' }}>
                 {e.note && (
                   <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="var(--text2)" strokeWidth="2.2" strokeLinejoin="round" role="img" aria-label="有備註">
                     <title>有備註</title><path d="M4 5h16v11H9.5L4 20.5z" />
@@ -334,7 +374,7 @@ export function EntryList() {
       {menu && (
         <ContextMenu x={menu.x} y={menu.y} label="條目"
           items={[
-            { key: 'edit', label: '編輯', disabled: readOnly },
+            { key: 'edit', label: '編輯', disabled: readOnly || !canEdit(parseKey([...keys].sort(order)[0]).c) },
             { key: 'clear', label: '清除', disabled: readOnly },
             { key: 'delete', label: '刪除', danger: true, disabled: readOnly },
             { key: 'insert', label: '插入', disabled: readOnly },

@@ -60,6 +60,7 @@ export function Splitter({ dir, label, value, min, max, onChange }: Props) {
       onPointerDown={(ev) => {
         try { ev.currentTarget.setPointerCapture(ev.pointerId); } catch { /* 無法捕捉時照常運作 */ }
         drag.current = { p: dir === 'h' ? ev.clientY : ev.clientX, v: value };
+        paint(ev);
       }}
       onPointerMove={(ev) => {
         const d = drag.current;
@@ -68,7 +69,11 @@ export function Splitter({ dir, label, value, min, max, onChange }: Props) {
       }}
       onPointerUp={(ev) => { drag.current = null; paint(ev); }}
       onPointerCancel={(ev) => { drag.current = null; paint(ev); }}
-      onFocus={() => { focused.current = true; paint(null); }}
+      onFocus={(ev) => {
+        // 只有用鍵盤移到分割線時才把把手放在中間；滑鼠按下時把手留在游標旁
+        focused.current = ev.currentTarget.matches(':focus-visible');
+        if (focused.current) paint(null);
+      }}
       onBlur={() => { focused.current = false; paint(null); }}
       onKeyDown={(ev) => {
         const inc = dir === 'h' ? 'ArrowUp' : 'ArrowLeft', dec = dir === 'h' ? 'ArrowDown' : 'ArrowRight';
