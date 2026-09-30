@@ -21,7 +21,7 @@ export const ACTION_LABELS: Record<ActionId, string> = {
   record: '記錄目前譯文',
   leaveInput: '離開譯文框',
   editEntry: '編輯選取條目的譯文',
-  clearTgt: '清除選取條目的譯文',
+  clearTgt: '清除選取的格子',
   prevSheet: '上一個頁簽',
   nextSheet: '下一個頁簽',
   close: '關閉選單與視窗',

@@ -1,7 +1,13 @@
 import { useEffect, useRef, useState } from 'react';
 import { currentOf, useStore, visibleIssues, type Filter } from '../state/store';
 import { effectiveMark, markName, markVisual } from '../model/marks';
-import { writeColumn } from '../model/clipboard';
+import { columnToClipboard, parseHtmlTable, parseTsv, writeColumn } from '../model/clipboard';
+import {
+  TGT_COL, cellKey, clearCells, copyMatrix, deleteCells, getCell, insertCells, moveCells, parseKey, pasteMatrix, rectKeys, setCell,
+  type Cell, type CellCol,
+} from '../model/cells';
+import { ContextMenu } from './ContextMenu';
+import { focusOnMount } from './windowDrag';
 import { MarkIcon } from './MarkIcon';
 import { rowMenuPos } from './rowMenu';
 import { CopyConfirm } from './CopyConfirm';
@@ -27,11 +33,17 @@ export function EntryList() {
   const project = s.project!;
   const { sheet, sheetIdx, sel } = currentOf(s);
   const filter = s.filter;
-  const { set, select } = s;
+  const { set } = s;
   const customs = project.customMarks;
   const listRef = useRef<HTMLDivElement>(null);
   const [confirm, setConfirm] = useState<{ untranslated: number; pending: number } | null>(null);
   const [copied, setCopied] = useState(false);
+  // 接收鍵盤、複製貼上用的隱藏文字框；點條目欄時焦點交給它，這樣 Ctrl+C／V 才會作用在條目欄
+  const sink = useRef<HTMLTextAreaElement>(null);
+  const drag = useRef<Cell | null>(null);
+  const [menu, setMenu] = useState<{ x: number; y: number } | null>(null);
+  const [editing, setEditing] = useState<{ i: number; c: CellCol; text: string } | null>(null);
+  const readOnly = s.mode === 'view';
 
   // 換條目時讓目前這條保持在可見範圍。
   // 用下一條或快捷鍵往下（上）移動時，下方（上方）至少保留 3 條看得到；滑鼠點選只確保這條看得到。
@@ -86,6 +98,106 @@ export function EntryList() {
   const rows = sheet.entries
     .map((e, i) => ({ e, i, m: effectiveMark(e), issues: issuesOf(e) }))
     .filter(({ m, issues }) => filter === 'all' || (filter === 'issues' ? issues.length > 0 : m === filter));
+  const visible = rows.map((x) => x.i);
+
+  // 選到的格子；沒有特別選時就是目前這條的譯文格
+  const keys = s.cellSel?.keys.length ? s.cellSel.keys : [cellKey(sel, TGT_COL)];
+  const selected = new Set(keys);
+  const anchor = s.cellSel?.anchor ?? { i: sel, c: TGT_COL };
+  const order = (a: string, b: string) => {
+    const pa = parseKey(a), pb = parseKey(b);
+    return visible.indexOf(pa.i) - visible.indexOf(pb.i) || pa.c - pb.c;
+  };
+  const firstOf = (ks: string[]) => parseKey([...ks].sort(order)[0]).i;
+  const pick = (ks: string[], a: Cell) => s.selectCells(ks, a, firstOf(ks));
+
+  // 選取（單擊、Shift 延伸、Ctrl 加選、拖動）
+  const onCellDown = (ev: React.MouseEvent, i: number, c: CellCol) => {
+    if (editing) commitEdit();
+    if (ev.button === 2) {
+      if (!selected.has(cellKey(i, c))) pick([cellKey(i, c)], { i, c });
+      return;
+    }
+    if (ev.button !== 0) return;
+    ev.preventDefault();
+    sink.current?.focus();
+    const cell = { i, c };
+    if (ev.shiftKey) { pick(rectKeys(visible, anchor, cell), anchor); return; }
+    if (ev.ctrlKey || ev.metaKey) {
+      const k = cellKey(i, c);
+      const next = selected.has(k) ? keys.filter((x) => x !== k) : [...keys, k];
+      pick(next.length ? next : [k], cell);
+      return;
+    }
+    drag.current = cell;
+    pick([cellKey(i, c)], cell);
+  };
+  const onCellEnter = (ev: React.MouseEvent, i: number, c: CellCol) => {
+    if (!drag.current || !(ev.buttons & 1)) return;
+    pick(rectKeys(visible, drag.current, { i, c }), drag.current);
+  };
+  useEffect(() => {
+    const up = () => { drag.current = null; };
+    window.addEventListener('mouseup', up);
+    return () => window.removeEventListener('mouseup', up);
+  }, []);
+
+  // 編輯某一格（雙擊或右鍵選單的「編輯」）
+  const startEdit = (i: number, c: CellCol) => { if (!readOnly) setEditing({ i, c, text: getCell(sheet.entries[i], c) }); };
+  const commitEdit = () => {
+    const ed = editing;
+    setEditing(null);
+    if (!ed || !sheet.entries[ed.i] || getCell(sheet.entries[ed.i], ed.c) === ed.text) return;
+    s.editSheet((es) => ({
+      entries: es.map((e, j) => (j !== ed.i ? e : { ...setCell(e, ed.c, ed.text), ...(ed.c === TGT_COL ? { pending: false } : {}) })),
+      keys: [cellKey(ed.i, ed.c)],
+    }));
+  };
+
+  const menuAct = (k: string) => {
+    setMenu(null);
+    sink.current?.focus();
+    if (readOnly) return;
+    const first = parseKey([...keys].sort(order)[0]);
+    if (k === 'edit') startEdit(first.i, first.c);
+    if (k === 'clear') s.editSheet((es) => ({ entries: clearCells(es, keys), keys }));
+    if (k === 'delete') s.editSheet((es) => ({ entries: deleteCells(es, keys), keys }));
+    if (k === 'insert') {
+      const cols = [...new Set(keys.map((x) => parseKey(x).c))];
+      s.editSheet((es) => ({ entries: insertCells(es, keys), keys: cols.map((c) => cellKey(first.i + 1, c)) }));
+    }
+    if (k === 'up' || k === 'down') s.editSheet((es) => moveCells(es, keys, k === 'up' ? -1 : 1));
+  };
+
+  // 複製、貼上、全選、復原（只在焦點位於條目欄時）
+  const esc = (v: string) => v.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;').replace(/\n/g, '<br>');
+  const onCopy = (ev: React.ClipboardEvent) => {
+    ev.preventDefault();
+    const m = copyMatrix(sheet.entries, visible, keys);
+    ev.clipboardData.setData('text/html', '<table><tbody>' + m.map((r) => '<tr>' + r.map((v) => '<td>' + esc(v) + '</td>').join('') + '</tr>').join('') + '</tbody></table>');
+    ev.clipboardData.setData('text/plain', m.map((r) => r.map((v) => columnToClipboard([v]).text).join('\t')).join('\n'));
+  };
+  const onPaste = (ev: React.ClipboardEvent) => {
+    ev.preventDefault();
+    if (readOnly) return;
+    const html = ev.clipboardData.getData('text/html');
+    const matrix = (html && parseHtmlTable(html)) || parseTsv(ev.clipboardData.getData('text/plain'));
+    if (!matrix.length) return;
+    const top = parseKey([...keys].sort(order)[0]);
+    const firstCol = Math.min(...keys.map((x) => parseKey(x).c)) as CellCol;
+    s.editSheet((es) => {
+      const r2 = pasteMatrix(es, visible, { i: top.i, c: firstCol }, matrix);
+      const width = Math.min(Math.max(...matrix.map((x) => x.length)), 4 - firstCol);
+      return { entries: r2.entries, keys: r2.touched.flatMap((i) => Array.from({ length: width }, (_, j) => cellKey(i, firstCol + j))) };
+    });
+  };
+  const onSinkKey = (ev: React.KeyboardEvent) => {
+    if (!(ev.ctrlKey || ev.metaKey) || ev.altKey) return;
+    const k = ev.code;
+    if (k === 'KeyA') { ev.preventDefault(); pick(visible.map((i) => cellKey(i, anchor.c)), anchor); }
+    else if (k === 'KeyZ' && !ev.shiftKey) { ev.preventDefault(); s.undoSheet(); }
+    else if (k === 'KeyY' || (k === 'KeyZ' && ev.shiftKey)) { ev.preventDefault(); s.redoSheet(); }
+  };
 
   return (
     <section aria-label="文本條目" style={{
@@ -136,16 +248,44 @@ export function EntryList() {
         <span style={{ padding: '0 16px 0 0' }}>原文</span>
         <span style={{ padding: '0 16px', borderLeft: '1px solid var(--line)' }}>譯文</span>
       </div>
-      <div ref={listRef} style={{ flexGrow: 1, overflowY: 'auto', padding: '4px 0' }}>
+      <div ref={listRef} style={{ position: 'relative', flexGrow: 1, overflowY: 'auto', padding: '4px 0', userSelect: 'none' }}>
+        <textarea ref={sink} className="list-sink" aria-label="條目欄" value="" onChange={() => {}}
+          onCopy={onCopy} onPaste={onPaste} onKeyDown={onSinkKey}
+          style={{ position: 'absolute', left: 0, top: 0, width: 1, height: 1, padding: 0, border: 0, opacity: 0, resize: 'none', pointerEvents: 'none' }} />
         {rows.map(({ e, i, m, issues }) => {
           const on = i === sel, doubt = m === 'doubt', ver = m === 'verified', ign = m === 'ignore';
           const label = '標記：' + markName(customs, m) + '，點擊變更';
+          const cellProps = (c: CellCol) => {
+            const k = cellKey(i, c);
+            const isSel = selected.has(k);
+            return {
+              'data-cell': k,
+              'aria-selected': isSel,
+              onMouseDown: (ev: React.MouseEvent) => onCellDown(ev, i, c),
+              onMouseEnter: (ev: React.MouseEvent) => onCellEnter(ev, i, c),
+              onDoubleClick: () => startEdit(i, c),
+              onContextMenu: (ev: React.MouseEvent) => { ev.preventDefault(); sink.current?.focus(); setMenu({ x: ev.clientX, y: ev.clientY }); },
+              className: 'cell' + (isSel ? ' cell-sel' : ''),
+            };
+          };
+          const editor = (c: CellCol) => (editing && editing.i === i && editing.c === c ? (
+            <textarea className="cell-edit" ref={focusOnMount} value={editing.text} spellCheck={false}
+              rows={Math.max(1, editing.text.split('\n').length)}
+              onMouseDown={(ev) => ev.stopPropagation()}
+              onChange={(ev) => setEditing({ ...editing, text: ev.target.value })}
+              onKeyDown={(ev) => {
+                ev.stopPropagation();
+                if (ev.key === 'Enter' && !ev.shiftKey) { ev.preventDefault(); commitEdit(); sink.current?.focus(); }
+                if (ev.key === 'Escape') { ev.preventDefault(); setEditing(null); sink.current?.focus(); }
+              }}
+              onBlur={commitEdit} />
+          ) : null);
           return (
-            <div key={e.uid} className="rw" style={{
+            <div key={e.uid} className="rw" aria-current={on ? 'true' : undefined} style={{
               display: 'grid', gridTemplateColumns: '24px 16px minmax(0, 1fr)', padding: '0 12px 0 4px',
-              borderTop: `1px solid ${on ? 'rgba(79,140,255,0.55)' : doubt ? 'var(--dbline)' : 'transparent'}`,
-              borderBottom: `1px solid ${on ? 'rgba(79,140,255,0.55)' : doubt ? 'var(--dbline)' : 'transparent'}`,
-              background: doubt ? (on ? 'var(--dbon)' : 'var(--db)') : on ? 'rgba(79,140,255,0.14)' : 'transparent',
+              borderTop: `1px solid ${doubt ? 'var(--dbline)' : 'transparent'}`,
+              borderBottom: `1px solid ${doubt ? 'var(--dbline)' : 'transparent'}`,
+              background: doubt ? (on ? 'var(--dbon)' : 'var(--db)') : 'transparent',
             }}>
               <button type="button" className="mk" aria-haspopup="menu" aria-label={label} title={label} onClick={(ev) => openMark(ev, i)}
                 style={{ width: 24, minHeight: 38, display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 0, background: 'transparent', border: 0, borderRadius: 4 }}>
@@ -158,32 +298,50 @@ export function EntryList() {
                   </svg>
                 )}
               </span>
-              <button type="button" className="row" aria-current={on ? 'true' : undefined} onClick={(ev) => { select(s.file, sheetIdx, i); ev.currentTarget.blur(); }}
-                style={{
-                  minWidth: 0, minHeight: 38, display: 'grid', gridTemplateColumns: ROW_COLS, alignItems: 'center',
-                  padding: 0, background: 'transparent', border: 0, textAlign: 'left', fontSize: 13,
-                }}>
-                <span className="mono" title={e.id} style={{ textAlign: 'right', paddingRight: 2, fontSize: 10, letterSpacing: -0.5, color: ver ? 'var(--mute3)' : 'var(--mute)', overflow: 'hidden', whiteSpace: 'nowrap', textOverflow: 'ellipsis' }}>{e.id}</span>
-                <span title={e.speaker} style={{ padding: '0 8px 0 4px', fontSize: 12, color: ver ? 'var(--mute3)' : 'var(--text2)', overflow: 'hidden', whiteSpace: 'nowrap', textOverflow: 'ellipsis' }}>{e.speaker}</span>
-                <span style={{ padding: '9px 16px 9px 0', lineHeight: 1.45, color: ver ? 'var(--mute2)' : 'var(--text)', overflow: 'hidden', whiteSpace: 'nowrap', textOverflow: 'ellipsis' }}>{e.src}</span>
-                <span style={{
-                  padding: '9px 16px', lineHeight: 1.45, borderLeft: '1px solid var(--line0)', overflow: 'hidden', whiteSpace: 'nowrap', textOverflow: 'ellipsis',
+              <div role="row" style={{ minWidth: 0, minHeight: 38, display: 'grid', gridTemplateColumns: ROW_COLS, alignItems: 'stretch', fontSize: 13 }}>
+                <span {...cellProps(0)} title={e.id} style={{ display: 'flex', alignItems: 'center', justifyContent: 'flex-end', minWidth: 0 }}>
+                  {editor(0) ?? <span className="mono" style={{ paddingRight: 2, fontSize: 10, letterSpacing: -0.5, color: ver ? 'var(--mute3)' : 'var(--mute)', overflow: 'hidden', whiteSpace: 'nowrap', textOverflow: 'ellipsis' }}>{e.id}</span>}
+                </span>
+                <span {...cellProps(1)} title={e.speaker} style={{ display: 'flex', alignItems: 'center', minWidth: 0, padding: '0 8px 0 4px', fontSize: 12, color: ver ? 'var(--mute3)' : 'var(--text2)' }}>
+                  {editor(1) ?? <span style={{ overflow: 'hidden', whiteSpace: 'nowrap', textOverflow: 'ellipsis' }}>{e.speaker}</span>}
+                </span>
+                <span {...cellProps(2)} style={{ display: 'flex', alignItems: 'center', minWidth: 0, padding: '9px 16px 9px 0', lineHeight: 1.45, color: ver ? 'var(--mute2)' : 'var(--text)' }}>
+                  {editor(2) ?? <span style={{ overflow: 'hidden', whiteSpace: 'nowrap', textOverflow: 'ellipsis' }}>{e.src}</span>}
+                </span>
+                <span {...cellProps(3)} style={{
+                  display: 'flex', alignItems: 'center', minWidth: 0, padding: '9px 16px', lineHeight: 1.45, borderLeft: '1px solid var(--line0)',
                   color: ver ? 'var(--mute2)' : e.tgt ? 'var(--textsoft)' : 'var(--mute2)', fontStyle: e.tgt ? 'normal' : 'italic',
                 }}>
-                  {issues.length > 0 && (
-                    <span role="img" aria-label={issues.map((x) => x.msg).join('、')} title={issues.map((x) => x.msg).join('、')}
-                      style={{ display: 'inline-flex', verticalAlign: '-2px', marginRight: 6, color: 'var(--warntx)', fontStyle: 'normal' }}>
-                      <IconWarn size={13} sw={2.2} />
+                  {editor(3) ?? (
+                    <span style={{ overflow: 'hidden', whiteSpace: 'nowrap', textOverflow: 'ellipsis' }}>
+                      {issues.length > 0 && (
+                        <span role="img" aria-label={issues.map((x) => x.msg).join('、')} title={issues.map((x) => x.msg).join('、')}
+                          style={{ display: 'inline-flex', verticalAlign: '-2px', marginRight: 6, color: 'var(--warntx)', fontStyle: 'normal' }}>
+                          <IconWarn size={13} sw={2.2} />
+                        </span>
+                      )}
+                      {e.tgt || (ign ? '不需翻譯' : '尚未翻譯')}
                     </span>
                   )}
-                  {e.tgt || (ign ? '不需翻譯' : '尚未翻譯')}
                 </span>
-              </button>
+              </div>
             </div>
           );
         })}
         {rows.length === 0 && <div style={{ padding: '48px 0', textAlign: 'center', color: 'var(--mute)' }}>這個篩選條件下沒有條目</div>}
       </div>
+      {menu && (
+        <ContextMenu x={menu.x} y={menu.y} label="條目"
+          items={[
+            { key: 'edit', label: '編輯', disabled: readOnly },
+            { key: 'clear', label: '清除', disabled: readOnly },
+            { key: 'delete', label: '刪除', danger: true, disabled: readOnly },
+            { key: 'insert', label: '插入', disabled: readOnly },
+            { key: 'up', label: '上移', disabled: readOnly },
+            { key: 'down', label: '下移', disabled: readOnly },
+          ]}
+          onPick={menuAct} onClose={() => { setMenu(null); sink.current?.focus(); }} />
+      )}
       {confirm && <CopyConfirm {...confirm} onCancel={() => setConfirm(null)} onConfirm={() => void doCopy()} />}
     </section>
   );

@@ -2,6 +2,7 @@ import { create } from 'zustand';
 import { activeSource } from '../data/source';
 import { emptyHistory, recordText, selectSlot, type HistoryStore } from '../model/history';
 import { effectiveMark, findCustom, toStoredMark } from '../model/marks';
+import { TGT_COL, cellKey, parseKey, type Cell } from '../model/cells';
 import { defaultBindings, type ActionId, type Bindings, type ShortcutContext } from '../model/shortcuts';
 import { defaultCheckSettings, enabledIssues, type CheckId, type CheckSettings, type Issue } from '../model/checks';
 import type { CustomMark, Entry, FileDoc, GlossaryTerm, MarkId, Mode, ProjectData, Sheet } from '../model/types';
@@ -102,6 +103,8 @@ interface State {
   askSave: AskSave | null;
   /** 刪除自訂標記前，問要不要一起清掉條目上的標記 */
   askDeleteMark: string | null;
+  /** 條目欄選到的格子；null 時就是目前這條的譯文格 */
+  cellSel: { keys: string[]; anchor: Cell } | null;
   /** 各條目在檢查當下報出的問題（以條目 uid 為 key），不存進檔案 */
   reported: Record<string, string[]>;
 }
@@ -139,6 +142,12 @@ interface Actions {
   step(delta: 1 | -1): void;
   /** 跳到上／下一個待處理條目：有問題、標了疑慮或未翻譯 */
   stepPending(delta: 1 | -1): void;
+  /** 選取格子；工作欄顯示選取範圍的第一條 */
+  selectCells(keys: string[], anchor: Cell, first: number): void;
+  /** 修改目前頁簽的條目（可用 Ctrl+Z 復原） */
+  editSheet(fn: (entries: Entry[]) => { entries: Entry[]; keys?: string[] }): void;
+  undoSheet(): void;
+  redoSheet(): void;
 }
 
 export type Store = State & Actions;
@@ -172,6 +181,34 @@ export const useStore = create<Store>((set, get) => {
   };
 
   const cur = () => currentOf(get());
+
+  // 條目欄操作的復原／重做：記下整個頁簽的條目
+  type SheetSnap = { file: number; sheet: number; entries: Entry[]; keys: string[] };
+  const sheetUndo: SheetSnap[] = [];
+  const sheetRedo: SheetSnap[] = [];
+
+  const replaceSheet = (fileIdx: number, sheetIdx: number, entries: Entry[]) => {
+    const p = get().project!;
+    const files = p.files.map((f, fi) => fi !== fileIdx ? f : {
+      ...f, sheets: f.sheets.map((sh, si) => (si !== sheetIdx ? sh : { ...sh, entries })),
+    });
+    set({ project: { ...p, files } });
+  };
+
+  const restoreSheet = (from: SheetSnap[], to: SheetSnap[]) => {
+    const snap = from.pop();
+    const p = get().project;
+    if (!snap || !p) return;
+    const sheet = p.files[snap.file]?.sheets[snap.sheet];
+    if (!sheet) return;
+    to.push({ file: snap.file, sheet: snap.sheet, entries: sheet.entries, keys: get().cellSel?.keys ?? [] });
+    replaceSheet(snap.file, snap.sheet, snap.entries);
+    const keys = snap.keys.filter((k) => parseKey(k).i < snap.entries.length);
+    set({
+      file: snap.file, sheetBy: { ...get().sheetBy, [snap.file]: snap.sheet },
+      cellSel: keys.length ? { keys, anchor: parseKey(keys[0]) } : null,
+    });
+  };
 
   /** 檢查條目並記下當下的問題；沒有問題就清掉記錄 */
   const checkEntries = (entries: Entry[]) => {
@@ -230,6 +267,7 @@ export const useStore = create<Store>((set, get) => {
     saveStatus: 'saved',
     askSave: null,
     askDeleteMark: null,
+    cellSel: null,
 
     async load() {
       const project = await activeSource.load();
@@ -243,7 +281,7 @@ export const useStore = create<Store>((set, get) => {
       const n = get().project?.files.length ?? 0;
       if (f < 0 || f >= n) return;
       if (f !== get().file) leaveCurrent();
-      set({ file: f, ...noPopups, ...noView });
+      set({ file: f, cellSel: null, ...noPopups, ...noView });
     },
 
     setSheet(sh) {
@@ -251,18 +289,47 @@ export const useStore = create<Store>((set, get) => {
       const n = s.project?.files[s.file].sheets.length ?? 0;
       if (sh < 0 || sh >= n) return;
       if (sh !== currentOf(s).sheetIdx) leaveCurrent();
-      set({ sheetBy: { ...s.sheetBy, [s.file]: sh }, ...noPopups, ...noView });
+      set({ sheetBy: { ...s.sheetBy, [s.file]: sh }, cellSel: null, ...noPopups, ...noView });
     },
 
     select(f, sh, i) {
       const c = cur();
       if (f !== get().file || sh !== c.sheetIdx || i !== c.sel) leaveCurrent();
       const s = get();
+      // 換條目時，選取跟著移到那條的同一欄
+      const col = s.cellSel?.anchor.c ?? TGT_COL;
       set({
         file: f, sheetBy: { ...s.sheetBy, [f]: sh }, selBy: { ...s.selBy, [selKey(f, sh)]: i },
+        cellSel: { keys: [cellKey(i, col)], anchor: { i, c: col } },
         ...noPopups, ...noView,
       });
     },
+
+    selectCells(keys, anchor, first) {
+      const s = get();
+      const { sheetIdx, sel } = cur();
+      if (first !== sel) s.select(s.file, sheetIdx, first);
+      set({ cellSel: { keys, anchor } });
+    },
+
+    editSheet(fn) {
+      const s = get();
+      if (!s.project) return;
+      const { sheetIdx, sheet } = cur();
+      const r = fn(sheet.entries);
+      if (r.entries === sheet.entries) return;
+      sheetUndo.push({ file: s.file, sheet: sheetIdx, entries: sheet.entries, keys: s.cellSel?.keys ?? [] });
+      if (sheetUndo.length > 100) sheetUndo.shift();
+      sheetRedo.length = 0;
+      replaceSheet(s.file, sheetIdx, r.entries);
+      if (r.keys?.length) {
+        const first = Math.min(...r.keys.map((k) => parseKey(k).i));
+        set({ cellSel: { keys: r.keys, anchor: parseKey(r.keys[0]) }, selBy: { ...get().selBy, [selKey(s.file, sheetIdx)]: first } });
+      }
+    },
+
+    undoSheet() { restoreSheet(sheetUndo, sheetRedo); },
+    redoSheet() { restoreSheet(sheetRedo, sheetUndo); },
 
     next() {
       const s = get();

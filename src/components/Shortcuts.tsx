@@ -5,6 +5,7 @@ import { effectiveMark } from '../model/marks';
 import { markMenuIds } from './MarkMenu';
 import { rowMenuPos } from './rowMenu';
 import { saveNow } from '../state/saver';
+import { TGT_COL, cellKey, clearCells } from '../model/cells';
 
 /** 工作用的輸入框：翻譯、驗證模式是譯文框，原文修正模式是原文框 */
 function isWorkInput(el: Element | null, mode: string) {
@@ -15,6 +16,8 @@ function isWorkInput(el: Element | null, mode: string) {
 
 function isOtherInput(el: Element | null) {
   if (!el) return false;
+  // 條目欄用來接收複製貼上的隱藏框不算輸入框
+  if (el.classList.contains('list-sink')) return false;
   const t = el.tagName;
   return t === 'INPUT' || t === 'TEXTAREA' || t === 'SELECT' || (el as HTMLElement).isContentEditable;
 }
@@ -128,7 +131,6 @@ export function Shortcuts() {
     const run = (action: ActionId, el: HTMLElement | null) => {
       const s = useStore.getState();
       const { sel, entry } = currentOf(s);
-      const tgtEditable = s.mode === 'translate' || s.mode === 'verify';
       switch (action) {
         case 'main': s.mainNext(); break;
         case 'stampNext': s.stampNext(); break;
@@ -139,7 +141,13 @@ export function Shortcuts() {
         case 'record': s.record(); break;
         case 'leaveInput': el?.blur(); break;
         case 'editEntry': focusWorkInput(s.mode); break;
-        case 'clearTgt': if (tgtEditable && entry?.tgt) s.updateEntry({ tgt: '' }); break;
+        case 'clearTgt': {
+          // 清除選取的格子（沒特別選時就是這條的譯文）；檢視模式不能改
+          if (s.mode === 'view') break;
+          const keys = s.cellSel?.keys.length ? s.cellSel.keys : [cellKey(sel, TGT_COL)];
+          s.editSheet((es) => ({ entries: clearCells(es, keys), keys }));
+          break;
+        }
         case 'prevSheet': s.setSheet(currentOf(s).sheetIdx - 1); break;
         case 'nextSheet': s.setSheet(currentOf(s).sheetIdx + 1); break;
         case 'close': s.closePopups(); break;
@@ -158,7 +166,7 @@ export function Shortcuts() {
           break;
         }
         case 'markMenu': {
-          const btn = document.querySelector<HTMLElement>('.rw .row[aria-current="true"]')?.parentElement?.querySelector<HTMLElement>('.mk');
+          const btn = document.querySelector<HTMLElement>('.rw[aria-current="true"] .mk');
           const pos = btn ? rowMenuPos(btn, s.project!.customMarks.length) : { x: 40, y: 120 };
           const ids = markMenuIds(s.project!.customMarks);
           const active = Math.max(0, ids.indexOf(effectiveMark(currentOf(s).sheet.entries[sel])));
