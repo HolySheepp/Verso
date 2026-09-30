@@ -1,6 +1,6 @@
 # Verso
 
-翻譯工作台桌面 App（Tauri 2 + React + TypeScript）。版本 0.1.0。
+翻譯工作台桌面 App（Tauri 2 + React + TypeScript）。版本 0.2.0。
 
 ## 開發
 

@@ -1,7 +1,14 @@
-import { useEffect, useRef } from 'react';
-import { useStore, type Filter } from '../state/store';
+import { useEffect, useRef, useState } from 'react';
+import { currentOf, useStore, type Filter } from '../state/store';
 import { effectiveMark, markName, markVisual } from '../model/marks';
+import { writeColumn } from '../model/clipboard';
 import { MarkIcon } from './MarkIcon';
+import { CopyConfirm } from './CopyConfirm';
+import { IconCheck, IconCopy } from './icons';
+
+/** 標記欄、# 欄（對話 id）、發話者欄、原文、譯文 */
+const HEAD_COLS = '40px 36px 64px minmax(0, 1fr) minmax(0, 1fr)';
+const ROW_COLS = '36px 64px minmax(0, 1fr) minmax(0, 1fr)';
 
 const FILTERS: { id: Filter; label: string }[] = [
   { id: 'all', label: '全部' },
@@ -11,22 +18,38 @@ const FILTERS: { id: Filter; label: string }[] = [
 ];
 
 export function EntryList() {
-  const project = useStore((s) => s.project)!;
-  const tab = useStore((s) => s.tab);
-  const sel = useStore((s) => s.selBy[s.tab] ?? 0);
-  const filter = useStore((s) => s.filter);
-  const { set, select } = useStore.getState();
-  const file = project.files[tab];
+  const s = useStore();
+  const project = s.project!;
+  const { sheet, sheetIdx, sel } = currentOf(s);
+  const filter = s.filter;
+  const { set, select } = s;
   const customs = project.customMarks;
   const listRef = useRef<HTMLDivElement>(null);
+  const [confirm, setConfirm] = useState<{ untranslated: number; pending: number } | null>(null);
+  const [copied, setCopied] = useState(false);
 
   // 換條目時讓目前這條保持在可見範圍
   useEffect(() => {
     listRef.current?.querySelector('[aria-current="true"]')?.scrollIntoView({ block: 'nearest' });
-  }, [tab, sel]);
+  }, [s.file, sheetIdx, sel]);
+
+  // 複製譯文欄：未翻譯的留空，待確認的照原本譯文輸出
+  const doCopy = async () => {
+    setConfirm(null);
+    await writeColumn(sheet.entries.map((e) => e.tgt));
+    setCopied(true);
+    setTimeout(() => setCopied(false), 1500);
+  };
+  const askCopy = () => {
+    const open = sheet.entries.filter((e) => e.mark !== 'ignore');
+    const untranslated = open.filter((e) => !e.tgt).length;
+    const pending = open.filter((e) => e.tgt && e.pending).length;
+    if (untranslated || pending) setConfirm({ untranslated, pending });
+    else void doCopy();
+  };
 
   const cnt: Record<string, number> = { untranslated: 0, doubt: 0, think: 0 };
-  file.entries.forEach((e) => {
+  sheet.entries.forEach((e) => {
     const m = effectiveMark(e);
     if (m in cnt) cnt[m]++;
   });
@@ -42,7 +65,7 @@ export function EntryList() {
     set({ rowMenu: { index: i, x: Math.round(x), y: Math.round(Math.max(8, y)) }, stampOpen: false, fileMenuOpen: false });
   };
 
-  const rows = file.entries
+  const rows = sheet.entries
     .map((e, i) => ({ e, i, m: effectiveMark(e) }))
     .filter(({ m }) => filter === 'all' || m === filter);
 
@@ -54,8 +77,13 @@ export function EntryList() {
       <div style={{ height: 44, flexShrink: 0, display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '0 12px 0 16px', borderBottom: '1px solid var(--line)' }}>
         <div style={{ display: 'flex', alignItems: 'baseline', gap: 10 }}>
           <span className="sec-label">文本條目</span>
-          <span style={{ fontSize: 12, color: 'var(--mute)' }}>共 {file.entries.length} 條</span>
+          <span style={{ fontSize: 12, color: 'var(--mute)' }}>共 {sheet.entries.length} 條</span>
         </div>
+        <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+        <button type="button" className="ib" aria-label="複製譯文欄" title="複製譯文欄" onClick={askCopy}
+          style={{ width: 34, height: 34, display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 0, background: 'var(--btn)', border: '1px solid var(--line3)', borderRadius: 8, color: copied ? 'var(--accent2)' : 'var(--text2)' }}>
+          {copied ? <IconCheck size={14} sw={2.4} /> : <IconCopy size={14} />}
+        </button>
         <div role="group" aria-label="篩選條目" className="seg-group">
           {FILTERS.map((f) => {
             const on = filter === f.id;
@@ -67,19 +95,21 @@ export function EntryList() {
                 }}>
                 {f.id !== 'all' && <MarkIcon mark={{ kind: f.id }} size={12} menu />}
                 {f.label}
-                <span style={{ fontSize: 11, color: 'var(--mute)' }}>{f.id === 'all' ? file.entries.length : cnt[f.id]}</span>
+                <span style={{ fontSize: 11, color: 'var(--mute)' }}>{f.id === 'all' ? sheet.entries.length : cnt[f.id]}</span>
               </button>
             );
           })}
         </div>
+        </div>
       </div>
       <div style={{
-        height: 32, flexShrink: 0, display: 'grid', gridTemplateColumns: '40px 36px minmax(0, 1fr) minmax(0, 1fr)', alignItems: 'center',
+        height: 32, flexShrink: 0, display: 'grid', gridTemplateColumns: HEAD_COLS, alignItems: 'center',
         padding: '0 12px 0 4px', fontSize: 11, fontWeight: 600, letterSpacing: 0.8, color: 'var(--mute)',
         borderBottom: '1px solid var(--line0)', background: 'var(--bar2)',
       }}>
         <span />
-        <span style={{ textAlign: 'right', paddingRight: 14 }}>#</span>
+        <span style={{ textAlign: 'right', paddingRight: 2 }}>#</span>
+        <span style={{ padding: '0 8px 0 4px' }}>發話者</span>
         <span style={{ padding: '0 16px 0 0' }}>原文</span>
         <span style={{ padding: '0 16px', borderLeft: '1px solid var(--line)' }}>譯文</span>
       </div>
@@ -88,7 +118,7 @@ export function EntryList() {
           const on = i === sel, doubt = m === 'doubt', ver = m === 'verified', ign = m === 'ignore';
           const label = '標記：' + markName(customs, m) + '，點擊變更';
           return (
-            <div key={e.key} className="rw" style={{
+            <div key={e.uid} className="rw" style={{
               display: 'grid', gridTemplateColumns: '24px 16px minmax(0, 1fr)', padding: '0 12px 0 4px',
               borderTop: `1px solid ${on ? 'rgba(79,140,255,0.55)' : doubt ? 'var(--dbline)' : 'transparent'}`,
               borderBottom: `1px solid ${on ? 'rgba(79,140,255,0.55)' : doubt ? 'var(--dbline)' : 'transparent'}`,
@@ -105,12 +135,13 @@ export function EntryList() {
                   </svg>
                 )}
               </span>
-              <button type="button" className="row" aria-current={on ? 'true' : undefined} onClick={() => select(tab, i)}
+              <button type="button" className="row" aria-current={on ? 'true' : undefined} onClick={() => select(s.file, sheetIdx, i)}
                 style={{
-                  minWidth: 0, minHeight: 38, display: 'grid', gridTemplateColumns: '36px minmax(0, 1fr) minmax(0, 1fr)', alignItems: 'center',
+                  minWidth: 0, minHeight: 38, display: 'grid', gridTemplateColumns: ROW_COLS, alignItems: 'center',
                   padding: 0, background: 'transparent', border: 0, textAlign: 'left', fontSize: 13,
                 }}>
-                <span className="mono" style={{ textAlign: 'right', paddingRight: 14, fontSize: 11.5, color: ver ? 'var(--mute3)' : 'var(--mute)' }}>{i + 1}</span>
+                <span className="mono" title={e.id} style={{ textAlign: 'right', paddingRight: 2, fontSize: 10, letterSpacing: -0.5, color: ver ? 'var(--mute3)' : 'var(--mute)', overflow: 'hidden', whiteSpace: 'nowrap', textOverflow: 'ellipsis' }}>{e.id}</span>
+                <span title={e.speaker} style={{ padding: '0 8px 0 4px', fontSize: 12, color: ver ? 'var(--mute3)' : 'var(--text2)', overflow: 'hidden', whiteSpace: 'nowrap', textOverflow: 'ellipsis' }}>{e.speaker}</span>
                 <span style={{ padding: '9px 16px 9px 0', lineHeight: 1.45, color: ver ? 'var(--mute2)' : 'var(--text)', overflow: 'hidden', whiteSpace: 'nowrap', textOverflow: 'ellipsis' }}>{e.src}</span>
                 <span style={{
                   padding: '9px 16px', lineHeight: 1.45, borderLeft: '1px solid var(--line0)', overflow: 'hidden', whiteSpace: 'nowrap', textOverflow: 'ellipsis',
@@ -122,6 +153,7 @@ export function EntryList() {
         })}
         {rows.length === 0 && <div style={{ padding: '48px 0', textAlign: 'center', color: 'var(--mute)' }}>這個篩選條件下沒有條目</div>}
       </div>
+      {confirm && <CopyConfirm {...confirm} onCancel={() => setConfirm(null)} onConfirm={() => void doCopy()} />}
     </section>
   );
 }

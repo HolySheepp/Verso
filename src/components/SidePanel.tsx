@@ -1,7 +1,7 @@
-import { useStore, type SideTab } from '../state/store';
+import { currentOf, useStore, type SideTab } from '../state/store';
 import type { GlossaryTerm } from '../model/types';
 import {
-  IconBook, IconBookmark, IconChevD, IconChevL, IconChevR, IconFile, IconGlobe, IconHideRight, IconPenEdit, IconPlus, IconRefresh, IconSearch, IconUse,
+  IconBook, IconBookmark, IconChevD, IconChevL, IconChevR, IconFile, IconGlobe, IconHideRight, IconPaste, IconPenEdit, IconPlus, IconRefresh, IconSearch, IconUse,
 } from './icons';
 
 const TABS: { id: SideTab; label: string; Icon: typeof IconBook }[] = [
@@ -37,7 +37,7 @@ function TermCard({ g }: { g: GlossaryTerm }) {
 
 function DictTab() {
   const project = useStore((s) => s.project)!;
-  const cur = useStore((s) => s.project!.files[s.tab].entries[s.selBy[s.tab] ?? 0]);
+  const cur = currentOf(useStore()).entry!;
   const dq = useStore((s) => s.dictQuery);
   const set = useStore((s) => s.set);
   const q = dq.trim(), ql = q.toLowerCase();
@@ -57,6 +57,10 @@ function DictTab() {
           onClick={() => set({ termDraft: { id: null, term: q && results.length === 0 ? q : '', en: '', note: '', dict: project.dicts[0], proj: project.projects[0] } })}
           style={{ width: 36, height: 36, flexShrink: 0, display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 0, background: 'var(--btn)', border: '1px solid var(--line4)', borderRadius: 8, color: 'var(--text2)' }}>
           <IconPlus size={15} sw={2.2} />
+        </button>
+        <button type="button" className="ib" aria-label="貼入字典" title="貼入字典" onClick={() => set({ dictPasteOpen: true })}
+          style={{ width: 36, height: 36, flexShrink: 0, display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 0, background: 'var(--btn)', border: '1px solid var(--line4)', borderRadius: 8, color: 'var(--text2)' }}>
+          <IconPaste size={15} />
         </button>
       </div>
       {dq && (
@@ -78,14 +82,14 @@ function SearchTab() {
   const files = useStore((s) => s.project!.files);
   const q = useStore((s) => s.searchQuery);
   const { set, select } = useStore.getState();
-  const results: { t: number; i: number; where: string; src: string; tgt: string }[] = [];
+  const results: { f: number; sh: number; i: number; where: string; src: string; tgt: string }[] = [];
   if (q) {
     const ql = q.toLowerCase();
-    files.forEach((f, t) => f.entries.forEach((e, i) => {
+    files.forEach((file, f) => file.sheets.forEach((sheet, sh) => sheet.entries.forEach((e, i) => {
       if (results.length < 30 && (e.src.includes(q) || e.tgt.toLowerCase().includes(ql))) {
-        results.push({ t, i, where: `${f.name} · #${i + 1}`, src: e.src, tgt: e.tgt || '尚未翻譯' });
+        results.push({ f, sh, i, where: `${file.name} · ${sheet.name} · #${e.id || i + 1}`, src: e.src, tgt: e.tgt || '尚未翻譯' });
       }
-    }));
+    })));
   }
   return (
     <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
@@ -93,7 +97,7 @@ function SearchTab() {
       <input id="verso-search" type="search" className="field" value={q} onChange={(ev) => set({ searchQuery: ev.target.value })}
         placeholder="搜尋所有檔案" />
       {results.map((r) => (
-        <button key={r.t + ':' + r.i} type="button" className="sr" onClick={() => select(r.t, r.i)}
+        <button key={r.f + ':' + r.sh + ':' + r.i} type="button" className="sr" onClick={() => select(r.f, r.sh, r.i)}
           style={{ display: 'flex', flexDirection: 'column', gap: 4, padding: '10px 12px', textAlign: 'left', background: 'var(--card)', border: '1px solid var(--line2)', borderRadius: 8 }}>
           <span className="mono" style={{ fontSize: 11, color: 'var(--mute)' }}>{r.where}</span>
           <span style={{ fontSize: 13, lineHeight: 1.5 }}>{r.src}</span>
@@ -153,7 +157,7 @@ const area: React.CSSProperties = {
 
 function NotesSection() {
   const s = useStore();
-  const cur = s.project!.files[s.tab].entries[s.selBy[s.tab] ?? 0];
+  const cur = currentOf(s).entry!;
   const mode = s.mode;
   const suggVisible = mode === 'verify' || !!cur.sugg;
   const suggOpen = !s.suggClosed, noteOpen = !s.noteClosed;

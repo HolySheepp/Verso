@@ -1,5 +1,5 @@
 import { useRef } from 'react';
-import { entryId, useStore } from '../state/store';
+import { currentOf, useStore } from '../state/store';
 import { findCustom, markName, markVisual } from '../model/marks';
 import type { MarkId, Mode } from '../model/types';
 import { MarkIcon } from './MarkIcon';
@@ -29,14 +29,13 @@ const meta: React.CSSProperties = { display: 'flex', gap: 12, fontSize: 11.5, co
 export function WorkPanel({ height }: { height: number }) {
   const s = useStore();
   const project = s.project!;
-  const file = project.files[s.tab];
-  const sel = s.selBy[s.tab] ?? 0;
-  const cur = file.entries[sel];
-  const total = file.entries.length;
+  const { sheet, sel, entry } = currentOf(s);
+  const cur = entry!;
+  const total = sheet.entries.length;
   const mode = s.mode;
   const customs = project.customMarks;
 
-  const hist = s.history.byEntry[entryId(file, cur)];
+  const hist = s.history.byEntry[cur.uid];
   const texts = hist?.texts ?? [];
   const slot = hist ? hist.slot : -1;
   const viewOn = s.viewOn && texts.length > 0;
@@ -91,7 +90,7 @@ export function WorkPanel({ height }: { height: number }) {
               )}
               {cur.src !== cur.src0 && <span style={{ fontSize: 11, color: 'var(--text2)' }}>已修改，原始版本會保留</span>}
             </span>
-            <span style={meta}><span className="mono">{cur.key}</span><span>{cur.src.length} 字</span></span>
+            <span style={meta}><span>{cur.speaker}</span><span>{cur.src.length} 字</span></span>
           </div>
           <textarea id="verso-source" value={cur.src} readOnly={!srcEditable}
             onChange={(ev) => srcEditable && s.updateEntry({ src: ev.target.value })}

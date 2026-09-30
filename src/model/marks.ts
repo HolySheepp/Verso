@@ -27,9 +27,16 @@ export type MarkVisual =
   | { kind: 'sym'; sym: SymbolId; color: string }
   | { kind: 'text'; text: string; color: string };
 
-/** 條目實際顯示的標記：刻意標記優先，否則看有沒有譯文 */
-export function effectiveMark(e: Pick<Entry, 'mark' | 'tgt'>): MarkId {
-  return e.mark || (e.tgt ? 'translated' : 'untranslated');
+type MarkFields = Pick<Entry, 'mark' | 'tgt'> & { pending?: boolean };
+
+/** 有譯文、且不是待確認，才算已翻譯 */
+export function isTranslated(e: MarkFields): boolean {
+  return !!e.tgt && !e.pending;
+}
+
+/** 條目實際顯示的標記：刻意標記優先，否則看是否已翻譯 */
+export function effectiveMark(e: MarkFields): MarkId {
+  return e.mark || (isTranslated(e) ? 'translated' : 'untranslated');
 }
 
 /** 把選單選到的標記轉成要存的值：已翻譯／未翻譯不存 */
@@ -37,9 +44,9 @@ export function toStoredMark(id: MarkId): StoredMark {
   return id === 'translated' || id === 'untranslated' ? '' : id;
 }
 
-/** 算進度用：有譯文或被忽略就算完成 */
-export function isDone(e: Pick<Entry, 'mark' | 'tgt'>): boolean {
-  return !!e.tgt || e.mark === 'ignore';
+/** 算進度用：已翻譯或被忽略就算完成 */
+export function isDone(e: MarkFields): boolean {
+  return isTranslated(e) || e.mark === 'ignore';
 }
 
 export function findCustom(customs: CustomMark[], id: MarkId): CustomMark | undefined {

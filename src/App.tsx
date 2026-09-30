@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react';
-import { useStore } from './state/store';
+import { currentOf, useStore } from './state/store';
 import { effectiveMark, isDone } from './model/marks';
 import { TitleBar, MODES } from './components/TitleBar';
 import { FileNav } from './components/FileNav';
@@ -10,6 +10,8 @@ import { Splitter } from './components/Splitter';
 import { MarkMenu } from './components/MarkMenu';
 import { TermDialog } from './components/TermDialog';
 import { SettingsDialog } from './components/SettingsDialog';
+import { PasteDialog } from './components/PasteDialog';
+import { DictPasteDialog } from './components/DictPasteDialog';
 import { IconCheck, IconChevD, IconChevL } from './components/icons';
 
 const clamp = (v: number, lo: number, hi: number) => Math.max(lo, Math.min(hi, v));
@@ -28,7 +30,7 @@ function StatusBar() {
   const files = useStore((s) => s.project!.files);
   const mode = useStore((s) => s.mode);
   let done = 0, total = 0;
-  files.forEach((f) => f.entries.forEach((e) => { total++; if (isDone(e)) done++; }));
+  files.forEach((f) => f.sheets.forEach((sh) => sh.entries.forEach((e) => { total++; if (isDone(e)) done++; })));
   return (
     <footer style={{
       height: 28, flexShrink: 0, display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '0 16px',
@@ -37,7 +39,6 @@ function StatusBar() {
       <div style={{ display: 'flex', gap: 18 }}>
         <span>專案進度 {done} / {total} 條</span>
         <span>模式：{MODES.find((m) => m.id === mode)!.label}</span>
-        <span>UTF-8 · gettext .po</span>
       </div>
       {/* 自動儲存：目前只有外觀 */}
       <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
@@ -66,7 +67,7 @@ export default function App() {
   const mainW = showSide ? W - sideW : W;
   const tabW = mainW < 980 ? 150 : 200;
 
-  const file = s.project.files[s.tab];
+  const { sheet } = currentOf(s);
   const anyPop = !!s.rowMenu || s.stampOpen || s.fileMenuOpen;
 
   return (
@@ -116,13 +117,15 @@ export default function App() {
 
       {s.rowMenu && (
         <MarkMenu title="變更標記" ariaLabel="變更標記"
-          current={effectiveMark(file.entries[s.rowMenu.index])}
+          current={effectiveMark(sheet.entries[s.rowMenu.index])}
           style={{ position: 'absolute', left: s.rowMenu.x, top: s.rowMenu.y, boxShadow: '0 16px 40px rgba(0,0,0,0.5)' }}
           onPick={(id) => { s.setEntryMark(s.rowMenu!.index, id); s.set({ rowMenu: null }); }} />
       )}
 
       <TermDialog />
       <SettingsDialog />
+      <PasteDialog />
+      <DictPasteDialog />
     </div>
   );
 }

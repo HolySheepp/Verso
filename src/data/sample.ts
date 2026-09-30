@@ -1,61 +1,65 @@
 // 範例資料，只供介面展示。接真正的檔案讀寫後整個換掉。
 import type { Entry, FileDoc, GlossaryTerm, ProjectData, StoredMark } from '../model/types';
 
-type Row = [key: string, src: string, tgt: string, mark: string, ctx: string];
+type Row = [id: string, speaker: string, src: string, tgt: string, mark: string];
 
-const FILES: [string, string, Row[]][] = [
-  ['dialogue_ch01.po', 'loc/zh-TW/dialogue_ch01.po', [
-    ['npc_elder_001', '旅人，你終於來了。村子等你很久了。', "Traveler, you've finally come. The village has waited a long time for you.", 'verified', '說話者：村長（年邁、語氣溫和）'],
-    ['npc_elder_002', '北方的霜牙山最近不太平靜，礦工們都不敢上山了。', "Things have been restless on Frostfang Peak to the north. The miners won't go up anymore.", 'doubt', '說話者：村長。霜牙山為專有名詞，請依術語表'],
-    ['npc_elder_003', '帶上這把舊劍吧，它曾屬於我的兒子。', '', '', '說話者：村長。遞出道具「老舊的長劍」'],
-    ['player_choice_001', '我會查清楚的。', "I'll find out what's going on.", 'verified', '玩家選項，上限 32 字元'],
-    ['player_choice_002', '報酬是多少？', "What's the pay?", 'think', '玩家選項，上限 32 字元'],
-    ['npc_elder_004', '報酬？……年輕人，有些事比金幣更重要。', '', '', '說話者：村長，回應 player_choice_002'],
-    ['npc_smith_001', '要修裝備嗎？今天爐火正旺。', 'Need your gear fixed? The forge is roaring today.', 'c:c1', '說話者：鐵匠（豪爽、說話直接）'],
-    ['npc_smith_002', '星鐵礦可不好找，你得去礦坑最深處。', '', '', '說話者：鐵匠'],
-    ['npc_smith_003', '小心坑道裡的石像鬼，牠們只在夜裡活動。', '', '', '說話者：鐵匠'],
-    ['dbg_placeholder_01', '（測試用對白，請勿翻譯）', '', 'ignore', '開發用佔位字串'],
-    ['sys_quest_start', '任務開始：霜牙山的異變', 'Quest Started: Trouble on Frostfang Peak', '', '系統提示，顯示於畫面上方橫幅'],
+const FILES: [string, [string, Row[]][]][] = [
+  ['Frostfang 第一章', [
+    ['對話', [
+      ['220001', '村長', '旅人，你終於來了。村子等你很久了。', "Traveler, you've finally come. The village has waited a long time for you.", 'verified'],
+      ['220002', '村長', '北方的霜牙山最近不太平靜，礦工們都不敢上山了。', "Things have been restless on Frostfang Peak to the north. The miners won't go up anymore.", 'doubt'],
+      ['220003', '村長', '帶上這把舊劍吧，它曾屬於我的兒子。', '', ''],
+      ['220004', '玩家', '我會查清楚的。', "I'll find out what's going on.", 'verified'],
+      ['220005', '玩家', '報酬是多少？', "What's the pay?", 'think'],
+      ['220006', '村長', '報酬？……年輕人，有些事比金幣更重要。', '', ''],
+      ['220007', '鐵匠', '要修裝備嗎？今天爐火正旺。', 'Need your gear fixed? The forge is roaring today.', 'c:c1'],
+      ['220008', '鐵匠', '星鐵礦可不好找，你得去礦坑最深處。', '', ''],
+      ['220009', '鐵匠', '小心坑道裡的石像鬼，牠們只在夜裡活動。', '', ''],
+      ['220010', '無', '（測試用對白，請勿翻譯）', '', 'ignore'],
+      ['220011', '系統', '任務開始：霜牙山的異變', 'Quest Started: Trouble on Frostfang Peak', ''],
+    ]],
+    ['道具', [
+      ['310001', '無', '回復藥水', 'Healing Potion', 'verified'],
+      ['310002', '無', '使用後恢復 {0} 點生命值。', 'Restores {0} HP.', ''],
+      ['310003', '無', '星鐵礦', 'Starsteel Ore', 'c:c2'],
+      ['310004', '無', '老舊的長劍', 'Worn Longsword', 'doubt'],
+      ['310005', '無', '旅人斗篷', '', ''],
+      ['310006', '無', '無法交易', '', ''],
+    ]],
+    ['介面', [
+      ['400001', '無', '開始遊戲', 'Start Game', 'verified'],
+      ['400002', '無', '繼續', 'Continue', 'verified'],
+      ['400003', '無', '設定', 'Settings', ''],
+      ['400004', '無', '音量', '', ''],
+      ['400005', '無', '語言', 'Language', ''],
+      ['400006', '系統', '確定要放棄目前進度嗎？', '', 'think'],
+    ]],
   ]],
-  ['items.po', 'loc/zh-TW/items.po', [
-    ['item_potion_name', '回復藥水', 'Healing Potion', 'verified', '道具名稱，上限 20 字元'],
-    ['item_potion_desc', '使用後恢復 {0} 點生命值。', 'Restores {0} HP.', '', '{0} 為數值變數，請保留'],
-    ['item_ore_name', '星鐵礦', 'Starsteel Ore', 'c:c2', '道具名稱，上限 20 字元'],
-    ['item_sword_name', '老舊的長劍', 'Worn Longsword', 'doubt', '道具名稱'],
-    ['item_cloak_name', '旅人斗篷', '', '', '道具名稱'],
-    ['item_untradable', '無法交易', '', '', '道具屬性標籤'],
-  ]],
-  ['ui_menu.po', 'loc/zh-TW/ui_menu.po', [
-    ['menu_start', '開始遊戲', 'Start Game', 'verified', '主選單按鈕'],
-    ['menu_continue', '繼續', 'Continue', 'verified', '主選單按鈕'],
-    ['menu_settings', '設定', 'Settings', '', '主選單按鈕'],
-    ['menu_volume', '音量', '', '', '設定頁項目'],
-    ['menu_language', '語言', 'Language', '', '設定頁項目'],
-    ['menu_quit_confirm', '確定要放棄目前進度嗎？', '', 'think', '確認對話框內文'],
-  ]],
-  ['quests.po', 'loc/zh-TW/quests.po', [
-    ['quest_01_title', '霜牙山的異變', 'Trouble on Frostfang Peak', '', '任務標題'],
-    ['quest_01_obj_1', '前往礦坑入口', 'Go to the mine entrance', '', '任務目標'],
-    ['quest_01_obj_2', '擊敗 {0} 隻石像鬼', '', '', '{0} 為數量變數'],
-    ['quest_01_reward', '獲得 {0} 金幣', 'Received {0} Gold', 'c:c3', '獎勵提示'],
-  ]],
-  ['skills.po', 'loc/zh-TW/skills.po', [
-    ['skill_slash_name', '裂地斬', '', '', '技能名稱，上限 16 字元'],
-    ['skill_slash_desc', '對前方敵人造成 {0}% 攻擊力的傷害。', '', '', '{0} 為百分比數值'],
-    ['skill_guard_name', '鐵壁', 'Iron Wall', 'doubt', '技能名稱'],
-    ['skill_guard_desc', '3 秒內受到的傷害降低 {0}%。', 'Reduces damage taken by {0}% for 3 seconds.', '', '{0} 為百分比數值'],
+  ['Frostfang 任務與技能', [
+    ['任務', [
+      ['510001', '系統', '霜牙山的異變', 'Trouble on Frostfang Peak', ''],
+      ['510002', '系統', '前往礦坑入口', 'Go to the mine entrance', ''],
+      ['510003', '系統', '擊敗 {0} 隻石像鬼', '', ''],
+      ['510004', '系統', '獲得 {0} 金幣', 'Received {0} Gold', 'c:c3'],
+    ]],
+    ['技能', [
+      ['620001', '無', '裂地斬', '', ''],
+      ['620002', '無', '對前方敵人造成 {0}% 攻擊力的傷害。', '', ''],
+      ['620003', '無', '鐵壁', 'Iron Wall', 'doubt'],
+      ['620004', '無', '3 秒內受到的傷害降低 {0}%。', 'Reduces damage taken by {0}% for 3 seconds.', ''],
+    ]],
   ]],
 ];
 
 const NOTES: Record<string, string> = {
-  npc_elder_002: 'Frostfang Peak 前面要不要加 the？等企劃回覆',
-  item_sword_name: 'Worn 還是 Old？語氣上想再斟酌',
-  player_choice_002: '玩家語氣偏直接，pay 會不會太口語',
+  '220002': 'Frostfang Peak 前面要不要加 the？等企劃回覆',
+  '310004': 'Worn 還是 Old？語氣上想再斟酌',
+  '220005': '玩家語氣偏直接，pay 會不會太口語',
 };
 
 const SUGGS: Record<string, string> = {
-  npc_smith_001: 'Need repairs? The forge is burning hot today.',
-  item_sword_name: 'Old Longsword',
+  '220007': 'Need repairs? The forge is burning hot today.',
+  '310004': 'Old Longsword',
 };
 
 const GLOSS: [string, string, string, string][] = [
@@ -78,13 +82,15 @@ const GLOSS: [string, string, string, string][] = [
 const PROJECT = 'Frostfang 在地化專案';
 
 export function sampleProject(): ProjectData {
-  const files: FileDoc[] = FILES.map(([name, path, rows]) => ({
+  const files: FileDoc[] = FILES.map(([name, sheets]) => ({
     name,
-    path,
-    entries: rows.map(([key, src, tgt, mark, ctx]): Entry => ({
-      key, src, src0: src, tgt, tgt0: tgt,
-      mark: mark as StoredMark,
-      ctx, note: NOTES[key] ?? '', sugg: SUGGS[key] ?? '',
+    sheets: sheets.map(([sheetName, rows]) => ({
+      name: sheetName,
+      entries: rows.map(([id, speaker, src, tgt, mark]): Entry => ({
+        uid: 's' + id, id, speaker, src, src0: src, tgt, tgt0: tgt,
+        mark: mark as StoredMark, pending: false,
+        note: NOTES[id] ?? '', sugg: SUGGS[id] ?? '',
+      })),
     })),
   }));
   const glossary: GlossaryTerm[] = GLOSS.map(([term, en, kind, note], i) => ({

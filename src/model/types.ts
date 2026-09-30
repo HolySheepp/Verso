@@ -1,4 +1,5 @@
 // 資料模型。之後接真正的檔案讀寫時，讀寫層只需要產生/接收這些型別。
+// 結構：專案 → 檔案 → 頁簽 → 條目
 
 /** 內建標記 id */
 export type BuiltinMarkId = 'untranslated' | 'translated' | 'verified' | 'doubt' | 'think' | 'ignore';
@@ -13,7 +14,11 @@ export type MarkId = BuiltinMarkId | `c:${string}`;
 export type StoredMark = '' | 'verified' | 'doubt' | 'think' | 'ignore' | `c:${string}`;
 
 export interface Entry {
-  key: string;
+  /** 內部唯一編號，只給程式用 */
+  uid: string;
+  /** 對話 id，通常是純數字，顯示在 # 欄 */
+  id: string;
+  speaker: string;
   /** 目前原文（原文修正模式可改） */
   src: string;
   /** 匯入時的原文，原文修正時保留 */
@@ -22,18 +27,25 @@ export interface Entry {
   /** 匯入時的譯文，驗證模式「還原譯文」用 */
   tgt0: string;
   mark: StoredMark;
-  /** 檔案帶來的說明，例如說話者、字數上限 */
-  ctx: string;
+  /**
+   * 待確認：貼入的條目一律先算未翻譯，就算已經有譯文。
+   * 在翻譯或驗證模式按下一條、標記並下一條，或修改譯文之後才解除。
+   */
+  pending: boolean;
   /** 我的備註 */
   note: string;
   /** 建議翻譯 */
   sugg: string;
 }
 
+export interface Sheet {
+  name: string;
+  entries: Entry[];
+}
+
 export interface FileDoc {
   name: string;
-  path: string;
-  entries: Entry[];
+  sheets: Sheet[];
 }
 
 export type SymbolId =

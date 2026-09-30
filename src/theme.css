@@ -60,3 +60,4 @@ textarea[data-hist="1"]:focus{border-color:var(--accent) !important}
 .no-scrollbar::-webkit-scrollbar{display:none}
 .side-hb{flex-shrink:0}
 [data-tauri-drag-region]{-webkit-user-select:none;user-select:none}
+.paste-box:focus{outline:none;border-color:var(--accent) !important}

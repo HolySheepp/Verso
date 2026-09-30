@@ -53,3 +53,5 @@ const win = (children: ReactNode) =>
 export const IconWinMin = win(<path d="M1 6h10" />);
 export const IconWinMax = win(<rect x="1.5" y="1.5" width="9" height="9" />);
 export const IconWinClose = win(<path d="M1.5 1.5l9 9M10.5 1.5l-9 9" />);
+export const IconSheet = make(<><rect x="3" y="4" width="18" height="16" rx="2" /><path d="M3 10h18M9 10v10" /></>);
+export const IconPaste = make(<><rect x="8" y="3" width="8" height="4" rx="1" /><path d="M16 5h2a2 2 0 0 1 2 2v12a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2V7a2 2 0 0 1 2-2h2" /></>);

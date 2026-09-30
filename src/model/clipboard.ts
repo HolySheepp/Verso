@@ -1,0 +1,94 @@
+// 剪貼簿的讀寫：貼入整欄、把譯文欄複製回 Google Sheets
+
+/**
+ * 解析純文字表格（Tab 分隔）。Google Sheets 複製時，含換行、Tab 或引號開頭的格子會用引號包起來，
+ * 格內的引號寫成兩個。回傳每一列的格子。
+ */
+export function parseTsv(text: string): string[][] {
+  const rows: string[][] = [];
+  let row: string[] = [];
+  let cell = '';
+  let i = 0;
+  let atCellStart = true;
+  const t = text.replace(/\r\n?/g, '\n');
+  while (i < t.length) {
+    const ch = t[i];
+    if (atCellStart && ch === '"') {
+      // 引號格：讀到單獨的結尾引號為止
+      let j = i + 1, val = '', closed = false;
+      while (j < t.length) {
+        if (t[j] === '"') {
+          if (t[j + 1] === '"') { val += '"'; j += 2; continue; }
+          closed = true; j++; break;
+        }
+        val += t[j++];
+      }
+      // 結尾引號後面必須是分隔符號或結尾，否則當成一般文字
+      if (closed && (j >= t.length || t[j] === '\t' || t[j] === '\n')) {
+        cell = val; i = j; atCellStart = false;
+        continue;
+      }
+    }
+    atCellStart = false;
+    if (ch === '\t') { row.push(cell); cell = ''; atCellStart = true; }
+    else if (ch === '\n') { row.push(cell); rows.push(row); row = []; cell = ''; atCellStart = true; }
+    else cell += ch;
+    i++;
+  }
+  // 最後一列（文字結尾的換行不算多一列）
+  if (!(atCellStart && row.length === 0 && cell === '' && t.endsWith('\n'))) {
+    row.push(cell);
+    rows.push(row);
+  }
+  if (t === '') return [];
+  return rows;
+}
+
+/** 從剪貼簿的 HTML 表格取出每一列的格子；沒有表格時回傳 null */
+export function parseHtmlTable(html: string): string[][] | null {
+  const doc = new DOMParser().parseFromString(html, 'text/html');
+  const trs = doc.querySelectorAll('tr');
+  if (!trs.length) return null;
+  return Array.from(trs).map((tr) =>
+    Array.from(tr.querySelectorAll('td,th')).map((cell) => {
+      const c = cell.cloneNode(true) as HTMLElement;
+      c.querySelectorAll('br').forEach((br) => br.replaceWith('\n'));
+      return (c.textContent ?? '').replace(/ /g, ' ');
+    }),
+  );
+}
+
+/** 貼入整欄：優先用表格格式，取每列第一格 */
+export function readColumn(data: { html?: string; text: string }): string[] {
+  const rows = (data.html && parseHtmlTable(data.html)) || parseTsv(data.text);
+  return rows.map((r) => r[0] ?? '');
+}
+
+const escapeHtml = (s: string) =>
+  s.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
+
+/** 一欄文字轉成剪貼簿內容：表格格式和純文字各一份 */
+export function columnToClipboard(values: string[]): { html: string; text: string } {
+  const html = '<table><tbody>' +
+    values.map((v) => `<tr><td>${escapeHtml(v).replace(/\n/g, '<br>')}</td></tr>`).join('') +
+    '</tbody></table>';
+  const text = values
+    .map((v) => (/[\n\t]/.test(v) || v.startsWith('"') ? '"' + v.replace(/"/g, '""') + '"' : v))
+    .join('\n');
+  return { html, text };
+}
+
+/** 把表格格式和純文字同時寫進剪貼簿 */
+export async function writeColumn(values: string[]): Promise<void> {
+  const { html, text } = columnToClipboard(values);
+  if (typeof ClipboardItem !== 'undefined' && navigator.clipboard?.write) {
+    await navigator.clipboard.write([
+      new ClipboardItem({
+        'text/html': new Blob([html], { type: 'text/html' }),
+        'text/plain': new Blob([text], { type: 'text/plain' }),
+      }),
+    ]);
+  } else {
+    await navigator.clipboard.writeText(text);
+  }
+}
