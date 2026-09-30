@@ -1,6 +1,6 @@
 import { useEffect } from 'react';
 import { currentOf, useStore } from '../state/store';
-import { actionFor, comboOf, createTabHold, type ActionId } from '../model/shortcuts';
+import { HOLD_ACTIONS, actionFor, comboOf, createTabHold, type ActionId } from '../model/shortcuts';
 import { effectiveMark } from '../model/marks';
 import { markMenuIds } from './MarkMenu';
 import { rowMenuPos } from './rowMenu';
@@ -30,6 +30,13 @@ function focusWorkInput(mode: string) {
 export function Shortcuts() {
   useEffect(() => {
     const tab = createTabHold();
+    // 按住型的快捷鍵：記下是哪個主鍵，放開主鍵或修飾鍵就結束
+    let holding: { key: string; mods: string[] } | null = null;
+    const stopHold = () => {
+      if (!holding) return;
+      holding = null;
+      useStore.getState().set({ peek: false });
+    };
 
     const onKey = (ev: KeyboardEvent) => {
       if (ev.defaultPrevented || ev.isComposing) return;
@@ -90,16 +97,25 @@ export function Shortcuts() {
       if (!inWork && isOtherInput(el)) return false;
       const action = actionFor(s.shortcuts, inWork ? 'input' : 'list', combo);
       if (!action) return false;
+      if (HOLD_ACTIONS.includes(action)) {
+        const parts = combo.split('+');
+        holding = { key: parts[parts.length - 1], mods: parts.slice(0, -1) };
+      }
       run(action, el as HTMLElement | null);
       return true;
     };
 
     // 只按 Ctrl+Tab 就放開時，放開那一刻才算
     const onKeyUp = (ev: KeyboardEvent) => {
+      if (holding) {
+        const released = comboOf({ key: ev.key, code: ev.code, ctrlKey: false, altKey: false, shiftKey: false, metaKey: false });
+        const modReleased = (ev.key === 'Control' || ev.key === 'Meta') ? 'Ctrl' : ev.key;
+        if (released === holding.key || holding.mods.includes(modReleased)) stopHold();
+      }
       const combo = tab.up(ev);
       if (combo) handle(combo);
     };
-    const onBlur = () => tab.reset();
+    const onBlur = () => { tab.reset(); stopHold(); };
 
     const run = (action: ActionId, el: HTMLElement | null) => {
       const s = useStore.getState();
@@ -117,6 +133,11 @@ export function Shortcuts() {
         case 'prevSheet': s.setSheet(currentOf(s).sheetIdx - 1); break;
         case 'nextSheet': s.setSheet(currentOf(s).sheetIdx + 1); break;
         case 'close': s.closePopups(); break;
+        case 'peek': {
+          const h = entry && s.history.byEntry[entry.uid];
+          if (h?.texts.length) s.set({ peek: true });
+          break;
+        }
         case 'newline': {
           const ta = el as HTMLTextAreaElement | null;
           if (!ta || ta.readOnly) break;

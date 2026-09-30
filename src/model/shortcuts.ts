@@ -9,7 +9,7 @@ export const CONTEXTS: { id: ShortcutContext; label: string }[] = [
 
 export type ActionId =
   | 'main' | 'newline' | 'stampNext' | 'prevEntry' | 'nextEntry' | 'markMenu' | 'record' | 'leaveInput'
-  | 'editEntry' | 'clearTgt' | 'prevSheet' | 'nextSheet' | 'close';
+  | 'editEntry' | 'clearTgt' | 'prevSheet' | 'nextSheet' | 'close' | 'peek';
 
 export const ACTION_LABELS: Record<ActionId, string> = {
   main: '下一條／驗證並下一條',
@@ -25,12 +25,16 @@ export const ACTION_LABELS: Record<ActionId, string> = {
   prevSheet: '上一個頁簽',
   nextSheet: '下一個頁簽',
   close: '關閉選單與視窗',
+  peek: '按住查看修改',
 };
+
+/** 這些操作要按住才有效，放開就結束 */
+export const HOLD_ACTIONS: ActionId[] = ['peek'];
 
 /** 各情境有哪些操作（依設定頁的顯示順序） */
 export const CONTEXT_ACTIONS: Record<ShortcutContext, ActionId[]> = {
-  input: ['main', 'newline', 'stampNext', 'prevEntry', 'nextEntry', 'markMenu', 'record', 'leaveInput', 'prevSheet', 'nextSheet'],
-  list: ['prevEntry', 'nextEntry', 'editEntry', 'clearTgt', 'markMenu', 'record', 'prevSheet', 'nextSheet', 'close'],
+  input: ['main', 'newline', 'stampNext', 'prevEntry', 'nextEntry', 'markMenu', 'record', 'peek', 'leaveInput', 'prevSheet', 'nextSheet'],
+  list: ['prevEntry', 'nextEntry', 'editEntry', 'clearTgt', 'markMenu', 'record', 'peek', 'prevSheet', 'nextSheet', 'close'],
 };
 
 export type Bindings = Record<ShortcutContext, Partial<Record<ActionId, string[]>>>;
@@ -44,6 +48,7 @@ export const defaultBindings = (): Bindings => ({
     nextEntry: ['Alt+↓'],
     markMenu: ['Ctrl+M'],
     record: ['Ctrl+R'],
+    peek: ['Ctrl+E'],
     leaveInput: ['Esc'],
     prevSheet: ['Ctrl+Tab+←'],
     nextSheet: ['Ctrl+Tab+→'],
@@ -55,6 +60,7 @@ export const defaultBindings = (): Bindings => ({
     clearTgt: ['Delete', 'Backspace'],
     markMenu: ['Ctrl+M'],
     record: ['Ctrl+R'],
+    peek: ['Ctrl+E'],
     prevSheet: ['Ctrl+Tab+←'],
     nextSheet: ['Ctrl+Tab+→'],
     close: ['Esc'],

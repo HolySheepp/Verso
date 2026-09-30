@@ -27,7 +27,7 @@ export function FileNav({ tabW }: { tabW: number }) {
   const carW = tabW * 3 + 16;
   const step = tabW + 8;
 
-  // 用滑鼠左右拖動頁簽欄：旁邊頁簽的邊緣碰到中線時，就切換到那個頁簽並滑到中間
+  // 用滑鼠左右拖動頁簽欄：旁邊的頁簽拖過中線大約四分之一時，就切換到那個頁簽並滑到中間
   const [dragDx, setDragDx] = useState(0);
   const [dragging, setDragging] = useState(false);
   const drag = useRef<{ x: number; moved: boolean; id: number } | null>(null);
@@ -48,7 +48,7 @@ export function FileNav({ tabW }: { tabW: number }) {
       setDragging(true);
       try { ev.currentTarget.setPointerCapture(d.id); } catch { /* 無法捕捉時照常運作 */ }
     }
-    const cross = tabW / 2 + 8;
+    const cross = tabW * 0.75 + 8;
     const idx = currentOf(useStore.getState()).sheetIdx;
     if (dx <= -cross && idx < n - 1) { s.setSheet(idx + 1); d.x = ev.clientX; dx = 0; }
     else if (dx >= cross && idx > 0) { s.setSheet(idx - 1); d.x = ev.clientX; dx = 0; }
