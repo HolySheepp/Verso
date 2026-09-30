@@ -94,7 +94,8 @@ export function runChecks(src: string, tgt: string): Issue[] {
   // 空白與重複標點
   if (/^\s|\s$/.test(tgt)) add('edgeSpace', '', '開頭或結尾有多餘空白');
   if (/ {2,}/.test(tgt)) add('doubleSpace', '', '有連續兩個空格');
-  const rep = Array.from(new Set((tgt.match(/([!?,;:—\-])\1+/g) ?? [])));
+  // 句點、驚嘆號、問號可以重複（刪節號、!!!、??）
+  const rep = Array.from(new Set((tgt.match(/([,;:—\-])\1+/g) ?? [])));
   if (rep.length) add('repeatPunct', rep.join(''), '重複標點 ' + rep.join(' '));
 
   // 中文引號：譯文引號只能用 " 和 '

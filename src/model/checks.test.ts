@@ -44,7 +44,11 @@ describe('標點檢測', () => {
     expect(ids('', ' Go.')).toEqual(['edgeSpace']);
     expect(ids('', 'Go  now.')).toEqual(['doubleSpace']);
     expect(ids('', 'What?!')).toEqual([]);
-    expect(ids('', 'What??')).toEqual(['repeatPunct']);
+    expect(ids('', 'What??')).toEqual([]);
+    expect(ids('', 'No!!!')).toEqual([]);
+    expect(ids('', 'What?!?')).toEqual([]);
+    expect(ids('', 'Wait,, go.')).toEqual(['repeatPunct']);
+    expect(ids('', 'Wait—— go.')).toEqual(['repeatPunct']);
     expect(ids('', 'Well... Go.')).toEqual([]);
   });
 
