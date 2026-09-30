@@ -99,7 +99,7 @@ async function persistConfig(patch: Partial<AppConfig> = {}) {
   const s = useStore.getState();
   config = {
     ...config, ...patch,
-    saveRoot: s.saveRoot, autosaveMin: s.autosaveMin, theme: s.theme, accent: s.accent, customAccents: s.customAccents,
+    saveRoot: s.saveRoot, autosaveMin: s.autosaveMin, theme: s.theme, accent: s.accent, customAccents: s.customAccents, rainbowUnlocked: s.rainbowUnlocked,
     shortcuts: s.shortcuts, checkSettings: s.checkSettings, disabledDicts: s.disabledDicts,
   };
   try { await saveConfig(config); } catch { /* 設定存不下不影響使用 */ }
@@ -129,6 +129,7 @@ export async function startApp() {
     theme: config.theme ?? st.theme,
     accent: config.accent ?? st.accent,
     customAccents: config.customAccents ?? [],
+    rainbowUnlocked: config.rainbowUnlocked ?? false,
     shortcuts: config.shortcuts ? { input: { ...st.shortcuts.input, ...config.shortcuts.input }, list: { ...st.shortcuts.list, ...config.shortcuts.list } } : st.shortcuts,
     checkSettings: config.checkSettings ? { ...st.checkSettings, ...config.checkSettings } : st.checkSettings,
     disabledDicts: config.disabledDicts ?? [],
@@ -167,7 +168,7 @@ function watch() {
       if (!dirty && s.saveStatus === 'dirty') useStore.setState({ saveStatus: 'saved' });
     }
     // 設定改了就存到設定檔
-    if (s.theme !== prev.theme || s.accent !== prev.accent || s.customAccents !== prev.customAccents || s.shortcuts !== prev.shortcuts || s.checkSettings !== prev.checkSettings
+    if (s.theme !== prev.theme || s.accent !== prev.accent || s.customAccents !== prev.customAccents || s.rainbowUnlocked !== prev.rainbowUnlocked || s.shortcuts !== prev.shortcuts || s.checkSettings !== prev.checkSettings
       || s.disabledDicts !== prev.disabledDicts || s.autosaveMin !== prev.autosaveMin || s.saveRoot !== prev.saveRoot) {
       clearTimeout(configTimer);
       configTimer = setTimeout(() => void persistConfig(), 400);

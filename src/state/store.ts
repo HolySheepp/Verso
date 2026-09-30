@@ -66,6 +66,8 @@ interface State {
   accent: string;
   /** 使用者存下來的自訂主題色（最多 5 個） */
   customAccents: string[];
+  /** 彩蛋：解鎖「迷幻」主題色 */
+  rainbowUnlocked: boolean;
   /** 色盤拖動中的預覽色（還沒儲存） */
   accentPreview: string | null;
   hideNav: boolean;
@@ -266,6 +268,7 @@ export const useStore = create<Store>((set, get) => {
     theme: 'dark',
     accent: 'blue',
     customAccents: [],
+    rainbowUnlocked: false,
     accentPreview: null,
     hideNav: false,
     hideSide: false,

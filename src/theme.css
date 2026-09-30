@@ -94,3 +94,12 @@ textarea[data-hist="1"]:focus{border-color:var(--accent) !important}
 /* 還沒有檔案時，檔案框高亮並微微閃動 */
 @keyframes verso-attention{0%,100%{box-shadow:0 0 0 0 color-mix(in srgb,var(--accent) 45%,transparent)}50%{box-shadow:0 0 0 5px color-mix(in srgb,var(--accent) 12%,transparent)}}
 .fs.attention{border-color:var(--accent) !important;animation:verso-attention 1.8s ease-in-out infinite}
+
+/* 彩蛋「迷幻」主題色：主題色沿著色相環不停變化。
+   --accent 註冊成顏色才能做動畫；每秒只更新約 20 次，減少重繪的負擔。 */
+@property --accent{syntax:'<color>';inherits:true;initial-value:#4f8cff}
+@keyframes verso-rainbow-dark{0%{--accent:hsl(0 85% 66%)}17%{--accent:hsl(60 85% 58%)}33%{--accent:hsl(120 70% 55%)}50%{--accent:hsl(180 80% 55%)}67%{--accent:hsl(240 90% 70%)}83%{--accent:hsl(300 80% 68%)}100%{--accent:hsl(360 85% 66%)}}
+@keyframes verso-rainbow-light{0%{--accent:hsl(0 75% 46%)}17%{--accent:hsl(45 90% 38%)}33%{--accent:hsl(120 65% 34%)}50%{--accent:hsl(185 85% 34%)}67%{--accent:hsl(235 70% 52%)}83%{--accent:hsl(300 65% 44%)}100%{--accent:hsl(360 75% 46%)}}
+.vd[data-accent=rainbow]{animation:verso-rainbow-dark 9s steps(180) infinite}
+.vl[data-accent=rainbow]{animation:verso-rainbow-light 9s steps(180) infinite}
+.rainbow-swatch{background:conic-gradient(#ff5b5b,#ffd35b,#5bff8a,#5be4ff,#6b7bff,#e35bff,#ff5b5b) !important}

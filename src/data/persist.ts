@@ -18,6 +18,7 @@ export interface AppConfig {
   theme?: 'dark' | 'light' | 'system';
   accent?: string;
   customAccents?: string[];
+  rainbowUnlocked?: boolean;
   shortcuts?: Bindings;
   checkSettings?: CheckSettings;
   disabledDicts?: string[];

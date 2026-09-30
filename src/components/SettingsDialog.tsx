@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useState, useRef } from 'react';
 import { useStore } from '../state/store';
 import { BUILTIN_MARKS, MARK_COLORS, SYMBOLS, checkMarkText, markVisual, type MarkVisual } from '../model/marks';
 import type { CustomMark, SymbolId } from '../model/types';
@@ -383,8 +383,18 @@ function AppearanceSection({ onPick }: { onPick(): void }) {
   const themeMode = useStore((s) => s.theme);
   const accent = useStore((s) => s.accent);
   const customs = useStore((s) => s.customAccents);
+  const rainbow = useStore((s) => s.rainbowUnlocked);
   const set = useStore((s) => s.set);
   const theme = useEffectiveTheme();
+  // 彩蛋：連續點「主題色」5 次（每次間隔 1.5 秒內）解鎖「迷幻」
+  const clicks = useRef<{ n: number; t: number }>({ n: 0, t: 0 });
+  const onTitleClick = () => {
+    const now = Date.now();
+    const c = clicks.current;
+    c.n = now - c.t < 1500 ? c.n + 1 : 1;
+    c.t = now;
+    if (c.n >= 5 && !rainbow) set({ rainbowUnlocked: true });
+  };
   const seg = (on: boolean): React.CSSProperties => ({
     height: 28, padding: '0 14px', border: 0, borderRadius: 6, fontSize: 12.5,
     background: on ? 'var(--segon)' : 'transparent', color: on ? 'var(--text)' : 'var(--text2)',
@@ -404,12 +414,17 @@ function AppearanceSection({ onPick }: { onPick(): void }) {
         </div>
       </div>
       <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
-        <h3 style={h3}>主題色</h3>
+        <h3 style={{ ...h3, userSelect: 'none', alignSelf: 'flex-start' }} onClick={onTitleClick}>主題色</h3>
         <div role="radiogroup" aria-label="主題色" style={{ display: 'flex', flexWrap: 'wrap', alignItems: 'center', gap: 10 }}>
           {ACCENTS.map((a) => (
             <button key={a.id} type="button" role="radio" aria-checked={accent === a.id} aria-label={a.label} title={a.label}
               onClick={() => set({ accent: a.id })} style={swatch(accent === a.id, theme === 'light' ? a.light : a.dark)} />
           ))}
+          {rainbow && (
+            <button type="button" role="radio" aria-checked={accent === 'rainbow'} aria-label="迷幻" title="迷幻"
+              className="rainbow-swatch" onClick={() => set({ accent: 'rainbow' })}
+              style={{ ...swatch(accent === 'rainbow', 'transparent'), position: 'relative', overflow: 'hidden' }} />
+          )}
           {customs.length > 0 && <span style={{ width: 1, height: 22, background: 'var(--line3)' }} />}
           {customs.map((hex) => (
             <button key={hex} type="button" role="radio" aria-checked={accent === hex} aria-label={hex} title={hex}
@@ -426,6 +441,11 @@ function AppearanceSection({ onPick }: { onPick(): void }) {
             <IconPlus size={13} sw={2.4} />
           </button>
         </div>
+        {accent === 'rainbow' && (
+          <span style={{ fontSize: 12, color: 'var(--mute)', lineHeight: 1.5 }}>
+            迷幻主題色會不停重繪畫面，比較舊的電腦或開著很大的檔案時，可能會稍微變慢、比較耗電。
+          </span>
+        )}
       </div>
     </div>
   );
