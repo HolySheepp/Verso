@@ -97,6 +97,8 @@ export function Shortcuts() {
       if (!inWork && isOtherInput(el)) return false;
       const action = actionFor(s.shortcuts, inWork ? 'input' : 'list', combo);
       if (!action) return false;
+      // 用滑鼠點過的條目按鈕留著焦點時會顯示外框，用鍵盤移動前先放掉
+      if (!inWork && (el as HTMLElement | null)?.closest?.('.rw')) (el as HTMLElement).blur();
       if (HOLD_ACTIONS.includes(action)) {
         const parts = combo.split('+');
         holding = { key: parts[parts.length - 1], mods: parts.slice(0, -1) };
@@ -126,6 +128,8 @@ export function Shortcuts() {
         case 'stampNext': s.stampNext(); break;
         case 'prevEntry': s.step(-1); break;
         case 'nextEntry': s.step(1); break;
+        case 'prevPending': s.stepPending(-1); break;
+        case 'nextPending': s.stepPending(1); break;
         case 'record': s.record(); break;
         case 'leaveInput': el?.blur(); break;
         case 'editEntry': focusWorkInput(s.mode); break;

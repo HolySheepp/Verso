@@ -119,6 +119,8 @@ interface Actions {
   stampNext(): void;
   /** 在目前篩選下看得到的條目間移動，不留標記 */
   step(delta: 1 | -1): void;
+  /** 跳到上／下一個待處理條目：有問題、標了疑慮或未翻譯 */
+  stepPending(delta: 1 | -1): void;
 }
 
 export type Store = State & Actions;
@@ -405,6 +407,18 @@ export const useStore = create<Store>((set, get) => {
       let target: number | undefined;
       if (pos >= 0) target = rows[pos + delta];
       else target = delta > 0 ? rows.find((i) => i > sel) : [...rows].reverse().find((i) => i < sel);
+      if (target !== undefined) { s.select(s.file, sheetIdx, target); set({ moveSeq: get().moveSeq + 1, moveDir: delta }); }
+    },
+
+    stepPending(delta) {
+      const s = get();
+      const { sel, sheetIdx, sheet } = cur();
+      const pending = visibleRows(s).filter((i) => {
+        const e = sheet.entries[i];
+        const m = effectiveMark(e);
+        return m === 'untranslated' || m === 'doubt' || visibleIssues(e, s.reported, s.checkSettings).length > 0;
+      });
+      const target = delta > 0 ? pending.find((i) => i > sel) : [...pending].reverse().find((i) => i < sel);
       if (target !== undefined) { s.select(s.file, sheetIdx, target); set({ moveSeq: get().moveSeq + 1, moveDir: delta }); }
     },
 

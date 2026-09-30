@@ -158,7 +158,7 @@ export function EntryList() {
                   </svg>
                 )}
               </span>
-              <button type="button" className="row" aria-current={on ? 'true' : undefined} onClick={() => select(s.file, sheetIdx, i)}
+              <button type="button" className="row" aria-current={on ? 'true' : undefined} onClick={(ev) => { select(s.file, sheetIdx, i); ev.currentTarget.blur(); }}
                 style={{
                   minWidth: 0, minHeight: 38, display: 'grid', gridTemplateColumns: ROW_COLS, alignItems: 'center',
                   padding: 0, background: 'transparent', border: 0, textAlign: 'left', fontSize: 13,
