@@ -1,12 +1,14 @@
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { useStore } from '../state/store';
 import { BUILTIN_MARKS, MARK_COLORS, SYMBOLS, checkMarkText, markVisual, type MarkVisual } from '../model/marks';
 import type { CustomMark, SymbolId } from '../model/types';
 import { MarkIcon } from './MarkIcon';
 import { IconPlus, IconTrash, IconWinClose } from './icons';
+import { CHECKS } from '../model/checks';
 
-// 設定目前只有「標記」分類有內容，其他分類只有外觀
-const SECTIONS = ['一般', '工作模式', '標記', '快捷鍵', '外觀'];
+// 設定目前只有「標記」「檢查」分類有內容，其他分類只有外觀
+const SECTIONS = ['一般', '工作模式', '標記', '檢查', '快捷鍵', '外觀'];
+const READY = ['標記', '檢查'];
 
 const h3: React.CSSProperties = { margin: 0, fontSize: 12, fontWeight: 600, letterSpacing: 1, color: 'var(--text2)' };
 
@@ -20,6 +22,8 @@ export function SettingsDialog() {
   const [sym, setSym] = useState<SymbolId>('star');
   const [text, setText] = useState('');
   const [color, setColor] = useState('#4fb3a9');
+  const [section, setSection] = useState('標記');
+  useEffect(() => { if (open) setSection('標記'); }, [open]);
 
   if (!open) return null;
 
@@ -55,9 +59,10 @@ export function SettingsDialog() {
         <div style={{ flexGrow: 1, minHeight: 0, display: 'flex' }}>
           <nav aria-label="設定分類" style={{ width: 180, flexShrink: 0, display: 'flex', flexDirection: 'column', gap: 2, padding: 12, borderRight: '1px solid var(--line)', background: 'var(--bar)' }}>
             {SECTIONS.map((sec) => {
-              const on = sec === '標記';
+              const on = sec === section;
               return (
                 <button key={sec} type="button" className="dd" aria-current={on ? 'page' : undefined}
+                  onClick={() => { if (READY.includes(sec)) setSection(sec); }}
                   style={{ height: 34, padding: '0 12px', border: 0, borderRadius: 7, textAlign: 'left', background: on ? 'var(--sel)' : 'transparent', color: on ? 'var(--text)' : 'var(--text2)', fontWeight: on ? 500 : 400 }}>
                   {sec}
                 </button>
@@ -65,6 +70,7 @@ export function SettingsDialog() {
             })}
           </nav>
           <div style={{ flexGrow: 1, minWidth: 0, overflowY: 'auto', padding: '20px 24px', display: 'flex', flexDirection: 'column', gap: 22 }}>
+            {section === '檢查' ? <ChecksSection /> : <>
             <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
               <h3 style={h3}>內建標記</h3>
               <div style={{ display: 'grid', gridTemplateColumns: 'repeat(2, minmax(0, 1fr))', gap: 8 }}>
@@ -161,8 +167,30 @@ export function SettingsDialog() {
                 </button>
               </div>
             </div>
+            </>}
           </div>
         </div>
+      </div>
+    </div>
+  );
+}
+
+function ChecksSection() {
+  const settings = useStore((s) => s.checkSettings);
+  const setCheck = useStore((s) => s.setCheck);
+  return (
+    <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
+      <h3 style={h3}>標點與機器驗證</h3>
+      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(2, minmax(0, 1fr))', gap: 8 }}>
+        {CHECKS.map((c) => {
+          const on = settings[c.id];
+          return (
+            <label key={c.id} style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 10, height: 44, padding: '0 12px', background: 'var(--card)', border: '1px solid var(--line2)', borderRadius: 8, cursor: 'pointer' }}>
+              <span style={{ fontSize: 13 }}>{c.label}</span>
+              <input type="checkbox" role="switch" className="switch" checked={on} onChange={(e) => setCheck(c.id, e.target.checked)} />
+            </label>
+          );
+        })}
       </div>
     </div>
   );

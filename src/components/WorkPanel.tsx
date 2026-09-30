@@ -1,10 +1,11 @@
 import { useRef } from 'react';
-import { currentOf, useStore } from '../state/store';
+import { currentOf, useStore, visibleIssues } from '../state/store';
 import { findCustom, markName, markVisual } from '../model/marks';
 import type { MarkId, Mode } from '../model/types';
 import { MarkIcon } from './MarkIcon';
 import { MarkMenu } from './MarkMenu';
 import {
+  IconWarn,
   IconBraces, IconCheck, IconChevL, IconChevR, IconCopy, IconEraser, IconEye, IconFeather, IconLock, IconPen, IconUndo, IconUse,
 } from './icons';
 
@@ -34,6 +35,8 @@ export function WorkPanel({ height }: { height: number }) {
   const total = sheet.entries.length;
   const mode = s.mode;
   const customs = project.customMarks;
+  const issues = visibleIssues(cur, s.reported, s.checkSettings);
+  const issueText = issues.map((i) => i.msg).join('、');
 
   const hist = s.history.byEntry[cur.uid];
   const texts = hist?.texts ?? [];
@@ -100,16 +103,24 @@ export function WorkPanel({ height }: { height: number }) {
               borderRadius: 8, fontSize: 15, lineHeight: 1.6, color: 'var(--text)',
             }} />
 
-          <div style={{ ...labelRow, marginTop: 6 }}>
-            <span style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+          <div style={{ ...labelRow, marginTop: 6, gap: 12 }}>
+            <span style={{ display: 'flex', alignItems: 'center', gap: 8, minWidth: 0 }}>
               <label htmlFor="verso-target" className="sec-label">譯文</label>
               {!tgtEditable && (
                 <span style={{ display: 'flex', alignItems: 'center', gap: 4, fontSize: 11, color: 'var(--text2)', padding: '1px 7px', borderRadius: 9, background: 'var(--chip)' }}>
                   <IconLock size={10} sw={2.6} />唯讀
                 </span>
               )}
+              {issues.length > 0 && (
+                <span role="status" style={{ display: 'flex', alignItems: 'center', gap: 6, minWidth: 0, fontSize: 11.5, color: 'var(--warntx)' }}>
+                  <IconWarn size={12} sw={2.2} style={{ flexShrink: 0 }} />
+                  <span title={issueText} style={{ minWidth: 0, overflow: 'hidden', whiteSpace: 'nowrap', textOverflow: 'ellipsis' }}>{issueText}</span>
+                  <button type="button" className="ib" onClick={() => s.skipCheck()}
+                    style={{ flexShrink: 0, height: 20, padding: '0 8px', background: 'transparent', border: '1px solid var(--line4)', borderRadius: 5, color: 'var(--text2)', fontSize: 11 }}>略過</button>
+                </span>
+              )}
             </span>
-            <span style={meta}>
+            <span style={{ ...meta, flexShrink: 0 }}>
               <span>{texts.length ? `已記錄 ${texts.length} / 3` : ''}</span>
               <span>{cur.tgt.length} 字元</span>
             </span>

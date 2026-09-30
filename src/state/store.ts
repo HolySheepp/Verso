@@ -2,9 +2,10 @@ import { create } from 'zustand';
 import { activeSource } from '../data/source';
 import { emptyHistory, recordText, selectSlot, type HistoryStore } from '../model/history';
 import { toStoredMark } from '../model/marks';
+import { defaultCheckSettings, enabledIssues, type CheckId, type CheckSettings, type Issue } from '../model/checks';
 import type { CustomMark, Entry, FileDoc, GlossaryTerm, MarkId, Mode, ProjectData, Sheet } from '../model/types';
 
-export type Filter = 'all' | 'untranslated' | 'doubt' | 'think';
+export type Filter = 'all' | 'untranslated' | 'doubt' | 'think' | 'issues';
 export type SideTab = 'dict' | 'search' | 'web' | 'ref';
 export type Theme = 'dark' | 'light';
 
@@ -16,6 +17,19 @@ export interface TermDraft {
 }
 
 const selKey = (f: number, sh: number) => f + ':' + sh;
+
+/** 需要檢查的條目：有譯文、沒標忽略、沒按略過 */
+const checkable = (e: Entry) => !!e.tgt && e.mark !== 'ignore' && !e.skipCheck;
+
+/**
+ * 要顯示的問題：只顯示檢查當下報過、而且現在還存在的問題。
+ * 所以改對了警示馬上消失，但打字途中新出現的問題要等離開這條時才報。
+ */
+export function visibleIssues(e: Entry, reported: Record<string, string[]>, settings: CheckSettings): Issue[] {
+  const keys = reported[e.uid];
+  if (!keys || !checkable(e)) return [];
+  return enabledIssues(e.src, e.tgt, settings).filter((i) => keys.includes(i.key));
+}
 
 interface State {
   project: ProjectData | null;
@@ -53,6 +67,10 @@ interface State {
   termDraft: TermDraft | null;
   pasteOpen: boolean;
   dictPasteOpen: boolean;
+
+  checkSettings: CheckSettings;
+  /** 各條目在檢查當下報出的問題（以條目 uid 為 key），不存進檔案 */
+  reported: Record<string, string[]>;
 }
 
 interface Actions {
@@ -76,6 +94,9 @@ interface Actions {
   deleteCustomMark(id: string): void;
   addFile(f: FileDoc): void;
   addTerms(dict: string, pairs: [string, string][]): void;
+  checkAll(): void;
+  skipCheck(): void;
+  setCheck(id: CheckId, on: boolean): void;
 }
 
 export type Store = State & Actions;
@@ -109,6 +130,24 @@ export const useStore = create<Store>((set, get) => {
 
   const cur = () => currentOf(get());
 
+  /** 檢查條目並記下當下的問題；沒有問題就清掉記錄 */
+  const checkEntries = (entries: Entry[]) => {
+    const s = get();
+    const reported = { ...s.reported };
+    entries.forEach((e) => {
+      const issues = checkable(e) ? enabledIssues(e.src, e.tgt, s.checkSettings) : [];
+      if (issues.length) reported[e.uid] = issues.map((i) => i.key);
+      else delete reported[e.uid];
+    });
+    set({ reported });
+  };
+
+  /** 離開目前條目時檢查它 */
+  const leaveCurrent = () => {
+    const { entry } = cur();
+    if (entry) checkEntries([entry]);
+  };
+
   return {
     project: null,
     history: emptyHistory(),
@@ -137,6 +176,8 @@ export const useStore = create<Store>((set, get) => {
     termDraft: null,
     pasteOpen: false,
     dictPasteOpen: false,
+    checkSettings: defaultCheckSettings(),
+    reported: {},
 
     async load() {
       const project = await activeSource.load();
@@ -149,6 +190,7 @@ export const useStore = create<Store>((set, get) => {
     setFile(f) {
       const n = get().project?.files.length ?? 0;
       if (f < 0 || f >= n) return;
+      if (f !== get().file) leaveCurrent();
       set({ file: f, ...noPopups, ...noView });
     },
 
@@ -156,10 +198,13 @@ export const useStore = create<Store>((set, get) => {
       const s = get();
       const n = s.project?.files[s.file].sheets.length ?? 0;
       if (sh < 0 || sh >= n) return;
+      if (sh !== currentOf(s).sheetIdx) leaveCurrent();
       set({ sheetBy: { ...s.sheetBy, [s.file]: sh }, ...noPopups, ...noView });
     },
 
     select(f, sh, i) {
+      const c = cur();
+      if (f !== get().file || sh !== c.sheetIdx || i !== c.sel) leaveCurrent();
       const s = get();
       set({
         file: f, sheetBy: { ...s.sheetBy, [f]: sh }, selBy: { ...s.selBy, [selKey(f, sh)]: i },
@@ -173,7 +218,7 @@ export const useStore = create<Store>((set, get) => {
       // 翻譯、驗證模式下按下一條，代表確認了這條
       if (entry?.pending && (s.mode === 'translate' || s.mode === 'verify')) patchEntry(sel, (e) => ({ ...e, pending: false }));
       if (sel < sheet.entries.length - 1) get().select(s.file, sheetIdx, sel + 1);
-      else set({ stampOpen: false });
+      else { leaveCurrent(); set({ stampOpen: false }); }
     },
 
     prev() {
@@ -287,6 +332,24 @@ export const useStore = create<Store>((set, get) => {
         },
         dictPasteOpen: false,
       });
+    },
+
+    checkAll() {
+      leaveCurrent();
+      checkEntries(cur().sheet.entries);
+    },
+
+    skipCheck() {
+      const { entry } = cur();
+      if (!entry) return;
+      get().updateEntry({ skipCheck: true });
+      const reported = { ...get().reported };
+      delete reported[entry.uid];
+      set({ reported });
+    },
+
+    setCheck(id, on) {
+      set({ checkSettings: { ...get().checkSettings, [id]: on } });
     },
   };
 });

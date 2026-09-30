@@ -88,7 +88,7 @@ export function sampleProject(): ProjectData {
       name: sheetName,
       entries: rows.map(([id, speaker, src, tgt, mark]): Entry => ({
         uid: 's' + id, id, speaker, src, src0: src, tgt, tgt0: tgt,
-        mark: mark as StoredMark, pending: false,
+        mark: mark as StoredMark, pending: false, skipCheck: false,
         note: NOTES[id] ?? '', sugg: SUGGS[id] ?? '',
       })),
     })),

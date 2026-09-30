@@ -32,6 +32,8 @@ export interface Entry {
    * 在翻譯或驗證模式按下一條、標記並下一條，或修改譯文之後才解除。
    */
   pending: boolean;
+  /** 標點檢測誤報時按「略過」，之後不再檢查這條 */
+  skipCheck: boolean;
   /** 我的備註 */
   note: string;
   /** 建議翻譯 */

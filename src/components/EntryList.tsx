@@ -1,10 +1,10 @@
 import { useEffect, useRef, useState } from 'react';
-import { currentOf, useStore, type Filter } from '../state/store';
+import { currentOf, useStore, visibleIssues, type Filter } from '../state/store';
 import { effectiveMark, markName, markVisual } from '../model/marks';
 import { writeColumn } from '../model/clipboard';
 import { MarkIcon } from './MarkIcon';
 import { CopyConfirm } from './CopyConfirm';
-import { IconCheck, IconCopy } from './icons';
+import { IconCheck, IconCopy, IconScan, IconWarn } from './icons';
 
 /** 標記欄、# 欄（對話 id）、發話者欄、原文、譯文 */
 const HEAD_COLS = '40px 36px 64px minmax(0, 1fr) minmax(0, 1fr)';
@@ -15,6 +15,7 @@ const FILTERS: { id: Filter; label: string }[] = [
   { id: 'untranslated', label: '未翻譯' },
   { id: 'doubt', label: '疑慮' },
   { id: 'think', label: '待思考' },
+  { id: 'issues', label: '有問題' },
 ];
 
 export function EntryList() {
@@ -48,10 +49,12 @@ export function EntryList() {
     else void doCopy();
   };
 
-  const cnt: Record<string, number> = { untranslated: 0, doubt: 0, think: 0 };
+  const issuesOf = (e: (typeof sheet.entries)[number]) => visibleIssues(e, s.reported, s.checkSettings);
+  const cnt: Record<string, number> = { untranslated: 0, doubt: 0, think: 0, issues: 0 };
   sheet.entries.forEach((e) => {
     const m = effectiveMark(e);
     if (m in cnt) cnt[m]++;
+    if (issuesOf(e).length) cnt.issues++;
   });
 
   const openMark = (ev: React.MouseEvent<HTMLButtonElement>, i: number) => {
@@ -66,8 +69,8 @@ export function EntryList() {
   };
 
   const rows = sheet.entries
-    .map((e, i) => ({ e, i, m: effectiveMark(e) }))
-    .filter(({ m }) => filter === 'all' || m === filter);
+    .map((e, i) => ({ e, i, m: effectiveMark(e), issues: issuesOf(e) }))
+    .filter(({ m, issues }) => filter === 'all' || (filter === 'issues' ? issues.length > 0 : m === filter));
 
   return (
     <section aria-label="文本條目" style={{
@@ -80,6 +83,10 @@ export function EntryList() {
           <span style={{ fontSize: 12, color: 'var(--mute)' }}>共 {sheet.entries.length} 條</span>
         </div>
         <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+        <button type="button" className="ib" aria-label="全部檢查" title="全部檢查" onClick={() => s.checkAll()}
+          style={{ width: 34, height: 34, display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 0, background: 'var(--btn)', border: '1px solid var(--line3)', borderRadius: 8, color: 'var(--text2)' }}>
+          <IconScan size={15} />
+        </button>
         <button type="button" className="ib" aria-label="複製譯文欄" title="複製譯文欄" onClick={askCopy}
           style={{ width: 34, height: 34, display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 0, background: 'var(--btn)', border: '1px solid var(--line3)', borderRadius: 8, color: copied ? 'var(--accent2)' : 'var(--text2)' }}>
           {copied ? <IconCheck size={14} sw={2.4} /> : <IconCopy size={14} />}
@@ -93,7 +100,8 @@ export function EntryList() {
                   height: 26, display: 'flex', alignItems: 'center', gap: 6, padding: '0 10px', border: 0, borderRadius: 6, fontSize: 12,
                   background: on ? 'var(--segon)' : 'transparent', color: on ? 'var(--text)' : 'var(--text2)',
                 }}>
-                {f.id !== 'all' && <MarkIcon mark={{ kind: f.id }} size={12} menu />}
+                {f.id === 'issues' ? <IconWarn size={12} sw={2.2} stroke="var(--warntx)" />
+                  : f.id !== 'all' && <MarkIcon mark={{ kind: f.id }} size={12} menu />}
                 {f.label}
                 <span style={{ fontSize: 11, color: 'var(--mute)' }}>{f.id === 'all' ? sheet.entries.length : cnt[f.id]}</span>
               </button>
@@ -114,7 +122,7 @@ export function EntryList() {
         <span style={{ padding: '0 16px', borderLeft: '1px solid var(--line)' }}>譯文</span>
       </div>
       <div ref={listRef} style={{ flexGrow: 1, overflowY: 'auto', padding: '4px 0' }}>
-        {rows.map(({ e, i, m }) => {
+        {rows.map(({ e, i, m, issues }) => {
           const on = i === sel, doubt = m === 'doubt', ver = m === 'verified', ign = m === 'ignore';
           const label = '標記：' + markName(customs, m) + '，點擊變更';
           return (
@@ -146,7 +154,15 @@ export function EntryList() {
                 <span style={{
                   padding: '9px 16px', lineHeight: 1.45, borderLeft: '1px solid var(--line0)', overflow: 'hidden', whiteSpace: 'nowrap', textOverflow: 'ellipsis',
                   color: ver ? 'var(--mute2)' : e.tgt ? 'var(--textsoft)' : 'var(--mute2)', fontStyle: e.tgt ? 'normal' : 'italic',
-                }}>{e.tgt || (ign ? '不需翻譯' : '尚未翻譯')}</span>
+                }}>
+                  {issues.length > 0 && (
+                    <span role="img" aria-label={issues.map((x) => x.msg).join('、')} title={issues.map((x) => x.msg).join('、')}
+                      style={{ display: 'inline-flex', verticalAlign: '-2px', marginRight: 6, color: 'var(--warntx)', fontStyle: 'normal' }}>
+                      <IconWarn size={13} sw={2.2} />
+                    </span>
+                  )}
+                  {e.tgt || (ign ? '不需翻譯' : '尚未翻譯')}
+                </span>
               </button>
             </div>
           );

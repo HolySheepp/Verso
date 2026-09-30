@@ -39,7 +39,7 @@ export function columnsToEntries(c: Columns): Entry[] {
       id: c.id?.[i] ?? '',
       speaker: (c.speaker?.[i] ?? '').trim() || '無',
       src: s, src0: s, tgt, tgt0: tgt,
-      mark: '', pending: true, note: '', sugg: '',
+      mark: '', pending: true, skipCheck: false, note: '', sugg: '',
     };
   });
 }
