@@ -122,7 +122,7 @@ export default function App() {
           style={{ position: 'absolute', inset: 0, zIndex: 25, background: 'transparent', border: 0, cursor: 'default' }} />
       )}
 
-      {s.rowMenu && (
+      {s.rowMenu && sheet.entries[s.rowMenu.index] && (
         <MarkMenu title="變更標記" ariaLabel="變更標記"
           current={effectiveMark(sheet.entries[s.rowMenu.index])}
           style={{ position: 'absolute', left: s.rowMenu.x, top: s.rowMenu.y, boxShadow: '0 16px 40px rgba(0,0,0,0.5)' }}

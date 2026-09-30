@@ -104,6 +104,9 @@ export function Shortcuts() {
         void saveNow();
         return true;
       }
+      // 不在輸入框時，Ctrl+Z／Ctrl+Y 復原或重做條目欄與頁簽的操作
+      if (!inWork && combo === 'Ctrl+Z') { s.undoSheet(); return true; }
+      if (!inWork && (combo === 'Ctrl+Y' || combo === 'Ctrl+Shift+Z')) { s.redoSheet(); return true; }
       const action = actionFor(s.shortcuts, inWork ? 'input' : 'list', combo);
       if (!action) return false;
       // 用滑鼠點過的條目按鈕留著焦點時會顯示外框，用鍵盤移動前先放掉
@@ -166,6 +169,7 @@ export function Shortcuts() {
           break;
         }
         case 'markMenu': {
+          if (!entry) break;
           const btn = document.querySelector<HTMLElement>('.rw[aria-current="true"] .mk');
           const pos = btn ? rowMenuPos(btn, s.project!.customMarks.length) : { x: 40, y: 120 };
           const ids = markMenuIds(s.project!.customMarks);

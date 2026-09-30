@@ -66,7 +66,8 @@ export function pasteMatrix(entries: Entry[], visible: number[], top: Cell, matr
     r.forEach((v, j) => {
       const c = top.c + j;
       if (c > TGT_COL) return;
-      e = setCell(e, c, v);
+      // 發話者空白記為「無」，和手動貼入一樣
+      e = setCell(e, c, c === 1 && !v.trim() ? '無' : v);
       if (c === 2 && !entries[i]) e = { ...e, src0: v };
     });
     out[i] = { ...e, pending: true };

@@ -184,7 +184,8 @@ export function EntryList() {
     const matrix = (html && parseHtmlTable(html)) || parseTsv(ev.clipboardData.getData('text/plain'));
     if (!matrix.length) return;
     const top = parseKey([...keys].sort(order)[0]);
-    const firstCol = Math.min(...keys.map((x) => parseKey(x).c)) as CellCol;
+    // 空的頁簽從第一欄（#）開始貼
+    const firstCol = (sheet.entries.length ? Math.min(...keys.map((x) => parseKey(x).c)) : 0) as CellCol;
     s.editSheet((es) => {
       const r2 = pasteMatrix(es, visible, { i: top.i, c: firstCol }, matrix);
       const width = Math.min(Math.max(...matrix.map((x) => x.length)), 4 - firstCol);
@@ -248,7 +249,7 @@ export function EntryList() {
         <span style={{ padding: '0 16px 0 0' }}>原文</span>
         <span style={{ padding: '0 16px', borderLeft: '1px solid var(--line)' }}>譯文</span>
       </div>
-      <div ref={listRef} style={{ position: 'relative', flexGrow: 1, overflowY: 'auto', padding: '4px 0', userSelect: 'none' }}>
+      <div ref={listRef} onMouseDown={(ev) => { if (ev.target === ev.currentTarget || !(ev.target as HTMLElement).closest('.rw')) { ev.preventDefault(); sink.current?.focus(); } }} style={{ position: 'relative', flexGrow: 1, overflowY: 'auto', padding: '4px 0', userSelect: 'none' }}>
         <textarea ref={sink} className="list-sink" aria-label="條目欄" value="" onChange={() => {}}
           onCopy={onCopy} onPaste={onPaste} onKeyDown={onSinkKey}
           style={{ position: 'absolute', left: 0, top: 0, width: 1, height: 1, padding: 0, border: 0, opacity: 0, resize: 'none', pointerEvents: 'none' }} />

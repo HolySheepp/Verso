@@ -1,6 +1,9 @@
 import { useRef, useState } from 'react';
 import { currentOf, useStore } from '../state/store';
 import { requestFile } from '../state/saver';
+import { ContextMenu } from './ContextMenu';
+import { ConfirmDialog } from './ConfirmDialog';
+import { focusOnMount } from './windowDrag';
 import { isDone, markName, markVisual } from '../model/marks';
 import type { Entry, MarkId } from '../model/types';
 import { MarkIcon } from './MarkIcon';
@@ -31,6 +34,20 @@ export function FileNav({ tabW }: { tabW: number }) {
   // 用滑鼠左右拖動頁簽欄：旁邊的頁簽拖過中線大約四分之一時，就切換到那個頁簽並滑到中間
   const [dragDx, setDragDx] = useState(0);
   const [dragging, setDragging] = useState(false);
+  // 頁簽右鍵選單、改名、清除／刪除前的確認
+  const [tabMenu, setTabMenu] = useState<{ i: number; x: number; y: number } | null>(null);
+  const [renaming, setRenaming] = useState<{ i: number; name: string } | null>(null);
+  const [ask, setAsk] = useState<{ kind: 'clear' | 'delete'; i: number } | null>(null);
+  const onTabMenu = (k: string, i: number) => {
+    setTabMenu(null);
+    if (k === 'rename') setRenaming({ i, name: fileDoc.sheets[i].name });
+    if (k === 'clear' || k === 'delete') setAsk({ kind: k, i });
+    if (k === 'insert') s.set({ pasteOpen: true, pasteInsert: { after: i } });
+  };
+  const endRename = (commit: boolean) => {
+    if (renaming && commit) s.renameSheet(renaming.i, renaming.name);
+    setRenaming(null);
+  };
   const drag = useRef<{ x: number; moved: boolean; id: number } | null>(null);
   const justDragged = useRef(false);
   const n = fileDoc.sheets.length;
@@ -95,6 +112,7 @@ export function FileNav({ tabW }: { tabW: number }) {
             const tip = kinds.map((k) => markName(project.customMarks, k.id) + ' ' + k.n).join('、');
             return (
               <button key={s.file + ':' + i} type="button" className="tb" aria-current={on ? 'page' : undefined} onClick={() => s.setSheet(i)}
+                onContextMenu={(ev) => { ev.preventDefault(); s.setSheet(i); setTabMenu({ i, x: ev.clientX, y: ev.clientY }); }}
                 tabIndex={on || near ? 0 : -1}
                 style={{
                   width: tabW, height: 36, flexShrink: 0, display: 'flex', flexDirection: 'column', justifyContent: 'center', gap: 4,
@@ -104,7 +122,16 @@ export function FileNav({ tabW }: { tabW: number }) {
                 }}>
                 <span style={{ display: 'flex', alignItems: 'center', gap: 6, minWidth: 0, width: '100%' }}>
                   <IconSheet size={12} style={{ flexShrink: 0, color: 'var(--mute)' }} />
-                  <span style={{ flexGrow: 1, minWidth: 0, fontSize: 12.5, fontWeight: 500, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{sh.name}</span>
+                  {renaming?.i === i ? (
+                    <input ref={focusOnMount} className="field" aria-label="頁簽名稱" value={renaming.name}
+                      onPointerDown={(ev) => ev.stopPropagation()} onClick={(ev) => ev.stopPropagation()}
+                      onChange={(ev) => setRenaming({ i, name: ev.target.value })}
+                      onKeyDown={(ev) => { ev.stopPropagation(); if (ev.key === 'Enter') endRename(true); if (ev.key === 'Escape') endRename(false); }}
+                      onBlur={() => endRename(true)}
+                      style={{ flexGrow: 1, minWidth: 0, height: 22, padding: '0 6px', fontSize: 12.5 }} />
+                  ) : (
+                    <span style={{ flexGrow: 1, minWidth: 0, fontSize: 12.5, fontWeight: 500, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{sh.name}</span>
+                  )}
                   {kinds.length > 0 && (
                     <span title={tip} aria-label={tip} style={{ flexShrink: 0, display: 'flex', alignItems: 'center', gap: 3 }}>
                       {kinds.slice(0, 5).map((k) => <MarkIcon key={k.id} mark={markVisual(project.customMarks, k.id)} size={11} menu />)}
@@ -170,6 +197,28 @@ export function FileNav({ tabW }: { tabW: number }) {
         onClick={() => s.set({ hideNav: true, fileMenuOpen: false })}>
         <IconHideTop size={15} />
       </button>
+      {tabMenu && (
+        <ContextMenu x={tabMenu.x} y={tabMenu.y} label={'頁簽「' + (fileDoc.sheets[tabMenu.i]?.name ?? '') + '」'}
+          items={[
+            { key: 'rename', label: '重新命名' },
+            { key: 'clear', label: '清除' },
+            { key: 'delete', label: '刪除', danger: true, disabled: fileDoc.sheets.length <= 1 },
+            { key: 'insert', label: '插入' },
+          ]}
+          onPick={(k) => onTabMenu(k, tabMenu.i)} onClose={() => setTabMenu(null)} />
+      )}
+      {ask && (
+        <ConfirmDialog zIndex={60}
+          title={(ask.kind === 'clear' ? '清除' : '刪除') + '頁簽「' + (fileDoc.sheets[ask.i]?.name ?? '') + '」？'}
+          body={ask.kind === 'clear' ? '頁簽裡的條目會全部拿掉，頁簽保留。' : undefined}
+          choices={[
+            { label: '取消', onClick: () => setAsk(null) },
+            { label: ask.kind === 'clear' ? '清除' : '刪除', primary: true, onClick: () => {
+              if (ask.kind === 'clear') s.clearSheet(ask.i); else s.deleteSheet(ask.i);
+              setAsk(null);
+            } },
+          ]} />
+      )}
     </nav>
   );
 }

@@ -38,7 +38,7 @@ function TermCard({ g }: { g: GlossaryTerm }) {
 
 function DictTab() {
   const project = useStore((s) => s.project)!;
-  const cur = currentOf(useStore()).entry!;
+  const src = currentOf(useStore()).entry?.src ?? '';
   const dq = useStore((s) => s.dictQuery);
   const set = useStore((s) => s.set);
   const disabled = useStore((s) => s.disabledDicts);
@@ -47,7 +47,7 @@ function DictTab() {
   // 只查啟用中的字典
   const active = project.glossary.filter((g) => !disabled.includes(g.dict));
   const results = !ql ? [] : active.filter((g) => g.term.includes(q) || g.en.toLowerCase().includes(ql));
-  const matches = active.filter((g) => g.term && cur.src.includes(g.term));
+  const matches = active.filter((g) => g.term && src.includes(g.term));
   const activeCount = project.dicts.filter((d) => !disabled.includes(d)).length;
   const toggleDict = (d: string) =>
     set({ disabledDicts: disabled.includes(d) ? disabled.filter((x) => x !== d) : [...disabled, d] });
@@ -182,6 +182,11 @@ const area: React.CSSProperties = {
 };
 
 function NotesSection() {
+  const hasEntry = useStore((s) => !!currentOf(s).entry);
+  return hasEntry ? <NotesSectionInner /> : null;
+}
+
+function NotesSectionInner() {
   const s = useStore();
   const cur = currentOf(s).entry!;
   const mode = s.mode;

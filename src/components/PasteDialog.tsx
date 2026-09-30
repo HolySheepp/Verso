@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState } from 'react';
-import { useStore } from '../state/store';
+import { currentOf, useStore } from '../state/store';
 import { COLS, checkColumns, columnsToEntries, emptyColumns, spreadColumns, type Columns } from '../model/paste';
 import { PasteBox } from './PasteBox';
 import { ContextMenu } from './ContextMenu';
@@ -20,7 +20,11 @@ const MAX_UNDO = 100;
 /** 手動貼入：建立一個檔案，底下有一或多個頁簽，每個頁簽貼入 id、發話者、原文、譯文四欄 */
 export function PasteDialog() {
   const open = useStore((s) => s.pasteOpen);
-  const { set, addFile } = useStore.getState();
+  // 從頁簽右鍵「插入」打開時，是在目前的檔案插入頁簽，不建立新檔案
+  const insert = useStore((s) => s.pasteInsert);
+  const existingSheets = useStore((s) => (s.project && s.pasteInsert ? currentOf(s).fileDoc.sheets.length : 0));
+  const { set, addFile, insertSheets } = useStore.getState();
+  const close = () => set({ pasteOpen: false, pasteInsert: null });
   const [name, setName] = useState('');
   const [sheets, setSheetsState] = useState<DraftSheet[]>([newSheet(1)]);
   const [cur, setCur] = useState(0);
@@ -64,7 +68,7 @@ export function PasteDialog() {
   // 每次打開都是空白的
   useEffect(() => {
     if (open) {
-      const init = [newSheet(1)];
+      const init = [newSheet(existingSheets + 1)];
       sheetsRef.current = init;
       setSheetsState(init);
       undo.current = [];
@@ -92,13 +96,17 @@ export function PasteDialog() {
 
   const create = () => {
     if (firstBad >= 0) return;
+    if (insert) {
+      insertSheets(insert.after, sheets.map((sh, i) => ({ name: sh.name.trim() || '頁簽 ' + (existingSheets + i + 1), entries: columnsToEntries(sh.cols) })));
+      return;
+    }
     addFile({
       name: name.trim() || '未命名檔案',
       sheets: sheets.map((sh, i) => ({ name: sh.name.trim() || '頁簽 ' + (i + 1), entries: columnsToEntries(sh.cols) })),
     });
   };
 
-  const addSheet = () => commit([...sheets, newSheet(sheets.length + 1)], sheets.length);
+  const addSheet = () => commit([...sheets, newSheet(existingSheets + sheets.length + 1)], sheets.length);
 
   const insertSheet = (i: number) =>
     commit([...sheets.slice(0, i + 1), newSheet(sheets.length + 1), ...sheets.slice(i + 1)], i + 1);
@@ -208,19 +216,19 @@ export function PasteDialog() {
       <div role="dialog" aria-modal="true" aria-labelledby="verso-paste-title" className="dialog"
         style={{ width: 960, height: 640, maxWidth: 'calc(100% - 48px)', maxHeight: 'calc(100% - 48px)', boxShadow: '0 24px 64px rgba(0,0,0,0.5)' }}>
         <div style={{ height: 52, flexShrink: 0, display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '0 10px 0 20px', borderBottom: '1px solid var(--line)' }}>
-          <h2 id="verso-paste-title" style={{ margin: 0, fontSize: 15, fontWeight: 600 }}>手動貼入</h2>
-          <button type="button" className="ib" aria-label="關閉" onClick={() => set({ pasteOpen: false })}
+          <h2 id="verso-paste-title" style={{ margin: 0, fontSize: 15, fontWeight: 600 }}>{insert ? '插入頁簽' : '手動貼入'}</h2>
+          <button type="button" className="ib" aria-label="關閉" onClick={close}
             style={{ width: 34, height: 34, display: 'flex', alignItems: 'center', justifyContent: 'center', background: 'transparent', border: 0, borderRadius: 8, color: 'var(--text2)' }}>
             <IconWinClose size={13} sw={1.4} />
           </button>
         </div>
 
         <div style={{ flexGrow: 1, minHeight: 0, display: 'flex', flexDirection: 'column', gap: 14, padding: '16px 20px' }}>
-          <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
+          {!insert && <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
             <label htmlFor="verso-paste-name" style={{ fontSize: 12, color: 'var(--text2)', flexShrink: 0 }}>檔名</label>
             <input id="verso-paste-name" type="text" className="field" value={name} onChange={(e) => setName(e.target.value)}
               placeholder="未命名檔案" autoFocus style={{ width: 320 }} />
-          </div>
+          </div>}
 
           <div style={{ display: 'flex', alignItems: 'center', gap: TAB_GAP, borderBottom: '1px solid var(--line)' }}>
           <div role="tablist" aria-label="頁簽" className="no-scrollbar" style={{ display: 'flex', alignItems: 'center', gap: TAB_GAP, minWidth: 0, overflowX: 'auto', overflowY: 'hidden' }}>
@@ -287,7 +295,7 @@ export function PasteDialog() {
         <div style={{ flexShrink: 0, display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 12, padding: '12px 20px 16px', borderTop: '1px solid var(--line)' }}>
           <span role="alert" style={{ fontSize: 12.5, color: 'var(--errtx)', minWidth: 0 }}>{touched ? error : ''}</span>
           <div style={{ display: 'flex', gap: 8, flexShrink: 0 }}>
-            <button type="button" className="btn btn-ghost" onClick={() => set({ pasteOpen: false })}
+            <button type="button" className="btn btn-ghost" onClick={close}
               style={{ height: 36, padding: '0 16px', background: 'var(--btn)', border: '1px solid var(--line4)', borderRadius: 8, fontSize: 13 }}>取消</button>
             <button type="button" className="btn btn-primary" disabled={firstBad >= 0} onClick={create}
               style={{ height: 36, padding: '0 18px', background: '#2f6fe4', border: 0, borderRadius: 8, color: '#ffffff', fontSize: 13, fontWeight: 600 }}>建立</button>

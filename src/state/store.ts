@@ -85,6 +85,8 @@ interface State {
   settingsOpen: boolean;
   termDraft: TermDraft | null;
   pasteOpen: boolean;
+  /** 手動填入視窗用來在現有檔案插入頁簽時：插在第幾個頁簽後面 */
+  pasteInsert: { after: number } | null;
   dictPasteOpen: boolean;
   /** 用下一條、快捷鍵移動選取時遞增，條目列表據此保留前後 3 條可見（滑鼠點選不算） */
   moveSeq: number;
@@ -148,6 +150,12 @@ interface Actions {
   editSheet(fn: (entries: Entry[]) => { entries: Entry[]; keys?: string[] }): void;
   undoSheet(): void;
   redoSheet(): void;
+  renameSheet(i: number, name: string): void;
+  /** 清除頁簽：拿掉所有條目，頁簽保留 */
+  clearSheet(i: number): void;
+  deleteSheet(i: number): void;
+  /** 在目前檔案的第 after 個頁簽後面插入新頁簽 */
+  insertSheets(after: number, sheets: Sheet[]): void;
 }
 
 export type Store = State & Actions;
@@ -182,31 +190,45 @@ export const useStore = create<Store>((set, get) => {
 
   const cur = () => currentOf(get());
 
-  // 條目欄操作的復原／重做：記下整個頁簽的條目
-  type SheetSnap = { file: number; sheet: number; entries: Entry[]; keys: string[] };
-  const sheetUndo: SheetSnap[] = [];
-  const sheetRedo: SheetSnap[] = [];
+  // 條目欄與頁簽操作的復原／重做：記下整個檔案
+  type Snap = { file: number; doc: FileDoc; sheet: number; keys: string[] };
+  const undoStack: Snap[] = [];
+  const redoStack: Snap[] = [];
 
-  const replaceSheet = (fileIdx: number, sheetIdx: number, entries: Entry[]) => {
-    const p = get().project!;
-    const files = p.files.map((f, fi) => fi !== fileIdx ? f : {
-      ...f, sheets: f.sheets.map((sh, si) => (si !== sheetIdx ? sh : { ...sh, entries })),
-    });
-    set({ project: { ...p, files } });
+  const snapNow = (): Snap => {
+    const s = get();
+    return { file: s.file, doc: s.project!.files[s.file], sheet: currentOf(s).sheetIdx, keys: s.cellSel?.keys ?? [] };
+  };
+  const pushUndo = () => {
+    undoStack.push(snapNow());
+    if (undoStack.length > 100) undoStack.shift();
+    redoStack.length = 0;
   };
 
-  const restoreSheet = (from: SheetSnap[], to: SheetSnap[]) => {
+  const replaceFile = (fileIdx: number, doc: FileDoc) => {
+    const p = get().project!;
+    set({ project: { ...p, files: p.files.map((f, fi) => (fi === fileIdx ? doc : f)) } });
+  };
+
+  const replaceSheet = (fileIdx: number, sheetIdx: number, entries: Entry[]) => {
+    const f = get().project!.files[fileIdx];
+    replaceFile(fileIdx, { ...f, sheets: f.sheets.map((sh, si) => (si !== sheetIdx ? sh : { ...sh, entries })) });
+  };
+
+  const restore = (from: Snap[], to: Snap[]) => {
     const snap = from.pop();
     const p = get().project;
-    if (!snap || !p) return;
-    const sheet = p.files[snap.file]?.sheets[snap.sheet];
-    if (!sheet) return;
-    to.push({ file: snap.file, sheet: snap.sheet, entries: sheet.entries, keys: get().cellSel?.keys ?? [] });
-    replaceSheet(snap.file, snap.sheet, snap.entries);
-    const keys = snap.keys.filter((k) => parseKey(k).i < snap.entries.length);
+    if (!snap || !p || !p.files[snap.file]) return;
+    const s = get();
+    to.push({ file: snap.file, doc: p.files[snap.file], sheet: s.file === snap.file ? currentOf(s).sheetIdx : snap.sheet, keys: s.cellSel?.keys ?? [] });
+    replaceFile(snap.file, snap.doc);
+    const sheet = Math.min(snap.sheet, snap.doc.sheets.length - 1);
+    const n = snap.doc.sheets[sheet]?.entries.length ?? 0;
+    const keys = snap.keys.filter((k) => parseKey(k).i < n);
     set({
-      file: snap.file, sheetBy: { ...get().sheetBy, [snap.file]: snap.sheet },
+      file: snap.file, sheetBy: { ...get().sheetBy, [snap.file]: sheet },
       cellSel: keys.length ? { keys, anchor: parseKey(keys[0]) } : null,
+      ...noPopups, ...noView,
     });
   };
 
@@ -255,6 +277,7 @@ export const useStore = create<Store>((set, get) => {
     settingsOpen: false,
     termDraft: null,
     pasteOpen: false,
+    pasteInsert: null,
     dictPasteOpen: false,
     moveSeq: 0,
     moveDir: 1,
@@ -318,9 +341,7 @@ export const useStore = create<Store>((set, get) => {
       const { sheetIdx, sheet } = cur();
       const r = fn(sheet.entries);
       if (r.entries === sheet.entries) return;
-      sheetUndo.push({ file: s.file, sheet: sheetIdx, entries: sheet.entries, keys: s.cellSel?.keys ?? [] });
-      if (sheetUndo.length > 100) sheetUndo.shift();
-      sheetRedo.length = 0;
+      pushUndo();
       replaceSheet(s.file, sheetIdx, r.entries);
       if (r.keys?.length) {
         const first = Math.min(...r.keys.map((k) => parseKey(k).i));
@@ -328,8 +349,45 @@ export const useStore = create<Store>((set, get) => {
       }
     },
 
-    undoSheet() { restoreSheet(sheetUndo, sheetRedo); },
-    redoSheet() { restoreSheet(sheetRedo, sheetUndo); },
+    undoSheet() { restore(undoStack, redoStack); },
+    redoSheet() { restore(redoStack, undoStack); },
+
+    renameSheet(i, name) {
+      const s = get();
+      const f = s.project?.files[s.file];
+      if (!f || !f.sheets[i] || !name.trim() || f.sheets[i].name === name.trim()) return;
+      pushUndo();
+      replaceFile(s.file, { ...f, sheets: f.sheets.map((sh, j) => (j === i ? { ...sh, name: name.trim() } : sh)) });
+    },
+
+    clearSheet(i) {
+      const s = get();
+      const f = s.project?.files[s.file];
+      if (!f || !f.sheets[i]) return;
+      pushUndo();
+      replaceFile(s.file, { ...f, sheets: f.sheets.map((sh, j) => (j === i ? { ...sh, entries: [] } : sh)) });
+      set({ selBy: { ...get().selBy, [selKey(s.file, i)]: 0 }, cellSel: null });
+    },
+
+    deleteSheet(i) {
+      const s = get();
+      const f = s.project?.files[s.file];
+      if (!f || f.sheets.length <= 1 || !f.sheets[i]) return;
+      pushUndo();
+      const curIdx = currentOf(s).sheetIdx;
+      replaceFile(s.file, { ...f, sheets: f.sheets.filter((_, j) => j !== i) });
+      const next = Math.max(0, Math.min(curIdx > i ? curIdx - 1 : curIdx, f.sheets.length - 2));
+      set({ sheetBy: { ...get().sheetBy, [s.file]: next }, cellSel: null, ...noPopups, ...noView });
+    },
+
+    insertSheets(after, sheets) {
+      const s = get();
+      const f = s.project?.files[s.file];
+      if (!f || !sheets.length) return;
+      pushUndo();
+      replaceFile(s.file, { ...f, sheets: [...f.sheets.slice(0, after + 1), ...sheets, ...f.sheets.slice(after + 1)] });
+      set({ sheetBy: { ...get().sheetBy, [s.file]: after + 1 }, cellSel: null, pasteInsert: null, pasteOpen: false, filter: 'all', ...noPopups, ...noView });
+    },
 
     next() {
       const s = get();

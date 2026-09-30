@@ -20,7 +20,16 @@ const MODE_HINTS: Record<Mode, string> = {
 const labelRow: React.CSSProperties = { display: 'flex', alignItems: 'center', justifyContent: 'space-between', height: 18 };
 const meta: React.CSSProperties = { display: 'flex', gap: 12, fontSize: 11.5, color: 'var(--mute)' };
 
+/** 頁簽清空、沒有條目時，工作欄只留空白的框 */
 export function WorkPanel({ height }: { height: number }) {
+  const hasEntry = useStore((s) => !!currentOf(s).entry);
+  if (!hasEntry) {
+    return <section aria-label="工作欄" style={{ height, flexShrink: 0, boxSizing: 'border-box', background: 'var(--panel)', border: '1px solid var(--line)', borderRadius: 10 }} />;
+  }
+  return <WorkPanelInner height={height} />;
+}
+
+function WorkPanelInner({ height }: { height: number }) {
   const s = useStore();
   const project = s.project!;
   const { sheet, sel, entry } = currentOf(s);
