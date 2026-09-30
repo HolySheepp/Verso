@@ -2,6 +2,7 @@ import { useEffect, useState } from 'react';
 import { useStore } from '../state/store';
 import { PasteBox } from './PasteBox';
 import { dragWindow } from './windowDrag';
+import { handleUndoKeys, useUndoable } from './useUndo';
 import { fitsRows, spreadColumns, type Col } from '../model/paste';
 import { IconWinClose } from './icons';
 
@@ -14,12 +15,15 @@ export function DictPasteDialog() {
   const { set, addTerms } = useStore.getState();
   const [target, setTarget] = useState(NEW);
   const [newName, setNewName] = useState('');
-  const [src, setSrc] = useState<Col | null>(null);
-  const [tgt, setTgt] = useState<Col | null>(null);
+  // 原文、譯文兩欄的內容可以復原
+  const cols = useUndoable<{ src: Col | null; tgt: Col | null }>({ src: null, tgt: null });
+  const { src, tgt } = cols.value;
+  const setSrc = (c: Col | null) => cols.commit({ ...cols.current.current, src: c });
+  const setTgt = (c: Col | null) => cols.commit({ ...cols.current.current, tgt: c });
   const [selRow, setSelRow] = useState<{ key: string; i: number } | null>(null);
 
   useEffect(() => {
-    if (open) { setTarget(NEW); setNewName(''); setSrc(null); setTgt(null); setSelRow(null); }
+    if (open) { setTarget(NEW); setNewName(''); cols.reset({ src: null, tgt: null }); setSelRow(null); }
   }, [open]);
 
   if (!open) return null;
@@ -27,8 +31,7 @@ export function DictPasteDialog() {
   // 一次貼兩欄到原文時，譯文一起填上
   const spread = (from: 'src' | 'tgt', values: string[][]) => {
     const out = spreadColumns(['src', 'tgt'], from, values);
-    if (out.src) setSrc(out.src);
-    if (out.tgt) setTgt(out.tgt);
+    cols.commit({ ...cols.current.current, ...out });
   };
 
   const dictName = target === NEW ? newName.trim() : target;
@@ -43,7 +46,8 @@ export function DictPasteDialog() {
   const canSave = !error && !!dictName && pairs.length > 0;
 
   return (
-    <div className="scrim" style={{ zIndex: 45 }} onMouseDown={dragWindow}>
+    <div className="scrim" style={{ zIndex: 45 }} onMouseDown={dragWindow}
+      onKeyDown={(ev) => handleUndoKeys(ev, () => { if (cols.undo()) setSelRow(null); }, () => { if (cols.redo()) setSelRow(null); })}>
       <div role="dialog" aria-modal="true" aria-labelledby="verso-dict-paste-title" className="dialog"
         style={{ width: 640, height: 560, maxWidth: 'calc(100% - 48px)', maxHeight: 'calc(100% - 48px)', boxShadow: '0 24px 64px rgba(0,0,0,0.5)' }}>
         <div style={{ height: 52, flexShrink: 0, display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '0 10px 0 20px', borderBottom: '1px solid var(--line)' }}>

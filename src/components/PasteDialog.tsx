@@ -6,10 +6,15 @@ import { ContextMenu } from './ContextMenu';
 import { dragWindow, focusOnMount } from './windowDrag';
 import { IconPlus, IconWinClose } from './icons';
 
-interface DraftSheet { name: string; cols: Columns }
+interface DraftSheet { id: string; name: string; cols: Columns }
 interface Snapshot { sheets: DraftSheet[]; cur: number }
 
-const newSheet = (n: number): DraftSheet => ({ name: '頁簽 ' + n, cols: emptyColumns() });
+let sheetSeq = 0;
+const newSheet = (n: number): DraftSheet => ({ id: 's' + sheetSeq++, name: '頁簽 ' + n, cols: emptyColumns() });
+const TAB_GAP = 6;
+
+/** 拖動中的頁簽：from 是被拖的頁簽，to 是放開後的位置，dx 是跟著游標移動的距離 */
+interface TabDrag { from: number; to: number; dx: number; lefts: number[]; widths: number[] }
 const MAX_UNDO = 100;
 
 /** 手動貼入：建立一個檔案，底下有一或多個頁簽，每個頁簽貼入 id、發話者、原文、譯文四欄 */
@@ -22,8 +27,7 @@ export function PasteDialog() {
   const [renaming, setRenaming] = useState<number | null>(null);
   const [selRow, setSelRow] = useState<{ key: string; i: number } | null>(null);
   const [tabMenu, setTabMenu] = useState<{ i: number; x: number; y: number } | null>(null);
-  // 拖動頁簽：from 是被拖的頁簽，to 是要插入的位置（0 到頁簽數）
-  const [tabDrag, setTabDrag] = useState<{ from: number; to: number } | null>(null);
+  const [tabDrag, setTabDrag] = useState<TabDrag | null>(null);
   const press = useRef<{ i: number; x: number; moved: boolean } | null>(null);
   // 拖動後放開時會觸發一次點擊，要略過
   const justDragged = useRef(false);
@@ -128,16 +132,7 @@ export function PasteDialog() {
     if (key === 'insert') insertSheet(i);
   };
 
-  // 拖動頁簽：依游標位置算出要插入的位置
-  const dropIndex = (x: number, list: HTMLElement) => {
-    const tabs = Array.from(list.querySelectorAll<HTMLElement>('[data-tab-idx]'));
-    for (let k = 0; k < tabs.length; k++) {
-      const r = tabs[k].getBoundingClientRect();
-      if (x < r.left + r.width / 2) return k;
-    }
-    return tabs.length;
-  };
-
+  // 拖動頁簽：像瀏覽器分頁一樣，被拖的頁簽跟著游標走，其他頁簽滑開讓位
   const onTabPointerDown = (ev: React.PointerEvent<HTMLButtonElement>, i: number) => {
     if (ev.button !== 0) return;
     press.current = { i, x: ev.clientX, moved: false };
@@ -147,9 +142,31 @@ export function PasteDialog() {
     const p = press.current;
     if (!p) return;
     if (!p.moved && Math.abs(ev.clientX - p.x) < 5) return;
-    p.moved = true;
-    const list = ev.currentTarget.closest('[role=tablist]') as HTMLElement;
-    setTabDrag({ from: p.i, to: dropIndex(ev.clientX, list) });
+    let d = tabDrag;
+    if (!p.moved || !d) {
+      // 開始拖動時量好每個頁簽的位置
+      p.moved = true;
+      const list = ev.currentTarget.closest('[role=tablist]') as HTMLElement;
+      const items = Array.from(list.querySelectorAll<HTMLElement>('[data-tab-idx]'));
+      d = { from: p.i, to: p.i, dx: 0, lefts: items.map((el) => el.getBoundingClientRect().left), widths: items.map((el) => el.getBoundingClientRect().width) };
+    }
+    const { from, lefts, widths } = d;
+    const n = lefts.length;
+    // 不能拖出頁簽列的範圍
+    const minDx = lefts[0] - lefts[from];
+    const maxDx = lefts[n - 1] + widths[n - 1] - widths[from] - lefts[from];
+    const dx = Math.max(minDx, Math.min(maxDx, ev.clientX - p.x));
+    const center = lefts[from] + dx + widths[from] / 2;
+    let to = from;
+    for (let j = 0; j < n; j++) {
+      const c = lefts[j] + widths[j] / 2;
+      if (j < from && center < c) { to = j; break; }
+    }
+    for (let j = n - 1; j > from; j--) {
+      const c = lefts[j] + widths[j] / 2;
+      if (center > c) { to = j; break; }
+    }
+    setTabDrag({ ...d, dx, to });
   };
   const onTabPointerUp = () => {
     const p = press.current;
@@ -159,12 +176,22 @@ export function PasteDialog() {
     setTimeout(() => { justDragged.current = false; }, 0);
     const { from, to } = tabDrag;
     setTabDrag(null);
-    const target = to > from ? to - 1 : to;
-    if (target === from) return;
+    if (to === from) return;
     const next = [...sheets];
     const [moved] = next.splice(from, 1);
-    next.splice(target, 0, moved);
-    commit(next, target);
+    next.splice(to, 0, moved);
+    commit(next, to);
+  };
+
+  /** 拖動中各頁簽的位移：被拖的跟著游標，其他的讓出位置 */
+  const tabShift = (i: number) => {
+    if (!tabDrag) return 0;
+    const { from, to, dx, widths } = tabDrag;
+    if (i === from) return dx;
+    const room = widths[from] + TAB_GAP;
+    if (from < to && i > from && i <= to) return -room;
+    if (to < from && i >= to && i < from) return room;
+    return 0;
   };
 
   const onKeyDown = (ev: React.KeyboardEvent) => {
@@ -196,18 +223,22 @@ export function PasteDialog() {
               placeholder="未命名檔案" autoFocus style={{ width: 320 }} />
           </div>
 
-          <div role="tablist" aria-label="頁簽" style={{ display: 'flex', alignItems: 'center', gap: 6, borderBottom: '1px solid var(--line)', flexWrap: 'wrap' }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: TAB_GAP, borderBottom: '1px solid var(--line)' }}>
+          <div role="tablist" aria-label="頁簽" className="no-scrollbar" style={{ display: 'flex', alignItems: 'center', gap: TAB_GAP, minWidth: 0, overflowX: 'auto', overflowY: 'hidden' }}>
             {sheets.map((sh, i) => {
               const on = i === cur;
               const dragging = tabDrag?.from === i;
               return (
-                <div key={i} data-tab-idx={i} style={{
-                  position: 'relative', display: 'flex', alignItems: 'center', borderBottom: `2px solid ${on ? 'var(--accent)' : 'transparent'}`,
-                  marginBottom: -1, opacity: dragging ? 0.45 : 1,
+                <div key={sh.id} data-tab-idx={i} style={{
+                  position: 'relative', flexShrink: 0, display: 'flex', alignItems: 'center', borderBottom: `2px solid ${on ? 'var(--accent)' : 'transparent'}`,
+                  transform: `translateX(${tabShift(i)}px)`,
+                  // 只有拖動中的其他頁簽有滑動動畫；放開後直接定位，不會跳動
+                  transition: tabDrag && !dragging ? 'transform 160ms cubic-bezier(0.2, 0.8, 0.2, 1)' : 'none',
+                  zIndex: dragging ? 2 : undefined,
+                  background: dragging ? 'var(--hv1)' : undefined,
+                  borderRadius: dragging ? '6px 6px 0 0' : undefined,
+                  boxShadow: dragging ? '0 4px 14px rgba(0,0,0,0.25)' : undefined,
                 }}>
-                  {tabDrag && tabDrag.to === i && tabDrag.to !== tabDrag.from && tabDrag.to !== tabDrag.from + 1 && (
-                    <span style={{ position: 'absolute', left: -4, top: 6, bottom: 6, width: 2, borderRadius: 1, background: 'var(--accent)' }} />
-                  )}
                   {renaming === i ? (
                     <input className="field" ref={focusOnMount} value={sh.name} aria-label="頁簽名稱"
                       onChange={(e) => { const name = e.target.value; patchSheet(i, () => ({ name }), false); }}
@@ -234,12 +265,10 @@ export function PasteDialog() {
                       <IconWinClose size={9} sw={1.4} />
                     </button>
                   )}
-                  {tabDrag && i === sheets.length - 1 && tabDrag.to === sheets.length && tabDrag.from !== i && (
-                    <span style={{ position: 'absolute', right: -4, top: 6, bottom: 6, width: 2, borderRadius: 1, background: 'var(--accent)' }} />
-                  )}
                 </div>
               );
             })}
+          </div>
             <button type="button" className="ib side-hb" aria-label="新增頁簽" title="新增頁簽" onClick={addSheet}>
               <IconPlus size={14} />
             </button>
