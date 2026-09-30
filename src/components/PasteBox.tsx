@@ -1,3 +1,4 @@
+import { useRef } from 'react';
 import { readColumn } from '../model/clipboard';
 import { IconWinClose } from './icons';
 
@@ -9,6 +10,9 @@ interface Props {
 
 /** 貼入一整欄的方框：點一下再按 Ctrl+V，優先讀剪貼簿裡的表格格式 */
 export function PasteBox({ label, rows, onRows }: Props) {
+  // 用一個看不見的文字框接收貼上，這樣不管點在方框哪裡、按 Ctrl+V 都一定會觸發貼上
+  const input = useRef<HTMLTextAreaElement>(null);
+
   const onPaste = (ev: React.ClipboardEvent) => {
     ev.preventDefault();
     const html = ev.clipboardData.getData('text/html');
@@ -29,29 +33,29 @@ export function PasteBox({ label, rows, onRows }: Props) {
             </button></>}
         </span>
       </div>
-      {/* 可編輯區只用來接收貼上，打字會被擋下 */}
-      <div role="textbox" aria-label={label} tabIndex={0} contentEditable suppressContentEditableWarning spellCheck={false}
-        onPaste={onPaste}
-        onBeforeInput={(ev) => ev.preventDefault()}
-        onDrop={(ev) => ev.preventDefault()}
-        onKeyDown={(ev) => {
-          if (ev.key === 'Backspace' || ev.key === 'Delete' || ev.key === 'Enter') ev.preventDefault();
+      <div className="paste-box"
+        onMouseDown={(ev) => {
+          // 點到捲軸以外的地方都把焦點交給接收貼上的文字框
+          if (ev.target !== ev.currentTarget || ev.nativeEvent.offsetX < ev.currentTarget.clientWidth) {
+            ev.preventDefault();
+            input.current?.focus();
+          }
         }}
-        className="paste-box"
         style={{
-          flexGrow: 1, minHeight: 0, overflow: 'auto', boxSizing: 'border-box', padding: rows ? '6px 0' : 0,
-          background: 'var(--bg0)', border: `1px ${rows ? 'solid' : 'dashed'} var(--line4)`, borderRadius: 8,
-          caretColor: 'transparent', cursor: 'text',
+          position: 'relative', flexGrow: 1, minHeight: 0, overflow: 'auto', boxSizing: 'border-box', padding: rows ? '6px 0' : 0,
+          background: 'var(--bg0)', border: `1px ${rows ? 'solid' : 'dashed'} var(--line4)`, borderRadius: 8, cursor: 'text',
         }}>
+        <textarea ref={input} aria-label={label} value="" onChange={() => {}} onPaste={onPaste} spellCheck={false}
+          style={{ position: 'absolute', left: 0, top: 0, width: 1, height: 1, padding: 0, border: 0, opacity: 0, resize: 'none', pointerEvents: 'none' }} />
         {rows ? rows.map((r, i) => (
-          <div key={i} contentEditable={false} style={{ display: 'flex', gap: 8, padding: '2px 10px', fontSize: 12.5, lineHeight: 1.5 }}>
+          <div key={i} style={{ display: 'flex', gap: 8, padding: '2px 10px', fontSize: 12.5, lineHeight: 1.5 }}>
             <span className="mono" style={{ width: 28, flexShrink: 0, textAlign: 'right', fontSize: 10.5, color: 'var(--mute3)', lineHeight: '19px' }}>{i + 1}</span>
             <span style={{ minWidth: 0, overflow: 'hidden', whiteSpace: 'nowrap', textOverflow: 'ellipsis', color: r ? 'var(--text)' : 'var(--mute3)' }}>
               {r ? r.replace(/\n/g, ' ↵ ') : '—'}
             </span>
           </div>
         )) : (
-          <div contentEditable={false} style={{ height: '100%', display: 'flex', alignItems: 'center', justifyContent: 'center', color: 'var(--mute3)', fontSize: 12.5, userSelect: 'none' }}>
+          <div style={{ height: '100%', display: 'flex', alignItems: 'center', justifyContent: 'center', color: 'var(--mute3)', fontSize: 12.5, userSelect: 'none' }}>
             Ctrl+V
           </div>
         )}
