@@ -188,15 +188,14 @@ export function WorkPanel({ height }: { height: number }) {
 
         {/* 右側按鈕目前是示範用的暫代功能，之後再決定 */}
         <div role="toolbar" aria-label="條目功能" aria-orientation="vertical" style={{ width: 36, flexShrink: 0, display: 'flex', flexDirection: 'column', gap: 6, paddingTop: 24 }}>
+          <button type="button" className="ib btn-side" aria-label="複製原文和譯文" title="複製原文和譯文"
+            onClick={() => { void navigator.clipboard?.writeText(cur.src + '\n' + cur.tgt); }}>
+            <IconCopyPair size={15} />
+          </button>
           {mode === 'translate' && (
-            <>
-              <button type="button" className="ib btn-side" aria-label="複製原文到譯文" title="複製原文到譯文" onClick={() => s.updateEntry({ tgt: cur.src })}>
-                <IconCopy size={15} />
-              </button>
-              <button type="button" className="ib btn-side" aria-label="清除譯文" title="清除譯文" onClick={() => s.updateEntry({ tgt: '' })}>
-                <IconEraser size={15} />
-              </button>
-            </>
+            <button type="button" className="ib btn-side" aria-label="清除譯文" title="清除譯文" onClick={() => s.updateEntry({ tgt: '' })}>
+              <IconEraser size={15} />
+            </button>
           )}
           {mode === 'verify' && (
             <button type="button" className="ib btn-side" aria-label="還原譯文" title="還原為驗證前的譯文" onClick={() => s.updateEntry({ tgt: cur.tgt0 })}>
@@ -220,10 +219,6 @@ export function WorkPanel({ height }: { height: number }) {
               <IconCopy size={15} />
             </button>
           )}
-          <button type="button" className="ib btn-side" aria-label="複製原文和譯文" title="複製原文和譯文"
-            onClick={() => { void navigator.clipboard?.writeText(cur.src + '\n' + cur.tgt); }}>
-            <IconCopyPair size={15} />
-          </button>
         </div>
       </div>
 
