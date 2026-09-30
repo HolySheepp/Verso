@@ -92,7 +92,7 @@ export function PasteBox({ label, col, onPaste, onChange, selected, onSelect }: 
           position: 'relative', flexGrow: 1, minHeight: 0, overflow: 'auto', boxSizing: 'border-box', padding: rows ? '6px 0' : 0,
           background: 'var(--bg0)', border: `1px ${rows ? 'solid' : 'dashed'} var(--line4)`, borderRadius: 8, cursor: 'text',
         }}>
-        <textarea ref={input} aria-label={label} value="" onChange={() => {}} onPaste={handlePaste} spellCheck={false}
+        <textarea ref={input} className="pb-sink" aria-label={label} value="" onChange={() => {}} onPaste={handlePaste} spellCheck={false}
           style={{ position: 'absolute', left: 0, top: 0, width: 1, height: 1, padding: 0, border: 0, opacity: 0, resize: 'none', pointerEvents: 'none' }} />
         {rows ? rows.map((r, i) => (
           <div key={i} className="pb-row" data-editing={editing?.i === i ? '1' : undefined} data-selected={selected === i ? '1' : undefined}

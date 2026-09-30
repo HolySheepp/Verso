@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { useStore } from '../state/store';
 import { COLS, checkColumns, columnsToEntries, emptyColumns, spreadColumns, type Columns } from '../model/paste';
 import { PasteBox } from './PasteBox';
@@ -7,23 +7,66 @@ import { dragWindow, focusOnMount } from './windowDrag';
 import { IconPlus, IconWinClose } from './icons';
 
 interface DraftSheet { name: string; cols: Columns }
+interface Snapshot { sheets: DraftSheet[]; cur: number }
 
 const newSheet = (n: number): DraftSheet => ({ name: '頁簽 ' + n, cols: emptyColumns() });
+const MAX_UNDO = 100;
 
 /** 手動貼入：建立一個檔案，底下有一或多個頁簽，每個頁簽貼入 id、發話者、原文、譯文四欄 */
 export function PasteDialog() {
   const open = useStore((s) => s.pasteOpen);
   const { set, addFile } = useStore.getState();
   const [name, setName] = useState('');
-  const [sheets, setSheets] = useState<DraftSheet[]>([newSheet(1)]);
+  const [sheets, setSheetsState] = useState<DraftSheet[]>([newSheet(1)]);
   const [cur, setCur] = useState(0);
   const [renaming, setRenaming] = useState<number | null>(null);
   const [selRow, setSelRow] = useState<{ key: string; i: number } | null>(null);
   const [tabMenu, setTabMenu] = useState<{ i: number; x: number; y: number } | null>(null);
+  // 拖動頁簽：from 是被拖的頁簽，to 是要插入的位置（0 到頁簽數）
+  const [tabDrag, setTabDrag] = useState<{ from: number; to: number } | null>(null);
+  const press = useRef<{ i: number; x: number; moved: boolean } | null>(null);
+  // 拖動後放開時會觸發一次點擊，要略過
+  const justDragged = useRef(false);
+  // 改名開始前的內容，改完有變才算一次改動
+  const renameSnap = useRef<Snapshot | null>(null);
+
+  // 復原／重做：記下每次改動前的頁簽內容
+  const sheetsRef = useRef(sheets);
+  const curRef = useRef(cur);
+  curRef.current = cur;
+  const undo = useRef<Snapshot[]>([]);
+  const redo = useRef<Snapshot[]>([]);
+
+  /** 改動頁簽內容（可復原）。連續快速貼上時用 ref 裡最新的內容，不會互相蓋掉 */
+  const commit = (next: DraftSheet[], nextCur?: number) => {
+    undo.current = [...undo.current, { sheets: sheetsRef.current, cur: curRef.current }].slice(-MAX_UNDO);
+    redo.current = [];
+    sheetsRef.current = next;
+    setSheetsState(next);
+    if (nextCur !== undefined) setCur(nextCur);
+  };
+
+  const restore = (from: React.RefObject<Snapshot[]>, to: React.RefObject<Snapshot[]>) => {
+    const snap = from.current.pop();
+    if (!snap) return;
+    to.current.push({ sheets: sheetsRef.current, cur: curRef.current });
+    sheetsRef.current = snap.sheets;
+    setSheetsState(snap.sheets);
+    setCur(Math.min(snap.cur, snap.sheets.length - 1));
+    setRenaming(null);
+    setSelRow(null);
+  };
 
   // 每次打開都是空白的
   useEffect(() => {
-    if (open) { setName(''); setSheets([newSheet(1)]); setCur(0); setRenaming(null); setSelRow(null); setTabMenu(null); }
+    if (open) {
+      const init = [newSheet(1)];
+      sheetsRef.current = init;
+      setSheetsState(init);
+      undo.current = [];
+      redo.current = [];
+      setName(''); setCur(0); setRenaming(null); setSelRow(null); setTabMenu(null); setTabDrag(null);
+    }
   }, [open]);
 
   // 換頁簽時清掉選到的那一行
@@ -32,9 +75,11 @@ export function PasteDialog() {
   if (!open) return null;
 
   const sheet = sheets[Math.min(cur, sheets.length - 1)];
-  // 用最新的狀態更新，連續貼上多欄時不會互相蓋掉
-  const patchSheet = (i: number, fn: (sh: DraftSheet) => Partial<DraftSheet>) =>
-    setSheets((prev) => prev.map((sh, j) => (j === i ? { ...sh, ...fn(sh) } : sh)));
+  const patchSheet = (i: number, fn: (sh: DraftSheet) => Partial<DraftSheet>, record = true) => {
+    const next = sheetsRef.current.map((sh, j) => (j === i ? { ...sh, ...fn(sh) } : sh));
+    if (record) commit(next);
+    else { sheetsRef.current = next; setSheetsState(next); }
+  };
   const results = sheets.map((sh) => checkColumns(sh.cols));
   const firstBad = results.findIndex((r) => !r.ok);
   const error = firstBad < 0 ? '' : (sheets.length > 1 ? `「${sheets[firstBad].name}」` : '') + results[firstBad].msg;
@@ -49,32 +94,91 @@ export function PasteDialog() {
     });
   };
 
-  const addSheet = () => {
-    setSheets([...sheets, newSheet(sheets.length + 1)]);
-    setCur(sheets.length);
+  const addSheet = () => commit([...sheets, newSheet(sheets.length + 1)], sheets.length);
+
+  const insertSheet = (i: number) =>
+    commit([...sheets.slice(0, i + 1), newSheet(sheets.length + 1), ...sheets.slice(i + 1)], i + 1);
+
+  const removeSheet = (i: number) => {
+    const next = sheets.filter((_, j) => j !== i);
+    commit(next, Math.max(0, Math.min(cur >= i ? cur - 1 : cur, next.length - 1)));
   };
 
-  const insertSheet = (i: number) => {
-    setSheets([...sheets.slice(0, i + 1), newSheet(sheets.length + 1), ...sheets.slice(i + 1)]);
-    setCur(i + 1);
+  /** 整段改名算一次改動 */
+  const startRename = (i: number) => {
+    renameSnap.current = { sheets: sheetsRef.current, cur: i };
+    setCur(i);
+    setRenaming(i);
+  };
+  const endRename = () => {
+    const snap = renameSnap.current;
+    renameSnap.current = null;
+    setRenaming(null);
+    if (snap && snap.sheets !== sheetsRef.current) {
+      undo.current = [...undo.current, snap].slice(-MAX_UNDO);
+      redo.current = [];
+    }
   };
 
   const onTabMenu = (key: string, i: number) => {
     setTabMenu(null);
-    if (key === 'rename') { setCur(i); setRenaming(i); }
+    if (key === 'rename') startRename(i);
     if (key === 'clear') patchSheet(i, () => ({ cols: emptyColumns() }));
     if (key === 'delete' && sheets.length > 1) removeSheet(i);
     if (key === 'insert') insertSheet(i);
   };
 
-  const removeSheet = (i: number) => {
-    const next = sheets.filter((_, j) => j !== i);
-    setSheets(next);
-    setCur(Math.max(0, Math.min(cur >= i ? cur - 1 : cur, next.length - 1)));
+  // 拖動頁簽：依游標位置算出要插入的位置
+  const dropIndex = (x: number, list: HTMLElement) => {
+    const tabs = Array.from(list.querySelectorAll<HTMLElement>('[data-tab-idx]'));
+    for (let k = 0; k < tabs.length; k++) {
+      const r = tabs[k].getBoundingClientRect();
+      if (x < r.left + r.width / 2) return k;
+    }
+    return tabs.length;
+  };
+
+  const onTabPointerDown = (ev: React.PointerEvent<HTMLButtonElement>, i: number) => {
+    if (ev.button !== 0) return;
+    press.current = { i, x: ev.clientX, moved: false };
+    try { ev.currentTarget.setPointerCapture(ev.pointerId); } catch { /* 無法捕捉時照常運作 */ }
+  };
+  const onTabPointerMove = (ev: React.PointerEvent<HTMLButtonElement>) => {
+    const p = press.current;
+    if (!p) return;
+    if (!p.moved && Math.abs(ev.clientX - p.x) < 5) return;
+    p.moved = true;
+    const list = ev.currentTarget.closest('[role=tablist]') as HTMLElement;
+    setTabDrag({ from: p.i, to: dropIndex(ev.clientX, list) });
+  };
+  const onTabPointerUp = () => {
+    const p = press.current;
+    press.current = null;
+    if (!p?.moved || !tabDrag) { setTabDrag(null); return; }
+    justDragged.current = true;
+    setTimeout(() => { justDragged.current = false; }, 0);
+    const { from, to } = tabDrag;
+    setTabDrag(null);
+    const target = to > from ? to - 1 : to;
+    if (target === from) return;
+    const next = [...sheets];
+    const [moved] = next.splice(from, 1);
+    next.splice(target, 0, moved);
+    commit(next, target);
+  };
+
+  const onKeyDown = (ev: React.KeyboardEvent) => {
+    const t = ev.target as HTMLElement;
+    // 輸入框裡照一般的文字復原；接收貼上用的隱藏框除外
+    if ((t.tagName === 'INPUT' || t.tagName === 'TEXTAREA') && !t.classList.contains('pb-sink')) return;
+    if (!(ev.ctrlKey || ev.metaKey)) return;
+    const k = ev.key.toLowerCase();
+    if (k === 'z' && !ev.shiftKey) { ev.preventDefault(); restore(undo, redo); }
+    else if (k === 'y' || (k === 'z' && ev.shiftKey)) { ev.preventDefault(); restore(redo, undo); }
   };
 
   return (
-    <div className="scrim" style={{ zIndex: 45 }} onMouseDown={dragWindow}>
+    <div className="scrim" style={{ zIndex: 45 }} onMouseDown={dragWindow} onKeyDown={onKeyDown}>
       <div role="dialog" aria-modal="true" aria-labelledby="verso-paste-title" className="dialog"
         style={{ width: 960, height: 640, maxWidth: 'calc(100% - 48px)', maxHeight: 'calc(100% - 48px)', boxShadow: '0 24px 64px rgba(0,0,0,0.5)' }}>
         <div style={{ height: 52, flexShrink: 0, display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '0 10px 0 20px', borderBottom: '1px solid var(--line)' }}>
@@ -95,19 +199,32 @@ export function PasteDialog() {
           <div role="tablist" aria-label="頁簽" style={{ display: 'flex', alignItems: 'center', gap: 6, borderBottom: '1px solid var(--line)', flexWrap: 'wrap' }}>
             {sheets.map((sh, i) => {
               const on = i === cur;
+              const dragging = tabDrag?.from === i;
               return (
-                <div key={i} style={{ display: 'flex', alignItems: 'center', borderBottom: `2px solid ${on ? 'var(--accent)' : 'transparent'}`, marginBottom: -1 }}>
+                <div key={i} data-tab-idx={i} style={{
+                  position: 'relative', display: 'flex', alignItems: 'center', borderBottom: `2px solid ${on ? 'var(--accent)' : 'transparent'}`,
+                  marginBottom: -1, opacity: dragging ? 0.45 : 1,
+                }}>
+                  {tabDrag && tabDrag.to === i && tabDrag.to !== tabDrag.from && tabDrag.to !== tabDrag.from + 1 && (
+                    <span style={{ position: 'absolute', left: -4, top: 6, bottom: 6, width: 2, borderRadius: 1, background: 'var(--accent)' }} />
+                  )}
                   {renaming === i ? (
                     <input className="field" ref={focusOnMount} value={sh.name} aria-label="頁簽名稱"
-                      onChange={(e) => { const name = e.target.value; patchSheet(i, () => ({ name })); }}
-                      onBlur={() => setRenaming(null)}
-                      onKeyDown={(e) => { if (e.key === 'Enter' || e.key === 'Escape') setRenaming(null); }}
+                      onChange={(e) => { const name = e.target.value; patchSheet(i, () => ({ name }), false); }}
+                      onBlur={endRename}
+                      onKeyDown={(e) => { if (e.key === 'Enter' || e.key === 'Escape') endRename(); }}
                       style={{ height: 28, width: 140, margin: '4px 0', padding: '0 8px' }} />
                   ) : (
                     <button type="button" role="tab" className="stab" aria-selected={on} title="雙擊改名"
-                      onClick={() => setCur(i)} onDoubleClick={() => setRenaming(i)}
+                      onClick={() => { if (justDragged.current) { justDragged.current = false; return; } setCur(i); }}
+                      onDoubleClick={() => startRename(i)}
+                      onPointerDown={(ev) => onTabPointerDown(ev, i)} onPointerMove={onTabPointerMove}
+                      onPointerUp={onTabPointerUp} onPointerCancel={() => { press.current = null; setTabDrag(null); }}
                       onContextMenu={(ev) => { ev.preventDefault(); setCur(i); setTabMenu({ i, x: ev.clientX, y: ev.clientY }); }}
-                      style={{ height: 36, padding: '0 10px', background: 'transparent', border: 0, fontSize: 13, fontWeight: 500, color: on ? 'var(--text)' : 'var(--mute)', whiteSpace: 'nowrap' }}>
+                      style={{
+                        height: 36, padding: '0 10px', background: 'transparent', border: 0, fontSize: 13, fontWeight: 500,
+                        color: on ? 'var(--text)' : 'var(--mute)', whiteSpace: 'nowrap', cursor: tabDrag ? 'grabbing' : undefined, touchAction: 'none',
+                      }}>
                       {sh.name || '頁簽 ' + (i + 1)}
                     </button>
                   )}
@@ -116,6 +233,9 @@ export function PasteDialog() {
                       style={{ width: 20, height: 20, display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 0, background: 'transparent', border: 0, borderRadius: 5, color: 'var(--mute)' }}>
                       <IconWinClose size={9} sw={1.4} />
                     </button>
+                  )}
+                  {tabDrag && i === sheets.length - 1 && tabDrag.to === sheets.length && tabDrag.from !== i && (
+                    <span style={{ position: 'absolute', right: -4, top: 6, bottom: 6, width: 2, borderRadius: 1, background: 'var(--accent)' }} />
                   )}
                 </div>
               );
