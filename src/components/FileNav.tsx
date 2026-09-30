@@ -1,5 +1,6 @@
 import { useRef, useState } from 'react';
 import { currentOf, useStore } from '../state/store';
+import { requestFile } from '../state/saver';
 import { isDone, markName, markVisual } from '../model/marks';
 import type { Entry, MarkId } from '../model/types';
 import { MarkIcon } from './MarkIcon';
@@ -146,7 +147,7 @@ export function FileNav({ tabW }: { tabW: number }) {
               const all = f.sheets.flatMap((sh) => sh.entries);
               return (
                 <button key={i} type="button" className="dd" role="option" aria-selected={i === s.file}
-                  onClick={() => s.setFile(i)}
+                  onClick={() => requestFile(i)}
                   style={{ ...menuItem, gap: 10, color: undefined, background: i === s.file ? 'var(--sel)' : 'transparent' }}>
                   <span style={{ flexGrow: 1, fontSize: 12.5 }}>{f.name}</span>
                   <span style={{ fontSize: 11.5, color: 'var(--mute)' }}>{f.sheets.length} 個頁簽</span>

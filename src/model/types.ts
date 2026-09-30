@@ -34,6 +34,11 @@ export interface Entry {
   pending: boolean;
   /** 標點檢測誤報時按「略過」，之後不再檢查這條 */
   skipCheck: boolean;
+  /**
+   * 檔案裡記著、但目前認不得（或刪除時選擇保留）的自訂標記。
+   * 畫面上當作沒有標記，存檔時照樣寫回去；使用者重新標記時就清掉。
+   */
+  keptMark?: string;
   /** 我的備註 */
   note: string;
   /** 建議翻譯 */
@@ -60,6 +65,8 @@ export type CustomMark =
 
 export interface GlossaryTerm {
   id: string;
+  /** 範例資料，不存檔 */
+  sample?: boolean;
   term: string;
   en: string;
   dict: string;
@@ -74,6 +81,10 @@ export interface RefDoc {
 
 export interface ProjectData {
   name: string;
+  /** 範例專案：不存檔；第一次手動貼入檔案時換成「我的專案」 */
+  sample?: boolean;
+  /** 下一個自訂標記的編號 */
+  nextMarkId?: number;
   files: FileDoc[];
   customMarks: CustomMark[];
   glossary: GlossaryTerm[];

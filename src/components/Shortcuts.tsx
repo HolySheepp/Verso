@@ -4,6 +4,7 @@ import { HOLD_ACTIONS, actionFor, comboOf, createTabHold, type ActionId } from '
 import { effectiveMark } from '../model/marks';
 import { markMenuIds } from './MarkMenu';
 import { rowMenuPos } from './rowMenu';
+import { saveNow } from '../state/saver';
 
 /** 工作用的輸入框：翻譯、驗證模式是譯文框，原文修正模式是原文框 */
 function isWorkInput(el: Element | null, mode: string) {
@@ -94,7 +95,12 @@ export function Shortcuts() {
       if (!s.project || s.settingsOpen || s.termDraft || s.pasteOpen || s.dictPasteOpen) return false;
       const el = document.activeElement;
       const inWork = isWorkInput(el, s.mode);
-      if (!inWork && isOtherInput(el)) return false;
+      // 在備註、搜尋框之類的地方，只有存檔快捷鍵有效
+      if (!inWork && isOtherInput(el)) {
+        if (actionFor(s.shortcuts, 'list', combo) !== 'save') return false;
+        void saveNow();
+        return true;
+      }
       const action = actionFor(s.shortcuts, inWork ? 'input' : 'list', combo);
       if (!action) return false;
       // 用滑鼠點過的條目按鈕留著焦點時會顯示外框，用鍵盤移動前先放掉
@@ -137,6 +143,7 @@ export function Shortcuts() {
         case 'prevSheet': s.setSheet(currentOf(s).sheetIdx - 1); break;
         case 'nextSheet': s.setSheet(currentOf(s).sheetIdx + 1); break;
         case 'close': s.closePopups(); break;
+        case 'save': void saveNow(); break;
         case 'peek': {
           const h = entry && s.history.byEntry[entry.uid];
           if (h?.texts.length) s.set({ peek: true });

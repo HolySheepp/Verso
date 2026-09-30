@@ -5,17 +5,20 @@ import type { CustomMark, SymbolId } from '../model/types';
 import { MarkIcon } from './MarkIcon';
 import { IconPlus, IconTrash, IconWinClose } from './icons';
 import { CHECKS } from '../model/checks';
+import { ConfirmDialog } from './ConfirmDialog';
+import { pickSaveRoot } from '../state/saver';
 import { ACTION_LABELS, CONTEXTS, CONTEXT_ACTIONS, comboOf, createTabHold, type ActionId, type ShortcutContext } from '../model/shortcuts';
 
 // 設定目前只有「標記」「檢查」分類有內容，其他分類只有外觀
 const SECTIONS = ['一般', '工作模式', '標記', '檢查', '快捷鍵', '外觀'];
-const READY = ['標記', '檢查', '快捷鍵'];
+const READY = ['一般', '標記', '檢查', '快捷鍵'];
 
 const h3: React.CSSProperties = { margin: 0, fontSize: 12, fontWeight: 600, letterSpacing: 1, color: 'var(--text2)' };
 
 export function SettingsDialog() {
   const open = useStore((s) => s.settingsOpen);
   const customs = useStore((s) => s.project!.customMarks);
+  const askDeleteMark = useStore((s) => s.askDeleteMark);
   const { set, addCustomMark, deleteCustomMark } = useStore.getState();
 
   const [name, setName] = useState('');
@@ -71,7 +74,7 @@ export function SettingsDialog() {
             })}
           </nav>
           <div style={{ flexGrow: 1, minWidth: 0, overflowY: 'auto', padding: '20px 24px', display: 'flex', flexDirection: 'column', gap: 22 }}>
-            {section === '檢查' ? <ChecksSection /> : section === '快捷鍵' ? <ShortcutsSection /> : <>
+            {section === '一般' ? <GeneralSection /> : section === '檢查' ? <ChecksSection /> : section === '快捷鍵' ? <ShortcutsSection /> : <>
             <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
               <h3 style={h3}>內建標記</h3>
               <div style={{ display: 'grid', gridTemplateColumns: 'repeat(2, minmax(0, 1fr))', gap: 8 }}>
@@ -94,7 +97,11 @@ export function SettingsDialog() {
                   <span style={{ width: 18, height: 18, display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}><MarkIcon mark={markVisual(customs, `c:${c.id}`)} size={18} /></span>
                   <span style={{ flexGrow: 1, fontSize: 13 }}>{c.name}</span>
                   <span style={{ fontSize: 11.5, color: 'var(--mute)', padding: '2px 8px', borderRadius: 9, background: 'var(--chip)' }}>{c.kind === 'sym' ? '符號' : '文字'}</span>
-                  <button type="button" className="ib" aria-label={'刪除標記「' + c.name + '」'} title="刪除" onClick={() => deleteCustomMark(c.id)}
+                  <button type="button" className="ib" aria-label={'刪除標記「' + c.name + '」'} title="刪除" onClick={() => {
+                      // 有條目用到這個標記時，先問要不要一起清掉
+                      const used = useStore.getState().project!.files.some((f) => f.sheets.some((sh) => sh.entries.some((e) => e.mark === 'c:' + c.id)));
+                      if (used) set({ askDeleteMark: c.id }); else deleteCustomMark(c.id, true);
+                    }}
                     style={{ width: 32, height: 32, display: 'flex', alignItems: 'center', justifyContent: 'center', background: 'transparent', border: 0, borderRadius: 6, color: 'var(--mute)' }}>
                     <IconTrash size={14} />
                   </button>
@@ -172,6 +179,15 @@ export function SettingsDialog() {
           </div>
         </div>
       </div>
+      {askDeleteMark && (
+        <ConfirmDialog zIndex={55} title="要一起清掉條目上的這個標記嗎？"
+          body="選「保留」的話，標記會留在檔案裡，但畫面上不會顯示。"
+          choices={[
+            { label: '取消', onClick: () => set({ askDeleteMark: null }) },
+            { label: '保留', onClick: () => deleteCustomMark(askDeleteMark, false) },
+            { label: '一起清掉', primary: true, onClick: () => deleteCustomMark(askDeleteMark, true) },
+          ]} />
+      )}
     </div>
   );
 }
@@ -288,6 +304,45 @@ function ShortcutsSection() {
             </div>
           );
         })}
+      </div>
+    </div>
+  );
+}
+
+function GeneralSection() {
+  const saveRoot = useStore((s) => s.saveRoot);
+  const autosaveMin = useStore((s) => s.autosaveMin);
+  const set = useStore((s) => s.set);
+  const [min, setMin] = useState(String(autosaveMin));
+  const commitMin = () => {
+    const n = Math.round(Number(min));
+    const v = Number.isFinite(n) ? Math.min(60, Math.max(1, n)) : autosaveMin;
+    setMin(String(v));
+    set({ autosaveMin: v });
+  };
+  return (
+    <div style={{ display: 'flex', flexDirection: 'column', gap: 22 }}>
+      <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
+        <h3 style={h3}>存檔資料夾</h3>
+        <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+          <span className="mono" title={saveRoot} style={{
+            flexGrow: 1, minWidth: 0, height: 36, display: 'flex', alignItems: 'center', padding: '0 12px', boxSizing: 'border-box',
+            background: 'var(--bg0)', border: '1px solid var(--line4)', borderRadius: 8, fontSize: 12, color: 'var(--textsoft)',
+            overflow: 'hidden', whiteSpace: 'nowrap', textOverflow: 'ellipsis',
+          }}>{saveRoot}</span>
+          <button type="button" className="btn btn-ghost" onClick={() => void pickSaveRoot()}
+            style={{ height: 36, padding: '0 16px', background: 'var(--btn)', border: '1px solid var(--line4)', borderRadius: 8, fontSize: 13, flexShrink: 0 }}>更改…</button>
+        </div>
+      </div>
+      <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
+        <h3 style={h3}>自動存檔</h3>
+        <label style={{ display: 'flex', alignItems: 'center', gap: 8, fontSize: 13 }}>
+          每
+          <input type="number" min={1} max={60} className="field" value={min} aria-label="自動存檔間隔（分鐘）"
+            onChange={(e) => setMin(e.target.value)} onBlur={commitMin} onKeyDown={(e) => { if (e.key === 'Enter') commitMin(); }}
+            style={{ width: 72, textAlign: 'center' }} />
+          分鐘
+        </label>
       </div>
     </div>
   );

@@ -28,6 +28,7 @@ const winBtn: React.CSSProperties = {
 
 export function TitleBar() {
   const projectName = useStore((s) => s.project?.name ?? '');
+  const saveError = useStore((s) => s.saveStatus === 'error');
   const mode = useStore((s) => s.mode);
   const theme = useStore((s) => s.theme);
   const set = useStore((s) => s.set);
@@ -42,6 +43,7 @@ export function TitleBar() {
         <IconLogo size={20} stroke="var(--accent)" />
         <span data-tauri-drag-region style={{ fontSize: 15, fontWeight: 600, letterSpacing: 0.3 }}>Verso</span>
         <span data-tauri-drag-region className="proj" style={{ color: 'var(--mute)', fontSize: 12, marginLeft: 6 }}>{projectName}</span>
+        {saveError && <span data-tauri-drag-region style={{ fontSize: 12, color: 'var(--errtx)', marginLeft: 4 }}>未存檔</span>}
       </div>
 
       <div role="radiogroup" aria-label="工作模式" style={{

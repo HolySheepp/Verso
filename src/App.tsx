@@ -13,6 +13,8 @@ import { SettingsDialog } from './components/SettingsDialog';
 import { PasteDialog } from './components/PasteDialog';
 import { DictPasteDialog } from './components/DictPasteDialog';
 import { Shortcuts } from './components/Shortcuts';
+import { ConfirmDialog } from './components/ConfirmDialog';
+import { resolveAskSave, startApp } from './state/saver';
 import { IconCheck, IconChevD, IconChevL } from './components/icons';
 
 const clamp = (v: number, lo: number, hi: number) => Math.max(lo, Math.min(hi, v));
@@ -30,6 +32,8 @@ function useWindowSize() {
 function StatusBar() {
   const files = useStore((s) => s.project!.files);
   const mode = useStore((s) => s.mode);
+  const status = useStore((s) => s.saveStatus);
+  const sample = useStore((s) => !!s.project?.sample);
   let done = 0, total = 0;
   files.forEach((f) => f.sheets.forEach((sh) => sh.entries.forEach((e) => { total++; if (isDone(e)) done++; })));
   return (
@@ -41,10 +45,12 @@ function StatusBar() {
         <span>專案進度 {done} / {total} 條</span>
         <span>模式：{MODES.find((m) => m.id === mode)!.label}</span>
       </div>
-      {/* 自動儲存：目前只有外觀 */}
       <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
-        <IconCheck size={12} sw={2.4} stroke="var(--accent2)" />
-        <span>已自動儲存</span>
+        {sample ? <span>範例資料，不會存檔</span>
+          : status === 'saved' ? <><IconCheck size={12} sw={2.4} stroke="var(--accent2)" /><span>已儲存</span></>
+          : status === 'saving' ? <span>儲存中…</span>
+          : status === 'error' ? <span style={{ color: 'var(--errtx)' }}>未存檔，稍後自動重試</span>
+          : <span>有未儲存的修改</span>}
       </div>
     </footer>
   );
@@ -54,7 +60,7 @@ export default function App() {
   const s = useStore();
   const { w, h } = useWindowSize();
 
-  useEffect(() => { void s.load(); }, []);
+  useEffect(() => { void startApp(); }, []);
 
   if (!s.project) return null;
 
@@ -127,6 +133,15 @@ export default function App() {
       <TermDialog />
       <SettingsDialog />
       <PasteDialog />
+      {s.askSave && (
+        <ConfirmDialog zIndex={60} title="有未儲存的修改"
+          body={s.askSave.kind === 'close' ? '關閉前要儲存嗎？' : '切換檔案前要儲存嗎？'}
+          choices={[
+            { label: '取消', onClick: () => void resolveAskSave('cancel') },
+            { label: '不儲存', danger: true, onClick: () => void resolveAskSave('discard') },
+            { label: '儲存', primary: true, onClick: () => void resolveAskSave('save') },
+          ]} />
+      )}
       <Shortcuts />
       <DictPasteDialog />
     </div>

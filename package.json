@@ -1,7 +1,7 @@
 {
   "name": "verso",
   "private": true,
-  "version": "0.13.0",
+  "version": "0.14.0",
   "type": "module",
   "scripts": {
     "dev": "vite",
@@ -16,8 +16,11 @@
     "@fontsource/jetbrains-mono": "^5.2.0",
     "@fontsource/noto-sans-tc": "^5.2.0",
     "@tauri-apps/api": "^2.12.0",
+    "@tauri-apps/plugin-dialog": "^2.8.0",
+    "@tauri-apps/plugin-fs": "^2.6.0",
     "react": "^19.3.0",
     "react-dom": "^19.3.0",
+    "xlsx": "https://cdn.sheetjs.com/xlsx-0.20.3/xlsx-0.20.3.tgz",
     "zustand": "^5.0.15"
   },
   "devDependencies": {

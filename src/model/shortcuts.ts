@@ -9,7 +9,7 @@ export const CONTEXTS: { id: ShortcutContext; label: string }[] = [
 
 export type ActionId =
   | 'main' | 'newline' | 'stampNext' | 'prevEntry' | 'nextEntry' | 'markMenu' | 'record' | 'leaveInput'
-  | 'editEntry' | 'clearTgt' | 'prevSheet' | 'nextSheet' | 'close' | 'peek' | 'prevPending' | 'nextPending';
+  | 'editEntry' | 'clearTgt' | 'prevSheet' | 'nextSheet' | 'close' | 'peek' | 'prevPending' | 'nextPending' | 'save';
 
 export const ACTION_LABELS: Record<ActionId, string> = {
   main: '下一條／驗證並下一條',
@@ -28,6 +28,7 @@ export const ACTION_LABELS: Record<ActionId, string> = {
   peek: '按住查看修改',
   prevPending: '上一個待處理條目',
   nextPending: '下一個待處理條目',
+  save: '存檔',
 };
 
 /** 這些操作要按住才有效，放開就結束 */
@@ -35,8 +36,8 @@ export const HOLD_ACTIONS: ActionId[] = ['peek'];
 
 /** 各情境有哪些操作（依設定頁的顯示順序） */
 export const CONTEXT_ACTIONS: Record<ShortcutContext, ActionId[]> = {
-  input: ['main', 'newline', 'stampNext', 'prevEntry', 'nextEntry', 'prevPending', 'nextPending', 'markMenu', 'record', 'peek', 'leaveInput', 'prevSheet', 'nextSheet'],
-  list: ['prevEntry', 'nextEntry', 'prevPending', 'nextPending', 'editEntry', 'clearTgt', 'markMenu', 'record', 'peek', 'prevSheet', 'nextSheet', 'close'],
+  input: ['main', 'newline', 'stampNext', 'prevEntry', 'nextEntry', 'prevPending', 'nextPending', 'markMenu', 'record', 'peek', 'save', 'leaveInput', 'prevSheet', 'nextSheet'],
+  list: ['prevEntry', 'nextEntry', 'prevPending', 'nextPending', 'editEntry', 'clearTgt', 'markMenu', 'record', 'peek', 'save', 'prevSheet', 'nextSheet', 'close'],
 };
 
 export type Bindings = Record<ShortcutContext, Partial<Record<ActionId, string[]>>>;
@@ -53,6 +54,7 @@ export const defaultBindings = (): Bindings => ({
     markMenu: ['Ctrl+M'],
     record: ['Ctrl+R'],
     peek: ['Ctrl+D'],
+    save: ['Ctrl+S'],
     leaveInput: ['Esc'],
     prevSheet: ['Ctrl+Tab+←'],
     nextSheet: ['Ctrl+Tab+→'],
@@ -67,6 +69,7 @@ export const defaultBindings = (): Bindings => ({
     markMenu: ['Ctrl+M'],
     record: ['Ctrl+R'],
     peek: ['Ctrl+D'],
+    save: ['Ctrl+S'],
     prevSheet: ['Ctrl+Tab+←'],
     nextSheet: ['Ctrl+Tab+→'],
     close: ['Esc'],

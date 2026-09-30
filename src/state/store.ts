@@ -9,6 +9,14 @@ import type { CustomMark, Entry, FileDoc, GlossaryTerm, MarkId, Mode, ProjectDat
 export type Filter = 'all' | 'untranslated' | 'doubt' | 'think' | 'issues';
 export type SideTab = 'dict' | 'search' | 'web' | 'ref';
 export type Theme = 'dark' | 'light';
+export type SaveStatus = 'saved' | 'dirty' | 'saving' | 'error';
+
+/** 有未存修改時要先問使用者：關閉 App，或切換到別的檔案 */
+export type AskSave = { kind: 'close' } | { kind: 'switch'; file: number };
+
+/** 常用的字典名稱，就算還沒有詞條也會出現在選單裡 */
+export const DEFAULT_DICTS = ['專有名詞', '一般術語', 'UI 用語'];
+const MY_PROJECT = '我的專案';
 
 /** keys：用快捷鍵打開的選單，可以按數字選取 */
 export interface RowMenu { index: number; x: number; y: number; keys?: boolean; active?: number }
@@ -85,6 +93,15 @@ interface State {
 
   checkSettings: CheckSettings;
   shortcuts: Bindings;
+
+  /** 存檔資料夾 */
+  saveRoot: string;
+  /** 自動存檔間隔（分鐘） */
+  autosaveMin: number;
+  saveStatus: SaveStatus;
+  askSave: AskSave | null;
+  /** 刪除自訂標記前，問要不要一起清掉條目上的標記 */
+  askDeleteMark: string | null;
   /** 各條目在檢查當下報出的問題（以條目 uid 為 key），不存進檔案 */
   reported: Record<string, string[]>;
 }
@@ -107,7 +124,8 @@ interface Actions {
   saveTerm(d: TermDraft): void;
   deleteTerm(id: string): void;
   addCustomMark(c: CustomMark): void;
-  deleteCustomMark(id: string): void;
+  /** clear：一起清掉條目上的這個標記；不清的話保留在檔案裡、畫面不顯示 */
+  deleteCustomMark(id: string, clear: boolean): void;
   addFile(f: FileDoc): void;
   addTerms(dict: string, pairs: [string, string][]): void;
   checkAll(): void;
@@ -130,9 +148,10 @@ const noView = { viewOn: false, peek: false } as const;
 
 /** 目前的頁簽、條目位置 */
 export function currentOf(s: Pick<State, 'project' | 'file' | 'sheetBy' | 'selBy'>) {
-  const fileDoc = s.project!.files[s.file];
+  // 檔案被移除時退回第一個檔案，避免畫面整個壞掉
+  const fileDoc = s.project!.files[s.file] ?? s.project!.files[0];
   const sheetIdx = s.sheetBy[s.file] ?? 0;
-  const sheet: Sheet = fileDoc.sheets[sheetIdx];
+  const sheet: Sheet = fileDoc.sheets[sheetIdx] ?? fileDoc.sheets[0];
   const sel = Math.min(s.selBy[selKey(s.file, sheetIdx)] ?? 0, Math.max(0, sheet.entries.length - 1));
   return { fileDoc, sheetIdx, sheet, sel, entry: sheet.entries[sel] as Entry | undefined };
 }
@@ -206,6 +225,11 @@ export const useStore = create<Store>((set, get) => {
     checkSettings: defaultCheckSettings(),
     shortcuts: defaultBindings(),
     reported: {},
+    saveRoot: '',
+    autosaveMin: 1,
+    saveStatus: 'saved',
+    askSave: null,
+    askDeleteMark: null,
 
     async load() {
       const project = await activeSource.load();
@@ -268,7 +292,7 @@ export const useStore = create<Store>((set, get) => {
     },
 
     setEntryMark(index, id) {
-      patchEntry(index, (e) => ({ ...e, mark: toStoredMark(id) }));
+      patchEntry(index, (e) => ({ ...e, mark: toStoredMark(id), keptMark: undefined }));
     },
 
     record(text) {
@@ -322,10 +346,13 @@ export const useStore = create<Store>((set, get) => {
     addCustomMark(c) {
       const project = get().project;
       if (!project) return;
-      set({ project: { ...project, customMarks: [...project.customMarks, c] } });
+      // 自訂標記用編號記錄，改名不影響
+      const used = project.customMarks.map((m) => Number(m.id)).filter((n) => !Number.isNaN(n));
+      const next = Math.max(project.nextMarkId ?? 1, ...used.map((n) => n + 1));
+      set({ project: { ...project, customMarks: [...project.customMarks, { ...c, id: String(next) }], nextMarkId: next + 1 } });
     },
 
-    deleteCustomMark(id) {
+    deleteCustomMark(id, clear) {
       const project = get().project;
       if (!project) return;
       const mid = 'c:' + id;
@@ -333,18 +360,31 @@ export const useStore = create<Store>((set, get) => {
         ...f,
         sheets: f.sheets.map((sh) => ({
           ...sh,
-          entries: sh.entries.map((e) => (e.mark === mid ? { ...e, mark: '' as const } : e)),
+          entries: sh.entries.map((e) => (e.mark !== mid ? e : clear ? { ...e, mark: '' as const } : { ...e, mark: '' as const, keptMark: mid })),
         })),
       }));
-      set({ project: { ...project, files, customMarks: project.customMarks.filter((c) => c.id !== id) } });
+      set({ project: { ...project, files, customMarks: project.customMarks.filter((c) => c.id !== id) }, askDeleteMark: null });
     },
 
     addFile(f) {
-      const project = get().project;
+      let project = get().project;
       if (!project) return;
+      // 還在看範例時，第一次建立的檔案會變成「我的專案」，範例檔案和範例字典都不再顯示
+      if (project.sample) {
+        const glossary = project.glossary.filter((t) => !t.sample);
+        project = {
+          name: MY_PROJECT, files: [], customMarks: [], nextMarkId: 1, glossary,
+          dicts: [...new Set([...DEFAULT_DICTS, ...glossary.map((t) => t.dict)])],
+          projects: [MY_PROJECT, '所有專案（共用）'], refs: [],
+        };
+        set({ selBy: {}, sheetBy: {}, reported: {}, history: emptyHistory() });
+      }
+      // 同名的檔案加上編號
+      let name = f.name, k = 2;
+      while (project.files.some((x) => x.name === name)) name = `${f.name} (${k++})`;
       const idx = project.files.length;
       set({
-        project: { ...project, files: [...project.files, f] },
+        project: { ...project, files: [...project.files, { ...f, name }] },
         file: idx, sheetBy: { ...get().sheetBy, [idx]: 0 }, pasteOpen: false, filter: 'all',
         ...noPopups, ...noView,
       });

@@ -94,11 +94,12 @@ export function sampleProject(): ProjectData {
     })),
   }));
   const glossary: GlossaryTerm[] = GLOSS.map(([term, en, kind, note], i) => ({
-    id: 'g' + i, term, en, note, proj: PROJECT,
+    id: 'g' + i, term, en, note, proj: PROJECT, sample: true,
     dict: kind === '專有名詞' ? '專有名詞' : /^UI/.test(note) ? 'UI 用語' : '一般術語',
   }));
   return {
     name: PROJECT,
+    sample: true,
     files,
     customMarks: [
       { id: 'c1', name: '術語待確認', kind: 'text', text: 'TM', color: '#4fb3a9' },
