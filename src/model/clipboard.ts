@@ -58,10 +58,11 @@ export function parseHtmlTable(html: string): string[][] | null {
   );
 }
 
-/** 貼入整欄：優先用表格格式，取每列第一格 */
-export function readColumn(data: { html?: string; text: string }): string[] {
+/** 貼入：優先用表格格式，回傳每一欄（一次貼多欄時會有多欄，缺的格子補空白） */
+export function readColumns(data: { html?: string; text: string }): string[][] {
   const rows = (data.html && parseHtmlTable(data.html)) || parseTsv(data.text);
-  return rows.map((r) => r[0] ?? '');
+  const width = rows.reduce((w, r) => Math.max(w, r.length), 0);
+  return Array.from({ length: width }, (_, k) => rows.map((r) => r[k] ?? ''));
 }
 
 const escapeHtml = (s: string) =>

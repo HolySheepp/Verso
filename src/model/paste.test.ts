@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import { columnToClipboard, parseTsv } from './clipboard';
-import { checkColumns, columnsToEntries, emptyColumns } from './paste';
+import { checkColumns, columnsToEntries, emptyColumns, spreadColumns, toCol, type ColKey } from './paste';
 import { effectiveMark, isDone } from './marks';
 
 describe('純文字表格解析', () => {
@@ -28,31 +28,54 @@ describe('複製譯文欄', () => {
   });
 });
 
+/** 模擬貼上：每欄都經過 toCol（去掉結尾空白行） */
+const cols = (c: Partial<Record<ColKey, string[]>>) => {
+  const out = emptyColumns();
+  (Object.keys(c) as ColKey[]).forEach((k) => { out[k] = toCol(c[k]!); });
+  return out;
+};
+
 describe('手動貼入', () => {
   it('行數不一致會擋下並列出各欄行數', () => {
-    const c = { ...emptyColumns(), id: ['1', '2'], src: ['a', 'b', 'c'] };
-    const r = checkColumns(c);
+    const r = checkColumns(cols({ id: ['1', '2'], src: ['a', 'b', 'c'] }));
     expect(r.ok).toBe(false);
     expect(r.msg).toBe('各欄行數不一致：id 2、原文 3');
   });
   it('結尾多出的空白行不算', () => {
-    const c = { ...emptyColumns(), id: ['1', '2', '', '', ''], src: ['a', 'b', '', ' '], tgt: ['A', '', '', ''] };
+    const c = cols({ id: ['1', '2', '', '', ''], src: ['a', 'b', '', ' '], tgt: ['A', '', '', ''] });
     expect(checkColumns(c).ok).toBe(true);
     const es = columnsToEntries(c);
     expect(es.map((e) => [e.id, e.src, e.tgt])).toEqual([['1', 'a', 'A'], ['2', 'b', '']]);
   });
   it('其他欄實際貼入的行數比原文少時擋下', () => {
-    expect(checkColumns({ ...emptyColumns(), src: ['a', 'b', 'c'], tgt: ['A', 'B'] }).msg).toBe('各欄行數不一致：原文 3、譯文 2');
+    expect(checkColumns(cols({ src: ['a', 'b', 'c'], tgt: ['A', 'B'] })).msg).toBe('各欄行數不一致：原文 3、譯文 2');
   });
   it('原文必填', () => {
-    expect(checkColumns({ ...emptyColumns(), id: ['1'] }).ok).toBe(false);
+    expect(checkColumns(cols({ id: ['1'] })).ok).toBe(false);
   });
   it('發話者空白記為「無」，有譯文也先算未翻譯', () => {
-    const [e1, e2] = columnsToEntries({ ...emptyColumns(), speaker: ['村長', ' '], src: ['a', 'b'], tgt: ['A', ''] });
+    const [e1, e2] = columnsToEntries(cols({ speaker: ['村長', ' '], src: ['a', 'b'], tgt: ['A', 'B'] }));
     expect(e1.speaker).toBe('村長');
     expect(e2.speaker).toBe('無');
     expect(effectiveMark(e1)).toBe('untranslated');
     expect(isDone(e1)).toBe(false);
     expect(effectiveMark({ ...e1, pending: false })).toBe('translated');
+  });
+});
+
+describe('多欄貼入', () => {
+  const keys: ColKey[] = ['id', 'speaker', 'src', 'tgt'];
+  it('從貼上的那一欄往右填', () => {
+    const out = spreadColumns(keys, 'speaker', [['村長'], ['你好'], ['Hi.']]);
+    expect(Object.keys(out)).toEqual(['speaker', 'src', 'tgt']);
+    expect(out.src!.rows).toEqual(['你好']);
+  });
+  it('超出譯文的欄忽略', () => {
+    const out = spreadColumns(keys, 'src', [['a'], ['A'], ['x'], ['y']]);
+    expect(Object.keys(out)).toEqual(['src', 'tgt']);
+  });
+  it('字典：兩欄貼到原文會填上原文和譯文', () => {
+    const out = spreadColumns(['src', 'tgt'], 'src', [['旅人'], ['Traveler']]);
+    expect(out.tgt!.rows).toEqual(['Traveler']);
   });
 });

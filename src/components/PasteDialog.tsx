@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react';
 import { useStore } from '../state/store';
-import { COLS, checkColumns, columnsToEntries, emptyColumns, type Columns } from '../model/paste';
+import { COLS, checkColumns, columnsToEntries, emptyColumns, spreadColumns, type Columns } from '../model/paste';
 import { PasteBox } from './PasteBox';
 import { IconPlus, IconWinClose } from './icons';
 
@@ -106,8 +106,9 @@ export function PasteDialog() {
 
           <div role="tabpanel" style={{ flexGrow: 1, minHeight: 0, display: 'grid', gridTemplateColumns: '0.7fr 0.8fr 1.5fr 1.5fr', gap: 12 }}>
             {COLS.map((c) => (
-              <PasteBox key={cur + c.key} label={c.label} rows={sheet.cols[c.key]}
-                onRows={(rows) => patchSheet(cur, (sh) => ({ cols: { ...sh.cols, [c.key]: rows } }))} />
+              <PasteBox key={cur + c.key} label={c.label} col={sheet.cols[c.key]}
+                onPaste={(values) => patchSheet(cur, (sh) => ({ cols: { ...sh.cols, ...spreadColumns(COLS.map((x) => x.key), c.key, values) } }))}
+                onChange={(col) => patchSheet(cur, (sh) => ({ cols: { ...sh.cols, [c.key]: col } }))} />
             ))}
           </div>
         </div>

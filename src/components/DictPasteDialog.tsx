@@ -1,7 +1,7 @@
 import { useEffect, useState } from 'react';
 import { useStore } from '../state/store';
 import { PasteBox } from './PasteBox';
-import { usedLength } from '../model/paste';
+import { fitsRows, spreadColumns, type Col } from '../model/paste';
 import { IconWinClose } from './icons';
 
 const NEW = '__new__';
@@ -13,8 +13,8 @@ export function DictPasteDialog() {
   const { set, addTerms } = useStore.getState();
   const [target, setTarget] = useState(NEW);
   const [newName, setNewName] = useState('');
-  const [src, setSrc] = useState<string[] | null>(null);
-  const [tgt, setTgt] = useState<string[] | null>(null);
+  const [src, setSrc] = useState<Col | null>(null);
+  const [tgt, setTgt] = useState<Col | null>(null);
 
   useEffect(() => {
     if (open) { setTarget(NEW); setNewName(''); setSrc(null); setTgt(null); }
@@ -22,15 +22,21 @@ export function DictPasteDialog() {
 
   if (!open) return null;
 
+  // 一次貼兩欄到原文時，譯文一起填上
+  const spread = (from: 'src' | 'tgt', values: string[][]) => {
+    const out = spreadColumns(['src', 'tgt'], from, values);
+    if (out.src) setSrc(out.src);
+    if (out.tgt) setTgt(out.tgt);
+  };
+
   const dictName = target === NEW ? newName.trim() : target;
   let error = '';
-  // 結尾的空白行不算
-  const sn = src ? usedLength(src) : 0, tn = tgt ? usedLength(tgt) : 0;
-  if (src && tgt && sn !== tn) error = `兩欄行數不一致：原文 ${sn}、譯文 ${tn}`;
+  const sn = src?.rows.length ?? 0;
+  if (src && tgt && !fitsRows(tgt, sn)) error = `兩欄行數不一致：原文 ${sn}、譯文 ${tgt.rows.length}`;
   else if (target === NEW && newName.trim() && dicts.includes(newName.trim())) error = '已有同名字典';
   // 原文或譯文空白的行略過
   const pairs: [string, string][] = src && tgt && !error
-    ? src.slice(0, sn).map((s, i): [string, string] => [s.trim(), (tgt[i] ?? '').trim()]).filter(([a, b]) => a && b)
+    ? src.rows.map((s, i): [string, string] => [s.trim(), (tgt.rows[i] ?? '').trim()]).filter(([a, b]) => a && b)
     : [];
   const canSave = !error && !!dictName && pairs.length > 0;
 
@@ -59,8 +65,8 @@ export function DictPasteDialog() {
             )}
           </div>
           <div style={{ flexGrow: 1, minHeight: 0, display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12 }}>
-            <PasteBox label="原文" rows={src} onRows={setSrc} />
-            <PasteBox label="譯文" rows={tgt} onRows={setTgt} />
+            <PasteBox label="原文" col={src} onChange={setSrc} onPaste={(v) => spread('src', v)} />
+            <PasteBox label="譯文" col={tgt} onChange={setTgt} onPaste={(v) => spread('tgt', v)} />
           </div>
         </div>
 
