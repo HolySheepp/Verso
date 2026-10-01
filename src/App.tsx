@@ -32,10 +32,29 @@ function useWindowSize() {
   return size;
 }
 
+/** 畫面中間短暫出現、自己消失的提示（例如手動存檔後的「已保存」） */
+function Toast() {
+  const toast = useStore((s) => s.toast);
+  useEffect(() => {
+    if (!toast) return;
+    const t = setTimeout(() => useStore.setState({ toast: null }), 1400);
+    return () => clearTimeout(t);
+  }, [toast]);
+  if (!toast) return null;
+  return (
+    <div key={toast.k} role="status" className="toast" style={{
+      position: 'fixed', left: '50%', top: '50%', zIndex: 80, pointerEvents: 'none', display: 'flex', alignItems: 'center', gap: 8,
+      padding: '12px 22px', background: 'var(--pop)', border: '1px solid var(--line4)', borderRadius: 12, boxShadow: '0 16px 40px rgba(0,0,0,0.35)',
+      fontSize: fz(14), fontWeight: 600, color: 'var(--text)',
+    }}>
+      <IconCheck size={16} sw={2.6} stroke="var(--accent2)" />{toast.text}
+    </div>
+  );
+}
+
 function StatusBar() {
   const files = useStore((s) => s.project!.files);
   const mode = useStore((s) => s.mode);
-  const status = useStore((s) => s.saveStatus);
   let done = 0, total = 0;
   files.forEach((f) => f.sheets.forEach((sh) => sh.entries.forEach((e) => { total++; if (isDone(e)) done++; })));
   return (
@@ -46,12 +65,6 @@ function StatusBar() {
       <div style={{ display: 'flex', gap: 18 }}>
         <span>專案進度 {done} / {total} 條</span>
         <span>模式：{MODES.find((m) => m.id === mode)!.label}</span>
-      </div>
-      <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
-        {status === 'saved' ? <><IconCheck size={12} sw={2.4} stroke="var(--accent2)" /><span>已儲存</span></>
-          : status === 'saving' ? <span>儲存中…</span>
-          : status === 'error' ? <span style={{ color: 'var(--errtx)' }}>未存檔，稍後自動重試</span>
-          : <span>有未儲存的修改</span>}
       </div>
     </footer>
   );
@@ -165,6 +178,7 @@ export default function App() {
       <ManageProjectsDialog />
       <ManageDictsDialog />
       <MoveProjectDialog />
+      <Toast />
     </div>
   );
 }

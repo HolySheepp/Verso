@@ -4,7 +4,7 @@ import { HOLD_ACTIONS, actionFor, comboOf, createTabHold, type ActionId } from '
 import { effectiveMark } from '../model/marks';
 import { markMenuIds } from './MarkMenu';
 import { rowMenuPos } from './rowMenu';
-import { saveNow } from '../state/saver';
+import { manualSave } from '../state/saver';
 import { TGT_COL, cellKey, clearCells, deleteCells } from '../model/cells';
 
 /** 工作用的輸入框：翻譯、驗證模式是譯文框，原文修正模式是原文框 */
@@ -103,7 +103,7 @@ export function Shortcuts() {
       // 在備註、搜尋框之類的地方，只有存檔快捷鍵有效
       if (!inWork && isOtherInput(el)) {
         if (actionFor(s.shortcuts, 'list', combo) !== 'save') return false;
-        void saveNow();
+        void manualSave();
         return true;
       }
       // 不在輸入框時，Ctrl+Z／Ctrl+Y 復原或重做條目欄與頁簽的操作
@@ -163,7 +163,7 @@ export function Shortcuts() {
         case 'prevSheet': s.setSheet(currentOf(s).sheetIdx - 1); break;
         case 'nextSheet': s.setSheet(currentOf(s).sheetIdx + 1); break;
         case 'close': s.closePopups(); break;
-        case 'save': void saveNow(); break;
+        case 'save': void manualSave(); break;
         case 'peek': {
           const h = entry && s.history.byEntry[entry.uid];
           if (h?.texts.length) s.set({ peek: true });

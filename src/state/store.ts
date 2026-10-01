@@ -102,6 +102,8 @@ interface State {
   pasteInsert: { after: number } | null;
   dictPasteOpen: boolean;
   manageProjectsOpen: boolean;
+  /** 畫面中間短暫出現的提示 */
+  toast: { text: string; k: number } | null;
   manageDictsOpen: boolean;
   moveTarget: MoveTarget | null;
   /** 用下一條、快捷鍵移動選取時遞增，條目列表據此保留前後 3 條可見（滑鼠點選不算） */
@@ -355,6 +357,7 @@ export const useStore = create<Store>((set, get) => {
     pasteInsert: null,
     dictPasteOpen: false,
     manageProjectsOpen: false,
+    toast: null,
     manageDictsOpen: false,
     moveTarget: null,
     moveSeq: 0,

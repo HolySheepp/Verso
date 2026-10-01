@@ -117,3 +117,7 @@ textarea[data-hist="1"]:focus{border-color:var(--accent) !important}
 @keyframes verso-shake{0%,100%{transform:translateX(0)}20%{transform:translateX(calc(var(--amp) * -1))}40%{transform:translateX(var(--amp))}60%{transform:translateX(calc(var(--amp) * -0.6))}80%{transform:translateX(calc(var(--amp) * 0.4))}}
 .shake{animation:verso-shake 320ms ease-out}
 @media (prefers-reduced-motion: reduce){.shake{animation:none}}
+
+/* 畫面中間的短暫提示：淡入、停一下、淡出 */
+@keyframes verso-toast{0%{opacity:0;transform:translate(-50%,-50%) scale(0.96)}12%{opacity:1;transform:translate(-50%,-50%) scale(1)}75%{opacity:1}100%{opacity:0;transform:translate(-50%,-50%)}}
+.toast{transform:translate(-50%,-50%);animation:verso-toast 1400ms ease forwards}

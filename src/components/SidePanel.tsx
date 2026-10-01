@@ -4,7 +4,7 @@ import { SHARED, dictKey, type DictInfo, type GlossaryTerm } from '../model/type
 import { fz } from '../model/fonts';
 import { ContextMenu } from './ContextMenu';
 import {
-  IconBook, IconBookmark, IconChevD, IconChevL, IconChevR, IconFile, IconGlobe, IconHideRight, IconList, IconPaste, IconPenEdit, IconPlus, IconRefresh, IconSearch, IconUse,
+  IconBook, IconBookmark, IconCheck, IconChevD, IconCopy, IconChevL, IconChevR, IconFile, IconGlobe, IconHideRight, IconList, IconPaste, IconPenEdit, IconPlus, IconRefresh, IconSearch, IconUse,
 } from './icons';
 
 const TABS: { id: SideTab; label: string; Icon: typeof IconBook }[] = [
@@ -23,6 +23,10 @@ export function ProjTag({ name }: { name: string }) {
 
 function TermCard({ g }: { g: GlossaryTerm }) {
   const set = useStore((s) => s.set);
+  const [copied, setCopied] = useState(false);
+  const copy = () => {
+    void navigator.clipboard.writeText(g.en).then(() => { setCopied(true); setTimeout(() => setCopied(false), 1200); });
+  };
   const proper = g.dict === '專有名詞';
   return (
     <div className="card">
@@ -37,11 +41,15 @@ function TermCard({ g }: { g: GlossaryTerm }) {
         </span>
       </div>
       <div style={{ fontSize: fz(14), color: 'var(--accent3)' }}>{g.en}</div>
-      <div style={{ fontSize: fz(12), lineHeight: 1.5, color: 'var(--text2)', paddingRight: 28 }}>{g.note || '—'}</div>
+      <div style={{ fontSize: fz(12), lineHeight: 1.5, color: 'var(--text2)', paddingRight: 56 }}>{g.note || '—'}</div>
       <button type="button" className="ib" aria-label={'編輯詞條「' + g.term + '」'} title="編輯詞條"
         onClick={() => set({ termDraft: { id: g.id, term: g.term, en: g.en, note: g.note, dict: g.dict, proj: g.proj } })}
-        style={{ position: 'absolute', right: 6, bottom: 6, width: 26, height: 26, display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 0, background: 'transparent', border: 0, borderRadius: 6, color: 'var(--mute)' }}>
+        style={{ position: 'absolute', right: 34, bottom: 6, width: 26, height: 26, display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 0, background: 'transparent', border: 0, borderRadius: 6, color: 'var(--mute)' }}>
         <IconPenEdit size={13} sw={2.2} />
+      </button>
+      <button type="button" className="ib" aria-label={'複製譯文「' + g.en + '」'} title={copied ? '已複製' : '複製譯文'} onClick={copy}
+        style={{ position: 'absolute', right: 6, bottom: 6, width: 26, height: 26, display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 0, background: 'transparent', border: 0, borderRadius: 6, color: copied ? 'var(--accent2)' : 'var(--mute)' }}>
+        {copied ? <IconCheck size={13} sw={2.4} /> : <IconCopy size={13} />}
       </button>
     </div>
   );
