@@ -42,12 +42,15 @@ function Toast() {
   }, [toast]);
   if (!toast) return null;
   return (
+    // 用 flex 置中而不是 translate(-50%)，避免落在半個像素上讓字變模糊
+    <div style={{ position: 'fixed', inset: 0, zIndex: 80, pointerEvents: 'none', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
     <div key={toast.k} role="status" className="toast" style={{
-      position: 'fixed', left: '50%', top: '50%', zIndex: 80, pointerEvents: 'none', display: 'flex', alignItems: 'center', gap: 8,
+      display: 'flex', alignItems: 'center', gap: 8,
       padding: '12px 22px', background: 'var(--pop)', border: '1px solid var(--line4)', borderRadius: 12, boxShadow: '0 16px 40px rgba(0,0,0,0.35)',
       fontSize: fz(14), fontWeight: 600, color: 'var(--text)',
     }}>
       <IconCheck size={16} sw={2.6} stroke="var(--accent2)" />{toast.text}
+    </div>
     </div>
   );
 }

@@ -119,5 +119,5 @@ textarea[data-hist="1"]:focus{border-color:var(--accent) !important}
 @media (prefers-reduced-motion: reduce){.shake{animation:none}}
 
 /* 畫面中間的短暫提示：淡入、停一下、淡出 */
-@keyframes verso-toast{0%{opacity:0;transform:translate(-50%,-50%) scale(0.96)}12%{opacity:1;transform:translate(-50%,-50%) scale(1)}75%{opacity:1}100%{opacity:0;transform:translate(-50%,-50%)}}
-.toast{transform:translate(-50%,-50%);animation:verso-toast 1400ms ease forwards}
+@keyframes verso-toast{0%{opacity:0}12%{opacity:1}75%{opacity:1}100%{opacity:0}}
+.toast{animation:verso-toast 1400ms ease forwards}
