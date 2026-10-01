@@ -1,6 +1,6 @@
 import { useDeferredValue, useEffect, useMemo, useRef, useState } from 'react';
 import { useShallow } from 'zustand/react/shallow';
-import { currentOf, currentProjectOf, dictEnabledIn, overrideKey, useStore, useStorePick, type SideTab } from '../state/store';
+import { currentOf, currentProjectOf, dictEnabledIn, overrideKey, searchHit, useStore, useStorePick, type SideTab } from '../state/store';
 import { SHARED, dictKey, type DictInfo, type FileDoc, type GlossaryTerm } from '../model/types';
 import { fz } from '../model/fonts';
 import { ContextMenu } from './ContextMenu';
@@ -168,7 +168,6 @@ interface SearchState { q: string; hits: SearchHit[]; at: [number, number, numbe
 /** 搜尋所有檔案：從 at 的位置往後找，找到 n 筆就停，回傳下次要接著找的位置 */
 function scan(files: FileDoc[], q: string, at: [number, number, number], n: number): { hits: SearchHit[]; at: [number, number, number]; done: boolean } {
   const hits: SearchHit[] = [];
-  const ql = q.toLowerCase();
   let [f, sh, i] = at;
   for (; f < files.length; f++, sh = 0, i = 0) {
     const file = files[f];
@@ -176,7 +175,7 @@ function scan(files: FileDoc[], q: string, at: [number, number, number], n: numb
       const sheet = file.sheets[sh];
       for (; i < sheet.entries.length; i++) {
         const e = sheet.entries[i];
-        if (!e.src.includes(q) && !e.tgt.toLowerCase().includes(ql)) continue;
+        if (!searchHit(e, q)) continue;
         if (hits.length === n) return { hits, at: [f, sh, i], done: false };
         hits.push({ f, sh, i, where: `${file.project} · ${file.name} · ${sheet.name} · #${e.id || i + 1}`, src: e.src, tgt: e.tgt || '尚未翻譯' });
       }

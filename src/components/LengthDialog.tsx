@@ -1,6 +1,6 @@
 import { useRef, useState } from 'react';
 import { currentOf, useStore } from '../state/store';
-import { CELL_PADDING, CJK_FAMILY, CJK_SIZE, stdLabel, type LengthStd, type StdValue } from '../model/length';
+import { CELL_PADDING, CJK_FAMILY, CJK_SIZE, sameStd, stdLabel, type LengthStd, type StdValue } from '../model/length';
 import { measure, textWidth } from '../model/measure';
 import { MAX_PT, MIN_PT, fontStack, fz, ptToPx, pushRecent } from '../model/fonts';
 import { FontSelect } from './FontSelect';
@@ -130,7 +130,7 @@ function LengthForm({ target }: { target: 'file' | 'entry' }) {
           {presets.length > 0 && (
             <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
               <span style={{ ...label, width: 64, flexShrink: 0 }}>常用標準</span>
-              <Select ariaLabel="套用常用標準" value="" onChange={usePreset}
+              <Select ariaLabel="套用常用標準" value={presets.find((p) => sameStd(p.std, std))?.name ?? ''} onChange={usePreset}
                 options={[{ value: '', label: '選擇常用標準…' }, ...presets.map((p) => ({ value: p.name, label: p.name }))]} style={{ width: 240, height: 34 }} />
             </div>
           )}

@@ -236,6 +236,9 @@ function withDict(p: ProjectData, project: string, dict: string): ProjectData {
 
 export const DEFAULT_COL_WIDTHS = [9, 12, 39.5, 39.5];
 
+/** 工具欄搜尋：原文、譯文（不分大小寫）或 id 有包含搜尋字 */
+export const searchHit = (e: Entry, q: string) => !!q && (e.src.includes(q) || e.tgt.toLowerCase().includes(q.toLowerCase()) || e.id.includes(q));
+
 /** 名稱重複時加上編號 */
 export function uniqueName(name: string, taken: string[]) {
   let n = name, k = 2;

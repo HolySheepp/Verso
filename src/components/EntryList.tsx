@@ -1,5 +1,5 @@
 import { memo, useEffect, useRef, useState } from 'react';
-import { currentOf, useStorePick, visibleIssues, type Filter } from '../state/store';
+import { currentOf, searchHit, useStorePick, visibleIssues, type Filter } from '../state/store';
 import { effectiveMark, markName, markVisual } from '../model/marks';
 import { columnToClipboard, parseHtmlTable, parseTsv, writeColumn } from '../model/clipboard';
 import {
@@ -59,6 +59,8 @@ interface RowProps {
   m: MarkId;
   issues: Issue[];
   on: boolean;
+  /** 符合工具欄搜尋 */
+  hit: boolean;
   /** 這一行選到的欄，例如 "0,3" */
   selCols: string;
   /** 這一行正在格子裡編輯的話 */
@@ -70,7 +72,7 @@ interface RowProps {
 }
 
 /** 條目欄的一行：只有自己的內容、選取、標記等變了才重畫 */
-const EntryRow = memo(function EntryRow({ e, i, m, issues, on, selCols, editing, customs, cols, ovfId, ovfSpk, ovfSrc, ovfTgt, h }: RowProps) {
+const EntryRow = memo(function EntryRow({ e, i, m, issues, on, hit, selCols, editing, customs, cols, ovfId, ovfSpk, ovfSrc, ovfTgt, h }: RowProps) {
   const doubt = m === 'doubt', ver = m === 'verified', ign = m === 'ignore';
   const label = '標記：' + markName(customs, m) + '，點擊變更';
   const cellProps = (c: CellCol) => {
@@ -102,7 +104,8 @@ const EntryRow = memo(function EntryRow({ e, i, m, issues, on, selCols, editing,
       display: 'grid', gridTemplateColumns: '24px 16px minmax(0, 1fr)', padding: '0 12px 0 4px',
       borderTop: `1px solid ${doubt ? 'var(--dbline)' : 'transparent'}`,
       borderBottom: `1px solid ${doubt ? 'var(--dbline)' : 'transparent'}`,
-      background: doubt ? (on ? 'var(--dbon)' : 'var(--db)') : 'transparent',
+      background: doubt ? (on ? 'var(--dbon)' : 'var(--db)') : hit ? 'var(--acc-soft)' : 'transparent',
+      boxShadow: hit ? 'inset 3px 0 0 var(--accent)' : undefined,
     }}>
       <button type="button" className="mk" aria-haspopup="menu" aria-label={label} title={label} onClick={(ev) => h.current.openMark(ev, i)}
         style={{ width: 24, minHeight: 38, display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 0, background: 'transparent', border: 0, borderRadius: 4 }}>
@@ -152,7 +155,7 @@ const EntryRow = memo(function EntryRow({ e, i, m, issues, on, selCols, editing,
 
 export function EntryList() {
   // 只訂閱這個區塊用到的資料（包含 currentOf 等輔助函式間接用到的）
-  const s = useStorePick('project', 'file', 'sheetBy', 'selBy', 'mode', 'fonts', 'colWidths', 'cellSel', 'filter', 'reported', 'checkSettings', 'moveDir', 'moveSeq', 'set', 'select', 'selectCells', 'editSheet', 'undoSheet', 'redoSheet', 'checkAll');
+  const s = useStorePick('project', 'file', 'sheetBy', 'selBy', 'searchQuery', 'side', 'hideSide', 'mode', 'fonts', 'colWidths', 'cellSel', 'filter', 'reported', 'checkSettings', 'moveDir', 'moveSeq', 'set', 'select', 'selectCells', 'editSheet', 'undoSheet', 'redoSheet', 'checkAll');
   const project = s.project!;
   const { sheet, sheetIdx, sel } = currentOf(s);
   const filter = s.filter;
@@ -217,6 +220,9 @@ export function EntryList() {
   };
 
   const fileStd = currentOf(s).fileDoc.lengthStd;
+  // 工具欄開著搜尋頁時，符合搜尋的條目高亮
+  const searchQ = s.searchQuery.trim();
+  const searchOn = s.side === 'search' && !s.hideSide && !!searchQ;
   const issuesOf = (e: (typeof sheet.entries)[number]) => visibleIssues(e, s.reported, s.checkSettings, fileStd);
   const cnt: Record<string, number> = { untranslated: 0, doubt: 0, think: 0, issues: 0 };
   sheet.entries.forEach((e) => {
@@ -534,7 +540,7 @@ export function EntryList() {
           onCopy={onCopy} onPaste={onPaste} onKeyDown={onSinkKey}
           style={{ position: 'absolute', left: 0, top: 0, width: 1, height: 1, padding: 0, border: 0, opacity: 0, resize: 'none', pointerEvents: 'none' }} />
         {rows.map(({ e, i, m, issues }) => (
-          <EntryRow key={e.uid} e={e} i={i} m={m} issues={issues} on={i === sel}
+          <EntryRow key={e.uid} e={e} i={i} m={m} issues={issues} on={i === sel} hit={searchOn && searchHit(e, searchQ)}
             selCols={selColsOf(i)} editing={editing && editing.i === i ? editing : null}
             customs={customs} cols={cols} ovfId={ovf.id} ovfSpk={ovf.speaker} ovfSrc={ovf.src} ovfTgt={ovf.tgt} h={handlers} />
         ))}
