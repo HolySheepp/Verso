@@ -4,7 +4,9 @@ import { clearRows, deleteRows, insertRow, setRow, type Col } from '../model/pas
 import { IconWinClose } from './icons';
 import { ContextMenu } from './ContextMenu';
 import { focusOnMount } from './windowDrag';
-import { fz } from '../model/fonts';
+import { fz, overflowOf } from '../model/fonts';
+import { useStore } from '../state/store';
+import { CellText } from './CellText';
 
 /** 方框裡選到的東西：幾行（同一欄裡），或整欄 */
 export type BoxSel = { rows: number[]; anchor: number } | 'col';
@@ -19,6 +21,8 @@ interface Props {
   /** 整個視窗同時只有一個方框有選取 */
   selected: BoxSel | null;
   onSelect(sel: BoxSel | null): void;
+  /** id、發話者欄照設定裡的字體與超框時行為顯示 */
+  fontSlot?: 'id' | 'speaker';
 }
 
 interface Menu { x: number; y: number }
@@ -33,7 +37,9 @@ const toTsv = (rows: string[]) => rows.map((r) => (/[\n\t"]/.test(r) ? `"${r.rep
  * 點標題選整欄；點、Shift、Ctrl、拖動可以選多行。
  * Backspace 清除、Delete 刪除；選了行時 Ctrl+V 從那一行往下覆蓋，選整欄（或沒選）時整欄換掉。
  */
-export function PasteBox({ label, col, onPaste, onChange, selected, onSelect }: Props) {
+export function PasteBox({ label, col, onPaste, onChange, selected, onSelect, fontSlot }: Props) {
+  const ovf = useStore((s) => (fontSlot ? overflowOf(s.fonts, fontSlot) : 'ellipsis'));
+  const font = fontSlot === 'id' ? { family: 'var(--font-id)', size: 'var(--fs-id)' } : fontSlot === 'speaker' ? { family: 'var(--font-spk)', size: 'var(--fs-spk)' } : null;
   // 用一個看不見的文字框接收貼上，這樣不管點在方框哪裡、按 Ctrl+V 都一定會觸發貼上
   const input = useRef<HTMLTextAreaElement>(null);
   const [editing, setEditing] = useState<{ i: number; text: string } | null>(null);
@@ -176,8 +182,9 @@ export function PasteBox({ label, col, onPaste, onChange, selected, onSelect }: 
               if (!selRows.includes(i)) onSelect({ rows: [i], anchor: i });
               setMenu({ x: ev.clientX, y: ev.clientY });
             }}
-            style={{ display: 'flex', gap: 8, padding: '2px 10px', fontSize: fz(12.5), lineHeight: 1.5 }}>
-            <span className="mono" style={{ width: 28, flexShrink: 0, textAlign: 'right', fontSize: fz(10.5), color: 'var(--mute3)', lineHeight: '19px' }}>{i + 1}</span>
+            style={{ display: 'flex', alignItems: 'center', gap: 6, padding: '2px 8px 2px 4px', fontSize: fz(12.5), lineHeight: 1.5 }}>
+            {/* 行號欄剛好放得下 4 位數 */}
+            <span className="mono" style={{ width: '4ch', flexShrink: 0, textAlign: 'right', fontSize: fz(10.5), color: 'var(--mute3)', lineHeight: '19px' }}>{i + 1}</span>
             {editing?.i === i ? (
               <textarea className="pb-edit" ref={focusOnMount} value={editing.text} spellCheck={false}
                 rows={Math.max(1, editing.text.split('\n').length)}
@@ -191,6 +198,8 @@ export function PasteBox({ label, col, onPaste, onChange, selected, onSelect }: 
                   flexGrow: 1, minWidth: 0, margin: '-2px 0', padding: '1px 6px', resize: 'none', boxSizing: 'border-box',
                   background: 'var(--panel)', border: '1px solid var(--accent)', borderRadius: 4, color: 'var(--text)', fontSize: fz(12.5), lineHeight: 1.5,
                 }} />
+            ) : font && r ? (
+              <CellText mode={ovf} fontSize={font.size} style={{ fontFamily: font.family, color: 'var(--text)', lineHeight: 1.5 }}>{r.replace(/\n/g, ' ↵ ')}</CellText>
             ) : (
               <span style={{ minWidth: 0, overflow: 'hidden', whiteSpace: 'nowrap', textOverflow: 'ellipsis', color: r ? 'var(--text)' : 'var(--mute3)' }}>
                 {r ? r.replace(/\n/g, ' ↵ ') : '—'}

@@ -293,9 +293,9 @@ export function PasteDialog() {
             </button>
           </div>
 
-          <div role="tabpanel" style={{ flexGrow: 1, minHeight: 0, display: 'grid', gridTemplateColumns: '0.7fr 0.8fr 1.5fr 1.5fr', gap: 12 }}>
+          <div role="tabpanel" style={{ flexGrow: 1, minHeight: 0, display: 'grid', gridTemplateColumns: '0.8fr 0.9fr 1.5fr 1.5fr', gap: 12 }}>
             {COLS.map((c) => (
-              <PasteBox key={cur + c.key} label={c.label} col={sheet.cols[c.key]}
+              <PasteBox key={cur + c.key} label={c.label} col={sheet.cols[c.key]} fontSlot={c.key === 'id' || c.key === 'speaker' ? c.key : undefined}
                 onPaste={(values, start) => patchSheet(cur, (sh) => ({ cols: { ...sh.cols, ...pasteColumns(COLS.map((x) => x.key), c.key, values, sh.cols, start) } }))}
                 onChange={(col) => patchSheet(cur, (sh) => ({ cols: { ...sh.cols, [c.key]: col } }))}
                 selected={selRow?.key === c.key ? selRow.sel : null}

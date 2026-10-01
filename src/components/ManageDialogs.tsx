@@ -365,8 +365,8 @@ function FileEditor({ file, index, onDirty, onSaved }: { file: FileDoc; index: n
   return (
     <div style={{ flexGrow: 1, minHeight: 0, display: 'flex', flexDirection: 'column' }}
       onKeyDown={(ev) => handleUndoKeys(ev, () => { if (draft.undo()) setSelRow(null); }, () => { if (draft.redo()) setSelRow(null); })}>
-      <div style={{ padding: '14px 20px 0', fontSize: fz(13), color: 'var(--text2)' }}>{file.project} / <span style={{ color: 'var(--text)', fontWeight: 600 }}>{file.name}</span></div>
-      <div role="tablist" aria-label="頁簽" className="no-scrollbar" style={{ display: 'flex', alignItems: 'center', gap: 4, padding: '10px 20px 0', overflowX: 'auto', borderBottom: '1px solid var(--line)' }}>
+      <div style={{ flexShrink: 0, padding: '14px 20px 0', fontSize: fz(13), color: 'var(--text2)' }}>{file.project} / <span style={{ color: 'var(--text)', fontWeight: 600 }}>{file.name}</span></div>
+      <div role="tablist" aria-label="頁簽" className="no-scrollbar" style={{ flexShrink: 0, display: 'flex', alignItems: 'center', gap: 4, padding: '10px 20px 0', overflowX: 'auto', borderBottom: '1px solid var(--line)' }}>
         {sheets.map((sh, i) => (
           renaming === i
             ? <input key={i} className="field" ref={focusOnMount} defaultValue={sh.name} aria-label="頁簽名稱" style={{ height: 30, width: 140 }}
@@ -377,14 +377,14 @@ function FileEditor({ file, index, onDirty, onSaved }: { file: FileDoc; index: n
                 onContextMenu={(e) => { e.preventDefault(); setCur(i); setTabMenu({ i, x: e.clientX, y: e.clientY }); }}
                 style={{
                   height: 32, padding: '0 12px', background: 'transparent', border: 0, borderBottom: `2px solid ${i === sheetIdx ? 'var(--accent)' : 'transparent'}`,
-                  color: i === sheetIdx ? 'var(--text)' : 'var(--text2)', fontSize: fz(12.5), whiteSpace: 'nowrap',
+                  color: i === sheetIdx ? 'var(--text)' : 'var(--text2)', fontSize: fz(12.5), whiteSpace: 'nowrap', flexShrink: 0,
                 }}>{sh.name || '頁簽 ' + (i + 1)}</button>
         ))}
         <button type="button" className="ib" aria-label="新增頁簽" title="新增頁簽" onClick={addSheet} style={{ ...actBtn, color: 'var(--text2)' }}><IconPlus size={13} sw={2.2} /></button>
       </div>
-      <div style={{ flexGrow: 1, minHeight: 0, display: 'grid', gridTemplateColumns: '0.7fr 0.8fr 1.5fr 1.5fr', gap: 12, padding: '12px 20px' }}>
+      <div style={{ flexGrow: 1, minHeight: 0, display: 'grid', gridTemplateColumns: '0.8fr 0.9fr 1.5fr 1.5fr', gap: 12, padding: '12px 20px' }}>
         {COLS.map((c) => (
-          <PasteBox key={sheetIdx + c.key} label={c.label} col={sheet.cols[c.key]}
+          <PasteBox key={sheetIdx + c.key} label={c.label} col={sheet.cols[c.key]} fontSlot={c.key === 'id' || c.key === 'speaker' ? c.key : undefined}
             onPaste={(values, start) => patchSheet(sheetIdx, pasteColumns(FILE_KEYS, c.key, values, draft.current.current[sheetIdx].cols, start))}
             onChange={(col) => patchSheet(sheetIdx, { [c.key]: col })}
             selected={selRow?.key === c.key ? selRow.sel : null}
