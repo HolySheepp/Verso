@@ -14,8 +14,8 @@ export interface LengthStd {
 /** 檔案或條目的標準；'none' 是「無上限」 */
 export type StdValue = LengthStd | 'none';
 
-/** 儲存格左右各留的內距（px）。實測 Google Sheets 能把 549.8px 的一行放進 550px 的欄，所以不留內距 */
-export const CELL_PADDING = 0;
+/** 儲存格左右各留的內距（px）。Google Sheets 的換行不完全照寬度，邊界附近有時多放、有時少放；留 4px 比較保險 */
+export const CELL_PADDING = 4;
 
 /** 中文上限、視覺兩種方式換算欄寬時用的字型 */
 export const CJK_FAMILY = 'Microsoft JhengHei';
