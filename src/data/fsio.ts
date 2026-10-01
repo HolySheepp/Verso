@@ -11,6 +11,8 @@ export interface FileIO {
   /** 列出資料夾裡的項目名稱 */
   list(path: string): Promise<{ name: string; dir: boolean }[]>;
   remove(path: string): Promise<void>;
+  /** 移到資源回收筒（瀏覽器預覽時直接刪掉） */
+  trash(path: string): Promise<void>;
   join(...parts: string[]): string;
   /** 預設的存檔資料夾（文件\Verso） */
   defaultRoot(): Promise<string>;
@@ -33,6 +35,11 @@ const tauriIO = (): FileIO => {
     async mkdir(p) { await (await fsp).mkdir(p, { recursive: true }); },
     async list(p) { return (await (await fsp).readDir(p)).map((e) => ({ name: e.name, dir: e.isDirectory })); },
     async remove(p) { await (await fsp).remove(p); },
+    async trash(p) {
+      if (!(await (await fsp).exists(p))) return;
+      const { invoke } = await import('@tauri-apps/api/core');
+      await invoke('move_to_trash', { path: p });
+    },
     join: (...parts) => parts.join(sep).replace(/[\\/]+/g, sep),
     async defaultRoot() { return (await (await pathp).documentDir()) + sep + 'Verso'; },
     async configPath() { return (await (await pathp).appConfigDir()) + sep + 'config.json'; },
@@ -69,6 +76,7 @@ const browserIO = (): FileIO => {
       return [...out].map(([name, dir]) => ({ name, dir }));
     },
     async remove(p) { keys().filter((k) => k === p || k.startsWith(p + '/')).forEach((k) => { try { localStorage.removeItem(P + k); } catch { /* 忽略 */ } }); },
+    async trash(p) { await this.remove(p); },
     join: (...parts) => parts.join('/').replace(/\/+/g, '/'),
     async defaultRoot() { return 'Verso'; },
     async configPath() { return 'config.json'; },

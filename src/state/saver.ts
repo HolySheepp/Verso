@@ -3,7 +3,7 @@ import { isTauri } from '@tauri-apps/api/core';
 import { getCurrentWindow } from '@tauri-apps/api/window';
 import { io } from '../data/fsio';
 import {
-  loadConfig, loadWorkspace, reloadFile, saveConfig, sortProjects, writeDict, writeFile, writeMeta,
+  loadConfig, loadWorkspace, reloadFile, saveConfig, sortProjects, trashDict, trashFile, trashProject, writeDict, writeFile, writeMeta,
   type AppConfig, type LastPosition,
 } from '../data/persist';
 import { emptyHistory } from '../model/history';
@@ -17,6 +17,7 @@ let saved = {
   files: new Map<string, FileDoc>(),
   customs: null as CustomMark[] | null,
   dicts: new Map<string, string>(),
+  projects: [] as string[],
 };
 let dirtySince = 0;
 let lastAttempt = 0;
@@ -33,8 +34,6 @@ function dictGroups(p: ProjectData) {
     if (!groups.has(k)) groups.set(k, []);
     groups.get(k)!.push(t);
   });
-  // 詞條全刪光的字典也要存（存成空的）
-  saved.dicts.forEach((_, d) => { if (!groups.has(d)) groups.set(d, []); });
   return groups;
 }
 
@@ -43,6 +42,7 @@ function markSaved(p: ProjectData) {
     files: new Map(p.files.map((f) => [fileKey(f), f])),
     customs: p.customMarks,
     dicts: new Map([...dictGroups(p)].map(([d, t]) => [d, dictSignature(t)])),
+    projects: p.projects,
   };
 }
 
@@ -50,7 +50,8 @@ function markSaved(p: ProjectData) {
 export function isDirty(): boolean {
   const p = useStore.getState().project;
   if (!p) return false;
-  if (p.customMarks !== saved.customs) return true;
+  if (p.customMarks !== saved.customs || p.projects !== saved.projects) return true;
+  if (saved.files.size !== p.files.length || saved.dicts.size !== dictGroups(p).size) return true;
   if (p.files.some((f) => saved.files.get(fileKey(f)) !== f)) return true;
   return [...dictGroups(p)].some(([d, t]) => saved.dicts.get(d) !== dictSignature(t));
 }
@@ -70,18 +71,32 @@ export async function saveNow(): Promise<boolean> {
   lastAttempt = Date.now();
   useStore.setState({ saveStatus: 'saving' });
   let ok = true;
-  const done = { files: new Map(saved.files), customs: saved.customs, dicts: new Map(saved.dicts) };
+  const done = { files: new Map(saved.files), customs: saved.customs, dicts: new Map(saved.dicts), projects: saved.projects };
+  // 刪掉（或搬走）的專案、檔案、字典移到資源回收筒
+  const gone = saved.projects.filter((x) => !p.projects.includes(x));
+  for (const x of gone) { try { await trashProject(s.saveRoot, x); } catch { ok = false; } }
+  const keys = new Set(p.files.map(fileKey));
+  for (const [k, f] of saved.files) {
+    if (keys.has(k)) continue;
+    try { if (!gone.includes(f.project)) await trashFile(s.saveRoot, f.project, f.name); done.files.delete(k); } catch { ok = false; }
+  }
+  const groups = dictGroups(p);
+  for (const k of saved.dicts.keys()) {
+    if (groups.has(k)) continue;
+    const i = k.indexOf('/');
+    try { if (!gone.includes(k.slice(0, i))) await trashDict(s.saveRoot, k.slice(0, i), k.slice(i + 1)); done.dicts.delete(k); } catch { ok = false; }
+  }
   // 還沒有檔案時不必建立專案資料夾（只存字典）
-  if (p.files.length || saved.files.size) {
+  if (p.files.length || saved.files.size || p.projects !== saved.projects) {
     const customsChanged = p.customMarks !== saved.customs;
     for (const f of p.files) {
       // 自訂標記改了名稱也要重寫，因為「標記」欄寫的是名稱
       if (saved.files.get(fileKey(f)) === f && !customsChanged) continue;
       try { await writeFile(s.saveRoot, f, p.customMarks); done.files.set(fileKey(f), f); } catch { ok = false; }
     }
-    try { await writeMeta(s.saveRoot, p, lastPosition()); if (ok) done.customs = p.customMarks; } catch { ok = false; }
+    try { await writeMeta(s.saveRoot, p, lastPosition()); if (ok) { done.customs = p.customMarks; done.projects = p.projects; } } catch { ok = false; }
   }
-  for (const [k, terms] of dictGroups(p)) {
+  for (const [k, terms] of groups) {
     const sig = dictSignature(terms);
     if (saved.dicts.get(k) === sig) continue;
     const i = k.indexOf('/');
@@ -260,7 +275,7 @@ export async function resolveAskSave(choice: 'save' | 'discard' | 'cancel') {
 /** 更換存檔資料夾：之後的存檔都存到新資料夾，目前的內容馬上存一份過去 */
 export async function changeSaveRoot(root: string) {
   useStore.setState({ saveRoot: root });
-  saved = { files: new Map(), customs: null, dicts: new Map() };
+  saved = { files: new Map(), customs: null, dicts: new Map(), projects: [] };
   await persistConfig();
   await saveNow();
 }

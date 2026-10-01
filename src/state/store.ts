@@ -28,6 +28,9 @@ export const STAMP_EXCLUDE: Record<Mode, MarkId[]> = {
   source: ['untranslated', 'translated'],
 };
 
+/** 「更改專案」的對象 */
+export type MoveTarget = { kind: 'file'; index: number } | { kind: 'dict'; project: string; name: string };
+
 export interface TermDraft {
   id: string | null;
   term: string; en: string; note: string; dict: string; proj: string;
@@ -98,6 +101,9 @@ interface State {
   /** 手動填入視窗用來在現有檔案插入頁簽時：插在第幾個頁簽後面 */
   pasteInsert: { after: number } | null;
   dictPasteOpen: boolean;
+  manageProjectsOpen: boolean;
+  manageDictsOpen: boolean;
+  moveTarget: MoveTarget | null;
   /** 用下一條、快捷鍵移動選取時遞增，條目列表據此保留前後 3 條可見（滑鼠點選不算） */
   moveSeq: number;
   moveDir: 1 | -1;
@@ -144,6 +150,16 @@ interface Actions {
   deleteCustomMark(id: string, clear: boolean): void;
   addFile(f: FileDoc): void;
   addTerms(project: string, dict: string, pairs: [string, string][]): void;
+  addProject(name: string): void;
+  /** keepDicts：字典移到共用；否則一起刪除 */
+  deleteProject(name: string, keepDicts: boolean): void;
+  deleteFile(i: number): void;
+  moveFile(i: number, project: string): void;
+  addDict(project: string, name: string): void;
+  deleteDict(project: string, name: string): void;
+  moveDict(project: string, name: string, to: string): void;
+  /** 整本字典的詞條換成 rows */
+  setDictTerms(project: string, name: string, rows: { term: string; en: string; note: string }[]): void;
   checkAll(): void;
   skipCheck(): void;
   setCheck(id: CheckId, on: boolean): void;
@@ -185,6 +201,13 @@ function withDict(p: ProjectData, project: string, dict: string): ProjectData {
   const projects = withProject(p.projects, project);
   const has = p.dicts.some((d) => d.project === project && d.name === dict);
   return { ...p, projects, dicts: has ? p.dicts : [...p.dicts, { project, name: dict }] };
+}
+
+/** 名稱重複時加上編號 */
+export function uniqueName(name: string, taken: string[]) {
+  let n = name, k = 2;
+  while (taken.includes(n)) n = `${name} (${k++})`;
+  return n;
 }
 
 /** 目前檔案所屬的專案；還沒有檔案時是共用 */
@@ -322,6 +345,9 @@ export const useStore = create<Store>((set, get) => {
     pasteOpen: false,
     pasteInsert: null,
     dictPasteOpen: false,
+    manageProjectsOpen: false,
+    manageDictsOpen: false,
+    moveTarget: null,
     moveSeq: 0,
     moveDir: 1,
     dictOverrides: {},
@@ -557,6 +583,97 @@ export const useStore = create<Store>((set, get) => {
         project: { ...withDict(project, proj, dict), glossary: [...project.glossary, ...terms] },
         dictPasteOpen: false,
       });
+    },
+
+    addProject(name) {
+      const p = get().project;
+      if (!p || !name.trim()) return;
+      set({ project: { ...p, projects: withProject(p.projects, name.trim()) } });
+    },
+
+    deleteProject(name, keepDicts) {
+      const p = get().project;
+      if (!p || name === SHARED) return;
+      // 先拿掉這個專案的檔案（檔案位置會跟著調整）
+      for (let i = p.files.length - 1; i >= 0; i--) if (p.files[i].project === name) get().deleteFile(i);
+      let q = get().project!;
+      if (keepDicts) {
+        for (const d of q.dicts.filter((x) => x.project === name)) get().moveDict(name, d.name, SHARED);
+        q = get().project!;
+      } else {
+        q = { ...q, dicts: q.dicts.filter((d) => d.project !== name), glossary: q.glossary.filter((g) => g.proj !== name) };
+      }
+      set({
+        project: { ...q, projects: q.projects.filter((x) => x !== name) },
+        collapsedProjects: get().collapsedProjects.filter((x) => x !== name),
+      });
+    },
+
+    deleteFile(i) {
+      const s = get();
+      const p = s.project;
+      if (!p || !p.files[i]) return;
+      // 檔案位置往前移一格；刪掉的那個不再有位置
+      const map = (f: number) => (f === i ? -1 : f > i ? f - 1 : f);
+      const sheetBy: Record<number, number> = {};
+      Object.entries(s.sheetBy).forEach(([k, v]) => { const f = map(Number(k)); if (f >= 0) sheetBy[f] = v; });
+      const selBy: Record<string, number> = {};
+      Object.entries(s.selBy).forEach(([k, v]) => {
+        const [f, sh] = k.split(':').map(Number);
+        if (map(f) >= 0) selBy[selKey(map(f), sh)] = v;
+      });
+      for (const stack of [undoStack, redoStack]) {
+        for (let j = stack.length - 1; j >= 0; j--) {
+          const f = map(stack[j].file);
+          if (f < 0) stack.splice(j, 1); else stack[j] = { ...stack[j], file: f };
+        }
+      }
+      const file = s.file === i ? Math.max(0, Math.min(i, p.files.length - 2)) : map(s.file);
+      set({
+        project: { ...p, files: p.files.filter((_, j) => j !== i) },
+        file, sheetBy, selBy, cellSel: s.file === i ? null : s.cellSel, ...noPopups, ...noView,
+      });
+    },
+
+    moveFile(i, to) {
+      const p = get().project;
+      const f = p?.files[i];
+      if (!p || !f || f.project === to) return;
+      const name = uniqueName(f.name, p.files.filter((x) => x.project === to).map((x) => x.name));
+      set({ project: { ...p, projects: withProject(p.projects, to), files: p.files.map((x, j) => (j === i ? { ...x, project: to, name } : x)) } });
+    },
+
+    addDict(project, name) {
+      const p = get().project;
+      if (!p || !name.trim()) return;
+      set({ project: withDict(p, project, name.trim()) });
+    },
+
+    deleteDict(project, name) {
+      const p = get().project;
+      if (!p) return;
+      set({ project: {
+        ...p,
+        dicts: p.dicts.filter((d) => !(d.project === project && d.name === name)),
+        glossary: p.glossary.filter((g) => !(g.proj === project && g.dict === name)),
+      } });
+    },
+
+    moveDict(project, name, to) {
+      const p = get().project;
+      if (!p || project === to) return;
+      const n = uniqueName(name, p.dicts.filter((d) => d.project === to).map((d) => d.name));
+      const q = withDict({ ...p, dicts: p.dicts.filter((d) => !(d.project === project && d.name === name)) }, to, n);
+      set({ project: { ...q, glossary: p.glossary.map((g) => (g.proj === project && g.dict === name ? { ...g, proj: to, dict: n } : g)) } });
+    },
+
+    setDictTerms(project, name, rows) {
+      const p = get().project;
+      if (!p) return;
+      const base = Date.now().toString(36);
+      const terms: GlossaryTerm[] = rows.map((r, i) => ({ id: 'm' + base + i, ...r, dict: name, proj: project }));
+      const others = p.glossary.filter((g) => !(g.proj === project && g.dict === name));
+      set({ project: { ...withDict(p, project, name), glossary: [...others, ...terms] } });
     },
 
     checkAll() {

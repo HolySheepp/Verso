@@ -30,6 +30,8 @@ input,textarea{font-family:inherit}
 .btn-primary:disabled{background:var(--pdis) !important;color:var(--pdistx) !important;cursor:not-allowed}
 .fs:hover{border-color:var(--line6) !important;background:var(--hv1) !important}
 .dd:hover{background:var(--hv3) !important}
+.tree-row .tree-act{opacity:0;transition:opacity 120ms}
+.tree-row:hover .tree-act,.tree-row:focus-within .tree-act{opacity:1}
 .sr:hover{background:var(--hv2) !important;border-color:var(--line5) !important}
 .stab:hover,.md:hover{color:var(--text) !important}
 textarea:focus,input:focus{outline:none;border-color:var(--accent) !important}

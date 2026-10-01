@@ -12,6 +12,7 @@ import { TermDialog } from './components/TermDialog';
 import { SettingsDialog } from './components/SettingsDialog';
 import { PasteDialog } from './components/PasteDialog';
 import { DictPasteDialog } from './components/DictPasteDialog';
+import { ManageDictsDialog, ManageProjectsDialog, MoveProjectDialog } from './components/ManageDialogs';
 import { Shortcuts } from './components/Shortcuts';
 import { ConfirmDialog } from './components/ConfirmDialog';
 import { resolveAskSave, startApp } from './state/saver';
@@ -161,6 +162,9 @@ export default function App() {
       )}
       <Shortcuts />
       <DictPasteDialog />
+      <ManageProjectsDialog />
+      <ManageDictsDialog />
+      <MoveProjectDialog />
     </div>
   );
 }

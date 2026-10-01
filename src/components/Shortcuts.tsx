@@ -51,10 +51,12 @@ export function Shortcuts() {
       if (ev.key === 'F5' || ((ev.ctrlKey || ev.metaKey) && ev.code === 'KeyR')) ev.preventDefault();
 
       // 對話框開著時只處理 Esc 關閉設定與詞條視窗；貼入視窗怕內容遺失，不用 Esc 關
-      if (s.settingsOpen || s.termDraft || s.pasteOpen || s.dictPasteOpen) {
-        if (ev.key === 'Escape' && !s.pasteOpen && !s.dictPasteOpen) {
+      if (s.settingsOpen || s.termDraft || s.pasteOpen || s.dictPasteOpen || s.manageProjectsOpen || s.manageDictsOpen || s.moveTarget) {
+        if (ev.key === 'Escape' && s.moveTarget) { ev.preventDefault(); s.set({ moveTarget: null }); return; }
+        // 管理字典裡可能有還沒存的詞條修改，不用 Esc 關
+        if (ev.key === 'Escape' && !s.pasteOpen && !s.dictPasteOpen && !s.manageDictsOpen) {
           ev.preventDefault();
-          s.set({ settingsOpen: false, termDraft: null, accentPreview: null });
+          s.set({ settingsOpen: false, termDraft: null, accentPreview: null, manageProjectsOpen: false });
         }
         return;
       }

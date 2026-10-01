@@ -7,7 +7,7 @@ import { focusOnMount } from './windowDrag';
 import { isDone, markName, markVisual } from '../model/marks';
 import type { Entry, MarkId } from '../model/types';
 import { MarkIcon } from './MarkIcon';
-import { IconArrowR, IconChevD, IconChevL, IconChevR, IconFile, IconHideTop, IconPaste, IconPlus, IconSheet } from './icons';
+import { IconArrowR, IconChevD, IconChevL, IconChevR, IconFile, IconHideTop, IconList, IconPaste, IconPlus, IconSheet } from './icons';
 import { fz } from '../model/fonts';
 
 const navBtn: React.CSSProperties = {
@@ -39,6 +39,7 @@ export function FileNav({ tabW }: { tabW: number }) {
   const [tabMenu, setTabMenu] = useState<{ i: number; x: number; y: number } | null>(null);
   const [renaming, setRenaming] = useState<{ i: number; name: string } | null>(null);
   const [ask, setAsk] = useState<{ kind: 'clear' | 'delete'; i: number } | null>(null);
+  const [fileMenu, setFileMenu] = useState<{ i: number; x: number; y: number } | null>(null);
   const onTabMenu = (k: string, i: number) => {
     setTabMenu(null);
     if (k === 'rename') setRenaming({ i, name: fileDoc.sheets[i].name });
@@ -191,6 +192,7 @@ export function FileNav({ tabW }: { tabW: number }) {
                       return (
                         <button key={i} type="button" className="dd" role="option" aria-selected={i === s.file}
                           onClick={() => requestFile(i)}
+                          onContextMenu={(ev) => { ev.preventDefault(); setFileMenu({ i, x: ev.clientX, y: ev.clientY }); }}
                           style={{ ...menuItem, gap: 10, paddingLeft: 27, color: undefined, background: i === s.file ? 'var(--sel)' : 'transparent' }}>
                           <span style={{ flexGrow: 1, fontSize: fz(12.5) }}>{f.name}</span>
                           <span style={{ fontSize: fz(11.5), color: 'var(--mute)' }}>{f.sheets.length} 個頁簽</span>
@@ -210,6 +212,9 @@ export function FileNav({ tabW }: { tabW: number }) {
             <button type="button" className="dd" style={menuItem}>
               <IconPlus size={14} />開啟其他檔案…
             </button>
+            <button type="button" className="dd" style={menuItem} onClick={() => s.set({ manageProjectsOpen: true, fileMenuOpen: false })}>
+              <IconList size={14} />管理專案…
+            </button>
           </div>
         )}
       </div>
@@ -226,6 +231,12 @@ export function FileNav({ tabW }: { tabW: number }) {
             { key: 'insert', label: '插入' },
           ]}
           onPick={(k) => onTabMenu(k, tabMenu.i)} onClose={() => setTabMenu(null)} />
+      )}
+      {fileMenu && (
+        <ContextMenu x={fileMenu.x} y={fileMenu.y} label={'檔案「' + (project.files[fileMenu.i]?.name ?? '') + '」'}
+          items={[{ key: 'move', label: '更改專案' }]}
+          onPick={() => { s.set({ moveTarget: { kind: 'file', index: fileMenu.i }, fileMenuOpen: false }); setFileMenu(null); }}
+          onClose={() => setFileMenu(null)} />
       )}
       {ask && (
         <ConfirmDialog zIndex={60}

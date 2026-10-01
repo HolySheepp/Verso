@@ -2,8 +2,9 @@ import { useState } from 'react';
 import { currentOf, currentProjectOf, dictEnabled, overrideKey, useStore, type SideTab } from '../state/store';
 import { SHARED, dictKey, type DictInfo, type GlossaryTerm } from '../model/types';
 import { fz } from '../model/fonts';
+import { ContextMenu } from './ContextMenu';
 import {
-  IconBook, IconBookmark, IconChevD, IconChevL, IconChevR, IconFile, IconGlobe, IconHideRight, IconPaste, IconPenEdit, IconPlus, IconRefresh, IconSearch, IconUse,
+  IconBook, IconBookmark, IconChevD, IconChevL, IconChevR, IconFile, IconGlobe, IconHideRight, IconList, IconPaste, IconPenEdit, IconPlus, IconRefresh, IconSearch, IconUse,
 } from './icons';
 
 const TABS: { id: SideTab; label: string; Icon: typeof IconBook }[] = [
@@ -54,6 +55,7 @@ function DictTab() {
   const s = useStore();
   const current = currentProjectOf(s);
   const [pickOpen, setPickOpen] = useState(false);
+  const [dictMenu, setDictMenu] = useState<{ d: DictInfo; x: number; y: number } | null>(null);
   const q = dq.trim(), ql = q.toLowerCase();
   // 只查啟用中的字典
   const on = new Set(project.dicts.filter((d) => dictEnabled(s, d)).map((d) => dictKey(d.project, d.name)));
@@ -90,6 +92,10 @@ function DictTab() {
           style={{ width: 36, height: 36, flexShrink: 0, display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 0, background: 'var(--btn)', border: '1px solid var(--line4)', borderRadius: 8, color: 'var(--text2)' }}>
           <IconPaste size={15} />
         </button>
+        <button type="button" className="ib" aria-label="管理字典" title="管理字典" onClick={() => set({ manageDictsOpen: true })}
+          style={{ width: 36, height: 36, flexShrink: 0, display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 0, background: 'var(--btn)', border: '1px solid var(--line4)', borderRadius: 8, color: 'var(--text2)' }}>
+          <IconList size={15} />
+        </button>
       </div>
       <div>
         <button type="button" className="ib" aria-expanded={pickOpen} onClick={() => setPickOpen(!pickOpen)}
@@ -101,7 +107,8 @@ function DictTab() {
         {pickOpen && (
           <div role="group" aria-label="啟用的字典" style={{ display: 'flex', flexDirection: 'column', gap: 2, marginTop: 4, padding: 4, background: 'var(--card)', border: '1px solid var(--line2)', borderRadius: 8 }}>
             {sorted.map((d) => (
-              <label key={dictKey(d.project, d.name)} className="dd" style={{ height: 30, display: 'flex', alignItems: 'center', gap: 8, padding: '0 8px', borderRadius: 6, cursor: 'pointer', fontSize: fz(12.5) }}>
+              <label key={dictKey(d.project, d.name)} className="dd"
+                onContextMenu={(ev) => { ev.preventDefault(); setDictMenu({ d, x: ev.clientX, y: ev.clientY }); }} style={{ height: 30, display: 'flex', alignItems: 'center', gap: 8, padding: '0 8px', borderRadius: 6, cursor: 'pointer', fontSize: fz(12.5) }}>
                 <span style={{ flexGrow: 1, minWidth: 0, overflow: 'hidden', whiteSpace: 'nowrap', textOverflow: 'ellipsis' }}>{d.name}</span>
                 <ProjTag name={d.project} />
                 <input type="checkbox" role="switch" className="switch" aria-label={d.project + ' ' + d.name}
@@ -122,6 +129,11 @@ function DictTab() {
       <div style={{ fontSize: fz(11.5), color: 'var(--mute)' }}>這一條命中 {matches.length} 個詞條</div>
       {matches.map((g) => <TermCard key={g.id} g={g} />)}
       {matches.length === 0 && <div className="empty" style={{ padding: '32px 12px' }}>這一條沒有符合的詞條</div>}
+      {dictMenu && (
+        <ContextMenu x={dictMenu.x} y={dictMenu.y} label={'字典「' + dictMenu.d.name + '」'} items={[{ key: 'move', label: '更改專案' }]}
+          onPick={() => { set({ moveTarget: { kind: 'dict', project: dictMenu.d.project, name: dictMenu.d.name } }); setDictMenu(null); }}
+          onClose={() => setDictMenu(null)} />
+      )}
     </div>
   );
 }

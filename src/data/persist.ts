@@ -192,6 +192,8 @@ export async function writeMeta(root: string, data: ProjectData, last?: LastPosi
     if (!byProject.has(f.project)) byProject.set(f.project, []);
     byProject.get(f.project)!.push(safeName(f.name));
   });
+  // 沒有檔案的專案也建資料夾，下次開啟才找得到
+  data.projects.forEach((p) => { if (!byProject.has(p)) byProject.set(p, []); });
   for (const [project, order] of byProject) {
     const dir = io.join(root, project);
     await io.mkdir(dir);
@@ -200,6 +202,14 @@ export async function writeMeta(root: string, data: ProjectData, last?: LastPosi
   await io.mkdir(root);
   const ws: WorkspaceMeta = { customMarks: data.customMarks, nextMarkId: data.nextMarkId ?? 1, last };
   await io.writeText(io.join(root, WORKSPACE), JSON.stringify(ws, null, 2));
+}
+
+/** 刪除的檔案、字典、專案都移到資源回收筒 */
+export const trashFile = (root: string, project: string, name: string) => io.trash(io.join(root, project, safeName(name) + '.xlsx'));
+export const trashDict = (root: string, project: string, dict: string) => io.trash(io.join(root, DICT_DIR, project, safeName(dict) + '.xlsx'));
+export async function trashProject(root: string, project: string) {
+  await io.trash(io.join(root, project));
+  await io.trash(io.join(root, DICT_DIR, project));
 }
 
 export async function writeDict(root: string, project: string, dict: string, terms: GlossaryTerm[]) {

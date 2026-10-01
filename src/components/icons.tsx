@@ -26,6 +26,7 @@ export const IconChevD = make(<path d="M6 9l6 6 6-6" />);
 export const IconFile = make(<><path d="M14 3H6a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V9z" /><path d="M14 3v6h6" /></>);
 export const IconFolder = make(<path d="M3 7a2 2 0 0 1 2-2h4l2 2h8a2 2 0 0 1 2 2v8a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z" />);
 export const IconArrowR = make(<path d="M4 12h15M13 6l6 6-6 6" />);
+export const IconList = make(<path d="M9 6h11M9 12h11M9 18h11M4.5 6h.01M4.5 12h.01M4.5 18h.01" />);
 export const IconPlus = make(<path d="M12 5v14M5 12h14" />);
 export const IconHideTop = make(<><rect x="3" y="4" width="18" height="16" rx="2" /><path d="M4 5h16v4H4z" fill="currentColor" stroke="none" /><path d="M9 15l3-3 3 3" /></>);
 export const IconHideRight = make(<><rect x="3" y="4" width="18" height="16" rx="2" /><path d="M15 5h5v14h-5z" fill="currentColor" stroke="none" /><path d="M8 9l3 3-3 3" /></>);
