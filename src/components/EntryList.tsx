@@ -137,7 +137,7 @@ export function EntryList() {
     }
     if (ev.button !== 0) return;
     ev.preventDefault();
-    sink.current?.focus();
+    sink.current?.focus({ preventScroll: true });
     const cell = { i, c };
     if (ev.shiftKey) { pick(rectKeys(visible, anchor, cell), anchor); return; }
     if (ev.ctrlKey || ev.metaKey) {
@@ -188,7 +188,7 @@ export function EntryList() {
     if (ev.button !== 0) return;
     ev.preventDefault();
     if (editing) commitEdit();
-    sink.current?.focus();
+    sink.current?.focus({ preventScroll: true });
     const cell: Cell = { i, c: 0 };
     if (ev.shiftKey) {
       const a = visible.indexOf(anchor.i), b = visible.indexOf(i);
@@ -217,7 +217,7 @@ export function EntryList() {
     if (ev.button !== 0 || !visible.length) return;
     ev.preventDefault();
     if (editing) commitEdit();
-    sink.current?.focus();
+    sink.current?.focus({ preventScroll: true });
     const cell: Cell = { i: visible[0], c: c as CellCol };
     if (ev.shiftKey) { pick(colKeys(anchor.c, c), { i: visible[0], c: anchor.c }); return; }
     const base = ev.ctrlKey || ev.metaKey ? keys : [];
@@ -277,7 +277,7 @@ export function EntryList() {
 
   const menuAct = (k: string) => {
     setMenu(null);
-    sink.current?.focus();
+    sink.current?.focus({ preventScroll: true });
     if (readOnly) return;
     const first = parseKey([...keys].sort(order)[0]);
     if (k === 'edit') startEdit(first.i, first.c);
@@ -388,7 +388,7 @@ export function EntryList() {
           })}
         </div>
       </div>
-      <div ref={listRef} onMouseDown={(ev) => { if (ev.target === ev.currentTarget || !(ev.target as HTMLElement).closest('.rw')) { ev.preventDefault(); sink.current?.focus(); } }} style={{ position: 'relative', flexGrow: 1, overflowY: 'auto', scrollbarGutter: 'stable', padding: '4px 0', userSelect: 'none' }}>
+      <div ref={listRef} onMouseDown={(ev) => { if (ev.target === ev.currentTarget || !(ev.target as HTMLElement).closest('.rw')) { ev.preventDefault(); sink.current?.focus({ preventScroll: true }); } }} style={{ position: 'relative', flexGrow: 1, overflowY: 'auto', scrollbarGutter: 'stable', padding: '4px 0', userSelect: 'none' }}>
         <textarea ref={sink} className="list-sink" aria-label="條目欄" value="" onChange={() => {}}
           onCopy={onCopy} onPaste={onPaste} onKeyDown={onSinkKey}
           style={{ position: 'absolute', left: 0, top: 0, width: 1, height: 1, padding: 0, border: 0, opacity: 0, resize: 'none', pointerEvents: 'none' }} />
@@ -404,7 +404,7 @@ export function EntryList() {
               onMouseDown: (ev: React.MouseEvent) => onCellDown(ev, i, c),
               onMouseEnter: (ev: React.MouseEvent) => onCellEnter(ev, i, c),
               onDoubleClick: () => startEdit(i, c),
-              onContextMenu: (ev: React.MouseEvent) => { ev.preventDefault(); sink.current?.focus(); setMenu({ x: ev.clientX, y: ev.clientY }); },
+              onContextMenu: (ev: React.MouseEvent) => { ev.preventDefault(); sink.current?.focus({ preventScroll: true }); setMenu({ x: ev.clientX, y: ev.clientY }); },
               className: 'cell' + (isSel ? ' cell-sel' : ''),
             };
           };
@@ -415,8 +415,8 @@ export function EntryList() {
               onChange={(ev) => setEditing({ ...editing, text: ev.target.value })}
               onKeyDown={(ev) => {
                 ev.stopPropagation();
-                if (ev.key === 'Enter' && !ev.shiftKey) { ev.preventDefault(); commitEdit(); sink.current?.focus(); }
-                if (ev.key === 'Escape') { ev.preventDefault(); setEditing(null); sink.current?.focus(); }
+                if (ev.key === 'Enter' && !ev.shiftKey) { ev.preventDefault(); commitEdit(); sink.current?.focus({ preventScroll: true }); }
+                if (ev.key === 'Escape') { ev.preventDefault(); setEditing(null); sink.current?.focus({ preventScroll: true }); }
               }}
               onBlur={commitEdit} />
           ) : null);
@@ -485,7 +485,7 @@ export function EntryList() {
             { key: 'up', label: '上移', disabled: readOnly },
             { key: 'down', label: '下移', disabled: readOnly },
           ]}
-          onPick={menuAct} onClose={() => { setMenu(null); sink.current?.focus(); }} />
+          onPick={menuAct} onClose={() => { setMenu(null); sink.current?.focus({ preventScroll: true }); }} />
       )}
       {confirm && <CopyConfirm {...confirm} onCancel={() => setConfirm(null)} onConfirm={() => void doCopy()} />}
     </section>

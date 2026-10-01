@@ -82,7 +82,7 @@ export function PasteBox({ label, col, onPaste, onChange, selected, onSelect, fo
     setEditing(null);
   };
 
-  const focusSink = () => input.current?.focus();
+  const focusSink = () => input.current?.focus({ preventScroll: true });
 
   const clear = () => {
     if (!col) return;
