@@ -1,4 +1,5 @@
 import { create } from 'zustand';
+import { useShallow } from 'zustand/react/shallow';
 import { emptyHistory, recordText, selectSlot, type HistoryStore } from '../model/history';
 import { effectiveMark, findCustom, toStoredMark } from '../model/marks';
 import { TGT_COL, cellKey, parseKey, type Cell } from '../model/cells';
@@ -45,10 +46,20 @@ const checkable = (e: Entry) => !!e.tgt && e.mark !== 'ignore' && !e.skipCheck;
  * 要顯示的問題：只顯示檢查當下報過、而且現在還存在的問題。
  * 所以改對了警示馬上消失，但打字途中新出現的問題要等離開這條時才報。
  */
+const NO_ISSUES: Issue[] = [];
+/** 檢查結果快取：條目是不可變更新，條目沒改參照就不變；報過的問題或檢查設定換了就重算 */
+const issueCache = new WeakMap<Entry, { keys: string[]; settings: CheckSettings; out: Issue[] }>();
+
 export function visibleIssues(e: Entry, reported: Record<string, string[]>, settings: CheckSettings): Issue[] {
   const keys = reported[e.uid];
-  if (!keys || !checkable(e)) return [];
-  return enabledIssues(e.src, e.tgt, settings).filter((i) => keys.includes(i.key));
+  if (!keys || !checkable(e)) return NO_ISSUES;
+  const hit = issueCache.get(e);
+  if (hit && hit.keys === keys && hit.settings === settings) return hit.out;
+  const found = enabledIssues(e.src, e.tgt, settings).filter((i) => keys.includes(i.key));
+  // 沒有問題時回傳同一個空陣列，條目欄的行元件才不會因為「新的空陣列」重畫
+  const out = found.length ? found : NO_ISSUES;
+  issueCache.set(e, { keys, settings, out });
+  return out;
 }
 
 interface State {
@@ -230,8 +241,12 @@ export const overrideKey = (current: string, d: DictInfo) => current + '>' + dic
 
 /** 字典有沒有啟用：目前專案和共用的字典預設啟用，可以手動開關 */
 export function dictEnabled(s: Pick<State, 'project' | 'file' | 'sheetBy' | 'selBy' | 'dictOverrides'>, d: DictInfo) {
-  const current = currentProjectOf(s);
-  return s.dictOverrides[overrideKey(current, d)] ?? (d.project === current || d.project === SHARED);
+  return dictEnabledIn(currentProjectOf(s), s.dictOverrides, d);
+}
+
+/** 同上，直接給目前專案與手動開關（只訂閱這兩個值的區塊用） */
+export function dictEnabledIn(current: string, overrides: Record<string, boolean>, d: DictInfo) {
+  return overrides[overrideKey(current, d)] ?? (d.project === current || d.project === SHARED);
 }
 
 /** 目前的頁簽、條目位置 */
@@ -811,4 +826,16 @@ export function visibleRows(s: State): number[] {
     else if (effectiveMark(e) === s.filter) out.push(i);
   });
   return out;
+}
+
+/**
+ * 只訂閱列出的欄位：其中任一個換了（參照不同）才重畫。
+ * 回傳的型別只有這些欄位，少列了用到的欄位會直接編譯錯誤，不會漏訂。
+ */
+export function useStorePick<K extends keyof Store>(...keys: K[]): Pick<Store, K> {
+  return useStore(useShallow((s: Store) => {
+    const o = {} as Pick<Store, K>;
+    for (const k of keys) o[k] = s[k];
+    return o;
+  }));
 }

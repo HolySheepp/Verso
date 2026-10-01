@@ -1,5 +1,5 @@
-import { useEffect, useRef, useState } from 'react';
-import { currentOf, useStore, visibleIssues, type Filter } from '../state/store';
+import { memo, useEffect, useRef, useState } from 'react';
+import { currentOf, useStorePick, visibleIssues, type Filter } from '../state/store';
 import { effectiveMark, markName, markVisual } from '../model/marks';
 import { columnToClipboard, parseHtmlTable, parseTsv, writeColumn } from '../model/clipboard';
 import {
@@ -12,7 +12,9 @@ import { MarkIcon } from './MarkIcon';
 import { rowMenuPos } from './rowMenu';
 import { CopyConfirm } from './CopyConfirm';
 import { IconCheck, IconCopy, IconScan, IconWarn } from './icons';
-import { fz, overflowOf } from '../model/fonts';
+import { fz, overflowOf, type Overflow } from '../model/fonts';
+import type { CustomMark, Entry, MarkId } from '../model/types';
+import type { Issue } from '../model/checks';
 import { CellText } from './CellText';
 
 /** # 欄（對話 id）、發話者欄、原文、譯文：依比例分配寬度 */
@@ -35,8 +37,118 @@ const FILTERS: { id: Filter; label: string }[] = [
   { id: 'issues', label: '有問題' },
 ];
 
+/** 條目欄一行要用到的操作；放在 ref 裡，行元件拿到的參照永遠不變，才不會因此整排重畫 */
+interface RowHandlers {
+  cellDown(ev: React.MouseEvent, i: number, c: CellCol): void;
+  cellEnter(ev: React.MouseEvent, i: number, c: CellCol): void;
+  startEdit(i: number, c: CellCol): void;
+  cellMenu(ev: React.MouseEvent): void;
+  openMark(ev: React.MouseEvent<HTMLButtonElement>, i: number): void;
+  rowPick(ev: React.MouseEvent, i: number): void;
+  rowEnter(ev: React.MouseEvent, i: number): void;
+  editText(text: string): void;
+  /** refocus：結束後把焦點交回條目欄 */
+  commitEdit(refocus: boolean): void;
+  cancelEdit(): void;
+}
+
+interface RowProps {
+  e: Entry;
+  i: number;
+  m: MarkId;
+  issues: Issue[];
+  on: boolean;
+  /** 這一行選到的欄，例如 "0,3" */
+  selCols: string;
+  /** 這一行正在格子裡編輯的話 */
+  editing: { c: CellCol; text: string } | null;
+  customs: CustomMark[];
+  cols: string;
+  ovfId: Overflow; ovfSpk: Overflow; ovfSrc: Overflow; ovfTgt: Overflow;
+  h: React.RefObject<RowHandlers>;
+}
+
+/** 條目欄的一行：只有自己的內容、選取、標記等變了才重畫 */
+const EntryRow = memo(function EntryRow({ e, i, m, issues, on, selCols, editing, customs, cols, ovfId, ovfSpk, ovfSrc, ovfTgt, h }: RowProps) {
+  const doubt = m === 'doubt', ver = m === 'verified', ign = m === 'ignore';
+  const label = '標記：' + markName(customs, m) + '，點擊變更';
+  const cellProps = (c: CellCol) => {
+    const isSel = selCols.includes(String(c));
+    return {
+      'data-cell': cellKey(i, c),
+      'aria-selected': isSel,
+      onMouseDown: (ev: React.MouseEvent) => h.current.cellDown(ev, i, c),
+      onMouseEnter: (ev: React.MouseEvent) => h.current.cellEnter(ev, i, c),
+      onDoubleClick: () => h.current.startEdit(i, c),
+      onContextMenu: (ev: React.MouseEvent) => h.current.cellMenu(ev),
+      className: 'cell' + (isSel ? ' cell-sel' : ''),
+    };
+  };
+  const editor = (c: CellCol) => (editing && editing.c === c ? (
+    <textarea className="cell-edit" ref={focusOnMount} value={editing.text} spellCheck={false}
+      rows={Math.max(1, editing.text.split('\n').length)}
+      onMouseDown={(ev) => ev.stopPropagation()}
+      onChange={(ev) => h.current.editText(ev.target.value)}
+      onKeyDown={(ev) => {
+        ev.stopPropagation();
+        if (ev.key === 'Enter' && !ev.shiftKey) { ev.preventDefault(); h.current.commitEdit(true); }
+        if (ev.key === 'Escape') { ev.preventDefault(); h.current.cancelEdit(); }
+      }}
+      onBlur={() => h.current.commitEdit(false)} />
+  ) : null);
+  return (
+    <div key={e.uid} className="rw" aria-current={on ? 'true' : undefined} style={{
+      display: 'grid', gridTemplateColumns: '24px 16px minmax(0, 1fr)', padding: '0 12px 0 4px',
+      borderTop: `1px solid ${doubt ? 'var(--dbline)' : 'transparent'}`,
+      borderBottom: `1px solid ${doubt ? 'var(--dbline)' : 'transparent'}`,
+      background: doubt ? (on ? 'var(--dbon)' : 'var(--db)') : 'transparent',
+    }}>
+      <button type="button" className="mk" aria-haspopup="menu" aria-label={label} title={label} onClick={(ev) => h.current.openMark(ev, i)}
+        style={{ width: 24, minHeight: 38, display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 0, background: 'transparent', border: 0, borderRadius: 4 }}>
+        <MarkIcon mark={markVisual(customs, m)} size={14} />
+      </button>
+      <span className="row-pick" onMouseDown={(ev) => h.current.rowPick(ev, i)} onMouseEnter={(ev) => h.current.rowEnter(ev, i)} style={{ display: 'flex', alignItems: 'center', justifyContent: 'flex-start' }}>
+        {e.note && (
+          <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="var(--text2)" strokeWidth="2.2" strokeLinejoin="round" role="img" aria-label="有備註">
+            <title>有備註</title><path d="M4 5h16v11H9.5L4 20.5z" />
+          </svg>
+        )}
+      </span>
+      <div role="row" style={{ minWidth: 0, minHeight: 38, display: 'grid', gridTemplateColumns: cols, alignItems: 'stretch', fontSize: fz(13) }}>
+        <span {...cellProps(0)} title={e.id} style={{ display: 'flex', alignItems: 'center', justifyContent: 'flex-end', minWidth: 0, padding: '4px 0', fontFamily: 'var(--font-id)', fontSize: 'var(--fs-id)' }}>
+          {editor(0) ?? <CellText mode={ovfId} fontSize="var(--fs-id)" style={{ paddingRight: 2, textAlign: 'right', color: ver ? 'var(--mute3)' : 'var(--mute)' }}>{e.id}</CellText>}
+        </span>
+        <span {...cellProps(1)} title={e.speaker} style={{ display: 'flex', alignItems: 'center', minWidth: 0, padding: '4px 8px 4px 4px', fontFamily: 'var(--font-spk)', fontSize: 'var(--fs-spk)', color: ver ? 'var(--mute3)' : 'var(--text2)' }}>
+          {editor(1) ?? <CellText mode={ovfSpk} fontSize="var(--fs-spk)">{e.speaker}</CellText>}
+        </span>
+        <span {...cellProps(2)} style={{ display: 'flex', alignItems: 'center', minWidth: 0, padding: '9px 16px 9px 0', lineHeight: 1.45, color: ver ? 'var(--mute2)' : 'var(--text)', fontSize: SRC_FS, fontFamily: 'var(--font-src)' }}>
+          {editor(2) ?? <CellText mode={ovfSrc} fontSize={SRC_FS}>{e.src}</CellText>}
+        </span>
+        <span {...cellProps(3)} style={{
+          fontSize: TGT_FS, fontFamily: 'var(--font-tgt)',
+          display: 'flex', alignItems: 'center', minWidth: 0, padding: '9px 16px', lineHeight: 1.45, borderLeft: '1px solid var(--line0)',
+          color: ver ? 'var(--mute2)' : e.tgt ? 'var(--textsoft)' : 'var(--mute2)', fontStyle: e.tgt ? 'normal' : 'italic',
+        }}>
+          {editor(3) ?? (
+            <CellText mode={ovfTgt} fontSize={TGT_FS}>
+              {issues.length > 0 && (
+                <span role="img" aria-label={issues.map((x) => x.msg).join('、')} title={issues.map((x) => x.msg).join('、')}
+                  style={{ display: 'inline-flex', verticalAlign: '-2px', marginRight: 6, color: 'var(--warntx)', fontStyle: 'normal' }}>
+                  <IconWarn size={13} sw={2.2} />
+                </span>
+              )}
+              {e.tgt || (ign ? '不需翻譯' : '尚未翻譯')}
+            </CellText>
+          )}
+        </span>
+      </div>
+    </div>
+  );
+});
+
 export function EntryList() {
-  const s = useStore();
+  // 只訂閱這個區塊用到的資料（包含 currentOf 等輔助函式間接用到的）
+  const s = useStorePick('project', 'file', 'sheetBy', 'selBy', 'mode', 'fonts', 'colWidths', 'cellSel', 'filter', 'reported', 'checkSettings', 'moveDir', 'moveSeq', 'set', 'select', 'selectCells', 'editSheet', 'undoSheet', 'redoSheet', 'checkAll');
   const project = s.project!;
   const { sheet, sheetIdx, sel } = currentOf(s);
   const filter = s.filter;
@@ -120,6 +232,11 @@ export function EntryList() {
   // 選到的格子；沒有特別選時就是目前這條的譯文格
   const keys = s.cellSel?.keys.length ? s.cellSel.keys : [cellKey(sel, TGT_COL)];
   const selected = new Set(keys);
+  // 每一行選到哪幾欄（給行元件比對用的字串）
+  const selByRow = new Map<number, number[]>();
+  keys.forEach((k) => { const { i, c } = parseKey(k); if (!selByRow.has(i)) selByRow.set(i, []); selByRow.get(i)!.push(c); });
+  const selColsOf = (i: number) => (selByRow.get(i) ?? []).sort().join(',');
+  const cols = colsOf(s.colWidths);
   const anchor = s.cellSel?.anchor ?? { i: sel, c: TGT_COL };
   const order = (a: string, b: string) => {
     const pa = parseKey(a), pb = parseKey(b);
@@ -321,6 +438,21 @@ export function EntryList() {
     else if (k === 'KeyY' || (k === 'KeyZ' && ev.shiftKey)) { ev.preventDefault(); s.redoSheet(); }
   };
 
+  // 行元件透過 ref 拿操作，每次重畫都換成最新的（裡面用到的選取、編輯狀態才會是新的）
+  const handlers = useRef<RowHandlers>(null!);
+  handlers.current = {
+    cellDown: onCellDown,
+    cellEnter: onCellEnter,
+    startEdit,
+    cellMenu: (ev) => { ev.preventDefault(); sink.current?.focus({ preventScroll: true }); setMenu({ x: ev.clientX, y: ev.clientY }); },
+    openMark,
+    rowPick: onRowPick,
+    rowEnter: onRowEnter,
+    editText: (text) => setEditing((ed) => (ed ? { ...ed, text } : ed)),
+    commitEdit: (refocus) => { commitEdit(); if (refocus) sink.current?.focus({ preventScroll: true }); },
+    cancelEdit: () => { setEditing(null); sink.current?.focus({ preventScroll: true }); },
+  };
+
   return (
     <section aria-label="文本條目" style={{
       flexGrow: 1, minHeight: 0, display: 'flex', flexDirection: 'column', background: 'var(--panel)',
@@ -392,83 +524,11 @@ export function EntryList() {
         <textarea ref={sink} className="list-sink" aria-label="條目欄" value="" onChange={() => {}}
           onCopy={onCopy} onPaste={onPaste} onKeyDown={onSinkKey}
           style={{ position: 'absolute', left: 0, top: 0, width: 1, height: 1, padding: 0, border: 0, opacity: 0, resize: 'none', pointerEvents: 'none' }} />
-        {rows.map(({ e, i, m, issues }) => {
-          const on = i === sel, doubt = m === 'doubt', ver = m === 'verified', ign = m === 'ignore';
-          const label = '標記：' + markName(customs, m) + '，點擊變更';
-          const cellProps = (c: CellCol) => {
-            const k = cellKey(i, c);
-            const isSel = selected.has(k);
-            return {
-              'data-cell': k,
-              'aria-selected': isSel,
-              onMouseDown: (ev: React.MouseEvent) => onCellDown(ev, i, c),
-              onMouseEnter: (ev: React.MouseEvent) => onCellEnter(ev, i, c),
-              onDoubleClick: () => startEdit(i, c),
-              onContextMenu: (ev: React.MouseEvent) => { ev.preventDefault(); sink.current?.focus({ preventScroll: true }); setMenu({ x: ev.clientX, y: ev.clientY }); },
-              className: 'cell' + (isSel ? ' cell-sel' : ''),
-            };
-          };
-          const editor = (c: CellCol) => (editing && editing.i === i && editing.c === c ? (
-            <textarea className="cell-edit" ref={focusOnMount} value={editing.text} spellCheck={false}
-              rows={Math.max(1, editing.text.split('\n').length)}
-              onMouseDown={(ev) => ev.stopPropagation()}
-              onChange={(ev) => setEditing({ ...editing, text: ev.target.value })}
-              onKeyDown={(ev) => {
-                ev.stopPropagation();
-                if (ev.key === 'Enter' && !ev.shiftKey) { ev.preventDefault(); commitEdit(); sink.current?.focus({ preventScroll: true }); }
-                if (ev.key === 'Escape') { ev.preventDefault(); setEditing(null); sink.current?.focus({ preventScroll: true }); }
-              }}
-              onBlur={commitEdit} />
-          ) : null);
-          return (
-            <div key={e.uid} className="rw" aria-current={on ? 'true' : undefined} style={{
-              display: 'grid', gridTemplateColumns: '24px 16px minmax(0, 1fr)', padding: '0 12px 0 4px',
-              borderTop: `1px solid ${doubt ? 'var(--dbline)' : 'transparent'}`,
-              borderBottom: `1px solid ${doubt ? 'var(--dbline)' : 'transparent'}`,
-              background: doubt ? (on ? 'var(--dbon)' : 'var(--db)') : 'transparent',
-            }}>
-              <button type="button" className="mk" aria-haspopup="menu" aria-label={label} title={label} onClick={(ev) => openMark(ev, i)}
-                style={{ width: 24, minHeight: 38, display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 0, background: 'transparent', border: 0, borderRadius: 4 }}>
-                <MarkIcon mark={markVisual(customs, m)} size={14} />
-              </button>
-              <span className="row-pick" onMouseDown={(ev) => onRowPick(ev, i)} onMouseEnter={(ev) => onRowEnter(ev, i)} style={{ display: 'flex', alignItems: 'center', justifyContent: 'flex-start' }}>
-                {e.note && (
-                  <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="var(--text2)" strokeWidth="2.2" strokeLinejoin="round" role="img" aria-label="有備註">
-                    <title>有備註</title><path d="M4 5h16v11H9.5L4 20.5z" />
-                  </svg>
-                )}
-              </span>
-              <div role="row" style={{ minWidth: 0, minHeight: 38, display: 'grid', gridTemplateColumns: colsOf(s.colWidths), alignItems: 'stretch', fontSize: fz(13) }}>
-                <span {...cellProps(0)} title={e.id} style={{ display: 'flex', alignItems: 'center', justifyContent: 'flex-end', minWidth: 0, padding: '4px 0', fontFamily: 'var(--font-id)', fontSize: 'var(--fs-id)' }}>
-                  {editor(0) ?? <CellText mode={ovf.id} fontSize="var(--fs-id)" style={{ paddingRight: 2, textAlign: 'right', color: ver ? 'var(--mute3)' : 'var(--mute)' }}>{e.id}</CellText>}
-                </span>
-                <span {...cellProps(1)} title={e.speaker} style={{ display: 'flex', alignItems: 'center', minWidth: 0, padding: '4px 8px 4px 4px', fontFamily: 'var(--font-spk)', fontSize: 'var(--fs-spk)', color: ver ? 'var(--mute3)' : 'var(--text2)' }}>
-                  {editor(1) ?? <CellText mode={ovf.speaker} fontSize="var(--fs-spk)">{e.speaker}</CellText>}
-                </span>
-                <span {...cellProps(2)} style={{ display: 'flex', alignItems: 'center', minWidth: 0, padding: '9px 16px 9px 0', lineHeight: 1.45, color: ver ? 'var(--mute2)' : 'var(--text)', fontSize: SRC_FS, fontFamily: 'var(--font-src)' }}>
-                  {editor(2) ?? <CellText mode={ovf.src} fontSize={SRC_FS}>{e.src}</CellText>}
-                </span>
-                <span {...cellProps(3)} style={{
-                  fontSize: TGT_FS, fontFamily: 'var(--font-tgt)',
-                  display: 'flex', alignItems: 'center', minWidth: 0, padding: '9px 16px', lineHeight: 1.45, borderLeft: '1px solid var(--line0)',
-                  color: ver ? 'var(--mute2)' : e.tgt ? 'var(--textsoft)' : 'var(--mute2)', fontStyle: e.tgt ? 'normal' : 'italic',
-                }}>
-                  {editor(3) ?? (
-                    <CellText mode={ovf.tgt} fontSize={TGT_FS}>
-                      {issues.length > 0 && (
-                        <span role="img" aria-label={issues.map((x) => x.msg).join('、')} title={issues.map((x) => x.msg).join('、')}
-                          style={{ display: 'inline-flex', verticalAlign: '-2px', marginRight: 6, color: 'var(--warntx)', fontStyle: 'normal' }}>
-                          <IconWarn size={13} sw={2.2} />
-                        </span>
-                      )}
-                      {e.tgt || (ign ? '不需翻譯' : '尚未翻譯')}
-                    </CellText>
-                  )}
-                </span>
-              </div>
-            </div>
-          );
-        })}
+        {rows.map(({ e, i, m, issues }) => (
+          <EntryRow key={e.uid} e={e} i={i} m={m} issues={issues} on={i === sel}
+            selCols={selColsOf(i)} editing={editing && editing.i === i ? editing : null}
+            customs={customs} cols={cols} ovfId={ovf.id} ovfSpk={ovf.speaker} ovfSrc={ovf.src} ovfTgt={ovf.tgt} h={handlers} />
+        ))}
         {rows.length === 0 && (
           <div style={{ padding: '48px 0', textAlign: 'center', color: 'var(--mute)' }}>
             {project.files.length === 0 ? '目前沒有檔案，請新增檔案' : sheet.entries.length === 0 ? '這個頁簽沒有條目' : '這個篩選條件下沒有條目'}

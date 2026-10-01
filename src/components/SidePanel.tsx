@@ -1,6 +1,7 @@
-import { useState } from 'react';
-import { currentOf, currentProjectOf, dictEnabled, overrideKey, useStore, type SideTab } from '../state/store';
-import { SHARED, dictKey, type DictInfo, type GlossaryTerm } from '../model/types';
+import { useDeferredValue, useEffect, useMemo, useRef, useState } from 'react';
+import { useShallow } from 'zustand/react/shallow';
+import { currentOf, currentProjectOf, dictEnabledIn, overrideKey, useStore, useStorePick, type SideTab } from '../state/store';
+import { SHARED, dictKey, type DictInfo, type FileDoc, type GlossaryTerm } from '../model/types';
 import { fz } from '../model/fonts';
 import { ContextMenu } from './ContextMenu';
 import {
@@ -56,29 +57,44 @@ function TermCard({ g }: { g: GlossaryTerm }) {
 }
 
 function DictTab() {
-  const project = useStore((s) => s.project)!;
-  const src = currentOf(useStore()).entry?.src ?? '';
-  const dq = useStore((s) => s.dictQuery);
+  // 只訂閱字典分頁用得到的值：打譯文時這些都不變，這一頁就不會重畫
+  const { glossary, dicts, dq, overrides, current, uid, src } = useStore(useShallow((s) => ({
+    glossary: s.project!.glossary,
+    dicts: s.project!.dicts,
+    dq: s.dictQuery,
+    overrides: s.dictOverrides,
+    current: currentProjectOf(s),
+    uid: currentOf(s).entry?.uid ?? '',
+    src: currentOf(s).entry?.src ?? '',
+  })));
   const set = useStore((s) => s.set);
-  const s = useStore();
-  const current = currentProjectOf(s);
   const [pickOpen, setPickOpen] = useState(false);
   const [dictMenu, setDictMenu] = useState<{ d: DictInfo; x: number; y: number } | null>(null);
   const q = dq.trim(), ql = q.toLowerCase();
-  // 只查啟用中的字典
-  const on = new Set(project.dicts.filter((d) => dictEnabled(s, d)).map((d) => dictKey(d.project, d.name)));
-  const active = project.glossary.filter((g) => on.has(dictKey(g.proj, g.dict)));
-  const results = !ql ? [] : active.filter((g) => g.term.includes(q) || g.en.toLowerCase().includes(ql));
-  const matches = active.filter((g) => g.term && src.includes(g.term));
+  const isOn = (d: DictInfo) => dictEnabledIn(current, overrides, d);
+  // 只查啟用中的字典；字典內容或開關變了才重算
+  const on = useMemo(() => new Set(dicts.filter(isOn).map((d) => dictKey(d.project, d.name))), [dicts, overrides, current]);
+  const active = useMemo(() => glossary.filter((g) => on.has(dictKey(g.proj, g.dict))), [glossary, on]);
+  const results = useMemo(() => (!ql ? [] : active.filter((g) => g.term.includes(q) || g.en.toLowerCase().includes(ql))), [active, q]);
+  // 命中的詞條：換條目時馬上算；同一條的原文在改時，停下來一下才算
+  const [srcNow, setSrcNow] = useState({ uid, src });
+  useEffect(() => {
+    if (uid !== srcNow.uid) { setSrcNow({ uid, src }); return; }
+    if (src === srcNow.src) return;
+    const t = setTimeout(() => setSrcNow({ uid, src }), 250);
+    return () => clearTimeout(t);
+  }, [uid, src]);
+  const matchSrc = uid !== srcNow.uid ? src : srcNow.src;
+  const matches = useMemo(() => active.filter((g) => g.term && matchSrc.includes(g.term)), [active, matchSrc]);
   // 目前專案的字典排最前面，再來是共用，其他照原本順序
   const rank = (d: DictInfo) => (d.project === current ? 0 : d.project === SHARED ? 1 : 2);
-  const sorted = [...project.dicts].sort((a, b) => rank(a) - rank(b));
+  const sorted = [...dicts].sort((a, b) => rank(a) - rank(b));
   const toggleDict = (d: DictInfo) => {
     const k = overrideKey(current, d);
     const auto = d.project === current || d.project === SHARED;
-    const next = { ...s.dictOverrides };
+    const next = { ...overrides };
     // 跟預設一樣就不必記
-    if (!dictEnabled(s, d) === auto) delete next[k]; else next[k] = !dictEnabled(s, d);
+    if (!isOn(d) === auto) delete next[k]; else next[k] = !isOn(d);
     set({ dictOverrides: next });
   };
 
@@ -92,7 +108,7 @@ function DictTab() {
             placeholder="搜尋專有名詞或譯名" style={{ width: '100%', padding: '0 12px 0 32px' }} />
         </div>
         <button type="button" className="ib" aria-label="新增詞條" title="新增詞條"
-          onClick={() => set({ termDraft: { id: null, term: q && results.length === 0 ? q : '', en: '', note: '', dict: project.dicts.find((d) => d.project === current)?.name ?? '', proj: current } })}
+          onClick={() => set({ termDraft: { id: null, term: q && results.length === 0 ? q : '', en: '', note: '', dict: dicts.find((d) => d.project === current)?.name ?? '', proj: current } })}
           style={{ width: 36, height: 36, flexShrink: 0, display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 0, background: 'var(--btn)', border: '1px solid var(--line4)', borderRadius: 8, color: 'var(--text2)' }}>
           <IconPlus size={15} sw={2.2} />
         </button>
@@ -110,7 +126,7 @@ function DictTab() {
           style={{ height: 26, display: 'flex', alignItems: 'center', gap: 6, padding: '0 6px 0 2px', background: 'transparent', border: 0, borderRadius: 6, color: 'var(--text2)', fontSize: fz(12) }}>
           <IconChevD size={12} sw={2.4} style={{ transform: `rotate(${pickOpen ? 0 : -90}deg)`, transition: 'transform 160ms' }} />
           啟用的字典
-          <span style={{ color: 'var(--mute)' }}>{on.size} / {project.dicts.length}</span>
+          <span style={{ color: 'var(--mute)' }}>{on.size} / {dicts.length}</span>
         </button>
         {pickOpen && (
           <div role="group" aria-label="啟用的字典" style={{ display: 'flex', flexDirection: 'column', gap: 2, marginTop: 4, padding: 4, background: 'var(--card)', border: '1px solid var(--line2)', borderRadius: 8 }}>
@@ -146,19 +162,67 @@ function DictTab() {
   );
 }
 
+interface SearchHit { f: number; sh: number; i: number; where: string; src: string; tgt: string }
+interface SearchState { q: string; hits: SearchHit[]; at: [number, number, number]; done: boolean }
+
+/** 搜尋所有檔案：從 at 的位置往後找，找到 n 筆就停，回傳下次要接著找的位置 */
+function scan(files: FileDoc[], q: string, at: [number, number, number], n: number): { hits: SearchHit[]; at: [number, number, number]; done: boolean } {
+  const hits: SearchHit[] = [];
+  const ql = q.toLowerCase();
+  let [f, sh, i] = at;
+  for (; f < files.length; f++, sh = 0, i = 0) {
+    const file = files[f];
+    for (; sh < file.sheets.length; sh++, i = 0) {
+      const sheet = file.sheets[sh];
+      for (; i < sheet.entries.length; i++) {
+        const e = sheet.entries[i];
+        if (!e.src.includes(q) && !e.tgt.toLowerCase().includes(ql)) continue;
+        if (hits.length === n) return { hits, at: [f, sh, i], done: false };
+        hits.push({ f, sh, i, where: `${file.project} · ${file.name} · ${sheet.name} · #${e.id || i + 1}`, src: e.src, tgt: e.tgt || '尚未翻譯' });
+      }
+    }
+  }
+  return { hits, at: [f, sh, i], done: true };
+}
+
+const SEARCH_BATCH = 20;
+
 function SearchTab() {
   const files = useStore((s) => s.project!.files);
   const q = useStore((s) => s.searchQuery);
   const { set, select } = useStore.getState();
-  const results: { f: number; sh: number; i: number; where: string; src: string; tgt: string }[] = [];
-  if (q) {
-    const ql = q.toLowerCase();
-    files.forEach((file, f) => file.sheets.forEach((sheet, sh) => sheet.entries.forEach((e, i) => {
-      if (results.length < 30 && (e.src.includes(q) || e.tgt.toLowerCase().includes(ql))) {
-        results.push({ f, sh, i, where: `${file.project} · ${file.name} · ${sheet.name} · #${e.id || i + 1}`, src: e.src, tgt: e.tgt || '尚未翻譯' });
-      }
-    })));
-  }
+  // 停止打字 0.3 秒後才搜
+  const [dq, setDq] = useState(q);
+  useEffect(() => {
+    const t = setTimeout(() => setDq(q.trim()), 300);
+    return () => clearTimeout(t);
+  }, [q]);
+  const [res, setRes] = useState<SearchState>({ q: '', hits: [], at: [0, 0, 0], done: true });
+  // 搜尋字或檔案內容變了：從頭找，至少找回原本已載入的筆數
+  const resRef = useRef(res);
+  resRef.current = res;
+  const deferredFiles = useDeferredValue(files);
+  useEffect(() => {
+    if (!dq) { setRes({ q: '', hits: [], at: [0, 0, 0], done: true }); return; }
+    const n = resRef.current.q === dq ? Math.max(SEARCH_BATCH, resRef.current.hits.length) : SEARCH_BATCH;
+    setRes({ q: dq, ...scan(deferredFiles, dq, [0, 0, 0], n) });
+  }, [dq, deferredFiles]);
+  // 捲到結果底部時，從上次停的位置往後再找一批
+  const more = () => {
+    const r = resRef.current;
+    if (!r.q || r.done) return;
+    const next = scan(deferredFiles, r.q, r.at, SEARCH_BATCH);
+    setRes({ q: r.q, hits: [...r.hits, ...next.hits], at: next.at, done: next.done });
+  };
+  const sentinel = useRef<HTMLDivElement>(null);
+  useEffect(() => {
+    const el = sentinel.current;
+    if (!el) return;
+    const io = new IntersectionObserver((es) => { if (es.some((x) => x.isIntersecting)) more(); });
+    io.observe(el);
+    return () => io.disconnect();
+  }, [res]);
+  const results = res.hits;
   return (
     <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
       <label htmlFor="verso-search" className="sr-only">搜尋所有檔案</label>
@@ -172,7 +236,8 @@ function SearchTab() {
           <span style={{ fontSize: fz(12.5), lineHeight: 1.5, color: 'var(--text2)' }}>{r.tgt}</span>
         </button>
       ))}
-      {q && results.length === 0 && <div style={{ padding: '24px 8px', textAlign: 'center', color: 'var(--mute)' }}>找不到「{q}」</div>}
+      {!res.done && <div ref={sentinel} style={{ height: 1 }} />}
+      {res.q && res.q === dq && results.length === 0 && <div style={{ padding: '24px 8px', textAlign: 'center', color: 'var(--mute)' }}>找不到「{res.q}」</div>}
     </div>
   );
 }
@@ -229,7 +294,8 @@ function NotesSection() {
 }
 
 function NotesSectionInner() {
-  const s = useStore();
+  // 只訂閱這個區塊用到的資料（包含 currentOf 等輔助函式間接用到的）
+  const s = useStorePick('project', 'file', 'sheetBy', 'selBy', 'mode', 'suggClosed', 'noteClosed', 'set', 'updateEntry', 'applySuggestion');
   const cur = currentOf(s).entry!;
   const mode = s.mode;
   const suggVisible = mode === 'verify' || !!cur.sugg;

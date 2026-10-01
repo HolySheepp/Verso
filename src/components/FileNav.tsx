@@ -1,5 +1,5 @@
 import { useRef, useState } from 'react';
-import { currentOf, useStore } from '../state/store';
+import { currentOf, useStore, useStorePick } from '../state/store';
 import { requestFile } from '../state/saver';
 import { ContextMenu } from './ContextMenu';
 import { ConfirmDialog } from './ConfirmDialog';
@@ -24,7 +24,8 @@ const doneOf = (entries: Entry[]) => entries.filter(isDone).length;
 
 /** 頁簽列（目前檔案底下的頁簽）與檔案選擇 */
 export function FileNav({ tabW }: { tabW: number }) {
-  const s = useStore();
+  // 只訂閱這個區塊用到的資料（包含 currentOf 等輔助函式間接用到的）
+  const s = useStorePick('project', 'file', 'sheetBy', 'selBy', 'collapsedProjects', 'fileMenuOpen', 'set', 'setSheet', 'renameSheet', 'deleteSheet', 'clearSheet');
   const project = s.project!;
   const { fileDoc, sheetIdx } = currentOf(s);
   const menuOpen = s.fileMenuOpen;

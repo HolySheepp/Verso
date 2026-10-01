@@ -1,5 +1,5 @@
 import { useRef } from 'react';
-import { STAMP_EXCLUDE, currentOf, currentStamp, useStore, visibleIssues } from '../state/store';
+import { STAMP_EXCLUDE, currentOf, currentStamp, useStore, useStorePick, visibleIssues } from '../state/store';
 import { markName, markVisual } from '../model/marks';
 import { keyOf, type ActionId } from '../model/shortcuts';
 import type { Mode } from '../model/types';
@@ -31,7 +31,8 @@ export function WorkPanel({ height }: { height: number }) {
 }
 
 function WorkPanelInner({ height }: { height: number }) {
-  const s = useStore();
+  // 只訂閱這個區塊用到的資料（包含 currentOf 等輔助函式間接用到的）
+  const s = useStorePick('project', 'file', 'sheetBy', 'selBy', 'mode', 'stampOpen', 'stamps', 'viewOn', 'peek', 'history', 'shortcuts', 'reported', 'checkSettings', 'set', 'updateEntry', 'record', 'useShownSlot', 'stampNext', 'skipCheck', 'prev', 'pickSlot', 'next', 'mainNext');
   const project = s.project!;
   const { sheet, sel, entry } = currentOf(s);
   const cur = entry!;

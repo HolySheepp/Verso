@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react';
-import { currentOf, useStore } from './state/store';
+import { currentOf, useStore, useStorePick } from './state/store';
 import { effectiveMark, isDone } from './model/marks';
 import { TitleBar, MODES } from './components/TitleBar';
 import { FileNav } from './components/FileNav';
@@ -73,8 +73,26 @@ function StatusBar() {
   );
 }
 
+/** 條目標記選單（點條目左邊的標記時打開）；自己訂閱條目內容，主畫面不必跟著重畫 */
+function RowMarkMenu() {
+  const s = useStorePick('project', 'file', 'sheetBy', 'selBy', 'rowMenu', 'set', 'setEntryMark');
+  if (!s.project || !s.rowMenu) return null;
+  const { sheet } = currentOf(s);
+  const e = sheet.entries[s.rowMenu.index];
+  if (!e) return null;
+  return (
+    <MarkMenu title="變更標記" ariaLabel="變更標記"
+      current={effectiveMark(e)}
+      style={{ position: 'absolute', left: s.rowMenu.x, top: s.rowMenu.y, boxShadow: '0 16px 40px rgba(0,0,0,0.5)' }}
+      numbered={!!s.rowMenu.keys} active={s.rowMenu.keys ? s.rowMenu.active : undefined}
+      onPick={(id) => { s.setEntryMark(s.rowMenu!.index, id); s.set({ rowMenu: null }); }} />
+  );
+}
+
 export default function App() {
-  const s = useStore();
+  // 主畫面只訂閱版面、主題、選單開關；條目內容由各區塊自己訂閱，打字時主畫面不重畫
+  const s = useStorePick('accent', 'accentPreview', 'fonts', 'hideNav', 'hideSide', 'sideW', 'workH', 'rowMenu', 'stampOpen', 'fileMenuOpen', 'askSave', 'set', 'closePopups');
+  const hasProject = useStore((st) => !!st.project);
   const { w, h } = useWindowSize();
 
   useEffect(() => { void startApp(); }, []);
@@ -91,7 +109,7 @@ export default function App() {
     requestAnimationFrame(() => requestAnimationFrame(() => root.classList.remove('theme-switching')));
   }, [theme]);
 
-  if (!s.project) return null;
+  if (!hasProject) return null;
 
   // 版面尺寸，規則同設計檔
   const W = Math.max(1024, w), H = Math.max(640, h);
@@ -103,7 +121,6 @@ export default function App() {
   const mainW = showSide ? W - sideW : W;
   const tabW = mainW < 980 ? 150 : 200;
 
-  const { sheet } = currentOf(s);
   const anyPop = !!s.rowMenu || s.stampOpen || s.fileMenuOpen;
 
   return (
@@ -156,13 +173,7 @@ export default function App() {
           style={{ position: 'absolute', inset: 0, zIndex: 25, background: 'transparent', border: 0, cursor: 'default' }} />
       )}
 
-      {s.rowMenu && sheet.entries[s.rowMenu.index] && (
-        <MarkMenu title="變更標記" ariaLabel="變更標記"
-          current={effectiveMark(sheet.entries[s.rowMenu.index])}
-          style={{ position: 'absolute', left: s.rowMenu.x, top: s.rowMenu.y, boxShadow: '0 16px 40px rgba(0,0,0,0.5)' }}
-          numbered={!!s.rowMenu.keys} active={s.rowMenu.keys ? s.rowMenu.active : undefined}
-          onPick={(id) => { s.setEntryMark(s.rowMenu!.index, id); s.set({ rowMenu: null }); }} />
-      )}
+      <RowMarkMenu />
 
       <TermDialog />
       <SettingsDialog />
