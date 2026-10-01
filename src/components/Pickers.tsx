@@ -1,4 +1,5 @@
 import { useStore } from '../state/store';
+import { Select } from './Select';
 
 /** 下拉選單裡「新增」那一項的值 */
 export const NEW = '__new__';
@@ -23,11 +24,8 @@ function Picker({ id, sel, newName, onSel, onNewName, stack, width, focus = true
   PickerProps & { options: string[]; newLabel: string; placeholder: string }) {
   return (
     <div style={{ display: 'flex', flexDirection: stack ? 'column' : 'row', gap: stack ? 6 : 8, minWidth: 0, flexGrow: stack ? 0 : 1 }}>
-      <select id={id} className="field" value={sel} onChange={(e) => onSel(e.target.value)}
-        style={{ width: stack ? '100%' : width ?? 160, padding: '0 10px', flexShrink: 0 }}>
-        {options.map((v) => <option key={v} value={v}>{v}</option>)}
-        <option value={NEW}>{newLabel}</option>
-      </select>
+      <Select id={id} value={sel} onChange={onSel} options={[...options.map((v) => ({ value: v, label: v })), { value: NEW, label: newLabel }]}
+        style={{ width: stack ? '100%' : width ?? 160, flexShrink: 0 }} />
       {sel === NEW && (
         <input type="text" className="field" aria-label={placeholder} value={newName} onChange={(e) => onNewName(e.target.value)}
           placeholder={placeholder} autoFocus={focus} style={{ flexGrow: 1, minWidth: 0 }} />

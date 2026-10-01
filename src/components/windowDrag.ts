@@ -2,7 +2,7 @@ import { isTauri } from '@tauri-apps/api/core';
 import { getCurrentWindow } from '@tauri-apps/api/window';
 
 /** 這些元素上按下滑鼠時不拖動視窗 */
-const INTERACTIVE = 'input, textarea, select, button, a, label, [role="menu"], [role="tab"], .paste-box';
+const INTERACTIVE = 'input, textarea, select, button, a, label, [role="menu"], [role="listbox"], [role="tab"], .paste-box';
 
 /**
  * 在對話框的空白處按住滑鼠拖動，就移動整個軟體視窗。

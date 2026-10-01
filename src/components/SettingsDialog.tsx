@@ -9,6 +9,7 @@ import { ConfirmDialog } from './ConfirmDialog';
 import { pickSaveRoot } from '../state/saver';
 import { ColorPicker } from './ColorPicker';
 import { FontSelect } from './FontSelect';
+import { Select } from './Select';
 import { DEFAULT_FONTS, FONT_SLOTS, MAX_PT, MIN_PT, pushRecent, type FontSetting, type FontSlot } from '../model/fonts';
 import { useEffectiveTheme } from './useTheme';
 import { ACCENTS, MAX_CUSTOM_ACCENTS } from '../model/color';
@@ -285,10 +286,8 @@ function ShortcutsSection() {
     <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
       <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
         <label htmlFor="verso-sc-ctx" style={{ fontSize: fz(12), color: 'var(--text2)' }}>情境</label>
-        <select id="verso-sc-ctx" className="field" value={ctx} style={{ width: 200, padding: '0 10px' }}
-          onChange={(e) => { setCtx(e.target.value as ShortcutContext); setRecording(null); setError(null); }}>
-          {CONTEXTS.map((c) => <option key={c.id} value={c.id}>{c.label}</option>)}
-        </select>
+        <Select id="verso-sc-ctx" value={ctx} style={{ width: 200 }} options={CONTEXTS.map((c) => ({ value: c.id, label: c.label }))}
+          onChange={(v) => { setCtx(v as ShortcutContext); setRecording(null); setError(null); }} />
       </div>
       <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
         {CONTEXT_ACTIONS[ctx].map((a) => {
@@ -474,10 +473,8 @@ function FontsSection() {
           <div key={id} style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
             <span style={{ width: 52, flexShrink: 0, fontSize: fz(13) }}>{label}</span>
             <FontSelect value={f.family} recent={recent} label={label} onChange={(family) => update(id, { family })} />
-            <select className="field" aria-label={label + '字型大小'} value={f.size} onChange={(e) => update(id, { size: Number(e.target.value) })}
-              style={{ width: 84, height: 34, padding: '0 8px', flexShrink: 0 }}>
-              {sizes.map((n) => <option key={n} value={n}>{n} pt</option>)}
-            </select>
+            <Select ariaLabel={label + '字型大小'} value={String(f.size)} onChange={(v) => update(id, { size: Number(v) })}
+              options={sizes.map((n) => ({ value: String(n), label: n + ' pt' }))} style={{ width: 84, height: 34, flexShrink: 0 }} />
             <button type="button" className="btn btn-ghost" disabled={isDefault} onClick={() => set({ fonts: { ...fonts, [id]: DEFAULT_FONTS[id] } })}
               style={{ height: 34, padding: '0 12px', flexShrink: 0, background: 'var(--btn)', border: '1px solid var(--line4)', borderRadius: 8, fontSize: fz(12.5), opacity: isDefault ? 0.5 : 1 }}>還原預設</button>
           </div>
