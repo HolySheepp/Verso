@@ -52,6 +52,8 @@ export interface Sheet {
 
 export interface FileDoc {
   name: string;
+  /** 所屬專案 */
+  project: string;
   sheets: Sheet[];
 }
 
@@ -77,14 +79,30 @@ export interface RefDoc {
   desc: string;
 }
 
-export interface ProjectData {
+/** 字典：名稱加上所屬專案才能確定是哪一本 */
+export interface DictInfo {
+  project: string;
   name: string;
-  /** 下一個自訂標記的編號 */
+}
+
+/** 共用專案：一定存在、不能刪除 */
+export const SHARED = '共用';
+
+export const dictKey = (project: string, name: string) => project + '/' + name;
+
+/**
+ * 整個工作區：所有專案的檔案、字典都一起載入。
+ * 標籤目前只有「專案」一種，掛在檔案（FileDoc.project）和字典（DictInfo.project）上；
+ * 詞條跟著所屬字典的專案走（GlossaryTerm.proj）。
+ */
+export interface ProjectData {
+  /** 下一個自訂標記的編號（自訂標記不分專案） */
   nextMarkId?: number;
   files: FileDoc[];
   customMarks: CustomMark[];
   glossary: GlossaryTerm[];
-  dicts: string[];
+  dicts: DictInfo[];
+  /** 所有專案名稱，共用放最後 */
   projects: string[];
   refs: RefDoc[];
 }

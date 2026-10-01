@@ -1,6 +1,6 @@
 import { isTauri } from '@tauri-apps/api/core';
 import { getCurrentWindow } from '@tauri-apps/api/window';
-import { useStore } from '../state/store';
+import { currentProjectOf, useStore } from '../state/store';
 import { useEffectiveTheme } from './useTheme';
 import type { Mode } from '../model/types';
 import { fz } from '../model/fonts';
@@ -29,7 +29,7 @@ const winBtn: React.CSSProperties = {
 };
 
 export function TitleBar() {
-  const projectName = useStore((s) => s.project?.name ?? '');
+  const projectName = useStore((s) => (s.project?.files.length ? currentProjectOf(s) : ''));
   const saveError = useStore((s) => s.saveStatus === 'error');
   const mode = useStore((s) => s.mode);
   const theme = useEffectiveTheme();

@@ -6,7 +6,7 @@ import type { CustomMark, Entry, FileDoc, GlossaryTerm, StoredMark } from '../mo
 
 /** 給人看的欄位在前，程式要用的資料放在最右邊（不隱藏） */
 export const ENTRY_HEADERS = ['#', '發話者', '原文', '譯文', '標記', '備註', '建議翻譯', '匯入時的原文', '匯入時的譯文', '待確認', '略過檢查', '標記編號'];
-export const DICT_HEADERS = ['原文', '譯文', '備註', '所屬專案'];
+export const DICT_HEADERS = ['原文', '譯文', '備註'];
 
 const STORED_BUILTIN = new Set(['verified', 'doubt', 'think', 'ignore']);
 
@@ -63,11 +63,12 @@ function columnIndex(header: string[], names: string[]) {
   return (name: string) => (hasHeader ? header.indexOf(name) : names.indexOf(name));
 }
 
-export function xlsxToFile(name: string, data: Uint8Array, customs: CustomMark[]): FileDoc {
+export function xlsxToFile(name: string, project: string, data: Uint8Array, customs: CustomMark[]): FileDoc {
   const wb = XLSX.read(data, { type: 'array' });
   const known = new Set(customs.map((c) => 'c:' + c.id));
   return {
     name,
+    project,
     sheets: wb.SheetNames.map((sn) => {
       const rows = XLSX.utils.sheet_to_json<unknown[]>(wb.Sheets[sn], { header: 1, raw: false, defval: '' });
       const header = (rows[0] ?? []).map(str);
@@ -98,12 +99,13 @@ export function xlsxToFile(name: string, data: Uint8Array, customs: CustomMark[]
 
 export function dictToXlsx(terms: GlossaryTerm[]): Uint8Array {
   const wb = XLSX.utils.book_new();
-  const rows = [DICT_HEADERS, ...terms.map((t) => [t.term, t.en, t.note, t.proj])];
+  const rows = [DICT_HEADERS, ...terms.map((t) => [t.term, t.en, t.note])];
   XLSX.utils.book_append_sheet(wb, textSheet(rows), '字典');
   return new Uint8Array(XLSX.write(wb, { type: 'array', bookType: 'xlsx' }) as ArrayBuffer);
 }
 
-export function xlsxToDict(dict: string, data: Uint8Array): GlossaryTerm[] {
+/** 詞條的專案由字典所在的專案資料夾決定（舊檔案裡的「所屬專案」欄不再使用） */
+export function xlsxToDict(project: string, dict: string, data: Uint8Array): GlossaryTerm[] {
   const wb = XLSX.read(data, { type: 'array' });
   const ws = wb.Sheets[wb.SheetNames[0]];
   if (!ws) return [];
@@ -113,6 +115,6 @@ export function xlsxToDict(dict: string, data: Uint8Array): GlossaryTerm[] {
   const body = DICT_HEADERS.some((n) => header.includes(n)) ? rows.slice(1) : rows;
   const get = (r: unknown[], n: string) => { const i = col(n); return i >= 0 ? str(r[i]) : ''; };
   return body
-    .map((r, i): GlossaryTerm => ({ id: 'd:' + dict + ':' + i, term: get(r, '原文'), en: get(r, '譯文'), note: get(r, '備註'), proj: get(r, '所屬專案'), dict }))
+    .map((r, i): GlossaryTerm => ({ id: 'd:' + project + '/' + dict + ':' + i, term: get(r, '原文'), en: get(r, '譯文'), note: get(r, '備註'), proj: project, dict }))
     .filter((t) => t.term || t.en);
 }

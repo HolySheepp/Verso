@@ -1,4 +1,6 @@
+import { useState } from 'react';
 import { useStore, type TermDraft } from '../state/store';
+import { DictPicker, NEW, ProjectPicker, firstDict, nameError, picked } from './Pickers';
 import { IconTrash, IconWinClose } from './icons';
 import { fz } from '../model/fonts';
 
@@ -8,13 +10,28 @@ const two: React.CSSProperties = { display: 'grid', gridTemplateColumns: 'repeat
 
 export function TermDialog() {
   const d = useStore((s) => s.termDraft);
+  // 每次打開都重新建立表單，下拉選單從詞條目前的專案、字典開始
+  return d ? <TermForm init={d} /> : null;
+}
+
+function TermForm({ init }: { init: TermDraft }) {
   const project = useStore((s) => s.project)!;
   const { set, saveTerm, deleteTerm } = useStore.getState();
-  if (!d) return null;
+  const [d, setD] = useState(init);
+  const [projSel, setProjSel] = useState(project.projects.includes(init.proj) ? init.proj : NEW);
+  const [newProj, setNewProj] = useState(project.projects.includes(init.proj) ? '' : init.proj);
+  const hasDict = project.dicts.some((x) => x.project === init.proj && x.name === init.dict);
+  const [dictSel, setDictSel] = useState(hasDict ? init.dict : init.dict ? NEW : firstDict(init.proj));
+  const [newDict, setNewDict] = useState(hasDict ? '' : init.dict);
 
-  const patch = (p: Partial<TermDraft>) => set({ termDraft: { ...d, ...p } });
+  const patch = (p: Partial<TermDraft>) => setD({ ...d, ...p });
   const close = () => set({ termDraft: null });
-  const saveOff = !d.term.trim() || !d.en.trim();
+  const projName = picked(projSel, newProj);
+  const dictName = picked(dictSel, newDict);
+  const pickProject = (v: string) => { setProjSel(v); setDictSel(v === NEW ? NEW : firstDict(v)); };
+  const error = nameError('專案', projSel, newProj, project.projects)
+    || nameError('字典', dictSel, newDict, project.dicts.filter((x) => x.project === projName).map((x) => x.name));
+  const saveOff = !d.term.trim() || !d.en.trim() || !projName || !dictName || !!error;
 
   return (
     <div className="scrim" style={{ zIndex: 45 }}>
@@ -44,18 +61,15 @@ export function TermDialog() {
           </div>
           <div style={two}>
             <div style={col}>
-              <label htmlFor="verso-g-dict" style={labelS}>加入字典</label>
-              {/* 可以選現有字典，也可以直接打新字典的名稱 */}
-              <input id="verso-g-dict" className="field" list="verso-g-dicts" value={d.dict} onChange={(e) => patch({ dict: e.target.value })} placeholder="字典名稱" />
-              <datalist id="verso-g-dicts">{project.dicts.map((v) => <option key={v} value={v} />)}</datalist>
+              <label htmlFor="verso-g-proj" style={labelS}>專案</label>
+              <ProjectPicker id="verso-g-proj" stack sel={projSel} newName={newProj} onSel={pickProject} onNewName={setNewProj} />
             </div>
             <div style={col}>
-              <label htmlFor="verso-g-proj" style={labelS}>套用專案</label>
-              <select id="verso-g-proj" className="field" value={d.proj} onChange={(e) => patch({ proj: e.target.value })} style={{ padding: '0 10px' }}>
-                {project.projects.map((v) => <option key={v} value={v}>{v}</option>)}
-              </select>
+              <label htmlFor="verso-g-dict" style={labelS}>字典</label>
+              <DictPicker id="verso-g-dict" stack focus={projSel !== NEW} project={projName} sel={dictSel} newName={newDict} onSel={setDictSel} onNewName={setNewDict} />
             </div>
           </div>
+          {error && <div role="alert" style={{ fontSize: fz(12.5), color: 'var(--errtx)' }}>{error}</div>}
         </div>
         <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '12px 20px 16px', borderTop: '1px solid var(--line)' }}>
           <div>
@@ -69,7 +83,7 @@ export function TermDialog() {
           <div style={{ display: 'flex', gap: 8 }}>
             <button type="button" className="btn btn-ghost" onClick={close}
               style={{ height: 36, padding: '0 16px', background: 'var(--btn)', border: '1px solid var(--line4)', borderRadius: 8, fontSize: fz(13) }}>取消</button>
-            <button type="button" className="btn btn-primary" disabled={saveOff} onClick={() => saveTerm(d)}
+            <button type="button" className="btn btn-primary" disabled={saveOff} onClick={() => saveTerm({ ...d, proj: projName, dict: dictName })}
               style={{ height: 36, padding: '0 18px', background: 'var(--primary)', border: 0, borderRadius: 8, color: '#ffffff', fontSize: fz(13), fontWeight: 600 }}>儲存</button>
           </div>
         </div>

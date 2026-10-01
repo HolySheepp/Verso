@@ -1,5 +1,6 @@
 import { useEffect, useRef, useState } from 'react';
-import { currentOf, useStore } from '../state/store';
+import { currentOf, currentProjectOf, useStore } from '../state/store';
+import { ProjectPicker, nameError, picked } from './Pickers';
 import { COLS, checkColumns, columnsToEntries, emptyColumns, spreadColumns, type Columns } from '../model/paste';
 import { PasteBox } from './PasteBox';
 import { ContextMenu } from './ContextMenu';
@@ -27,6 +28,9 @@ export function PasteDialog() {
   const { set, addFile, insertSheets } = useStore.getState();
   const close = () => set({ pasteOpen: false, pasteInsert: null });
   const [name, setName] = useState('');
+  const [projSel, setProjSel] = useState('');
+  const [newProj, setNewProj] = useState('');
+  const projects = useStore((s) => s.project!.projects);
   const [sheets, setSheetsState] = useState<DraftSheet[]>([newSheet(1)]);
   const [cur, setCur] = useState(0);
   const [renaming, setRenaming] = useState<number | null>(null);
@@ -74,7 +78,7 @@ export function PasteDialog() {
       setSheetsState(init);
       undo.current = [];
       redo.current = [];
-      setName(''); setCur(0); setRenaming(null); setSelRow(null); setTabMenu(null); setTabDrag(null);
+      setName(''); setProjSel(currentProjectOf(useStore.getState())); setNewProj(''); setCur(0); setRenaming(null); setSelRow(null); setTabMenu(null); setTabDrag(null);
     }
   }, [open]);
 
@@ -91,18 +95,23 @@ export function PasteDialog() {
   };
   const results = sheets.map((sh) => checkColumns(sh.cols));
   const firstBad = results.findIndex((r) => !r.ok);
-  const error = firstBad < 0 ? '' : (sheets.length > 1 ? `「${sheets[firstBad].name}」` : '') + results[firstBad].msg;
+  const projName = picked(projSel, newProj);
+  const projError = insert ? '' : nameError('專案', projSel, newProj, projects);
+  const error = projError || (firstBad < 0 ? '' : (sheets.length > 1 ? `「${sheets[firstBad].name}」` : '') + results[firstBad].msg);
+  // 新增專案但還沒打名稱時不能建立
+  const blocked = !!error || (!insert && !projName);
   // 還沒貼東西時不顯示錯誤，只擋下建立
   const touched = sheets.some((sh) => COLS.some((c) => sh.cols[c.key]));
 
   const create = () => {
-    if (firstBad >= 0) return;
+    if (blocked) return;
     if (insert) {
       insertSheets(insert.after, sheets.map((sh, i) => ({ name: sh.name.trim() || '頁簽 ' + (existingSheets + i + 1), entries: columnsToEntries(sh.cols) })));
       return;
     }
     addFile({
       name: name.trim() || '未命名檔案',
+      project: projName,
       sheets: sheets.map((sh, i) => ({ name: sh.name.trim() || '頁簽 ' + (i + 1), entries: columnsToEntries(sh.cols) })),
     });
   };
@@ -229,6 +238,8 @@ export function PasteDialog() {
             <label htmlFor="verso-paste-name" style={{ fontSize: fz(12), color: 'var(--text2)', flexShrink: 0 }}>檔名</label>
             <input id="verso-paste-name" type="text" className="field" value={name} onChange={(e) => setName(e.target.value)}
               placeholder="未命名檔案" autoFocus style={{ width: 320 }} />
+            <label htmlFor="verso-paste-proj" style={{ marginLeft: 8, fontSize: fz(12), color: 'var(--text2)', flexShrink: 0 }}>專案</label>
+            <ProjectPicker id="verso-paste-proj" sel={projSel} newName={newProj} onSel={setProjSel} onNewName={setNewProj} width={160} />
           </div>}
 
           <div style={{ display: 'flex', alignItems: 'center', gap: TAB_GAP, borderBottom: '1px solid var(--line)' }}>
@@ -294,11 +305,11 @@ export function PasteDialog() {
         </div>
 
         <div style={{ flexShrink: 0, display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 12, padding: '12px 20px 16px', borderTop: '1px solid var(--line)' }}>
-          <span role="alert" style={{ fontSize: fz(12.5), color: 'var(--errtx)', minWidth: 0 }}>{touched ? error : ''}</span>
+          <span role="alert" style={{ fontSize: fz(12.5), color: 'var(--errtx)', minWidth: 0 }}>{touched || projError ? error : ''}</span>
           <div style={{ display: 'flex', gap: 8, flexShrink: 0 }}>
             <button type="button" className="btn btn-ghost" onClick={close}
               style={{ height: 36, padding: '0 16px', background: 'var(--btn)', border: '1px solid var(--line4)', borderRadius: 8, fontSize: fz(13) }}>取消</button>
-            <button type="button" className="btn btn-primary" disabled={firstBad >= 0} onClick={create}
+            <button type="button" className="btn btn-primary" disabled={blocked} onClick={create}
               style={{ height: 36, padding: '0 18px', background: 'var(--primary)', border: 0, borderRadius: 8, color: '#ffffff', fontSize: fz(13), fontWeight: 600 }}>建立</button>
           </div>
         </div>

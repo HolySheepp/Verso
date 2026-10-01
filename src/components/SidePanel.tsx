@@ -1,6 +1,6 @@
 import { useState } from 'react';
-import { currentOf, useStore, type SideTab } from '../state/store';
-import type { GlossaryTerm } from '../model/types';
+import { currentOf, currentProjectOf, dictEnabled, overrideKey, useStore, type SideTab } from '../state/store';
+import { SHARED, dictKey, type DictInfo, type GlossaryTerm } from '../model/types';
 import { fz } from '../model/fonts';
 import {
   IconBook, IconBookmark, IconChevD, IconChevL, IconChevR, IconFile, IconGlobe, IconHideRight, IconPaste, IconPenEdit, IconPlus, IconRefresh, IconSearch, IconUse,
@@ -13,6 +13,13 @@ const TABS: { id: SideTab; label: string; Icon: typeof IconBook }[] = [
   { id: 'ref', label: '參照', Icon: IconBookmark },
 ];
 
+/** 專案標籤 */
+export function ProjTag({ name }: { name: string }) {
+  return (
+    <span style={{ flexShrink: 0, fontSize: fz(10.5), padding: '1px 7px', borderRadius: 10, whiteSpace: 'nowrap', color: 'var(--mute)', border: '1px solid var(--line3)' }}>{name}</span>
+  );
+}
+
 function TermCard({ g }: { g: GlossaryTerm }) {
   const set = useStore((s) => s.set);
   const proper = g.dict === '專有名詞';
@@ -20,14 +27,16 @@ function TermCard({ g }: { g: GlossaryTerm }) {
     <div className="card">
       <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 8 }}>
         <span style={{ fontSize: fz(15), fontWeight: 500 }}>{g.term}</span>
+        <span style={{ display: 'flex', alignItems: 'center', gap: 5 }}>
+        <ProjTag name={g.proj} />
         <span style={{
           fontSize: fz(10.5), padding: '2px 7px', borderRadius: 10, whiteSpace: 'nowrap',
           color: proper ? 'var(--warntx)' : 'var(--accent3)', background: proper ? 'rgba(240,165,74,0.14)' : 'var(--acc-soft)',
         }}>{g.dict}</span>
+        </span>
       </div>
       <div style={{ fontSize: fz(14), color: 'var(--accent3)' }}>{g.en}</div>
       <div style={{ fontSize: fz(12), lineHeight: 1.5, color: 'var(--text2)', paddingRight: 28 }}>{g.note || '—'}</div>
-      <div style={{ fontSize: fz(11), color: 'var(--mute)', paddingRight: 28 }}>{g.proj}</div>
       <button type="button" className="ib" aria-label={'編輯詞條「' + g.term + '」'} title="編輯詞條"
         onClick={() => set({ termDraft: { id: g.id, term: g.term, en: g.en, note: g.note, dict: g.dict, proj: g.proj } })}
         style={{ position: 'absolute', right: 6, bottom: 6, width: 26, height: 26, display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 0, background: 'transparent', border: 0, borderRadius: 6, color: 'var(--mute)' }}>
@@ -42,16 +51,26 @@ function DictTab() {
   const src = currentOf(useStore()).entry?.src ?? '';
   const dq = useStore((s) => s.dictQuery);
   const set = useStore((s) => s.set);
-  const disabled = useStore((s) => s.disabledDicts);
+  const s = useStore();
+  const current = currentProjectOf(s);
   const [pickOpen, setPickOpen] = useState(false);
   const q = dq.trim(), ql = q.toLowerCase();
   // 只查啟用中的字典
-  const active = project.glossary.filter((g) => !disabled.includes(g.dict));
+  const on = new Set(project.dicts.filter((d) => dictEnabled(s, d)).map((d) => dictKey(d.project, d.name)));
+  const active = project.glossary.filter((g) => on.has(dictKey(g.proj, g.dict)));
   const results = !ql ? [] : active.filter((g) => g.term.includes(q) || g.en.toLowerCase().includes(ql));
   const matches = active.filter((g) => g.term && src.includes(g.term));
-  const activeCount = project.dicts.filter((d) => !disabled.includes(d)).length;
-  const toggleDict = (d: string) =>
-    set({ disabledDicts: disabled.includes(d) ? disabled.filter((x) => x !== d) : [...disabled, d] });
+  // 目前專案的字典排最前面，再來是共用，其他照原本順序
+  const rank = (d: DictInfo) => (d.project === current ? 0 : d.project === SHARED ? 1 : 2);
+  const sorted = [...project.dicts].sort((a, b) => rank(a) - rank(b));
+  const toggleDict = (d: DictInfo) => {
+    const k = overrideKey(current, d);
+    const auto = d.project === current || d.project === SHARED;
+    const next = { ...s.dictOverrides };
+    // 跟預設一樣就不必記
+    if (!dictEnabled(s, d) === auto) delete next[k]; else next[k] = !dictEnabled(s, d);
+    set({ dictOverrides: next });
+  };
 
   return (
     <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
@@ -63,7 +82,7 @@ function DictTab() {
             placeholder="搜尋專有名詞或譯名" style={{ width: '100%', padding: '0 12px 0 32px' }} />
         </div>
         <button type="button" className="ib" aria-label="新增詞條" title="新增詞條"
-          onClick={() => set({ termDraft: { id: null, term: q && results.length === 0 ? q : '', en: '', note: '', dict: project.dicts[0] ?? '', proj: project.projects[0] } })}
+          onClick={() => set({ termDraft: { id: null, term: q && results.length === 0 ? q : '', en: '', note: '', dict: project.dicts.find((d) => d.project === current)?.name ?? '', proj: current } })}
           style={{ width: 36, height: 36, flexShrink: 0, display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 0, background: 'var(--btn)', border: '1px solid var(--line4)', borderRadius: 8, color: 'var(--text2)' }}>
           <IconPlus size={15} sw={2.2} />
         </button>
@@ -77,14 +96,16 @@ function DictTab() {
           style={{ height: 26, display: 'flex', alignItems: 'center', gap: 6, padding: '0 6px 0 2px', background: 'transparent', border: 0, borderRadius: 6, color: 'var(--text2)', fontSize: fz(12) }}>
           <IconChevD size={12} sw={2.4} style={{ transform: `rotate(${pickOpen ? 0 : -90}deg)`, transition: 'transform 160ms' }} />
           啟用的字典
-          <span style={{ color: 'var(--mute)' }}>{activeCount} / {project.dicts.length}</span>
+          <span style={{ color: 'var(--mute)' }}>{on.size} / {project.dicts.length}</span>
         </button>
         {pickOpen && (
           <div role="group" aria-label="啟用的字典" style={{ display: 'flex', flexDirection: 'column', gap: 2, marginTop: 4, padding: 4, background: 'var(--card)', border: '1px solid var(--line2)', borderRadius: 8 }}>
-            {project.dicts.map((d) => (
-              <label key={d} className="dd" style={{ height: 30, display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 10, padding: '0 8px', borderRadius: 6, cursor: 'pointer', fontSize: fz(12.5) }}>
-                <span style={{ minWidth: 0, overflow: 'hidden', whiteSpace: 'nowrap', textOverflow: 'ellipsis' }}>{d}</span>
-                <input type="checkbox" role="switch" className="switch" checked={!disabled.includes(d)} onChange={() => toggleDict(d)} />
+            {sorted.map((d) => (
+              <label key={dictKey(d.project, d.name)} className="dd" style={{ height: 30, display: 'flex', alignItems: 'center', gap: 8, padding: '0 8px', borderRadius: 6, cursor: 'pointer', fontSize: fz(12.5) }}>
+                <span style={{ flexGrow: 1, minWidth: 0, overflow: 'hidden', whiteSpace: 'nowrap', textOverflow: 'ellipsis' }}>{d.name}</span>
+                <ProjTag name={d.project} />
+                <input type="checkbox" role="switch" className="switch" aria-label={d.project + ' ' + d.name}
+                  checked={on.has(dictKey(d.project, d.name))} onChange={() => toggleDict(d)} />
               </label>
             ))}
           </div>
@@ -114,7 +135,7 @@ function SearchTab() {
     const ql = q.toLowerCase();
     files.forEach((file, f) => file.sheets.forEach((sheet, sh) => sheet.entries.forEach((e, i) => {
       if (results.length < 30 && (e.src.includes(q) || e.tgt.toLowerCase().includes(ql))) {
-        results.push({ f, sh, i, where: `${file.name} · ${sheet.name} · #${e.id || i + 1}`, src: e.src, tgt: e.tgt || '尚未翻譯' });
+        results.push({ f, sh, i, where: `${file.project} · ${file.name} · ${sheet.name} · #${e.id || i + 1}`, src: e.src, tgt: e.tgt || '尚未翻譯' });
       }
     })));
   }

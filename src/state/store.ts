@@ -5,7 +5,8 @@ import { TGT_COL, cellKey, parseKey, type Cell } from '../model/cells';
 import { DEFAULT_FONTS, type FontSettings } from '../model/fonts';
 import { defaultBindings, type ActionId, type Bindings, type ShortcutContext } from '../model/shortcuts';
 import { defaultCheckSettings, enabledIssues, type CheckId, type CheckSettings, type Issue } from '../model/checks';
-import type { CustomMark, Entry, FileDoc, GlossaryTerm, MarkId, Mode, ProjectData, Sheet } from '../model/types';
+import { SHARED, dictKey, type CustomMark, type DictInfo, type Entry, type FileDoc, type GlossaryTerm, type MarkId, type Mode, type ProjectData, type Sheet } from '../model/types';
+import { safeName, sortProjects } from '../data/persist';
 
 export type Filter = 'all' | 'untranslated' | 'doubt' | 'think' | 'issues';
 export type SideTab = 'dict' | 'search' | 'web' | 'ref';
@@ -100,8 +101,10 @@ interface State {
   /** 用下一條、快捷鍵移動選取時遞增，條目列表據此保留前後 3 條可見（滑鼠點選不算） */
   moveSeq: number;
   moveDir: 1 | -1;
-  /** 右側字典分頁中停用的字典（查詢時不列出） */
-  disabledDicts: string[];
+  /** 手動開關字典：key 是「目前專案>專案/字典」，沒有設定的照預設（目前專案和共用的字典啟用） */
+  dictOverrides: Record<string, boolean>;
+  /** 檔案選單裡收起來的專案 */
+  collapsedProjects: string[];
 
   checkSettings: CheckSettings;
   shortcuts: Bindings;
@@ -140,7 +143,7 @@ interface Actions {
   /** clear：一起清掉條目上的這個標記；不清的話保留在檔案裡、畫面不顯示 */
   deleteCustomMark(id: string, clear: boolean): void;
   addFile(f: FileDoc): void;
-  addTerms(dict: string, pairs: [string, string][]): void;
+  addTerms(project: string, dict: string, pairs: [string, string][]): void;
   checkAll(): void;
   skipCheck(): void;
   setCheck(id: CheckId, on: boolean): void;
@@ -171,7 +174,31 @@ export type Store = State & Actions;
 const noPopups = { fileMenuOpen: false, rowMenu: null, stampOpen: false } as const;
 const noView = { viewOn: false, peek: false } as const;
 
-const EMPTY_FILE: FileDoc = { name: '', sheets: [{ name: '', entries: [] }] };
+const EMPTY_FILE: FileDoc = { name: '', project: SHARED, sheets: [{ name: '', entries: [] }] };
+
+/** 專案清單加上 name（已有就不變），共用排最後 */
+export function withProject(projects: string[], name: string) {
+  return projects.includes(name) ? projects : sortProjects([...projects, name]);
+}
+
+function withDict(p: ProjectData, project: string, dict: string): ProjectData {
+  const projects = withProject(p.projects, project);
+  const has = p.dicts.some((d) => d.project === project && d.name === dict);
+  return { ...p, projects, dicts: has ? p.dicts : [...p.dicts, { project, name: dict }] };
+}
+
+/** 目前檔案所屬的專案；還沒有檔案時是共用 */
+export function currentProjectOf(s: Pick<State, 'project' | 'file' | 'sheetBy' | 'selBy'>) {
+  return s.project?.files.length ? currentOf(s).fileDoc.project : SHARED;
+}
+
+export const overrideKey = (current: string, d: DictInfo) => current + '>' + dictKey(d.project, d.name);
+
+/** 字典有沒有啟用：目前專案和共用的字典預設啟用，可以手動開關 */
+export function dictEnabled(s: Pick<State, 'project' | 'file' | 'sheetBy' | 'selBy' | 'dictOverrides'>, d: DictInfo) {
+  const current = currentProjectOf(s);
+  return s.dictOverrides[overrideKey(current, d)] ?? (d.project === current || d.project === SHARED);
+}
 
 /** 目前的頁簽、條目位置 */
 export function currentOf(s: Pick<State, 'project' | 'file' | 'sheetBy' | 'selBy'>) {
@@ -297,7 +324,8 @@ export const useStore = create<Store>((set, get) => {
     dictPasteOpen: false,
     moveSeq: 0,
     moveDir: 1,
-    disabledDicts: [],
+    dictOverrides: {},
+    collapsedProjects: [],
     checkSettings: defaultCheckSettings(),
     shortcuts: defaultBindings(),
     reported: {},
@@ -465,14 +493,14 @@ export const useStore = create<Store>((set, get) => {
     saveTerm(d) {
       const project = get().project;
       if (!project) return;
-      const dictName = d.dict.trim() || '未分類';
-      const data = { term: d.term.trim(), en: d.en.trim(), note: d.note.trim(), dict: dictName, proj: d.proj };
+      const dictName = d.dict.trim() ? safeName(d.dict) : '未分類';
+      const projName = d.proj.trim() ? safeName(d.proj) : SHARED;
+      const data = { term: d.term.trim(), en: d.en.trim(), note: d.note.trim(), dict: dictName, proj: projName };
       if (!data.term || !data.en) return;
       const glossary: GlossaryTerm[] = d.id
         ? project.glossary.map((g) => (g.id === d.id ? { ...g, ...data } : g))
         : [...project.glossary, { id: 'u' + Date.now(), ...data }];
-      const dicts = project.dicts.includes(dictName) ? project.dicts : [...project.dicts, dictName];
-      set({ project: { ...project, glossary, dicts }, termDraft: null });
+      set({ project: { ...withDict(project, projName, dictName), glossary }, termDraft: null });
     },
 
     deleteTerm(id) {
@@ -507,30 +535,26 @@ export const useStore = create<Store>((set, get) => {
     addFile(f) {
       const project = get().project;
       if (!project) return;
-      // 同名的檔案加上編號
+      // 同一個專案裡同名的檔案加上編號
       let name = f.name, k = 2;
-      while (project.files.some((x) => x.name === name)) name = `${f.name} (${k++})`;
+      while (project.files.some((x) => x.project === f.project && x.name === name)) name = `${f.name} (${k++})`;
       const idx = project.files.length;
       set({
-        project: { ...project, files: [...project.files, { ...f, name }] },
+        project: { ...project, projects: withProject(project.projects, f.project), files: [...project.files, { ...f, name }] },
         file: idx, sheetBy: { ...get().sheetBy, [idx]: 0 }, pasteOpen: false, filter: 'all',
         ...noPopups, ...noView,
       });
     },
 
-    addTerms(dict, pairs) {
+    addTerms(proj, dict, pairs) {
       const project = get().project;
       if (!project) return;
       const base = Date.now().toString(36);
       const terms: GlossaryTerm[] = pairs.map(([term, en], i) => ({
-        id: 'p' + base + i, term, en, note: '', dict, proj: project.projects[0],
+        id: 'p' + base + i, term, en, note: '', dict, proj,
       }));
       set({
-        project: {
-          ...project,
-          dicts: project.dicts.includes(dict) ? project.dicts : [...project.dicts, dict],
-          glossary: [...project.glossary, ...terms],
-        },
+        project: { ...withDict(project, proj, dict), glossary: [...project.glossary, ...terms] },
         dictPasteOpen: false,
       });
     },

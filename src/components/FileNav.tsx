@@ -173,20 +173,36 @@ export function FileNav({ tabW }: { tabW: number }) {
         </button>
         {menuOpen && (
           <div role="listbox" aria-label="選擇檔案" className="pop" style={{ position: 'absolute', top: 42, left: 0, right: 0, zIndex: 30 }}>
-            <div className="pop-title" style={{ padding: '6px 10px 8px' }}>專案檔案</div>
-            {project.files.map((f, i) => {
-              const all = f.sheets.flatMap((sh) => sh.entries);
-              return (
-                <button key={i} type="button" className="dd" role="option" aria-selected={i === s.file}
-                  onClick={() => requestFile(i)}
-                  style={{ ...menuItem, gap: 10, color: undefined, background: i === s.file ? 'var(--sel)' : 'transparent' }}>
-                  <span style={{ flexGrow: 1, fontSize: fz(12.5) }}>{f.name}</span>
-                  <span style={{ fontSize: fz(11.5), color: 'var(--mute)' }}>{f.sheets.length} 個頁簽</span>
-                  <span style={{ fontSize: fz(11.5), color: 'var(--text2)' }}>{doneOf(all)} / {all.length}</span>
-                </button>
-              );
-            })}
-            <div className="pop-sep" style={{ margin: '6px 4px' }} />
+            {/* 依專案分組，每組可以收合 */}
+            <div style={{ maxHeight: 'min(60vh, 520px)', overflowY: 'auto' }}>
+              {project.projects.filter((p) => project.files.some((f) => f.project === p)).map((p) => {
+                const closed = s.collapsedProjects.includes(p);
+                const toggle = () => s.set({ collapsedProjects: closed ? s.collapsedProjects.filter((x) => x !== p) : [...s.collapsedProjects, p] });
+                return (
+                  <div key={p} role="group" aria-label={p}>
+                    <button type="button" className="dd" aria-expanded={!closed} onClick={toggle}
+                      style={{ ...menuItem, padding: '6px 8px', gap: 6, fontSize: fz(11.5), color: 'var(--mute)' }}>
+                      <IconChevD size={11} sw={2.4} style={{ transform: `rotate(${closed ? -90 : 0}deg)`, transition: 'transform 160ms' }} />
+                      {p}
+                    </button>
+                    {!closed && project.files.map((f, i) => {
+                      if (f.project !== p) return null;
+                      const all = f.sheets.flatMap((sh) => sh.entries);
+                      return (
+                        <button key={i} type="button" className="dd" role="option" aria-selected={i === s.file}
+                          onClick={() => requestFile(i)}
+                          style={{ ...menuItem, gap: 10, paddingLeft: 27, color: undefined, background: i === s.file ? 'var(--sel)' : 'transparent' }}>
+                          <span style={{ flexGrow: 1, fontSize: fz(12.5) }}>{f.name}</span>
+                          <span style={{ fontSize: fz(11.5), color: 'var(--mute)' }}>{f.sheets.length} 個頁簽</span>
+                          <span style={{ fontSize: fz(11.5), color: 'var(--text2)' }}>{doneOf(all)} / {all.length}</span>
+                        </button>
+                      );
+                    })}
+                  </div>
+                );
+              })}
+            </div>
+            {!noFiles && <div className="pop-sep" style={{ margin: '6px 4px' }} />}
             <button type="button" className="dd" style={menuItem} onClick={() => s.set({ pasteOpen: true, fileMenuOpen: false })}>
               <IconPaste size={14} />手動貼入…
             </button>
