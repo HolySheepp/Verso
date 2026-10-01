@@ -390,12 +390,15 @@ function AppearanceSection({ onPick }: { onPick(): void }) {
   const theme = useEffectiveTheme();
   // 彩蛋：連續點「主題色」5 次（每次間隔 1.5 秒內）解鎖「迷幻」
   const clicks = useRef<{ n: number; t: number }>({ n: 0, t: 0 });
+  const [shake, setShake] = useState({ k: 0, n: 0 });
   const onTitleClick = () => {
     const now = Date.now();
     const c = clicks.current;
     c.n = now - c.t < 1500 ? c.n + 1 : 1;
     c.t = now;
     if (c.n >= 5 && !rainbow) set({ rainbowUnlocked: true });
+    // 每點一下抖一下，越點抖得越明顯，暗示這裡有東西
+    setShake({ k: shake.k + 1, n: Math.min(c.n, 5) });
   };
   const seg = (on: boolean): React.CSSProperties => ({
     height: 28, padding: '0 14px', border: 0, borderRadius: 6, fontSize: fz(12.5),
@@ -416,7 +419,8 @@ function AppearanceSection({ onPick }: { onPick(): void }) {
         </div>
       </div>
       <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
-        <h3 style={{ ...h3, userSelect: 'none', alignSelf: 'flex-start' }} onClick={onTitleClick}>主題色</h3>
+        <h3 key={shake.k} className={shake.k ? 'shake' : undefined} onClick={onTitleClick}
+          style={{ ...h3, userSelect: 'none', alignSelf: 'flex-start', ['--amp' as string]: (1 + shake.n * 0.6) + 'px' }}>主題色</h3>
         <div role="radiogroup" aria-label="主題色" style={{ display: 'flex', flexWrap: 'wrap', alignItems: 'center', gap: 10 }}>
           {ACCENTS.map((a) => (
             <button key={a.id} type="button" role="radio" aria-checked={accent === a.id} aria-label={a.label} title={a.label}

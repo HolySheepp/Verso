@@ -112,3 +112,8 @@ textarea[data-hist="1"]:focus{border-color:var(--accent) !important}
 .vd[data-accent=rainbow]{animation:verso-rainbow-dark 9s steps(180) infinite}
 .vl[data-accent=rainbow]{animation:verso-rainbow-light 9s steps(180) infinite}
 .rainbow-swatch{background:conic-gradient(#ff5b5b,#ffd35b,#5bff8a,#5be4ff,#6b7bff,#e35bff,#ff5b5b) !important}
+
+/* 點「主題色」標題時抖一下 */
+@keyframes verso-shake{0%,100%{transform:translateX(0)}20%{transform:translateX(calc(var(--amp) * -1))}40%{transform:translateX(var(--amp))}60%{transform:translateX(calc(var(--amp) * -0.6))}80%{transform:translateX(calc(var(--amp) * 0.4))}}
+.shake{animation:verso-shake 320ms ease-out}
+@media (prefers-reduced-motion: reduce){.shake{animation:none}}
