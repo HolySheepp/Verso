@@ -8,15 +8,18 @@ import { CHECKS } from '../model/checks';
 import { ConfirmDialog } from './ConfirmDialog';
 import { pickSaveRoot } from '../state/saver';
 import { ColorPicker } from './ColorPicker';
+import { FontSelect } from './FontSelect';
+import { DEFAULT_FONTS, FONT_SLOTS, MAX_PT, MIN_PT, pushRecent, type FontSetting, type FontSlot } from '../model/fonts';
 import { useEffectiveTheme } from './useTheme';
 import { ACCENTS, MAX_CUSTOM_ACCENTS } from '../model/color';
 import { ACTION_LABELS, CONTEXTS, CONTEXT_ACTIONS, comboOf, createTabHold, type ActionId, type ShortcutContext } from '../model/shortcuts';
+import { fz } from '../model/fonts';
 
 // 設定目前只有「標記」「檢查」分類有內容，其他分類只有外觀
 const SECTIONS = ['一般', '工作模式', '標記', '檢查', '快捷鍵', '外觀'];
 const READY = ['一般', '標記', '檢查', '快捷鍵', '外觀'];
 
-const h3: React.CSSProperties = { margin: 0, fontSize: 12, fontWeight: 600, letterSpacing: 1, color: 'var(--text2)' };
+const h3: React.CSSProperties = { margin: 0, fontSize: fz(12), fontWeight: 600, letterSpacing: 1, color: 'var(--text2)' };
 
 export function SettingsDialog() {
   const open = useStore((s) => s.settingsOpen);
@@ -51,7 +54,7 @@ export function SettingsDialog() {
   };
 
   const seg = (on: boolean): React.CSSProperties => ({
-    height: 28, padding: '0 12px', border: 0, borderRadius: 6, fontSize: 12.5,
+    height: 28, padding: '0 12px', border: 0, borderRadius: 6, fontSize: fz(12.5),
     background: on ? 'var(--segon)' : 'transparent', color: on ? 'var(--text)' : 'var(--text2)',
   });
 
@@ -60,7 +63,7 @@ export function SettingsDialog() {
       <div role="dialog" aria-modal="true" aria-labelledby="verso-settings-title" className="dialog"
         style={{ width: 820, height: 640, boxShadow: '0 24px 64px rgba(0,0,0,0.55)' }}>
         <div style={{ height: 56, flexShrink: 0, display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '0 12px 0 22px', borderBottom: '1px solid var(--line)' }}>
-          <h2 id="verso-settings-title" style={{ margin: 0, fontSize: 16, fontWeight: 600 }}>設定</h2>
+          <h2 id="verso-settings-title" style={{ margin: 0, fontSize: fz(16), fontWeight: 600 }}>設定</h2>
           <button type="button" className="ib" aria-label="關閉設定" onClick={() => set({ settingsOpen: false })}
             style={{ width: 36, height: 36, display: 'flex', alignItems: 'center', justifyContent: 'center', background: 'transparent', border: 0, borderRadius: 8, color: 'var(--text2)' }}>
             <IconWinClose size={14} sw={1.4} />
@@ -88,8 +91,8 @@ export function SettingsDialog() {
                   <div key={b.id} style={{ display: 'flex', alignItems: 'center', gap: 10, padding: '10px 12px', background: 'var(--card)', border: '1px solid var(--line2)', borderRadius: 8 }}>
                     <span style={{ width: 18, height: 18, display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}><MarkIcon mark={{ kind: b.id }} size={18} menu /></span>
                     <span style={{ display: 'flex', flexDirection: 'column', gap: 2, minWidth: 0 }}>
-                      <span style={{ fontSize: 13, fontWeight: 500 }}>{b.label}</span>
-                      <span style={{ fontSize: 11.5, color: 'var(--mute)' }}>{b.desc}</span>
+                      <span style={{ fontSize: fz(13), fontWeight: 500 }}>{b.label}</span>
+                      <span style={{ fontSize: fz(11.5), color: 'var(--mute)' }}>{b.desc}</span>
                     </span>
                   </div>
                 ))}
@@ -101,8 +104,8 @@ export function SettingsDialog() {
               {customs.map((c) => (
                 <div key={c.id} style={{ display: 'flex', alignItems: 'center', gap: 12, height: 44, padding: '0 8px 0 12px', background: 'var(--card)', border: '1px solid var(--line2)', borderRadius: 8 }}>
                   <span style={{ width: 18, height: 18, display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}><MarkIcon mark={markVisual(customs, `c:${c.id}`)} size={18} /></span>
-                  <span style={{ flexGrow: 1, fontSize: 13 }}>{c.name}</span>
-                  <span style={{ fontSize: 11.5, color: 'var(--mute)', padding: '2px 8px', borderRadius: 9, background: 'var(--chip)' }}>{c.kind === 'sym' ? '符號' : '文字'}</span>
+                  <span style={{ flexGrow: 1, fontSize: fz(13) }}>{c.name}</span>
+                  <span style={{ fontSize: fz(11.5), color: 'var(--mute)', padding: '2px 8px', borderRadius: 9, background: 'var(--chip)' }}>{c.kind === 'sym' ? '符號' : '文字'}</span>
                   <button type="button" className="ib" aria-label={'刪除標記「' + c.name + '」'} title="刪除" onClick={() => {
                       // 有條目用到這個標記時，先問要不要一起清掉
                       const used = useStore.getState().project!.files.some((f) => f.sheets.some((sh) => sh.entries.some((e) => e.mark === 'c:' + c.id)));
@@ -120,7 +123,7 @@ export function SettingsDialog() {
               <h3 style={h3}>新增自訂標記</h3>
               <div style={{ display: 'flex', gap: 12, alignItems: 'flex-end' }}>
                 <div style={{ flexGrow: 1, display: 'flex', flexDirection: 'column', gap: 6 }}>
-                  <label htmlFor="verso-mark-name" style={{ fontSize: 12, color: 'var(--text2)' }}>名稱</label>
+                  <label htmlFor="verso-mark-name" style={{ fontSize: fz(12), color: 'var(--text2)' }}>名稱</label>
                   <input id="verso-mark-name" type="text" className="field" value={name} onChange={(e) => setName(e.target.value)} placeholder="例如：需問企劃" />
                 </div>
                 <div role="group" aria-label="標記樣式" className="seg-group">
@@ -145,15 +148,15 @@ export function SettingsDialog() {
 
               {type === 'text' && (
                 <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
-                  <label htmlFor="verso-mark-text" style={{ fontSize: 12, color: 'var(--text2)' }}>標記文字</label>
+                  <label htmlFor="verso-mark-text" style={{ fontSize: fz(12), color: 'var(--text2)' }}>標記文字</label>
                   <input id="verso-mark-text" type="text" className="field" value={text} onChange={(e) => setText(e.target.value.trim())} placeholder="例如 TM、長、?"
-                    style={{ width: 200, fontSize: 14, borderColor: text && !tc.ok ? '#d9725e' : undefined }} />
-                  {text && !tc.ok && <span role="alert" style={{ fontSize: 12, color: 'var(--errtx)' }}>{tc.msg}</span>}
+                    style={{ width: 200, fontSize: fz(14), borderColor: text && !tc.ok ? '#d9725e' : undefined }} />
+                  {text && !tc.ok && <span role="alert" style={{ fontSize: fz(12), color: 'var(--errtx)' }}>{tc.msg}</span>}
                 </div>
               )}
 
               <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
-                <span style={{ fontSize: 12, color: 'var(--text2)' }}>顏色</span>
+                <span style={{ fontSize: fz(12), color: 'var(--text2)' }}>顏色</span>
                 <div role="radiogroup" aria-label="標記顏色" style={{ display: 'flex', gap: 8 }}>
                   {MARK_COLORS.map((w) => {
                     const on = color === w.hex;
@@ -167,16 +170,16 @@ export function SettingsDialog() {
 
               <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', paddingTop: 12, borderTop: '1px solid var(--line)' }}>
                 <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
-                  <span style={{ fontSize: 12, color: 'var(--mute)' }}>預覽</span>
+                  <span style={{ fontSize: fz(12), color: 'var(--mute)' }}>預覽</span>
                   <span style={{ display: 'flex', alignItems: 'center', gap: 10, height: 34, padding: '0 12px', background: 'var(--card)', border: '1px solid var(--line2)', borderRadius: 8 }}>
                     {preview
                       ? <MarkIcon mark={preview} size={16} />
                       : <span style={{ width: 16, height: 16, boxSizing: 'border-box', border: '1px dashed var(--line6)', borderRadius: 4 }} />}
-                    <span style={{ fontSize: 13 }}>{name || '未命名標記'}</span>
+                    <span style={{ fontSize: fz(13) }}>{name || '未命名標記'}</span>
                   </span>
                 </div>
                 <button type="button" className="btn btn-primary" disabled={addOff} onClick={add}
-                  style={{ height: 36, display: 'flex', alignItems: 'center', gap: 6, padding: '0 16px', background: 'var(--primary)', border: 0, borderRadius: 8, color: '#ffffff', fontSize: 13, fontWeight: 600 }}>
+                  style={{ height: 36, display: 'flex', alignItems: 'center', gap: 6, padding: '0 16px', background: 'var(--primary)', border: 0, borderRadius: 8, color: '#ffffff', fontSize: fz(13), fontWeight: 600 }}>
                   <IconPlus size={13} sw={2.6} />新增標記
                 </button>
               </div>
@@ -209,7 +212,7 @@ function ChecksSection() {
           const on = settings[c.id];
           return (
             <label key={c.id} style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 10, height: 44, padding: '0 12px', background: 'var(--card)', border: '1px solid var(--line2)', borderRadius: 8, cursor: 'pointer' }}>
-              <span style={{ fontSize: 13 }}>{c.label}</span>
+              <span style={{ fontSize: fz(13) }}>{c.label}</span>
               <input type="checkbox" role="switch" className="switch" checked={on} onChange={(e) => setCheck(c.id, e.target.checked)} />
             </label>
           );
@@ -275,13 +278,13 @@ function ShortcutsSection() {
 
   const chip: React.CSSProperties = {
     display: 'inline-flex', alignItems: 'center', height: 24, padding: '0 8px', borderRadius: 6,
-    background: 'var(--chip)', border: '1px solid var(--line4)', fontSize: 12, color: 'var(--text)',
+    background: 'var(--chip)', border: '1px solid var(--line4)', fontSize: fz(12), color: 'var(--text)',
   };
 
   return (
     <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
       <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
-        <label htmlFor="verso-sc-ctx" style={{ fontSize: 12, color: 'var(--text2)' }}>情境</label>
+        <label htmlFor="verso-sc-ctx" style={{ fontSize: fz(12), color: 'var(--text2)' }}>情境</label>
         <select id="verso-sc-ctx" className="field" value={ctx} style={{ width: 200, padding: '0 10px' }}
           onChange={(e) => { setCtx(e.target.value as ShortcutContext); setRecording(null); setError(null); }}>
           {CONTEXTS.map((c) => <option key={c.id} value={c.id}>{c.label}</option>)}
@@ -299,14 +302,14 @@ function ShortcutsSection() {
                 display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 12, height: 44, padding: '0 12px',
                 background: rec ? 'var(--sel)' : 'var(--card)', border: `1px solid ${rec ? 'var(--accent)' : 'var(--line2)'}`, borderRadius: 8, textAlign: 'left',
               }}>
-              <span style={{ fontSize: 13 }}>{ACTION_LABELS[a]}</span>
+              <span style={{ fontSize: fz(13) }}>{ACTION_LABELS[a]}</span>
               <span style={{ display: 'flex', gap: 6 }}>
                 {rec ? <span style={{ ...chip, background: 'transparent', borderStyle: 'dashed', color: 'var(--mute)' }}>按下新的組合鍵</span>
                   : combos.length ? combos.map((c) => <span key={c} className="mono" style={chip}>{c}</span>)
-                  : <span style={{ fontSize: 12, color: 'var(--mute3)' }}>—</span>}
+                  : <span style={{ fontSize: fz(12), color: 'var(--mute3)' }}>—</span>}
               </span>
             </button>
-            {error?.action === a && <span role="alert" style={{ fontSize: 12, color: 'var(--errtx)', padding: '0 12px' }}>{error.msg}</span>}
+            {error?.action === a && <span role="alert" style={{ fontSize: fz(12), color: 'var(--errtx)', padding: '0 12px' }}>{error.msg}</span>}
             </div>
           );
         })}
@@ -333,16 +336,16 @@ function GeneralSection() {
         <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
           <span className="mono" title={saveRoot} style={{
             flexGrow: 1, minWidth: 0, height: 36, display: 'flex', alignItems: 'center', padding: '0 12px', boxSizing: 'border-box',
-            background: 'var(--bg0)', border: '1px solid var(--line4)', borderRadius: 8, fontSize: 12, color: 'var(--textsoft)',
+            background: 'var(--bg0)', border: '1px solid var(--line4)', borderRadius: 8, fontSize: fz(12), color: 'var(--textsoft)',
             overflow: 'hidden', whiteSpace: 'nowrap', textOverflow: 'ellipsis',
           }}>{saveRoot}</span>
           <button type="button" className="btn btn-ghost" onClick={() => void pickSaveRoot()}
-            style={{ height: 36, padding: '0 16px', background: 'var(--btn)', border: '1px solid var(--line4)', borderRadius: 8, fontSize: 13, flexShrink: 0 }}>更改…</button>
+            style={{ height: 36, padding: '0 16px', background: 'var(--btn)', border: '1px solid var(--line4)', borderRadius: 8, fontSize: fz(13), flexShrink: 0 }}>更改…</button>
         </div>
       </div>
       <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
         <h3 style={h3}>自動存檔</h3>
-        <label style={{ display: 'flex', alignItems: 'center', gap: 8, fontSize: 13 }}>
+        <label style={{ display: 'flex', alignItems: 'center', gap: 8, fontSize: fz(13) }}>
           每
           <input type="number" min={1} max={60} className="field" value={min} aria-label="自動存檔間隔（分鐘）"
             onChange={(e) => setMin(e.target.value)} onBlur={commitMin} onKeyDown={(e) => { if (e.key === 'Enter') commitMin(); }}
@@ -396,7 +399,7 @@ function AppearanceSection({ onPick }: { onPick(): void }) {
     if (c.n >= 5 && !rainbow) set({ rainbowUnlocked: true });
   };
   const seg = (on: boolean): React.CSSProperties => ({
-    height: 28, padding: '0 14px', border: 0, borderRadius: 6, fontSize: 12.5,
+    height: 28, padding: '0 14px', border: 0, borderRadius: 6, fontSize: fz(12.5),
     background: on ? 'var(--segon)' : 'transparent', color: on ? 'var(--text)' : 'var(--text2)',
   });
   const swatch = (on: boolean, color: string): React.CSSProperties => ({
@@ -406,8 +409,8 @@ function AppearanceSection({ onPick }: { onPick(): void }) {
   return (
     <div style={{ display: 'flex', flexDirection: 'column', gap: 22 }}>
       <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
-        <h3 style={h3}>主題</h3>
-        <div role="group" aria-label="主題" className="seg-group" style={{ alignSelf: 'flex-start' }}>
+        <h3 style={h3}>色彩模式</h3>
+        <div role="group" aria-label="色彩模式" className="seg-group" style={{ alignSelf: 'flex-start' }}>
           {([['dark', '深色'], ['light', '淺色'], ['system', '跟隨系統']] as const).map(([id, label]) => (
             <button key={id} type="button" className="seg" aria-pressed={themeMode === id} onClick={() => set({ theme: id })} style={seg(themeMode === id)}>{label}</button>
           ))}
@@ -442,11 +445,44 @@ function AppearanceSection({ onPick }: { onPick(): void }) {
           </button>
         </div>
         {accent === 'rainbow' && (
-          <span style={{ fontSize: 12, color: 'var(--mute)', lineHeight: 1.5 }}>
+          <span style={{ fontSize: fz(12), color: 'var(--mute)', lineHeight: 1.5 }}>
             迷幻主題色會不停重繪畫面，比較舊的電腦或開著很大的檔案時，可能會稍微變慢、比較耗電。
           </span>
         )}
       </div>
+      <FontsSection />
+    </div>
+  );
+}
+
+function FontsSection() {
+  const fonts = useStore((s) => s.fonts);
+  const recent = useStore((s) => s.recentFonts);
+  const set = useStore((s) => s.set);
+  const update = (slot: FontSlot, patch: Partial<FontSetting>) => {
+    const next = { ...fonts, [slot]: { ...fonts[slot], ...patch } };
+    set({ fonts: next, ...(patch.family !== undefined ? { recentFonts: pushRecent(recent, patch.family) } : {}) });
+  };
+  const sizes = Array.from({ length: MAX_PT - MIN_PT + 1 }, (_, i) => MIN_PT + i);
+  return (
+    <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
+      <h3 style={h3}>字體</h3>
+      {FONT_SLOTS.map(({ id, label }) => {
+        const f = fonts[id];
+        const isDefault = f.family === DEFAULT_FONTS[id].family && f.size === DEFAULT_FONTS[id].size;
+        return (
+          <div key={id} style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+            <span style={{ width: 52, flexShrink: 0, fontSize: fz(13) }}>{label}</span>
+            <FontSelect value={f.family} recent={recent} label={label} onChange={(family) => update(id, { family })} />
+            <select className="field" aria-label={label + '字型大小'} value={f.size} onChange={(e) => update(id, { size: Number(e.target.value) })}
+              style={{ width: 84, height: 34, padding: '0 8px', flexShrink: 0 }}>
+              {sizes.map((n) => <option key={n} value={n}>{n} pt</option>)}
+            </select>
+            <button type="button" className="btn btn-ghost" disabled={isDefault} onClick={() => set({ fonts: { ...fonts, [id]: DEFAULT_FONTS[id] } })}
+              style={{ height: 34, padding: '0 12px', flexShrink: 0, background: 'var(--btn)', border: '1px solid var(--line4)', borderRadius: 8, fontSize: fz(12.5), opacity: isDefault ? 0.5 : 1 }}>還原預設</button>
+          </div>
+        );
+      })}
     </div>
   );
 }

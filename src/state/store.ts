@@ -2,6 +2,7 @@ import { create } from 'zustand';
 import { emptyHistory, recordText, selectSlot, type HistoryStore } from '../model/history';
 import { effectiveMark, findCustom, toStoredMark } from '../model/marks';
 import { TGT_COL, cellKey, parseKey, type Cell } from '../model/cells';
+import { DEFAULT_FONTS, type FontSettings } from '../model/fonts';
 import { defaultBindings, type ActionId, type Bindings, type ShortcutContext } from '../model/shortcuts';
 import { defaultCheckSettings, enabledIssues, type CheckId, type CheckSettings, type Issue } from '../model/checks';
 import type { CustomMark, Entry, FileDoc, GlossaryTerm, MarkId, Mode, ProjectData, Sheet } from '../model/types';
@@ -66,6 +67,10 @@ interface State {
   accent: string;
   /** 使用者存下來的自訂主題色（最多 5 個） */
   customAccents: string[];
+  /** 字體：系統字、原文、譯文 */
+  fonts: FontSettings;
+  /** 近期用過的字形（三條共用） */
+  recentFonts: string[];
   /** 彩蛋：解鎖「迷幻」主題色 */
   rainbowUnlocked: boolean;
   /** 色盤拖動中的預覽色（還沒儲存） */
@@ -269,6 +274,8 @@ export const useStore = create<Store>((set, get) => {
     accent: 'blue',
     customAccents: [],
     rainbowUnlocked: false,
+    fonts: DEFAULT_FONTS,
+    recentFonts: [],
     accentPreview: null,
     hideNav: false,
     hideSide: false,

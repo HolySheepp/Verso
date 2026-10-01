@@ -5,6 +5,7 @@ import { keyOf, type ActionId } from '../model/shortcuts';
 import type { Mode } from '../model/types';
 import { MarkIcon } from './MarkIcon';
 import { MarkMenu } from './MarkMenu';
+import { fz } from '../model/fonts';
 import {
   IconWarn, IconCopyPair,
   IconBraces, IconCheck, IconChevL, IconChevR, IconCopy, IconEraser, IconEye, IconFeather, IconLock, IconPen, IconUndo, IconUse,
@@ -18,7 +19,7 @@ const MODE_HINTS: Record<Mode, string> = {
 };
 
 const labelRow: React.CSSProperties = { display: 'flex', alignItems: 'center', justifyContent: 'space-between', height: 18 };
-const meta: React.CSSProperties = { display: 'flex', gap: 12, fontSize: 11.5, color: 'var(--mute)' };
+const meta: React.CSSProperties = { display: 'flex', gap: 12, fontSize: fz(11.5), color: 'var(--mute)' };
 
 /** 頁簽清空、沒有條目時，工作欄只留空白的框 */
 export function WorkPanel({ height }: { height: number }) {
@@ -85,11 +86,11 @@ function WorkPanelInner({ height }: { height: number }) {
             <span style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
               <label htmlFor="verso-source" className="sec-label">原文</label>
               {srcEditable && (
-                <span style={{ display: 'flex', alignItems: 'center', gap: 4, fontSize: 11, color: 'var(--warntx)', padding: '1px 7px', borderRadius: 9, background: 'rgba(240,165,74,0.12)' }}>
+                <span style={{ display: 'flex', alignItems: 'center', gap: 4, fontSize: fz(11), color: 'var(--warntx)', padding: '1px 7px', borderRadius: 9, background: 'rgba(240,165,74,0.12)' }}>
                   <IconPen size={10} sw={2.6} />可編輯
                 </span>
               )}
-              {cur.src !== cur.src0 && <span style={{ fontSize: 11, color: 'var(--text2)' }}>已修改，原始版本會保留</span>}
+              {cur.src !== cur.src0 && <span style={{ fontSize: fz(11), color: 'var(--text2)' }}>已修改，原始版本會保留</span>}
             </span>
             <span style={meta}><span>{cur.speaker}</span><span>{cur.src.length} 字</span></span>
           </div>
@@ -98,23 +99,23 @@ function WorkPanelInner({ height }: { height: number }) {
             style={{
               height: 66, flexShrink: 0, resize: 'none', boxSizing: 'border-box', padding: '10px 12px',
               background: srcEditable ? 'var(--bg0)' : 'var(--bgdeep)', border: `1px solid ${srcEditable ? 'rgba(240,165,74,0.55)' : 'var(--line)'}`,
-              borderRadius: 8, fontSize: 15, lineHeight: 1.6, color: 'var(--text)',
+              borderRadius: 8, fontSize: 'var(--fs-src)', fontFamily: 'var(--font-src)', lineHeight: 1.6, color: 'var(--text)',
             }} />
 
           <div style={{ ...labelRow, marginTop: 6, gap: 12 }}>
             <span style={{ display: 'flex', alignItems: 'center', gap: 8, minWidth: 0 }}>
               <label htmlFor="verso-target" className="sec-label">譯文</label>
               {!tgtEditable && (
-                <span style={{ display: 'flex', alignItems: 'center', gap: 4, fontSize: 11, color: 'var(--text2)', padding: '1px 7px', borderRadius: 9, background: 'var(--chip)' }}>
+                <span style={{ display: 'flex', alignItems: 'center', gap: 4, fontSize: fz(11), color: 'var(--text2)', padding: '1px 7px', borderRadius: 9, background: 'var(--chip)' }}>
                   <IconLock size={10} sw={2.6} />唯讀
                 </span>
               )}
               {issues.length > 0 && (
-                <span role="status" style={{ display: 'flex', alignItems: 'center', gap: 6, minWidth: 0, fontSize: 11.5, color: 'var(--warntx)' }}>
+                <span role="status" style={{ display: 'flex', alignItems: 'center', gap: 6, minWidth: 0, fontSize: fz(11.5), color: 'var(--warntx)' }}>
                   <IconWarn size={12} sw={2.2} style={{ flexShrink: 0 }} />
                   <span title={issueText} style={{ minWidth: 0, overflow: 'hidden', whiteSpace: 'nowrap', textOverflow: 'ellipsis' }}>{issueText}</span>
                   <button type="button" className="ib" onClick={() => s.skipCheck()}
-                    style={{ flexShrink: 0, height: 20, padding: '0 8px', background: 'transparent', border: '1px solid var(--line4)', borderRadius: 5, color: 'var(--text2)', fontSize: 11 }}>略過</button>
+                    style={{ flexShrink: 0, height: 20, padding: '0 8px', background: 'transparent', border: '1px solid var(--line4)', borderRadius: 5, color: 'var(--text2)', fontSize: fz(11) }}>略過</button>
                 </span>
               )}
             </span>
@@ -131,7 +132,7 @@ function WorkPanelInner({ height }: { height: number }) {
                 flexGrow: 1, minHeight: 0, resize: 'none', boxSizing: 'border-box', padding: '10px 44px 10px 12px',
                 background: tgtEditable ? 'var(--bg0)' : 'var(--bgdeep)',
                 border: `1px ${showHist ? 'dashed' : 'solid'} ${showHist ? 'var(--accent)' : tgtEditable ? 'var(--line4)' : 'var(--line)'}`,
-                borderRadius: 8, color: tgtEditable ? 'var(--texthi)' : 'var(--textsoft)', fontSize: 15, lineHeight: 1.6,
+                borderRadius: 8, color: tgtEditable ? 'var(--texthi)' : 'var(--textsoft)', fontSize: 'var(--fs-tgt)', fontFamily: 'var(--font-tgt)', lineHeight: 1.6,
               }} />
 
             <div role="toolbar" aria-label="譯文記錄" aria-orientation="vertical" style={{ position: 'absolute', right: 6, top: 6, display: 'flex', flexDirection: 'column', gap: 2 }}>
@@ -168,7 +169,7 @@ function WorkPanelInner({ height }: { height: number }) {
 
             {showHist && (
               <div style={{ position: 'absolute', left: 8, bottom: 7, display: 'flex', alignItems: 'center', gap: 6, padding: '3px 4px 3px 8px', background: 'var(--pop)', border: '1px solid var(--line4)', borderRadius: 7 }}>
-                <span style={{ fontSize: 11, color: 'var(--text2)' }}>記錄</span>
+                <span style={{ fontSize: fz(11), color: 'var(--text2)' }}>記錄</span>
                 <div role="radiogroup" aria-label="選擇記錄槽位" style={{ display: 'flex', gap: 3 }}>
                   {texts.map((_, i) => {
                     const on = i === slot;
@@ -177,7 +178,7 @@ function WorkPanelInner({ height }: { height: number }) {
                         onClick={() => s.pickSlot(i)}
                         style={{
                           width: 22, height: 22, padding: 0, display: 'flex', alignItems: 'center', justifyContent: 'center', borderRadius: 5,
-                          fontSize: 11, fontWeight: 500, background: on ? 'var(--primary)' : 'var(--chip)', color: on ? '#ffffff' : 'var(--text2)',
+                          fontSize: fz(11), fontWeight: 500, background: on ? 'var(--primary)' : 'var(--chip)', color: on ? '#ffffff' : 'var(--text2)',
                           border: `1px solid ${on ? 'var(--primary)' : 'var(--line4)'}`,
                         }}>{i + 1}</button>
                     );
@@ -225,7 +226,7 @@ function WorkPanelInner({ height }: { height: number }) {
       </div>
 
       <div style={{ height: 40, flexShrink: 0, display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
-        <span style={{ display: 'flex', gap: 14, fontSize: 12, color: 'var(--mute)' }}>
+        <span style={{ display: 'flex', gap: 14, fontSize: fz(12), color: 'var(--mute)' }}>
           <span>第 {sel + 1} / {total} 條</span><span>{MODE_HINTS[mode]}</span>
         </span>
         <div style={{ display: 'flex', gap: 10, alignItems: 'center' }}>

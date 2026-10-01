@@ -5,6 +5,7 @@ import { PasteBox } from './PasteBox';
 import { ContextMenu } from './ContextMenu';
 import { dragWindow, focusOnMount } from './windowDrag';
 import { IconPlus, IconWinClose } from './icons';
+import { fz } from '../model/fonts';
 
 interface DraftSheet { id: string; name: string; cols: Columns }
 interface Snapshot { sheets: DraftSheet[]; cur: number }
@@ -216,7 +217,7 @@ export function PasteDialog() {
       <div role="dialog" aria-modal="true" aria-labelledby="verso-paste-title" className="dialog"
         style={{ width: 960, height: 640, maxWidth: 'calc(100% - 48px)', maxHeight: 'calc(100% - 48px)', boxShadow: '0 24px 64px rgba(0,0,0,0.5)' }}>
         <div style={{ height: 52, flexShrink: 0, display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '0 10px 0 20px', borderBottom: '1px solid var(--line)' }}>
-          <h2 id="verso-paste-title" style={{ margin: 0, fontSize: 15, fontWeight: 600 }}>{insert ? '插入頁簽' : '手動貼入'}</h2>
+          <h2 id="verso-paste-title" style={{ margin: 0, fontSize: fz(15), fontWeight: 600 }}>{insert ? '插入頁簽' : '手動貼入'}</h2>
           <button type="button" className="ib" aria-label="關閉" onClick={close}
             style={{ width: 34, height: 34, display: 'flex', alignItems: 'center', justifyContent: 'center', background: 'transparent', border: 0, borderRadius: 8, color: 'var(--text2)' }}>
             <IconWinClose size={13} sw={1.4} />
@@ -225,7 +226,7 @@ export function PasteDialog() {
 
         <div style={{ flexGrow: 1, minHeight: 0, display: 'flex', flexDirection: 'column', gap: 14, padding: '16px 20px' }}>
           {!insert && <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
-            <label htmlFor="verso-paste-name" style={{ fontSize: 12, color: 'var(--text2)', flexShrink: 0 }}>檔名</label>
+            <label htmlFor="verso-paste-name" style={{ fontSize: fz(12), color: 'var(--text2)', flexShrink: 0 }}>檔名</label>
             <input id="verso-paste-name" type="text" className="field" value={name} onChange={(e) => setName(e.target.value)}
               placeholder="未命名檔案" autoFocus style={{ width: 320 }} />
           </div>}
@@ -260,7 +261,7 @@ export function PasteDialog() {
                       onPointerUp={onTabPointerUp} onPointerCancel={() => { press.current = null; setTabDrag(null); }}
                       onContextMenu={(ev) => { ev.preventDefault(); setCur(i); setTabMenu({ i, x: ev.clientX, y: ev.clientY }); }}
                       style={{
-                        height: 36, padding: '0 10px', background: 'transparent', border: 0, fontSize: 13, fontWeight: 500,
+                        height: 36, padding: '0 10px', background: 'transparent', border: 0, fontSize: fz(13), fontWeight: 500,
                         color: on ? 'var(--text)' : 'var(--mute)', whiteSpace: 'nowrap', cursor: tabDrag ? 'grabbing' : undefined, touchAction: 'none',
                       }}>
                       {sh.name || '頁簽 ' + (i + 1)}
@@ -293,12 +294,12 @@ export function PasteDialog() {
         </div>
 
         <div style={{ flexShrink: 0, display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 12, padding: '12px 20px 16px', borderTop: '1px solid var(--line)' }}>
-          <span role="alert" style={{ fontSize: 12.5, color: 'var(--errtx)', minWidth: 0 }}>{touched ? error : ''}</span>
+          <span role="alert" style={{ fontSize: fz(12.5), color: 'var(--errtx)', minWidth: 0 }}>{touched ? error : ''}</span>
           <div style={{ display: 'flex', gap: 8, flexShrink: 0 }}>
             <button type="button" className="btn btn-ghost" onClick={close}
-              style={{ height: 36, padding: '0 16px', background: 'var(--btn)', border: '1px solid var(--line4)', borderRadius: 8, fontSize: 13 }}>取消</button>
+              style={{ height: 36, padding: '0 16px', background: 'var(--btn)', border: '1px solid var(--line4)', borderRadius: 8, fontSize: fz(13) }}>取消</button>
             <button type="button" className="btn btn-primary" disabled={firstBad >= 0} onClick={create}
-              style={{ height: 36, padding: '0 18px', background: 'var(--primary)', border: 0, borderRadius: 8, color: '#ffffff', fontSize: 13, fontWeight: 600 }}>建立</button>
+              style={{ height: 36, padding: '0 18px', background: 'var(--primary)', border: 0, borderRadius: 8, color: '#ffffff', fontSize: fz(13), fontWeight: 600 }}>建立</button>
           </div>
         </div>
       </div>

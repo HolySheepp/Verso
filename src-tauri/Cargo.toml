@@ -1,6 +1,6 @@
 [package]
 name = "verso"
-version = "0.19.0"
+version = "0.20.0"
 description = "Verso 翻譯工作台"
 edition = "2021"
 
@@ -17,3 +17,4 @@ serde = { version = "1", features = ["derive"] }
 serde_json = "1"
 tauri-plugin-fs = "2"
 tauri-plugin-dialog = "2"
+font-kit = "0.14"

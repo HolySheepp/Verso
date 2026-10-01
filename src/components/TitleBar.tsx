@@ -3,6 +3,7 @@ import { getCurrentWindow } from '@tauri-apps/api/window';
 import { useStore } from '../state/store';
 import { useEffectiveTheme } from './useTheme';
 import type { Mode } from '../model/types';
+import { fz } from '../model/fonts';
 import {
   IconEye, IconGear, IconLogo, IconMoon, IconPen, IconShield, IconSrcEdit, IconSun,
   IconWinClose, IconWinMax, IconWinMin,
@@ -42,9 +43,9 @@ export function TitleBar() {
     }}>
       <div data-tauri-drag-region style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
         <IconLogo size={20} stroke="var(--accent)" />
-        <span data-tauri-drag-region style={{ fontSize: 15, fontWeight: 600, letterSpacing: 0.3 }}>Verso</span>
-        <span data-tauri-drag-region className="proj" style={{ color: 'var(--mute)', fontSize: 12, marginLeft: 6 }}>{projectName}</span>
-        {saveError && <span data-tauri-drag-region style={{ fontSize: 12, color: 'var(--errtx)', marginLeft: 4 }}>未存檔</span>}
+        <span data-tauri-drag-region style={{ fontSize: fz(15), fontWeight: 600, letterSpacing: 0.3 }}>Verso</span>
+        <span data-tauri-drag-region className="proj" style={{ color: 'var(--mute)', fontSize: fz(12), marginLeft: 6 }}>{projectName}</span>
+        {saveError && <span data-tauri-drag-region style={{ fontSize: fz(12), color: 'var(--errtx)', marginLeft: 4 }}>未存檔</span>}
       </div>
 
       <div role="radiogroup" aria-label="工作模式" style={{
@@ -58,7 +59,7 @@ export function TitleBar() {
               onClick={() => set({ mode: id, stampOpen: false })}
               style={{
                 height: 24, display: 'flex', alignItems: 'center', gap: 6, padding: '0 12px', border: 0, borderRadius: 6,
-                fontSize: 12.5, fontWeight: 500, background: on ? 'var(--primary)' : 'transparent', color: on ? '#ffffff' : 'var(--text2)',
+                fontSize: fz(12.5), fontWeight: 500, background: on ? 'var(--primary)' : 'transparent', color: on ? '#ffffff' : 'var(--text2)',
               }}>
               <Icon size={13} sw={2.2} />{label}
             </button>

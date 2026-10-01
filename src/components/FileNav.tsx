@@ -8,6 +8,7 @@ import { isDone, markName, markVisual } from '../model/marks';
 import type { Entry, MarkId } from '../model/types';
 import { MarkIcon } from './MarkIcon';
 import { IconArrowR, IconChevD, IconChevL, IconChevR, IconFile, IconHideTop, IconPaste, IconPlus, IconSheet } from './icons';
+import { fz } from '../model/fonts';
 
 const navBtn: React.CSSProperties = {
   width: 32, height: 36, flexShrink: 0, display: 'flex', alignItems: 'center', justifyContent: 'center',
@@ -131,9 +132,9 @@ export function FileNav({ tabW }: { tabW: number }) {
                       onChange={(ev) => setRenaming({ i, name: ev.target.value })}
                       onKeyDown={(ev) => { ev.stopPropagation(); if (ev.key === 'Enter') endRename(true); if (ev.key === 'Escape') endRename(false); }}
                       onBlur={() => endRename(true)}
-                      style={{ flexGrow: 1, minWidth: 0, height: 22, padding: '0 6px', fontSize: 12.5 }} />
+                      style={{ flexGrow: 1, minWidth: 0, height: 22, padding: '0 6px', fontSize: fz(12.5) }} />
                   ) : (
-                    <span style={{ flexGrow: 1, minWidth: 0, fontSize: 12.5, fontWeight: 500, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{sh.name}</span>
+                    <span style={{ flexGrow: 1, minWidth: 0, fontSize: fz(12.5), fontWeight: 500, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{sh.name}</span>
                   )}
                   {kinds.length > 0 && (
                     <span title={tip} aria-label={tip} style={{ flexShrink: 0, display: 'flex', alignItems: 'center', gap: 3 }}>
@@ -164,8 +165,8 @@ export function FileNav({ tabW }: { tabW: number }) {
             background: 'var(--panel)', border: '1px solid var(--line3)', borderRadius: 8, textAlign: 'left',
           }}>
           <IconFile size={15} stroke="var(--mute)" style={{ flexShrink: 0 }} />
-          <span style={{ flexGrow: 1, minWidth: 0, overflow: 'hidden', whiteSpace: 'nowrap', textOverflow: 'ellipsis', fontSize: 12.5, color: noFiles ? 'var(--accent2)' : 'var(--textsoft)' }}>{noFiles ? '新增檔案' : fileDoc.name}</span>
-          <span style={{ flexShrink: 0, display: 'flex', alignItems: 'center', gap: 5, fontSize: 11, color: 'var(--text2)', padding: '2px 8px', borderRadius: 10, background: 'var(--chip)' }}>
+          <span style={{ flexGrow: 1, minWidth: 0, overflow: 'hidden', whiteSpace: 'nowrap', textOverflow: 'ellipsis', fontSize: fz(12.5), color: noFiles ? 'var(--accent2)' : 'var(--textsoft)' }}>{noFiles ? '新增檔案' : fileDoc.name}</span>
+          <span style={{ flexShrink: 0, display: 'flex', alignItems: 'center', gap: 5, fontSize: fz(11), color: 'var(--text2)', padding: '2px 8px', borderRadius: 10, background: 'var(--chip)' }}>
             繁中<span role="img" aria-label="譯為" style={{ display: 'flex' }}><IconArrowR size={10} sw={2.4} /></span>EN
           </span>
           <IconChevD size={14} stroke="var(--mute)" style={{ flexShrink: 0 }} />
@@ -179,9 +180,9 @@ export function FileNav({ tabW }: { tabW: number }) {
                 <button key={i} type="button" className="dd" role="option" aria-selected={i === s.file}
                   onClick={() => requestFile(i)}
                   style={{ ...menuItem, gap: 10, color: undefined, background: i === s.file ? 'var(--sel)' : 'transparent' }}>
-                  <span style={{ flexGrow: 1, fontSize: 12.5 }}>{f.name}</span>
-                  <span style={{ fontSize: 11.5, color: 'var(--mute)' }}>{f.sheets.length} 個頁簽</span>
-                  <span style={{ fontSize: 11.5, color: 'var(--text2)' }}>{doneOf(all)} / {all.length}</span>
+                  <span style={{ flexGrow: 1, fontSize: fz(12.5) }}>{f.name}</span>
+                  <span style={{ fontSize: fz(11.5), color: 'var(--mute)' }}>{f.sheets.length} 個頁簽</span>
+                  <span style={{ fontSize: fz(11.5), color: 'var(--text2)' }}>{doneOf(all)} / {all.length}</span>
                 </button>
               );
             })}

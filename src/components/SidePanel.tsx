@@ -1,6 +1,7 @@
 import { useState } from 'react';
 import { currentOf, useStore, type SideTab } from '../state/store';
 import type { GlossaryTerm } from '../model/types';
+import { fz } from '../model/fonts';
 import {
   IconBook, IconBookmark, IconChevD, IconChevL, IconChevR, IconFile, IconGlobe, IconHideRight, IconPaste, IconPenEdit, IconPlus, IconRefresh, IconSearch, IconUse,
 } from './icons';
@@ -18,15 +19,15 @@ function TermCard({ g }: { g: GlossaryTerm }) {
   return (
     <div className="card">
       <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 8 }}>
-        <span style={{ fontSize: 15, fontWeight: 500 }}>{g.term}</span>
+        <span style={{ fontSize: fz(15), fontWeight: 500 }}>{g.term}</span>
         <span style={{
-          fontSize: 10.5, padding: '2px 7px', borderRadius: 10, whiteSpace: 'nowrap',
+          fontSize: fz(10.5), padding: '2px 7px', borderRadius: 10, whiteSpace: 'nowrap',
           color: proper ? 'var(--warntx)' : 'var(--accent3)', background: proper ? 'rgba(240,165,74,0.14)' : 'var(--acc-soft)',
         }}>{g.dict}</span>
       </div>
-      <div style={{ fontSize: 14, color: 'var(--accent3)' }}>{g.en}</div>
-      <div style={{ fontSize: 12, lineHeight: 1.5, color: 'var(--text2)', paddingRight: 28 }}>{g.note || '—'}</div>
-      <div style={{ fontSize: 11, color: 'var(--mute)', paddingRight: 28 }}>{g.proj}</div>
+      <div style={{ fontSize: fz(14), color: 'var(--accent3)' }}>{g.en}</div>
+      <div style={{ fontSize: fz(12), lineHeight: 1.5, color: 'var(--text2)', paddingRight: 28 }}>{g.note || '—'}</div>
+      <div style={{ fontSize: fz(11), color: 'var(--mute)', paddingRight: 28 }}>{g.proj}</div>
       <button type="button" className="ib" aria-label={'編輯詞條「' + g.term + '」'} title="編輯詞條"
         onClick={() => set({ termDraft: { id: g.id, term: g.term, en: g.en, note: g.note, dict: g.dict, proj: g.proj } })}
         style={{ position: 'absolute', right: 6, bottom: 6, width: 26, height: 26, display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 0, background: 'transparent', border: 0, borderRadius: 6, color: 'var(--mute)' }}>
@@ -73,7 +74,7 @@ function DictTab() {
       </div>
       <div>
         <button type="button" className="ib" aria-expanded={pickOpen} onClick={() => setPickOpen(!pickOpen)}
-          style={{ height: 26, display: 'flex', alignItems: 'center', gap: 6, padding: '0 6px 0 2px', background: 'transparent', border: 0, borderRadius: 6, color: 'var(--text2)', fontSize: 12 }}>
+          style={{ height: 26, display: 'flex', alignItems: 'center', gap: 6, padding: '0 6px 0 2px', background: 'transparent', border: 0, borderRadius: 6, color: 'var(--text2)', fontSize: fz(12) }}>
           <IconChevD size={12} sw={2.4} style={{ transform: `rotate(${pickOpen ? 0 : -90}deg)`, transition: 'transform 160ms' }} />
           啟用的字典
           <span style={{ color: 'var(--mute)' }}>{activeCount} / {project.dicts.length}</span>
@@ -81,7 +82,7 @@ function DictTab() {
         {pickOpen && (
           <div role="group" aria-label="啟用的字典" style={{ display: 'flex', flexDirection: 'column', gap: 2, marginTop: 4, padding: 4, background: 'var(--card)', border: '1px solid var(--line2)', borderRadius: 8 }}>
             {project.dicts.map((d) => (
-              <label key={d} className="dd" style={{ height: 30, display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 10, padding: '0 8px', borderRadius: 6, cursor: 'pointer', fontSize: 12.5 }}>
+              <label key={d} className="dd" style={{ height: 30, display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 10, padding: '0 8px', borderRadius: 6, cursor: 'pointer', fontSize: fz(12.5) }}>
                 <span style={{ minWidth: 0, overflow: 'hidden', whiteSpace: 'nowrap', textOverflow: 'ellipsis' }}>{d}</span>
                 <input type="checkbox" role="switch" className="switch" checked={!disabled.includes(d)} onChange={() => toggleDict(d)} />
               </label>
@@ -91,13 +92,13 @@ function DictTab() {
       </div>
       {dq && (
         <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
-          <div style={{ fontSize: 11.5, color: 'var(--mute)' }}>搜尋結果 {results.length} 筆</div>
+          <div style={{ fontSize: fz(11.5), color: 'var(--mute)' }}>搜尋結果 {results.length} 筆</div>
           {results.map((g) => <TermCard key={g.id} g={g} />)}
           {results.length === 0 && <div className="empty" style={{ padding: '20px 12px' }}>找不到「{dq}」</div>}
           <div style={{ height: 1, background: 'var(--line)', margin: '4px 0' }} />
         </div>
       )}
-      <div style={{ fontSize: 11.5, color: 'var(--mute)' }}>這一條命中 {matches.length} 個詞條</div>
+      <div style={{ fontSize: fz(11.5), color: 'var(--mute)' }}>這一條命中 {matches.length} 個詞條</div>
       {matches.map((g) => <TermCard key={g.id} g={g} />)}
       {matches.length === 0 && <div className="empty" style={{ padding: '32px 12px' }}>這一條沒有符合的詞條</div>}
     </div>
@@ -125,9 +126,9 @@ function SearchTab() {
       {results.map((r) => (
         <button key={r.f + ':' + r.sh + ':' + r.i} type="button" className="sr" onClick={() => select(r.f, r.sh, r.i)}
           style={{ display: 'flex', flexDirection: 'column', gap: 4, padding: '10px 12px', textAlign: 'left', background: 'var(--card)', border: '1px solid var(--line2)', borderRadius: 8 }}>
-          <span className="mono" style={{ fontSize: 11, color: 'var(--mute)' }}>{r.where}</span>
-          <span style={{ fontSize: 13, lineHeight: 1.5 }}>{r.src}</span>
-          <span style={{ fontSize: 12.5, lineHeight: 1.5, color: 'var(--text2)' }}>{r.tgt}</span>
+          <span className="mono" style={{ fontSize: fz(11), color: 'var(--mute)' }}>{r.where}</span>
+          <span style={{ fontSize: fz(13), lineHeight: 1.5 }}>{r.src}</span>
+          <span style={{ fontSize: fz(12.5), lineHeight: 1.5, color: 'var(--text2)' }}>{r.tgt}</span>
         </button>
       ))}
       {q && results.length === 0 && <div style={{ padding: '24px 8px', textAlign: 'center', color: 'var(--mute)' }}>找不到「{q}」</div>}
@@ -145,7 +146,7 @@ function WebTab() {
         <button type="button" className="ib" aria-label="下一頁" style={nav}><IconChevR sw={2.2} /></button>
         <button type="button" className="ib" aria-label="重新整理" style={nav}><IconRefresh /></button>
         <label htmlFor="verso-url" className="sr-only">網址</label>
-        <input id="verso-url" type="text" placeholder="輸入網址或關鍵字" style={{ flexGrow: 1, minWidth: 0, height: 32, boxSizing: 'border-box', padding: '0 10px', background: 'var(--bg0)', border: '1px solid var(--line4)', borderRadius: 16, color: 'var(--text)', fontSize: 12.5 }} />
+        <input id="verso-url" type="text" placeholder="輸入網址或關鍵字" style={{ flexGrow: 1, minWidth: 0, height: 32, boxSizing: 'border-box', padding: '0 10px', background: 'var(--bg0)', border: '1px solid var(--line4)', borderRadius: 16, color: 'var(--text)', fontSize: fz(12.5) }} />
       </div>
       <div style={{ flexGrow: 1, minHeight: 260, display: 'flex', alignItems: 'center', justifyContent: 'center', background: 'var(--bgdeep)', border: '1px solid var(--line)', borderRadius: 8, color: 'var(--mute)' }}>
         <IconGlobe size={28} sw={1.5} />
@@ -159,13 +160,13 @@ function RefTab() {
   const refs = useStore((s) => s.project!.refs);
   return (
     <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
-      <div style={{ fontSize: 11.5, color: 'var(--mute)' }}>專案參照文件</div>
+      <div style={{ fontSize: fz(11.5), color: 'var(--mute)' }}>專案參照文件</div>
       {refs.map((rf) => (
         <button key={rf.name} type="button" className="sr" style={{ display: 'flex', alignItems: 'center', gap: 10, padding: '10px 12px', textAlign: 'left', background: 'var(--card)', border: '1px solid var(--line2)', borderRadius: 8 }}>
           <IconFile size={16} stroke="var(--mute)" style={{ flexShrink: 0 }} />
           <span style={{ display: 'flex', flexDirection: 'column', gap: 2 }}>
-            <span style={{ fontSize: 13 }}>{rf.name}</span>
-            <span style={{ fontSize: 11.5, color: 'var(--mute)' }}>{rf.desc}</span>
+            <span style={{ fontSize: fz(13) }}>{rf.name}</span>
+            <span style={{ fontSize: fz(11.5), color: 'var(--mute)' }}>{rf.desc}</span>
           </span>
         </button>
       ))}
@@ -175,10 +176,10 @@ function RefTab() {
 
 const toggleBtn: React.CSSProperties = {
   height: 26, display: 'flex', alignItems: 'center', gap: 6, padding: '0 6px 0 2px', background: 'transparent', border: 0, borderRadius: 6,
-  color: 'var(--text2)', fontSize: 11.5, fontWeight: 600, letterSpacing: 0.6,
+  color: 'var(--text2)', fontSize: fz(11.5), fontWeight: 600, letterSpacing: 0.6,
 };
 const area: React.CSSProperties = {
-  minHeight: 0, resize: 'none', boxSizing: 'border-box', padding: '10px 12px', borderRadius: 8, color: 'var(--text)', fontSize: 13, lineHeight: 1.5,
+  minHeight: 0, resize: 'none', boxSizing: 'border-box', padding: '10px 12px', borderRadius: 8, color: 'var(--text)', fontSize: fz(13), lineHeight: 1.5,
 };
 
 function NotesSection() {
@@ -209,7 +210,7 @@ function NotesSectionInner() {
             </button>
             {mode === 'translate' && cur.sugg && (
               <button type="button" className="btn btn-ghost" title="記錄目前譯文，並把建議翻譯套用到譯文框" onClick={() => s.applySuggestion()}
-                style={{ height: 26, display: 'flex', alignItems: 'center', gap: 5, padding: '0 10px', background: 'var(--btn)', border: '1px solid var(--line4)', borderRadius: 6, fontSize: 12, fontWeight: 500, color: 'var(--text)' }}>
+                style={{ height: 26, display: 'flex', alignItems: 'center', gap: 5, padding: '0 10px', background: 'var(--btn)', border: '1px solid var(--line4)', borderRadius: 6, fontSize: fz(12), fontWeight: 500, color: 'var(--text)' }}>
                 <IconUse size={12} sw={2.4} />套用
               </button>
             )}
@@ -260,7 +261,7 @@ export function SidePanel({ width }: { width: number }) {
               <button key={id} type="button" role="tab" className="stab" aria-selected={on} onClick={() => set({ side: id })}
                 style={{
                   height: 44, flexShrink: 0, display: 'flex', alignItems: 'center', gap: 6, padding: '0 7px', background: 'transparent', border: 0,
-                  borderBottom: `2px solid ${on ? 'var(--accent)' : 'transparent'}`, color: on ? 'var(--text)' : 'var(--mute)', fontSize: 13, fontWeight: 500,
+                  borderBottom: `2px solid ${on ? 'var(--accent)' : 'transparent'}`, color: on ? 'var(--text)' : 'var(--mute)', fontSize: fz(13), fontWeight: 500,
                   whiteSpace: 'nowrap',
                 }}>
                 <Icon size={14} />{label}

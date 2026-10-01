@@ -3,6 +3,7 @@
 import { io } from './fsio';
 import { dictToXlsx, fileToXlsx, xlsxToDict, xlsxToFile } from './xlsxio';
 import type { CheckSettings } from '../model/checks';
+import type { FontSettings } from '../model/fonts';
 import type { Bindings } from '../model/shortcuts';
 import type { CustomMark, FileDoc, GlossaryTerm, ProjectData } from '../model/types';
 
@@ -19,6 +20,8 @@ export interface AppConfig {
   accent?: string;
   customAccents?: string[];
   rainbowUnlocked?: boolean;
+  fonts?: FontSettings;
+  recentFonts?: string[];
   shortcuts?: Bindings;
   checkSettings?: CheckSettings;
   disabledDicts?: string[];

@@ -36,7 +36,7 @@ textarea:focus,input:focus{outline:none;border-color:var(--accent) !important}
 textarea[readonly]:not([data-hist="1"]):focus{border-color:var(--line4) !important}
 textarea[data-hist="1"]:focus{border-color:var(--accent) !important}
 .tip{position:relative}
-.tip::after{content:attr(data-tip);position:absolute;right:calc(100% + 8px);top:50%;transform:translateY(-50%);padding:4px 8px;border-radius:6px;background:var(--line2);border:1px solid var(--line5);color:var(--text);font-size:11.5px;font-weight:500;white-space:nowrap;pointer-events:none;opacity:0;transition:opacity 120ms}
+.tip::after{content:attr(data-tip);position:absolute;right:calc(100% + 8px);top:50%;transform:translateY(-50%);padding:4px 8px;border-radius:6px;background:var(--line2);border:1px solid var(--line5);color:var(--text);font-size:calc(var(--ui-scale,1) * 11.5px);font-weight:500;white-space:nowrap;pointer-events:none;opacity:0;transition:opacity 120ms}
 .tip:hover::after,.tip:focus-visible::after{opacity:1}
 .hb{width:26px;height:26px;display:flex;align-items:center;justify-content:center;padding:0;border:1px solid transparent;border-radius:6px;background:transparent;color:var(--mute)}
 .hb:hover{background:var(--chip) !important;color:var(--text) !important}
@@ -55,16 +55,16 @@ textarea[data-hist="1"]:focus{border-color:var(--accent) !important}
 
 /* 以下為元件化後抽出的共用樣式，數值同設計檔 */
 .btn-side{width:36px;height:36px;display:flex;align-items:center;justify-content:center;background:var(--btn);border:1px solid var(--line3);border-radius:8px;color:var(--text2)}
-.btn-std{height:38px;display:flex;align-items:center;background:var(--btn);border:1px solid var(--line4);border-radius:8px;font-size:13px;font-weight:500}
-.btn-main{height:38px;display:flex;align-items:center;gap:8px;padding:0 18px;background:var(--primary);border:0;border-radius:8px;color:#ffffff;font-size:13px;font-weight:600}
+.btn-std{height:38px;display:flex;align-items:center;background:var(--btn);border:1px solid var(--line4);border-radius:8px;font-size:calc(var(--ui-scale,1) * 13px);font-weight:500}
+.btn-main{height:38px;display:flex;align-items:center;gap:8px;padding:0 18px;background:var(--primary);border:0;border-radius:8px;color:#ffffff;font-size:calc(var(--ui-scale,1) * 13px);font-weight:600}
 .pop{padding:6px;background:var(--pop);border:1px solid var(--line4);border-radius:10px;box-shadow:0 16px 40px rgba(0,0,0,0.45)}
-.pop-title{padding:6px 10px;font-size:11px;font-weight:600;letter-spacing:0.8px;color:var(--mute)}
+.pop-title{padding:6px 10px;font-size:calc(var(--ui-scale,1) * 11px);font-weight:600;letter-spacing:0.8px;color:var(--mute)}
 .pop-sep{height:1px;background:var(--line3);margin:4px}
-.pop-item{width:100%;height:32px;display:flex;align-items:center;gap:10px;padding:0 10px;border:0;border-radius:6px;text-align:left;font-size:13px}
-.field{height:36px;box-sizing:border-box;padding:0 12px;background:var(--bg0);border:1px solid var(--line4);border-radius:8px;color:var(--text);font-size:13px}
+.pop-item{width:100%;height:32px;display:flex;align-items:center;gap:10px;padding:0 10px;border:0;border-radius:6px;text-align:left;font-size:calc(var(--ui-scale,1) * 13px)}
+.field{height:36px;box-sizing:border-box;padding:0 12px;background:var(--bg0);border:1px solid var(--line4);border-radius:8px;color:var(--text);font-size:calc(var(--ui-scale,1) * 13px)}
 .card{position:relative;padding:12px;background:var(--card);border:1px solid var(--line2);border-radius:8px;display:flex;flex-direction:column;gap:6px}
 .empty{text-align:center;color:var(--mute);border:1px dashed var(--line3);border-radius:8px}
-.sec-label{font-size:11.5px;font-weight:600;letter-spacing:1px;color:var(--text2)}
+.sec-label{font-size:calc(var(--ui-scale,1) * 11.5px);font-weight:600;letter-spacing:1px;color:var(--text2)}
 .scrim{position:absolute;inset:0;background:var(--scrim);display:flex;align-items:center;justify-content:center}
 .dialog{display:flex;flex-direction:column;background:var(--panel);border:1px solid var(--line4);border-radius:14px;overflow:hidden}
 .seg-group{display:flex;gap:2px;padding:3px;background:var(--bg0);border:1px solid var(--line);border-radius:8px}

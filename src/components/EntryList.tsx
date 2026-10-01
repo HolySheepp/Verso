@@ -12,6 +12,7 @@ import { MarkIcon } from './MarkIcon';
 import { rowMenuPos } from './rowMenu';
 import { CopyConfirm } from './CopyConfirm';
 import { IconCheck, IconCopy, IconScan, IconWarn } from './icons';
+import { fz } from '../model/fonts';
 
 /** 標記欄、# 欄（對話 id）、發話者欄、原文、譯文 */
 const HEAD_COLS = '40px 36px 64px minmax(0, 1fr) minmax(0, 1fr)';
@@ -254,7 +255,7 @@ export function EntryList() {
       <div style={{ height: 44, flexShrink: 0, display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '0 12px 0 16px', borderBottom: '1px solid var(--line)' }}>
         <div style={{ display: 'flex', alignItems: 'baseline', gap: 10 }}>
           <span className="sec-label">文本條目</span>
-          <span style={{ fontSize: 12, color: 'var(--mute)' }}>共 {sheet.entries.length} 條</span>
+          <span style={{ fontSize: fz(12), color: 'var(--mute)' }}>共 {sheet.entries.length} 條</span>
         </div>
         <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
         <button type="button" className="ib" aria-label="全部檢查" title="全部檢查" onClick={() => s.checkAll()}
@@ -271,13 +272,13 @@ export function EntryList() {
             return (
               <button key={f.id} type="button" className="seg" aria-pressed={on} onClick={() => set({ filter: f.id })}
                 style={{
-                  height: 26, display: 'flex', alignItems: 'center', gap: 6, padding: '0 10px', border: 0, borderRadius: 6, fontSize: 12,
+                  height: 26, display: 'flex', alignItems: 'center', gap: 6, padding: '0 10px', border: 0, borderRadius: 6, fontSize: fz(12),
                   background: on ? 'var(--segon)' : 'transparent', color: on ? 'var(--text)' : 'var(--text2)',
                 }}>
                 {f.id === 'issues' ? <IconWarn size={12} sw={2.2} stroke="var(--warntx)" />
                   : f.id !== 'all' && <MarkIcon mark={{ kind: f.id }} size={12} menu />}
                 {f.label}
-                <span style={{ fontSize: 11, color: 'var(--mute)' }}>{f.id === 'all' ? sheet.entries.length : cnt[f.id]}</span>
+                <span style={{ fontSize: fz(11), color: 'var(--mute)' }}>{f.id === 'all' ? sheet.entries.length : cnt[f.id]}</span>
               </button>
             );
           })}
@@ -286,7 +287,7 @@ export function EntryList() {
       </div>
       <div style={{
         height: 32, flexShrink: 0, display: 'grid', gridTemplateColumns: HEAD_COLS, alignItems: 'center',
-        padding: '0 12px 0 4px', fontSize: 11, fontWeight: 600, letterSpacing: 0.8, color: 'var(--mute)',
+        padding: '0 12px 0 4px', fontSize: fz(11), fontWeight: 600, letterSpacing: 0.8, color: 'var(--mute)',
         borderBottom: '1px solid var(--line0)', background: 'var(--bar2)',
       }}>
         <span />
@@ -345,17 +346,18 @@ export function EntryList() {
                   </svg>
                 )}
               </span>
-              <div role="row" style={{ minWidth: 0, minHeight: 38, display: 'grid', gridTemplateColumns: ROW_COLS, alignItems: 'stretch', fontSize: 13 }}>
+              <div role="row" style={{ minWidth: 0, minHeight: 38, display: 'grid', gridTemplateColumns: ROW_COLS, alignItems: 'stretch', fontSize: fz(13) }}>
                 <span {...cellProps(0)} title={e.id} style={{ display: 'flex', alignItems: 'center', justifyContent: 'flex-end', minWidth: 0 }}>
-                  {editor(0) ?? <span className="mono" style={{ paddingRight: 2, fontSize: 10, letterSpacing: -0.5, color: ver ? 'var(--mute3)' : 'var(--mute)', overflow: 'hidden', whiteSpace: 'nowrap', textOverflow: 'ellipsis' }}>{e.id}</span>}
+                  {editor(0) ?? <span className="mono" style={{ paddingRight: 2, fontSize: fz(10), letterSpacing: -0.5, color: ver ? 'var(--mute3)' : 'var(--mute)', overflow: 'hidden', whiteSpace: 'nowrap', textOverflow: 'ellipsis' }}>{e.id}</span>}
                 </span>
-                <span {...cellProps(1)} title={e.speaker} style={{ display: 'flex', alignItems: 'center', minWidth: 0, padding: '0 8px 0 4px', fontSize: 12, color: ver ? 'var(--mute3)' : 'var(--text2)' }}>
+                <span {...cellProps(1)} title={e.speaker} style={{ display: 'flex', alignItems: 'center', minWidth: 0, padding: '0 8px 0 4px', fontSize: fz(12), color: ver ? 'var(--mute3)' : 'var(--text2)' }}>
                   {editor(1) ?? <span style={{ overflow: 'hidden', whiteSpace: 'nowrap', textOverflow: 'ellipsis' }}>{e.speaker}</span>}
                 </span>
-                <span {...cellProps(2)} style={{ display: 'flex', alignItems: 'center', minWidth: 0, padding: '9px 16px 9px 0', lineHeight: 1.45, color: ver ? 'var(--mute2)' : 'var(--text)' }}>
+                <span {...cellProps(2)} style={{ display: 'flex', alignItems: 'center', minWidth: 0, padding: '9px 16px 9px 0', lineHeight: 1.45, color: ver ? 'var(--mute2)' : 'var(--text)', fontSize: 'calc(var(--fs-src) * 13 / 15)', fontFamily: 'var(--font-src)' }}>
                   {editor(2) ?? <span style={{ overflow: 'hidden', whiteSpace: 'nowrap', textOverflow: 'ellipsis' }}>{e.src}</span>}
                 </span>
                 <span {...cellProps(3)} style={{
+                  fontSize: 'calc(var(--fs-tgt) * 13 / 15)', fontFamily: 'var(--font-tgt)',
                   display: 'flex', alignItems: 'center', minWidth: 0, padding: '9px 16px', lineHeight: 1.45, borderLeft: '1px solid var(--line0)',
                   color: ver ? 'var(--mute2)' : e.tgt ? 'var(--textsoft)' : 'var(--mute2)', fontStyle: e.tgt ? 'normal' : 'italic',
                 }}>

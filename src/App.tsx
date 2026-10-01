@@ -17,6 +17,7 @@ import { ConfirmDialog } from './components/ConfirmDialog';
 import { resolveAskSave, startApp } from './state/saver';
 import { useEffectiveTheme } from './components/useTheme';
 import { IconCheck, IconChevD, IconChevL } from './components/icons';
+import { fontVars, fz } from './model/fonts';
 
 const clamp = (v: number, lo: number, hi: number) => Math.max(lo, Math.min(hi, v));
 
@@ -39,7 +40,7 @@ function StatusBar() {
   return (
     <footer style={{
       height: 28, flexShrink: 0, display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '0 16px',
-      background: 'var(--bar)', borderTop: '1px solid var(--line)', fontSize: 11.5, color: 'var(--mute)',
+      background: 'var(--bar)', borderTop: '1px solid var(--line)', fontSize: fz(11.5), color: 'var(--mute)',
     }}>
       <div style={{ display: 'flex', gap: 18 }}>
         <span>專案進度 {done} / {total} 條</span>
@@ -93,8 +94,10 @@ export default function App() {
       data-accent={accent.startsWith('#') ? undefined : accent}
       style={{
       ...(accent.startsWith('#') ? { ['--accent' as string]: accent } : {}),
+      ...fontVars(s.fonts),
+      fontFamily: 'var(--font-ui)',
       width: '100%', height: '100vh', minWidth: 1024, minHeight: 640, position: 'relative', display: 'flex', flexDirection: 'column',
-      background: 'var(--bg0)', color: 'var(--text)', overflow: 'hidden', fontSize: 13,
+      background: 'var(--bg0)', color: 'var(--text)', overflow: 'hidden', fontSize: fz(13),
     }}>
       <TitleBar />
 

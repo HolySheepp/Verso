@@ -1,7 +1,8 @@
 import { useStore, type TermDraft } from '../state/store';
 import { IconTrash, IconWinClose } from './icons';
+import { fz } from '../model/fonts';
 
-const labelS: React.CSSProperties = { fontSize: 12, color: 'var(--text2)' };
+const labelS: React.CSSProperties = { fontSize: fz(12), color: 'var(--text2)' };
 const col: React.CSSProperties = { display: 'flex', flexDirection: 'column', gap: 6 };
 const two: React.CSSProperties = { display: 'grid', gridTemplateColumns: 'repeat(2, minmax(0, 1fr))', gap: 12 };
 
@@ -19,7 +20,7 @@ export function TermDialog() {
     <div className="scrim" style={{ zIndex: 45 }}>
       <div role="dialog" aria-modal="true" aria-labelledby="verso-term-title" className="dialog" style={{ width: 480, boxShadow: '0 24px 64px rgba(0,0,0,0.45)' }}>
         <div style={{ height: 52, display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '0 10px 0 20px', borderBottom: '1px solid var(--line)' }}>
-          <h2 id="verso-term-title" style={{ margin: 0, fontSize: 15, fontWeight: 600 }}>{d.id ? '編輯詞條' : '新增詞條'}</h2>
+          <h2 id="verso-term-title" style={{ margin: 0, fontSize: fz(15), fontWeight: 600 }}>{d.id ? '編輯詞條' : '新增詞條'}</h2>
           <button type="button" className="ib" aria-label="關閉" onClick={close}
             style={{ width: 34, height: 34, display: 'flex', alignItems: 'center', justifyContent: 'center', background: 'transparent', border: 0, borderRadius: 8, color: 'var(--text2)' }}>
             <IconWinClose size={13} sw={1.4} />
@@ -60,16 +61,16 @@ export function TermDialog() {
           <div>
             {d.id && (
               <button type="button" className="btn btn-ghost" onClick={() => deleteTerm(d.id!)}
-                style={{ height: 36, display: 'flex', alignItems: 'center', gap: 6, padding: '0 14px', background: 'var(--btn)', border: '1px solid var(--line4)', borderRadius: 8, color: 'var(--errtx)', fontSize: 13 }}>
+                style={{ height: 36, display: 'flex', alignItems: 'center', gap: 6, padding: '0 14px', background: 'var(--btn)', border: '1px solid var(--line4)', borderRadius: 8, color: 'var(--errtx)', fontSize: fz(13) }}>
                 <IconTrash size={13} />刪除詞條
               </button>
             )}
           </div>
           <div style={{ display: 'flex', gap: 8 }}>
             <button type="button" className="btn btn-ghost" onClick={close}
-              style={{ height: 36, padding: '0 16px', background: 'var(--btn)', border: '1px solid var(--line4)', borderRadius: 8, fontSize: 13 }}>取消</button>
+              style={{ height: 36, padding: '0 16px', background: 'var(--btn)', border: '1px solid var(--line4)', borderRadius: 8, fontSize: fz(13) }}>取消</button>
             <button type="button" className="btn btn-primary" disabled={saveOff} onClick={() => saveTerm(d)}
-              style={{ height: 36, padding: '0 18px', background: 'var(--primary)', border: 0, borderRadius: 8, color: '#ffffff', fontSize: 13, fontWeight: 600 }}>儲存</button>
+              style={{ height: 36, padding: '0 18px', background: 'var(--primary)', border: 0, borderRadius: 8, color: '#ffffff', fontSize: fz(13), fontWeight: 600 }}>儲存</button>
           </div>
         </div>
       </div>

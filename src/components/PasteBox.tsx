@@ -4,6 +4,7 @@ import type { Col } from '../model/paste';
 import { IconWinClose } from './icons';
 import { ContextMenu } from './ContextMenu';
 import { focusOnMount } from './windowDrag';
+import { fz } from '../model/fonts';
 
 interface Props {
   label: string;
@@ -68,8 +69,8 @@ export function PasteBox({ label, col, onPaste, onChange, selected, onSelect }: 
   return (
     <div style={{ minWidth: 0, minHeight: 0, display: 'flex', flexDirection: 'column', gap: 6 }}>
       <div style={{ height: 22, display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
-        <span style={{ fontSize: 12, color: 'var(--text2)' }}>{label}</span>
-        <span style={{ display: 'flex', alignItems: 'center', gap: 4, fontSize: 11.5, color: 'var(--mute)' }}>
+        <span style={{ fontSize: fz(12), color: 'var(--text2)' }}>{label}</span>
+        <span style={{ display: 'flex', alignItems: 'center', gap: 4, fontSize: fz(11.5), color: 'var(--mute)' }}>
           {rows && <>{rows.length} 行
             <button type="button" className="ib" aria-label={'清除' + label} title="清除" onClick={() => onChange(null)}
               style={{ width: 22, height: 22, display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 0, background: 'transparent', border: 0, borderRadius: 5, color: 'var(--mute)' }}>
@@ -105,8 +106,8 @@ export function PasteBox({ label, col, onPaste, onChange, selected, onSelect }: 
             onMouseDown={(ev) => { if (ev.button === 0) onSelect(i); }}
             onDoubleClick={() => setEditing({ i, text: r })}
             onContextMenu={(ev) => { ev.preventDefault(); commit(); onSelect(i); setMenu({ i, x: ev.clientX, y: ev.clientY }); }}
-            style={{ display: 'flex', gap: 8, padding: '2px 10px', fontSize: 12.5, lineHeight: 1.5 }}>
-            <span className="mono" style={{ width: 28, flexShrink: 0, textAlign: 'right', fontSize: 10.5, color: 'var(--mute3)', lineHeight: '19px' }}>{i + 1}</span>
+            style={{ display: 'flex', gap: 8, padding: '2px 10px', fontSize: fz(12.5), lineHeight: 1.5 }}>
+            <span className="mono" style={{ width: 28, flexShrink: 0, textAlign: 'right', fontSize: fz(10.5), color: 'var(--mute3)', lineHeight: '19px' }}>{i + 1}</span>
             {editing?.i === i ? (
               <textarea className="pb-edit" ref={focusOnMount} value={editing.text} spellCheck={false}
                 rows={Math.max(1, editing.text.split('\n').length)}
@@ -118,7 +119,7 @@ export function PasteBox({ label, col, onPaste, onChange, selected, onSelect }: 
                 onBlur={commit}
                 style={{
                   flexGrow: 1, minWidth: 0, margin: '-2px 0', padding: '1px 6px', resize: 'none', boxSizing: 'border-box',
-                  background: 'var(--panel)', border: '1px solid var(--accent)', borderRadius: 4, color: 'var(--text)', fontSize: 12.5, lineHeight: 1.5,
+                  background: 'var(--panel)', border: '1px solid var(--accent)', borderRadius: 4, color: 'var(--text)', fontSize: fz(12.5), lineHeight: 1.5,
                 }} />
             ) : (
               <span style={{ minWidth: 0, overflow: 'hidden', whiteSpace: 'nowrap', textOverflow: 'ellipsis', color: r ? 'var(--text)' : 'var(--mute3)' }}>
@@ -127,7 +128,7 @@ export function PasteBox({ label, col, onPaste, onChange, selected, onSelect }: 
             )}
           </div>
         )) : (
-          <div style={{ height: '100%', display: 'flex', alignItems: 'center', justifyContent: 'center', color: 'var(--mute3)', fontSize: 12.5, userSelect: 'none' }}>
+          <div style={{ height: '100%', display: 'flex', alignItems: 'center', justifyContent: 'center', color: 'var(--mute3)', fontSize: fz(12.5), userSelect: 'none' }}>
             Ctrl+V
           </div>
         )}

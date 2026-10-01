@@ -3,6 +3,7 @@ import { BUILTIN_MARKS, markVisual } from '../model/marks';
 import type { CustomMark, MarkId } from '../model/types';
 import { MarkIcon } from './MarkIcon';
 import { IconCheck, IconPlus } from './icons';
+import { fz } from '../model/fonts';
 
 interface Props {
   title: string;
@@ -44,7 +45,7 @@ export function MarkMenu({ title, ariaLabel, current, exclude = [], onPick, styl
           <MarkIcon mark={markVisual(customs, id)} size={16} menu />
         </span>
         <span style={{ flexGrow: 1 }}>{label}</span>
-        {numbered && n <= 9 && <span className="mono" style={{ fontSize: 11, color: 'var(--mute)' }}>{n}</span>}
+        {numbered && n <= 9 && <span className="mono" style={{ fontSize: fz(11), color: 'var(--mute)' }}>{n}</span>}
         {on && <IconCheck size={13} sw={2.6} stroke="var(--accent2)" />}
       </button>
     );
@@ -57,7 +58,7 @@ export function MarkMenu({ title, ariaLabel, current, exclude = [], onPick, styl
       {customs.length > 0 && <div className="pop-sep" />}
       {customs.map((c) => item(`c:${c.id}`, c.name))}
       <div className="pop-sep" />
-      <button type="button" className="dd pop-item" style={{ background: 'transparent', color: 'var(--text2)', fontSize: 12.5 }}
+      <button type="button" className="dd pop-item" style={{ background: 'transparent', color: 'var(--text2)', fontSize: fz(12.5) }}
         onClick={() => set({ settingsOpen: true, rowMenu: null, stampOpen: false, fileMenuOpen: false })}>
         <IconPlus size={14} />管理自訂標記…
       </button>
