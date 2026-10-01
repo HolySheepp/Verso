@@ -125,7 +125,7 @@ async function persistConfig(patch: Partial<AppConfig> = {}) {
   config = {
     ...config, ...patch,
     saveRoot: s.saveRoot, autosaveMin: s.autosaveMin, theme: s.theme, accent: s.accent, customAccents: s.customAccents, rainbowUnlocked: s.rainbowUnlocked, fonts: s.fonts, recentFonts: s.recentFonts,
-    shortcuts: s.shortcuts, checkSettings: s.checkSettings, dictOverrides: s.dictOverrides, collapsedProjects: s.collapsedProjects, colWidths: s.colWidths,
+    shortcuts: s.shortcuts, checkSettings: s.checkSettings, dictOverrides: s.dictOverrides, collapsedProjects: s.collapsedProjects, colWidths: s.colWidths, finishLine: s.finishLine, lengthPresets: s.lengthPresets,
   };
   try { await saveConfig(config); } catch { /* 設定存不下不影響使用 */ }
 }
@@ -162,6 +162,8 @@ export async function startApp() {
     dictOverrides: config.dictOverrides ?? {},
     collapsedProjects: config.collapsedProjects ?? [],
     colWidths: config.colWidths?.length === 4 ? config.colWidths : st.colWidths,
+    finishLine: config.finishLine ?? true,
+    lengthPresets: config.lengthPresets ?? [],
   });
 
   let project: ProjectData = { files: [], customMarks: [], nextMarkId: 1, glossary: [], dicts: [], projects: sortProjects([]), refs: [] };
@@ -194,7 +196,7 @@ function watch() {
     }
     // 設定改了就存到設定檔
     if (s.theme !== prev.theme || s.accent !== prev.accent || s.customAccents !== prev.customAccents || s.rainbowUnlocked !== prev.rainbowUnlocked || s.fonts !== prev.fonts || s.recentFonts !== prev.recentFonts || s.shortcuts !== prev.shortcuts || s.checkSettings !== prev.checkSettings
-      || s.dictOverrides !== prev.dictOverrides || s.collapsedProjects !== prev.collapsedProjects || s.colWidths !== prev.colWidths || s.autosaveMin !== prev.autosaveMin || s.saveRoot !== prev.saveRoot) {
+      || s.dictOverrides !== prev.dictOverrides || s.collapsedProjects !== prev.collapsedProjects || s.colWidths !== prev.colWidths || s.finishLine !== prev.finishLine || s.lengthPresets !== prev.lengthPresets || s.autosaveMin !== prev.autosaveMin || s.saveRoot !== prev.saveRoot) {
       clearTimeout(configTimer);
       configTimer = setTimeout(() => void persistConfig(), 400);
     }

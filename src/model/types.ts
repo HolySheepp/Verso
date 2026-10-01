@@ -1,3 +1,4 @@
+import type { StdValue } from './length';
 // 資料模型。之後接真正的檔案讀寫時，讀寫層只需要產生/接收這些型別。
 // 結構：專案 → 檔案 → 頁簽 → 條目
 
@@ -34,6 +35,8 @@ export interface Entry {
   pending: boolean;
   /** 標點檢測誤報時按「略過」，之後不再檢查這條 */
   skipCheck: boolean;
+  /** 這一條的特殊長度標準；沒有就用檔案標準 */
+  lengthStd?: StdValue;
   /**
    * 檔案裡記著、但目前認不得（或刪除時選擇保留）的自訂標記。
    * 畫面上當作沒有標記，存檔時照樣寫回去；使用者重新標記時就清掉。
@@ -52,6 +55,8 @@ export interface Sheet {
 
 export interface FileDoc {
   name: string;
+  /** 檔案的長度標準（套用到全部條目）；沒設定是 undefined */
+  lengthStd?: StdValue;
   /** 所屬專案 */
   project: string;
   sheets: Sheet[];

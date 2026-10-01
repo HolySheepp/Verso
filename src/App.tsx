@@ -12,6 +12,7 @@ import { TermDialog } from './components/TermDialog';
 import { SettingsDialog } from './components/SettingsDialog';
 import { PasteDialog } from './components/PasteDialog';
 import { DictPasteDialog } from './components/DictPasteDialog';
+import { LengthDialog } from './components/LengthDialog';
 import { ManageDictsDialog, ManageProjectsDialog, MoveProjectDialog } from './components/ManageDialogs';
 import { Shortcuts } from './components/Shortcuts';
 import { ConfirmDialog } from './components/ConfirmDialog';
@@ -192,6 +193,7 @@ export default function App() {
       <ManageProjectsDialog />
       <ManageDictsDialog />
       <MoveProjectDialog />
+      <LengthDialog />
       <Toast />
     </div>
   );

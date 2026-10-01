@@ -1,4 +1,6 @@
-import { useRef } from 'react';
+import { useRef, useState } from 'react';
+import { FinishLine } from './FinishLine';
+import { effectiveStd } from '../model/length';
 import { STAMP_EXCLUDE, currentOf, currentStamp, useStore, useStorePick, visibleIssues } from '../state/store';
 import { markName, markVisual } from '../model/marks';
 import { keyOf, type ActionId } from '../model/shortcuts';
@@ -7,7 +9,7 @@ import { MarkIcon } from './MarkIcon';
 import { MarkMenu } from './MarkMenu';
 import { fz } from '../model/fonts';
 import {
-  IconWarn, IconCopyPair,
+  IconWarn, IconCopyPair, IconRuler,
   IconBraces, IconCheck, IconChevL, IconChevR, IconCopy, IconEraser, IconEye, IconFeather, IconLock, IconPen, IconUndo, IconUse,
 } from './icons';
 
@@ -32,14 +34,15 @@ export function WorkPanel({ height }: { height: number }) {
 
 function WorkPanelInner({ height }: { height: number }) {
   // 只訂閱這個區塊用到的資料（包含 currentOf 等輔助函式間接用到的）
-  const s = useStorePick('project', 'file', 'sheetBy', 'selBy', 'mode', 'stampOpen', 'stamps', 'viewOn', 'peek', 'history', 'shortcuts', 'reported', 'checkSettings', 'set', 'updateEntry', 'record', 'useShownSlot', 'stampNext', 'skipCheck', 'prev', 'pickSlot', 'next', 'mainNext');
+  const s = useStorePick('project', 'file', 'sheetBy', 'selBy', 'mode', 'finishLine', 'stampOpen', 'stamps', 'viewOn', 'peek', 'history', 'shortcuts', 'reported', 'checkSettings', 'set', 'updateEntry', 'record', 'useShownSlot', 'stampNext', 'skipCheck', 'prev', 'pickSlot', 'next', 'mainNext');
   const project = s.project!;
   const { sheet, sel, entry } = currentOf(s);
   const cur = entry!;
+  const [tgtEl, setTgtEl] = useState<HTMLTextAreaElement | null>(null);
   const total = sheet.entries.length;
   const mode = s.mode;
   const customs = project.customMarks;
-  const issues = visibleIssues(cur, s.reported, s.checkSettings);
+  const issues = visibleIssues(cur, s.reported, s.checkSettings, currentOf(s).fileDoc.lengthStd);
   const issueText = issues.map((i) => i.msg).join('、');
 
   const hist = s.history.byEntry[cur.uid];
@@ -126,7 +129,7 @@ function WorkPanelInner({ height }: { height: number }) {
             </span>
           </div>
           <div style={{ flexGrow: 1, minHeight: 0, position: 'relative', display: 'flex' }}>
-            <textarea id="verso-target" data-hist={showHist ? '1' : '0'} value={showHist ? texts[slot] : cur.tgt}
+            <textarea id="verso-target" ref={setTgtEl} data-hist={showHist ? '1' : '0'} value={showHist ? texts[slot] : cur.tgt}
               readOnly={!tgtEditable || showHist}
               onChange={(ev) => onTarget(ev.target.value)} onPaste={onPaste}
               style={{
@@ -135,6 +138,7 @@ function WorkPanelInner({ height }: { height: number }) {
                 border: `1px ${showHist ? 'dashed' : 'solid'} ${showHist ? 'var(--accent)' : tgtEditable ? 'var(--line4)' : 'var(--line)'}`,
                 borderRadius: 8, color: tgtEditable ? 'var(--texthi)' : 'var(--textsoft)', fontSize: 'var(--fs-tgt)', fontFamily: 'var(--font-tgt)', lineHeight: 1.6,
               }} />
+            {s.finishLine && !showHist && <FinishLine target={tgtEl} text={cur.tgt} std={effectiveStd(cur.lengthStd, currentOf(s).fileDoc.lengthStd)} />}
 
             <div role="toolbar" aria-label="譯文記錄" aria-orientation="vertical" style={{ position: 'absolute', right: 6, top: 6, display: 'flex', flexDirection: 'column', gap: 2 }}>
               <button type="button" className="hb tip" data-tip={['記錄', keyTip('record')].filter(Boolean).join('  ')} aria-label="記錄" disabled={!tgtEditable || showHist}
@@ -229,6 +233,10 @@ function WorkPanelInner({ height }: { height: number }) {
       <div style={{ height: 40, flexShrink: 0, display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
         <span style={{ display: 'flex', gap: 14, fontSize: fz(12), color: 'var(--mute)' }}>
           <span>第 {sel + 1} / {total} 條</span><span>{MODE_HINTS[mode]}</span>
+          <button type="button" className="ib" aria-label="設定這一條的長度標準" title="這一條的特殊長度標準" onClick={() => s.set({ lengthDialog: 'entry' })}
+            style={{ height: 24, display: 'flex', alignItems: 'center', gap: 5, padding: '0 6px', margin: '-4px 0', background: 'transparent', border: 0, borderRadius: 6, color: cur.lengthStd !== undefined ? 'var(--accent2)' : 'var(--mute)', fontSize: fz(12) }}>
+            <IconRuler size={14} />{cur.lengthStd !== undefined && '特殊標準'}
+          </button>
         </span>
         <div style={{ display: 'flex', gap: 10, alignItems: 'center' }}>
           {mode === 'view' && (

@@ -205,11 +205,13 @@ export function SettingsDialog() {
 function ChecksSection() {
   const settings = useStore((s) => s.checkSettings);
   const setCheck = useStore((s) => s.setCheck);
+  const finishLine = useStore((s) => s.finishLine);
+  const set = useStore((s) => s.set);
   return (
     <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
       <h3 style={h3}>標點與機器驗證</h3>
       <div style={{ display: 'grid', gridTemplateColumns: 'repeat(2, minmax(0, 1fr))', gap: 8 }}>
-        {CHECKS.map((c) => {
+        {CHECKS.filter((c) => c.id !== 'overflow').map((c) => {
           const on = settings[c.id];
           return (
             <label key={c.id} style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 10, height: 44, padding: '0 12px', background: 'var(--card)', border: '1px solid var(--line2)', borderRadius: 8, cursor: 'pointer' }}>
@@ -218,6 +220,17 @@ function ChecksSection() {
             </label>
           );
         })}
+      </div>
+      <h3 style={{ ...h3, marginTop: 8 }}>句子長度</h3>
+      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(2, minmax(0, 1fr))', gap: 8 }}>
+        <label style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 10, height: 44, padding: '0 12px', background: 'var(--card)', border: '1px solid var(--line2)', borderRadius: 8, cursor: 'pointer' }}>
+          <span style={{ fontSize: fz(13) }}>超框</span>
+          <input type="checkbox" role="switch" className="switch" checked={settings.overflow} onChange={(e) => setCheck('overflow', e.target.checked)} />
+        </label>
+        <label style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 10, height: 44, padding: '0 12px', background: 'var(--card)', border: '1px solid var(--line2)', borderRadius: 8, cursor: 'pointer' }}>
+          <span style={{ fontSize: fz(13) }}>終點線</span>
+          <input type="checkbox" role="switch" className="switch" checked={finishLine} onChange={(e) => set({ finishLine: e.target.checked })} />
+        </label>
       </div>
     </div>
   );

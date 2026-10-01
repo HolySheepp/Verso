@@ -11,7 +11,8 @@ import { focusOnMount } from './windowDrag';
 import { MarkIcon } from './MarkIcon';
 import { rowMenuPos } from './rowMenu';
 import { CopyConfirm } from './CopyConfirm';
-import { IconCheck, IconCopy, IconScan, IconWarn } from './icons';
+import { IconCheck, IconCopy, IconRuler, IconScan, IconWarn } from './icons';
+import { stdLabel } from '../model/length';
 import { fz, overflowOf, type Overflow } from '../model/fonts';
 import type { CustomMark, Entry, MarkId } from '../model/types';
 import type { Issue } from '../model/checks';
@@ -107,7 +108,10 @@ const EntryRow = memo(function EntryRow({ e, i, m, issues, on, selCols, editing,
         style={{ width: 24, minHeight: 38, display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 0, background: 'transparent', border: 0, borderRadius: 4 }}>
         <MarkIcon mark={markVisual(customs, m)} size={14} />
       </button>
-      <span className="row-pick" onMouseDown={(ev) => h.current.rowPick(ev, i)} onMouseEnter={(ev) => h.current.rowEnter(ev, i)} style={{ display: 'flex', alignItems: 'center', justifyContent: 'flex-start' }}>
+      <span className="row-pick" onMouseDown={(ev) => h.current.rowPick(ev, i)} onMouseEnter={(ev) => h.current.rowEnter(ev, i)} style={{ display: 'flex', flexDirection: 'column', gap: 3, alignItems: 'flex-start', justifyContent: 'center' }}>
+        {e.lengthStd !== undefined && (
+          <span role="img" aria-label="特殊長度標準" title={'特殊標準：' + stdLabel(e.lengthStd)} style={{ display: 'flex', color: 'var(--accent2)' }}><IconRuler size={11} sw={2.2} /></span>
+        )}
         {e.note && (
           <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="var(--text2)" strokeWidth="2.2" strokeLinejoin="round" role="img" aria-label="有備註">
             <title>有備註</title><path d="M4 5h16v11H9.5L4 20.5z" />
@@ -212,7 +216,8 @@ export function EntryList() {
     else void doCopy();
   };
 
-  const issuesOf = (e: (typeof sheet.entries)[number]) => visibleIssues(e, s.reported, s.checkSettings);
+  const fileStd = currentOf(s).fileDoc.lengthStd;
+  const issuesOf = (e: (typeof sheet.entries)[number]) => visibleIssues(e, s.reported, s.checkSettings, fileStd);
   const cnt: Record<string, number> = { untranslated: 0, doubt: 0, think: 0, issues: 0 };
   sheet.entries.forEach((e) => {
     const m = effectiveMark(e);
@@ -464,6 +469,10 @@ export function EntryList() {
           <span style={{ fontSize: fz(12), color: 'var(--mute)' }}>共 {sheet.entries.length} 條</span>
         </div>
         <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+        <button type="button" className="ib" aria-label="設定檔案的長度標準" title={'長度標準：' + stdLabel(fileStd)} onClick={() => s.set({ lengthDialog: 'file' })}
+          style={{ width: 34, height: 34, display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 0, background: 'var(--btn)', border: '1px solid var(--line3)', borderRadius: 8, color: 'var(--text2)' }}>
+          <IconRuler size={16} />
+        </button>
         <button type="button" className="ib" aria-label="全部檢查" title="全部檢查" onClick={() => s.checkAll()}
           style={{ width: 34, height: 34, display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 0, background: 'var(--btn)', border: '1px solid var(--line3)', borderRadius: 8, color: 'var(--text2)' }}>
           <IconScan size={15} />

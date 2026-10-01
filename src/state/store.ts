@@ -1,5 +1,6 @@
 import { create } from 'zustand';
 import { useShallow } from 'zustand/react/shallow';
+import { effectiveStd, type LengthStd, type StdValue } from '../model/length';
 import { emptyHistory, recordText, selectSlot, type HistoryStore } from '../model/history';
 import { effectiveMark, findCustom, toStoredMark } from '../model/marks';
 import { TGT_COL, cellKey, parseKey, type Cell } from '../model/cells';
@@ -48,17 +49,17 @@ const checkable = (e: Entry) => !!e.tgt && e.mark !== 'ignore' && !e.skipCheck;
  */
 const NO_ISSUES: Issue[] = [];
 /** 檢查結果快取：條目是不可變更新，條目沒改參照就不變；報過的問題或檢查設定換了就重算 */
-const issueCache = new WeakMap<Entry, { keys: string[]; settings: CheckSettings; out: Issue[] }>();
+const issueCache = new WeakMap<Entry, { keys: string[]; settings: CheckSettings; fileStd?: StdValue; out: Issue[] }>();
 
-export function visibleIssues(e: Entry, reported: Record<string, string[]>, settings: CheckSettings): Issue[] {
+export function visibleIssues(e: Entry, reported: Record<string, string[]>, settings: CheckSettings, fileStd?: StdValue): Issue[] {
   const keys = reported[e.uid];
   if (!keys || !checkable(e)) return NO_ISSUES;
   const hit = issueCache.get(e);
-  if (hit && hit.keys === keys && hit.settings === settings) return hit.out;
-  const found = enabledIssues(e.src, e.tgt, settings).filter((i) => keys.includes(i.key));
+  if (hit && hit.keys === keys && hit.settings === settings && hit.fileStd === fileStd) return hit.out;
+  const found = enabledIssues(e.src, e.tgt, settings, effectiveStd(e.lengthStd, fileStd)).filter((i) => keys.includes(i.key));
   // 沒有問題時回傳同一個空陣列，條目欄的行元件才不會因為「新的空陣列」重畫
   const out = found.length ? found : NO_ISSUES;
-  issueCache.set(e, { keys, settings, out });
+  issueCache.set(e, { keys, settings, fileStd, out });
   return out;
 }
 
@@ -128,6 +129,12 @@ interface State {
   colWidths: number[];
 
   checkSettings: CheckSettings;
+  /** 譯文框接近長度上限時顯示終點線 */
+  finishLine: boolean;
+  /** 存起來的常用長度標準 */
+  lengthPresets: { name: string; std: LengthStd }[];
+  /** 長度標準設定視窗：設定檔案的標準，或只設定目前這一條 */
+  lengthDialog: 'file' | 'entry' | null;
   shortcuts: Bindings;
 
   /** 存檔資料夾 */
@@ -165,6 +172,10 @@ interface Actions {
   deleteCustomMark(id: string, clear: boolean): void;
   addFile(f: FileDoc): void;
   addTerms(project: string, dict: string, pairs: [string, string][]): void;
+  /** 設定目前檔案的長度標準；undefined 是清掉 */
+  setFileStd(std: StdValue | undefined): void;
+  /** 設定目前條目的特殊標準；undefined 是改回檔案標準 */
+  setEntryStd(std: StdValue | undefined): void;
   addProject(name: string): void;
   /** keepDicts：字典移到共用；否則一起刪除 */
   deleteProject(name: string, keepDicts: boolean): void;
@@ -276,6 +287,14 @@ export const useStore = create<Store>((set, get) => {
 
   const cur = () => currentOf(get());
 
+  /** 換到沒有長度標準的檔案時，自動套上一個檔案的標準 */
+  const inheritStd = (from: number, to: number) => {
+    const p = get().project;
+    const prev = p?.files[from]?.lengthStd, next = p?.files[to];
+    if (!p || !next || next.lengthStd !== undefined || prev === undefined) return;
+    set({ project: { ...p, files: p.files.map((f, i) => (i === to ? { ...f, lengthStd: prev } : f)) } });
+  };
+
   // 條目欄與頁簽操作的復原／重做：記下整個檔案
   type Snap = { file: number; doc: FileDoc; sheet: number; keys: string[] };
   const undoStack: Snap[] = [];
@@ -319,11 +338,11 @@ export const useStore = create<Store>((set, get) => {
   };
 
   /** 檢查條目並記下當下的問題；沒有問題就清掉記錄 */
-  const checkEntries = (entries: Entry[]) => {
+  const checkEntries = (entries: Entry[], fileStd = cur().fileDoc.lengthStd) => {
     const s = get();
     const reported = { ...s.reported };
     entries.forEach((e) => {
-      const issues = checkable(e) ? enabledIssues(e.src, e.tgt, s.checkSettings) : [];
+      const issues = checkable(e) ? enabledIssues(e.src, e.tgt, s.checkSettings, effectiveStd(e.lengthStd, fileStd)) : [];
       if (issues.length) reported[e.uid] = issues.map((i) => i.key);
       else delete reported[e.uid];
     });
@@ -381,6 +400,9 @@ export const useStore = create<Store>((set, get) => {
     collapsedProjects: [],
     colWidths: DEFAULT_COL_WIDTHS,
     checkSettings: defaultCheckSettings(),
+    finishLine: true,
+    lengthPresets: [],
+    lengthDialog: null,
     shortcuts: defaultBindings(),
     reported: {},
     saveRoot: '',
@@ -396,7 +418,7 @@ export const useStore = create<Store>((set, get) => {
     setFile(f) {
       const n = get().project?.files.length ?? 0;
       if (f < 0 || f >= n) return;
-      if (f !== get().file) leaveCurrent();
+      if (f !== get().file) { leaveCurrent(); inheritStd(get().file, f); }
       set({ file: f, cellSel: null, ...noPopups, ...noView });
     },
 
@@ -411,6 +433,7 @@ export const useStore = create<Store>((set, get) => {
     select(f, sh, i) {
       const c = cur();
       if (f !== get().file || sh !== c.sheetIdx || i !== c.sel) leaveCurrent();
+      if (f !== get().file) inheritStd(get().file, f);
       const s = get();
       // 換條目時，選取跟著移到那條的同一欄
       const col = s.cellSel?.anchor.c ?? TGT_COL;
@@ -593,8 +616,11 @@ export const useStore = create<Store>((set, get) => {
       let name = f.name, k = 2;
       while (project.files.some((x) => x.project === f.project && x.name === name)) name = `${f.name} (${k++})`;
       const idx = project.files.length;
+      // 新檔案沒有長度標準時，沿用剛才那個檔案的
+      const prevStd = project.files[get().file]?.lengthStd;
+      const lengthStd = f.lengthStd ?? prevStd;
       set({
-        project: { ...project, projects: withProject(project.projects, f.project), files: [...project.files, { ...f, name }] },
+        project: { ...project, projects: withProject(project.projects, f.project), files: [...project.files, { ...f, name, ...(lengthStd ? { lengthStd } : {}) }] },
         file: idx, sheetBy: { ...get().sheetBy, [idx]: 0 }, pasteOpen: false, filter: 'all',
         ...noPopups, ...noView,
       });
@@ -611,6 +637,29 @@ export const useStore = create<Store>((set, get) => {
         project: { ...withDict(project, proj, dict), glossary: [...project.glossary, ...terms] },
         dictPasteOpen: false,
       });
+    },
+
+    setFileStd(std) {
+      const s = get();
+      const f = s.project?.files[s.file];
+      if (!s.project || !f) return;
+      const doc = { ...f, lengthStd: std };
+      set({ project: { ...s.project, files: s.project.files.map((x, i) => (i === s.file ? doc : x)) }, lengthDialog: null });
+      // 套用到檔案全部條目：整個檔案重新檢查
+      checkEntries(doc.sheets.flatMap((sh) => sh.entries), std);
+    },
+
+    setEntryStd(std) {
+      const { sel, entry } = cur();
+      if (!entry) return;
+      patchEntry(sel, (e) => {
+        const { lengthStd: _drop, ...rest } = e;
+        void _drop;
+        return std === undefined ? rest : { ...rest, lengthStd: std };
+      });
+      set({ lengthDialog: null });
+      const after = cur().entry;
+      if (after) checkEntries([after]);
     },
 
     addProject(name) {
@@ -795,7 +844,7 @@ export const useStore = create<Store>((set, get) => {
       const pending = visibleRows(s).filter((i) => {
         const e = sheet.entries[i];
         const m = effectiveMark(e);
-        return m === 'untranslated' || m === 'doubt' || visibleIssues(e, s.reported, s.checkSettings).length > 0;
+        return m === 'untranslated' || m === 'doubt' || visibleIssues(e, s.reported, s.checkSettings, cur().fileDoc.lengthStd).length > 0;
       });
       const target = delta > 0 ? pending.find((i) => i > sel) : [...pending].reverse().find((i) => i < sel);
       if (target !== undefined) { s.select(s.file, sheetIdx, target); set({ moveSeq: get().moveSeq + 1, moveDir: delta }); }
@@ -822,7 +871,7 @@ export function visibleRows(s: State): number[] {
   const out: number[] = [];
   sheet.entries.forEach((e, i) => {
     if (s.filter === 'all') out.push(i);
-    else if (s.filter === 'issues') { if (visibleIssues(e, s.reported, s.checkSettings).length) out.push(i); }
+    else if (s.filter === 'issues') { if (visibleIssues(e, s.reported, s.checkSettings, currentOf(s).fileDoc.lengthStd).length) out.push(i); }
     else if (effectiveMark(e) === s.filter) out.push(i);
   });
   return out;

@@ -1,9 +1,11 @@
 // 標點符號檢測與初步機器驗證（以英文譯文為準）
+import type { LengthStd } from './length';
+import { overflows } from './measure';
 
 export type CheckId =
   | 'tags' | 'numbers' | 'ending' | 'fullwidth' | 'pairs'
   | 'edgeSpace' | 'doubleSpace' | 'repeatPunct' | 'cjk' | 'ellipsis'
-  | 'curlyQuotes' | 'capital';
+  | 'curlyQuotes' | 'capital' | 'overflow';
 
 export const CHECKS: { id: CheckId; label: string }[] = [
   { id: 'tags', label: '標籤與變數' },
@@ -18,6 +20,7 @@ export const CHECKS: { id: CheckId; label: string }[] = [
   { id: 'ellipsis', label: '刪節號' },
   { id: 'curlyQuotes', label: '中文引號' },
   { id: 'capital', label: '大小寫' },
+  { id: 'overflow', label: '超框' },
 ];
 
 export type CheckSettings = Record<CheckId, boolean>;
@@ -116,6 +119,9 @@ export function runChecks(src: string, tgt: string): Issue[] {
 }
 
 /** 依開關過濾 */
-export function enabledIssues(src: string, tgt: string, settings: CheckSettings): Issue[] {
-  return runChecks(src, tgt).filter((i) => settings[i.check]);
+export function enabledIssues(src: string, tgt: string, settings: CheckSettings, std?: LengthStd | null): Issue[] {
+  const out = runChecks(src, tgt).filter((i) => settings[i.check]);
+  // 超框：用長度標準實際排版，超過行數上限就報
+  if (std && settings.overflow && overflows(tgt, std)) out.push({ check: 'overflow', key: '', msg: `超框（超過 ${std.lines} 行）` });
+  return out;
 }
