@@ -1,5 +1,5 @@
 // 標記圖示，對應設計檔 MarkIcon.dc.html
-import type { MarkVisual } from '../model/marks';
+import { ACCENT_COLOR, markColorCss, type MarkVisual } from '../model/marks';
 
 interface Props {
   mark: MarkVisual;
@@ -9,7 +9,7 @@ interface Props {
 }
 
 export function MarkIcon({ mark, size: sz, menu = false }: Props) {
-  const color = 'color' in mark ? mark.color : '#a3a9b6';
+  const color = 'color' in mark ? markColorCss(mark.color) : '#a3a9b6';
   const svg = (children: React.ReactNode, extra: React.SVGProps<SVGSVGElement> = {}) => (
     <svg width={sz} height={sz} viewBox="0 0 24 24" aria-hidden="true" {...extra}>{children}</svg>
   );
@@ -31,7 +31,7 @@ export function MarkIcon({ mark, size: sz, menu = false }: Props) {
       body = svg(<><circle cx="12" cy="12" r="9.5" fill="#e8b93a" /><path d="M12 6.8v6.4" stroke="#1c1e24" strokeWidth="2.6" strokeLinecap="round" /><circle cx="12" cy="16.8" r="1.5" fill="#1c1e24" /></>);
       break;
     case 'think':
-      body = svg(<path d="M12 6l7 12H5z" fill="#5b72a0" stroke="#5b72a0" strokeWidth="1.5" strokeLinejoin="round" />);
+      body = svg(<path d="M12 6l7 12H5z" fill="var(--accent)" stroke="var(--accent)" strokeWidth="1.5" strokeLinejoin="round" />);
       break;
     case 'ignore':
       body = svg(<path d="M7 12h10" stroke="#7d8494" strokeWidth="2.8" strokeLinecap="round" />);
@@ -59,7 +59,7 @@ export function MarkIcon({ mark, size: sz, menu = false }: Props) {
         <span style={{
           minWidth: sz, height: sz, boxSizing: 'border-box', display: 'inline-flex', alignItems: 'center', justifyContent: 'center',
           padding: '0 1px', borderRadius: 4, color,
-          background: /^#[0-9a-fA-F]{6}$/.test(color) ? color + '2e' : 'rgba(255,255,255,0.1)',
+          background: 'color' in mark && mark.color === ACCENT_COLOR ? 'var(--acc-soft)' : /^#[0-9a-fA-F]{6}$/.test(color) ? color + '2e' : 'rgba(255,255,255,0.1)',
           fontSize: Math.max(7, Math.round(sz * (latin && n > 1 ? 0.5 : 0.7))), fontWeight: 700, letterSpacing: -0.2, whiteSpace: 'nowrap',
         }}>{latin ? mark.text.toUpperCase() : mark.text}</span>
       );

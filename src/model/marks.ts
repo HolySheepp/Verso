@@ -16,7 +16,13 @@ export const SYMBOLS: { id: SymbolId; label: string }[] = [
   { id: 'pin', label: '圖釘' }, { id: 'hash', label: '井號' }, { id: 'question', label: '問號' },
 ];
 
+/** 自訂標記的顏色設成這個值時跟隨主題色 */
+export const ACCENT_COLOR = 'accent';
+/** 標記顏色實際畫出來的 CSS 顏色 */
+export const markColorCss = (c: string) => (c === ACCENT_COLOR ? 'var(--accent)' : c);
+
 export const MARK_COLORS: { hex: string; label: string }[] = [
+  { hex: ACCENT_COLOR, label: '跟隨主題色' },
   { hex: '#4fb3a9', label: '青綠' }, { hex: '#b48cf2', label: '紫' }, { hex: '#ec8a6a', label: '珊瑚' },
   { hex: '#7cc47a', label: '綠' }, { hex: '#e27aa8', label: '粉紅' }, { hex: '#9aa1ae', label: '灰' },
 ];

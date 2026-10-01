@@ -1,6 +1,6 @@
 import { useEffect, useState, useRef } from 'react';
 import { useStore } from '../state/store';
-import { BUILTIN_MARKS, MARK_COLORS, SYMBOLS, checkMarkText, markVisual, type MarkVisual } from '../model/marks';
+import { BUILTIN_MARKS, MARK_COLORS, markColorCss, SYMBOLS, checkMarkText, markVisual, type MarkVisual } from '../model/marks';
 import type { CustomMark, SymbolId } from '../model/types';
 import { MarkIcon } from './MarkIcon';
 import { IconPlus, IconTrash, IconWinClose } from './icons';
@@ -163,7 +163,7 @@ export function SettingsDialog() {
                     const on = color === w.hex;
                     return (
                       <button key={w.hex} type="button" role="radio" aria-checked={on} aria-label={w.label} onClick={() => setColor(w.hex)}
-                        style={{ width: 26, height: 26, padding: 0, borderRadius: '50%', background: w.hex, border: `2px solid ${on ? 'var(--text)' : 'transparent'}`, boxShadow: '0 0 0 2px var(--bar) inset' }} />
+                        title={w.label} style={{ width: 26, height: 26, padding: 0, borderRadius: '50%', background: markColorCss(w.hex), border: `2px solid ${on ? 'var(--text)' : 'transparent'}`, boxShadow: '0 0 0 2px var(--bar) inset' }} />
                     );
                   })}
                 </div>

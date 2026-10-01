@@ -401,7 +401,7 @@ function ManageDicts() {
                   <div style={{ display: 'flex', gap: 8 }}>
                     <button type="button" className="btn btn-ghost" disabled={!dirty} onClick={() => { cols.reset(base); setSelRow(null); }}
                       style={{ ...ghostBtn, height: 36, padding: '0 16px', fontSize: fz(13), opacity: dirty ? 1 : 0.5 }}>還原</button>
-                    <button type="button" className="btn btn-primary" disabled={!dirty || !!error} onClick={save} style={primaryBtn}>儲存</button>
+                    <button type="button" className="btn btn-primary" disabled={!!error} onClick={save} style={primaryBtn}>儲存</button>
                   </div>
                 </div>
               </>}

@@ -92,7 +92,7 @@ function WorkPanelInner({ height }: { height: number }) {
               )}
               {cur.src !== cur.src0 && <span style={{ fontSize: fz(11), color: 'var(--text2)' }}>已修改，原始版本會保留</span>}
             </span>
-            <span style={meta}><span>{cur.speaker}</span><span>{cur.src.length} 字</span></span>
+            <span style={meta}>{cur.id && <span className="mono">#{cur.id}</span>}<span>{cur.speaker}</span><span>{cur.src.length} 字</span></span>
           </div>
           <textarea id="verso-source" value={cur.src} readOnly={!srcEditable}
             onChange={(ev) => srcEditable && s.updateEntry({ src: ev.target.value })}
