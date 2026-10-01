@@ -54,7 +54,7 @@ export function firstDict(project: string) {
 }
 
 /** 新專案、新字典名稱的檢查訊息；沒問題回傳空字串 */
-export function nameError(kind: '專案' | '字典', sel: string, newName: string, existing: string[]) {
+export function nameError(kind: '專案' | '字典' | '檔案', sel: string, newName: string, existing: string[]) {
   if (sel !== NEW) return '';
   const n = newName.trim();
   if (!n) return '';

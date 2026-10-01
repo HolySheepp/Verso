@@ -156,6 +156,9 @@ interface Actions {
   deleteFile(i: number): void;
   moveFile(i: number, project: string): void;
   addDict(project: string, name: string): void;
+  renameProject(from: string, to: string): void;
+  renameFile(i: number, name: string): void;
+  renameDict(project: string, from: string, to: string): void;
   deleteDict(project: string, name: string): void;
   moveDict(project: string, name: string, to: string): void;
   /** 整本字典的詞條換成 rows */
@@ -641,6 +644,40 @@ export const useStore = create<Store>((set, get) => {
       if (!p || !f || f.project === to) return;
       const name = uniqueName(f.name, p.files.filter((x) => x.project === to).map((x) => x.name));
       set({ project: { ...p, projects: withProject(p.projects, to), files: p.files.map((x, j) => (j === i ? { ...x, project: to, name } : x)) } });
+    },
+
+    renameProject(from, to) {
+      const p = get().project;
+      if (!p || from === SHARED || !to || from === to || p.projects.includes(to)) return;
+      const r = (x: string) => (x === from ? to : x);
+      set({
+        project: {
+          ...p,
+          projects: sortProjects(p.projects.map(r)),
+          files: p.files.map((f) => (f.project === from ? { ...f, project: to } : f)),
+          dicts: p.dicts.map((d) => (d.project === from ? { ...d, project: to } : d)),
+          glossary: p.glossary.map((g) => (g.proj === from ? { ...g, proj: to } : g)),
+        },
+        collapsedProjects: get().collapsedProjects.map(r),
+      });
+    },
+
+    renameFile(i, name) {
+      const p = get().project;
+      const f = p?.files[i];
+      if (!p || !f || !name || f.name === name) return;
+      if (p.files.some((x, j) => j !== i && x.project === f.project && x.name === name)) return;
+      set({ project: { ...p, files: p.files.map((x, j) => (j === i ? { ...x, name } : x)) } });
+    },
+
+    renameDict(project, from, to) {
+      const p = get().project;
+      if (!p || !to || from === to || p.dicts.some((d) => d.project === project && d.name === to)) return;
+      set({ project: {
+        ...p,
+        dicts: p.dicts.map((d) => (d.project === project && d.name === from ? { ...d, name: to } : d)),
+        glossary: p.glossary.map((g) => (g.proj === project && g.dict === from ? { ...g, dict: to } : g)),
+      } });
     },
 
     addDict(project, name) {

@@ -10,7 +10,7 @@ import { PasteBox } from './PasteBox';
 import { NEW, ProjectPicker, nameError, picked } from './Pickers';
 import { dragWindow, focusOnMount } from './windowDrag';
 import { handleUndoKeys, useUndoable } from './useUndo';
-import { IconChevD, IconFile, IconFolder, IconBook, IconPlus, IconTrash, IconWinClose } from './icons';
+import { IconChevD, IconFile, IconFolder, IconBook, IconPenEdit, IconPlus, IconTrash, IconWinClose } from './icons';
 
 const closeBtn: React.CSSProperties = {
   width: 34, height: 34, display: 'flex', alignItems: 'center', justifyContent: 'center', background: 'transparent', border: 0, borderRadius: 8, color: 'var(--text2)',
@@ -38,10 +38,22 @@ function Header({ id, title, onClose }: { id: string; title: string; onClose(): 
 }
 
 /** 樹狀清單的一列：左邊縮排、圖示、名稱，右邊滑過才出現的操作鈕 */
-function TreeRow({ depth, icon, label, extra, selected, open, onToggle, onClick, onMenu, actions }: {
+function TreeRow({ depth, icon, label, extra, selected, open, onToggle, onClick, onMenu, actions, rename, onRename }: {
   depth: number; icon?: React.ReactNode; label: string; extra?: string; selected?: boolean;
   open?: boolean; onToggle?(): void; onClick?(): void; onMenu?(ev: React.MouseEvent): void; actions?: React.ReactNode;
+  /** 正在改名時顯示輸入框 */
+  rename?: { error(name: string): string; onDone(name: string | null): void };
+  /** 雙擊名稱改名 */
+  onRename?(): void;
 }) {
+  if (rename) {
+    return (
+      <div style={{ display: 'flex', alignItems: 'flex-start', gap: 6, padding: `0 6px 0 ${6 + depth * 20}px` }}>
+        <span style={{ width: 20, flexShrink: 0 }} />
+        <div style={{ flexGrow: 1, minWidth: 0 }}><NameInput initial={label} placeholder="名稱" error={rename.error} onDone={rename.onDone} /></div>
+      </div>
+    );
+  }
   return (
     <div className="tree-row dd" onContextMenu={onMenu ? (ev) => { ev.preventDefault(); onMenu(ev); } : undefined}
       style={{ display: 'flex', alignItems: 'center', gap: 6, minHeight: 32, padding: `0 6px 0 ${6 + depth * 20}px`, borderRadius: 6, background: selected ? 'var(--sel)' : 'transparent' }}>
@@ -51,7 +63,7 @@ function TreeRow({ depth, icon, label, extra, selected, open, onToggle, onClick,
           </button>
         : <span style={{ width: 20, flexShrink: 0 }} />}
       {icon}
-      <button type="button" onClick={onClick ?? onToggle}
+      <button type="button" onClick={onClick ?? onToggle} onDoubleClick={onRename}
         style={{ flexGrow: 1, minWidth: 0, height: 30, display: 'flex', alignItems: 'center', gap: 8, padding: 0, background: 'transparent', border: 0, color: 'var(--text)', textAlign: 'left', cursor: 'pointer' }}>
         <span style={{ minWidth: 0, overflow: 'hidden', whiteSpace: 'nowrap', textOverflow: 'ellipsis', fontSize: fz(13) }}>{label}</span>
         {extra && <span style={{ flexShrink: 0, fontSize: fz(11.5), color: 'var(--mute)' }}>{extra}</span>}
@@ -62,9 +74,10 @@ function TreeRow({ depth, icon, label, extra, selected, open, onToggle, onClick,
 }
 
 /** 新增專案、新字典的名稱輸入列 */
-function NameInput({ placeholder, error, onDone }: { placeholder: string; error(name: string): string; onDone(name: string | null): void }) {
-  const [v, setV] = useState('');
-  const err = error(v);
+function NameInput({ initial = '', placeholder, error, onDone }: { initial?: string; placeholder: string; error(name: string): string; onDone(name: string | null): void }) {
+  const [v, setV] = useState(initial);
+  // 名稱沒改就不算錯
+  const err = v.trim() === initial ? '' : error(v);
   return (
     <div style={{ display: 'flex', flexDirection: 'column', gap: 4, padding: '4px 6px' }}>
       <input className="field" ref={focusOnMount} value={v} placeholder={placeholder} aria-label={placeholder}
@@ -176,10 +189,16 @@ function ManageProjects() {
   const [adding, setAdding] = useState(false);
   const [pending, setPending] = useState<Pending | null>(null);
   const [menu, setMenu] = useState<{ x: number; y: number; target: Pending } | null>(null);
+  const [renaming, setRenaming] = useState<Pending | null>(null);
+  const { renameProject, renameFile } = useStore.getState();
   const close = () => set({ manageProjectsOpen: false });
+  const renameBtn = (t: Pending) => (
+    <button type="button" className="ib" title="重新命名" aria-label="重新命名" style={actBtn} onClick={() => setRenaming(t)}><IconPenEdit size={13} sw={2.2} /></button>
+  );
   const toggle = (p: string) => setClosed(closed.includes(p) ? closed.filter((x) => x !== p) : [...closed, p]);
 
   const fileActions = (i: number) => <>
+    {renameBtn({ kind: 'file', index: i })}
     <button type="button" className="ib" title="更改專案" aria-label="更改專案" style={actBtn} onClick={() => set({ moveTarget: { kind: 'file', index: i } })}><IconFolder size={13} /></button>
     <button type="button" className="ib" title="刪除" aria-label="刪除檔案" style={actBtn} onClick={() => setPending({ kind: 'file', index: i })}><IconTrash size={13} /></button>
   </>;
@@ -201,11 +220,24 @@ function ManageProjects() {
             return (
               <div key={p}>
                 <TreeRow depth={0} label={p} extra={files.length ? `${files.length} 個檔案` : ''} open={isOpen} onToggle={() => toggle(p)}
+                  onRename={p === SHARED ? undefined : () => setRenaming({ kind: 'project', name: p })}
+                  rename={renaming?.kind === 'project' && renaming.name === p ? {
+                    error: (v) => nameError('專案', NEW, v, project.projects),
+                    onDone: (n) => { setRenaming(null); if (n && n !== p) { renameProject(p, n); setClosed(closed.map((x) => (x === p ? n : x))); commit(); } },
+                  } : undefined}
                   icon={<IconFolder size={14} stroke="var(--mute)" />}
                   onMenu={p === SHARED ? undefined : (ev) => setMenu({ x: ev.clientX, y: ev.clientY, target: { kind: 'project', name: p } })}
-                  actions={p !== SHARED && <button type="button" className="ib" title="刪除" aria-label={'刪除專案' + p} style={actBtn} onClick={() => setPending({ kind: 'project', name: p })}><IconTrash size={13} /></button>} />
+                  actions={p !== SHARED && <>
+                    {renameBtn({ kind: 'project', name: p })}
+                    <button type="button" className="ib" title="刪除" aria-label={'刪除專案' + p} style={actBtn} onClick={() => setPending({ kind: 'project', name: p })}><IconTrash size={13} /></button>
+                  </>} />
                 {isOpen && files.map(({ f, i }) => (
                   <TreeRow key={i} depth={1} label={f.name} icon={<IconFile size={13} stroke="var(--mute)" />}
+                    onRename={() => setRenaming({ kind: 'file', index: i })}
+                    rename={renaming?.kind === 'file' && renaming.index === i ? {
+                      error: (v) => nameError('檔案', NEW, v, files.map((x) => x.f.name)),
+                      onDone: (n) => { setRenaming(null); if (n && n !== f.name) { renameFile(i, n); commit(); } },
+                    } : undefined}
                     onMenu={(ev) => setMenu({ x: ev.clientX, y: ev.clientY, target: { kind: 'file', index: i } })}
                     actions={fileActions(i)} />
                 ))}
@@ -217,12 +249,13 @@ function ManageProjects() {
       {menu && (
         <ContextMenu x={menu.x} y={menu.y} label="專案操作"
           items={menu.target.kind === 'file'
-            ? [{ key: 'move', label: '更改專案' }, { key: 'delete', label: '刪除', danger: true }]
-            : [{ key: 'delete', label: '刪除', danger: true }]}
+            ? [{ key: 'rename', label: '重新命名' }, { key: 'move', label: '更改專案' }, { key: 'delete', label: '刪除', danger: true }]
+            : [{ key: 'rename', label: '重新命名' }, { key: 'delete', label: '刪除', danger: true }]}
           onClose={() => setMenu(null)}
           onPick={(k) => {
             const t = menu.target;
             setMenu(null);
+            if (k === 'rename') setRenaming(t);
             if (k === 'move' && t.kind === 'file') set({ moveTarget: { kind: 'file', index: t.index } });
             if (k === 'delete') setPending(t);
           }} />
@@ -252,6 +285,8 @@ function ManageDicts() {
   const [menu, setMenu] = useState<{ x: number; y: number; project: string; name: string } | null>(null);
   const [cur, setCur] = useState<{ project: string; name: string } | null>(null);
   const [askLeave, setAskLeave] = useState<(() => void) | null>(null);
+  const [renaming, setRenaming] = useState<{ project: string; name: string } | null>(null);
+  const { renameDict } = useStore.getState();
   const cols = useUndoable<EditCols>({ term: null, en: null, note: null });
   const [selRow, setSelRow] = useState<{ key: string; i: number } | null>(null);
   const toggle = (p: string) => setClosed(closed.includes(p) ? closed.filter((x) => x !== p) : [...closed, p]);
@@ -319,8 +354,22 @@ function ManageDicts() {
                         return (
                           <TreeRow key={d.name} depth={1} label={d.name} extra={String(count)} icon={<IconBook size={13} stroke="var(--mute)" />}
                             selected={cur?.project === p && cur.name === d.name} onClick={() => open({ project: p, name: d.name })}
+                            onRename={() => setRenaming({ project: p, name: d.name })}
+                            rename={renaming?.project === p && renaming.name === d.name ? {
+                              error: (v) => nameError('字典', NEW, v, dicts.map((x) => x.name)),
+                              onDone: (n) => {
+                                setRenaming(null);
+                                if (!n || n === d.name) return;
+                                renameDict(p, d.name, n);
+                                // 正在編輯的字典改名後繼續編輯，未存的修改保留
+                                if (cur?.project === p && cur.name === d.name) setCur({ project: p, name: n });
+                                commit();
+                              },
+                            } : undefined}
                             onMenu={(ev) => setMenu({ x: ev.clientX, y: ev.clientY, project: p, name: d.name })}
                             actions={<>
+                              <button type="button" className="ib" title="重新命名" aria-label="重新命名" style={actBtn}
+                                onClick={() => setRenaming({ project: p, name: d.name })}><IconPenEdit size={13} sw={2.2} /></button>
                               <button type="button" className="ib" title="更改專案" aria-label="更改專案" style={actBtn}
                                 onClick={() => guard(() => set({ moveTarget: { kind: 'dict', project: p, name: d.name } }))}><IconFolder size={13} /></button>
                               <button type="button" className="ib" title="刪除" aria-label="刪除字典" style={actBtn}
@@ -361,11 +410,12 @@ function ManageDicts() {
       </div>
       {menu && (
         <ContextMenu x={menu.x} y={menu.y} label={'字典「' + menu.name + '」'}
-          items={[{ key: 'move', label: '更改專案' }, { key: 'delete', label: '刪除', danger: true }]}
+          items={[{ key: 'rename', label: '重新命名' }, { key: 'move', label: '更改專案' }, { key: 'delete', label: '刪除', danger: true }]}
           onClose={() => setMenu(null)}
           onPick={(k) => {
             const m = menu;
             setMenu(null);
+            if (k === 'rename') setRenaming({ project: m.project, name: m.name });
             if (k === 'move') guard(() => set({ moveTarget: { kind: 'dict', project: m.project, name: m.name } }));
             if (k === 'delete') setPending({ kind: 'dict', project: m.project, name: m.name });
           }} />
