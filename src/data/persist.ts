@@ -31,6 +31,7 @@ export interface AppConfig {
   dictOverrides?: Record<string, boolean>;
   /** 檔案欄裡收合起來的專案 */
   collapsedProjects?: string[];
+  colWidths?: number[];
 }
 
 /** 專案資料夾裡的小設定檔 */

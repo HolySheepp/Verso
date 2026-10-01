@@ -30,6 +30,10 @@ input,textarea{font-family:inherit}
 .btn-primary:disabled{background:var(--pdis) !important;color:var(--pdistx) !important;cursor:not-allowed}
 .fs:hover{border-color:var(--line6) !important;background:var(--hv1) !important}
 .dd:hover{background:var(--hv3) !important}
+.col-head:hover{color:var(--text2)}
+.col-head-sel{color:var(--accent2);background:var(--acc-soft)}
+.col-resize::after{content:'';position:absolute;left:4px;top:9px;bottom:9px;width:1px;background:var(--line3)}
+.col-resize:hover::after{left:3px;top:4px;bottom:4px;width:3px;border-radius:2px;background:var(--accent)}
 .tree-row .tree-act{opacity:0;transition:opacity 120ms}
 .tree-row:hover .tree-act,.tree-row:focus-within .tree-act{opacity:1}
 .sr:hover{background:var(--hv2) !important;border-color:var(--line5) !important}

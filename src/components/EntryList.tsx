@@ -14,9 +14,11 @@ import { CopyConfirm } from './CopyConfirm';
 import { IconCheck, IconCopy, IconScan, IconWarn } from './icons';
 import { fz } from '../model/fonts';
 
-/** 標記欄、# 欄（對話 id）、發話者欄、原文、譯文 */
-const HEAD_COLS = '40px 36px 64px minmax(0, 1fr) minmax(0, 1fr)';
-const ROW_COLS = '36px 64px minmax(0, 1fr) minmax(0, 1fr)';
+/** # 欄（對話 id）、發話者欄、原文、譯文：依比例分配寬度 */
+const colsOf = (w: number[]) => w.map((x) => `minmax(0, ${x}fr)`).join(' ');
+const HEADS = ['#', '發話者', '原文', '譯文'];
+/** 拖動欄寬時每欄至少留這麼寬 */
+const MIN_COL_PX = 24;
 
 /** 往下／往上移動時，前方保留幾條看得到 */
 const KEEP_VISIBLE = 3;
@@ -42,6 +44,9 @@ export function EntryList() {
   // 接收鍵盤、複製貼上用的隱藏文字框；點條目欄時焦點交給它，這樣 Ctrl+C／V 才會作用在條目欄
   const sink = useRef<HTMLTextAreaElement>(null);
   const drag = useRef<Cell | null>(null);
+  // 點欄標題選整欄：按下的那一欄，以及按下前已選的格子（Ctrl 加選時保留）
+  const colDrag = useRef<{ c: number; base: string[] } | null>(null);
+  const headRef = useRef<HTMLDivElement>(null);
   // 從條目最左邊按住拖動：起點那一條，以及按下前已選的格子（Ctrl 加選時保留）
   const rowDrag = useRef<{ i: number; base: string[] } | null>(null);
   // 滑鼠按住期間記下按下的位置：這段時間不自動捲動，也要真的移動了才算拖動選取
@@ -147,7 +152,7 @@ export function EntryList() {
     pick(rectKeys(visible, drag.current, { i, c }), drag.current);
   };
   useEffect(() => {
-    const up = () => { drag.current = null; rowDrag.current = null; pressAt.current = null; };
+    const up = () => { drag.current = null; rowDrag.current = null; colDrag.current = null; pressAt.current = null; };
     window.addEventListener('mouseup', up);
     return () => window.removeEventListener('mouseup', up);
   }, []);
@@ -198,6 +203,54 @@ export function EntryList() {
     rowDrag.current = { i, base: [] };
     pressAt.current = { x: ev.clientX, y: ev.clientY };
   };
+  // 點欄標題選整欄；Shift 延伸、Ctrl 加選，按住拖過的欄一起選
+  const colKeys = (c0: number, c1: number) => {
+    const [a, b] = c0 < c1 ? [c0, c1] : [c1, c0];
+    return visible.flatMap((i) => Array.from({ length: b - a + 1 }, (_, k) => cellKey(i, a + k)));
+  };
+  const onHeadDown = (ev: React.MouseEvent, c: number) => {
+    if (ev.button !== 0 || !visible.length) return;
+    ev.preventDefault();
+    if (editing) commitEdit();
+    sink.current?.focus();
+    const cell: Cell = { i: visible[0], c: c as CellCol };
+    if (ev.shiftKey) { pick(colKeys(anchor.c, c), { i: visible[0], c: anchor.c }); return; }
+    const base = ev.ctrlKey || ev.metaKey ? keys : [];
+    pick([...new Set([...base, ...colKeys(c, c)])], cell);
+    colDrag.current = { c, base };
+  };
+  const onHeadEnter = (ev: React.MouseEvent, c: number) => {
+    const d = colDrag.current;
+    if (!d || !(ev.buttons & 1)) return;
+    pick([...new Set([...d.base, ...colKeys(d.c, c)])], { i: visible[0], c: d.c as CellCol });
+  };
+  // 拖動欄標題之間的分隔線調整欄寬：只動左右兩欄，總寬不變
+  const onResizeDown = (ev: React.MouseEvent, c: number) => {
+    if (ev.button !== 0) return;
+    ev.preventDefault();
+    ev.stopPropagation();
+    const head = headRef.current;
+    if (!head) return;
+    const w0 = s.colWidths;
+    const total = w0.reduce((a, b) => a + b, 0);
+    const px = head.getBoundingClientRect().width;
+    const startX = ev.clientX;
+    const pair = w0[c] + w0[c + 1];
+    const min = Math.min(pair / 2, (MIN_COL_PX / px) * total);
+    const move = (e: MouseEvent) => {
+      const d = ((e.clientX - startX) / px) * total;
+      const left = Math.max(min, Math.min(pair - min, w0[c] + d));
+      const next = [...w0];
+      next[c] = left;
+      next[c + 1] = pair - left;
+      s.set({ colWidths: next });
+    };
+    const up = () => { window.removeEventListener('mousemove', move); window.removeEventListener('mouseup', up); document.body.style.cursor = ''; };
+    window.addEventListener('mousemove', move);
+    window.addEventListener('mouseup', up);
+    document.body.style.cursor = 'col-resize';
+  };
+
   // 按住拖過的條目整條選起來
   const onRowEnter = (ev: React.MouseEvent, i: number) => {
     const d = rowDrag.current;
@@ -302,17 +355,35 @@ export function EntryList() {
         </div>
       </div>
       <div style={{
-        height: 32, flexShrink: 0, display: 'grid', gridTemplateColumns: HEAD_COLS, alignItems: 'center',
+        height: 32, flexShrink: 0, display: 'grid', gridTemplateColumns: '40px minmax(0, 1fr)', alignItems: 'stretch',
         padding: '0 12px 0 4px', fontSize: fz(11), fontWeight: 600, letterSpacing: 0.8, color: 'var(--mute)',
-        borderBottom: '1px solid var(--line0)', background: 'var(--bar2)',
+        borderBottom: '1px solid var(--line0)', background: 'var(--bar2)', overflowY: 'hidden', scrollbarGutter: 'stable',
       }}>
         <span />
-        <span style={{ textAlign: 'right', paddingRight: 2 }}>#</span>
-        <span style={{ padding: '0 8px 0 4px' }}>發話者</span>
-        <span style={{ padding: '0 16px 0 0' }}>原文</span>
-        <span style={{ padding: '0 16px', borderLeft: '1px solid var(--line)' }}>譯文</span>
+        <div ref={headRef} role="row" style={{ display: 'grid', gridTemplateColumns: colsOf(s.colWidths), minWidth: 0 }}>
+          {HEADS.map((h, c) => {
+            const allSel = visible.length > 0 && visible.every((i) => selected.has(cellKey(i, c)));
+            return (
+              <span key={h} role="columnheader" className={'col-head' + (allSel ? ' col-head-sel' : '')}
+                onMouseDown={(ev) => onHeadDown(ev, c)} onMouseEnter={(ev) => onHeadEnter(ev, c)}
+                style={{
+                  position: 'relative', display: 'flex', alignItems: 'center', minWidth: 0, whiteSpace: 'nowrap',
+                  justifyContent: c === 0 ? 'flex-end' : 'flex-start',
+                  padding: c === 0 ? '0 2px 0 0' : c === 1 ? '0 8px 0 4px' : c === 2 ? '0 16px 0 0' : '0 16px',
+                  borderLeft: c === 3 ? '1px solid var(--line)' : undefined, cursor: 'pointer',
+                }}>
+                <span style={{ overflow: 'hidden', textOverflow: 'ellipsis' }}>{h}</span>
+                {c < 3 && (
+                  <span className="col-resize" role="separator" aria-orientation="vertical" aria-label={'調整「' + h + '」欄寬'}
+                    onMouseDown={(ev) => onResizeDown(ev, c)} onClick={(ev) => ev.stopPropagation()}
+                    style={{ position: 'absolute', right: -4, top: 0, bottom: 0, width: 8, cursor: 'col-resize', zIndex: 1 }} />
+                )}
+              </span>
+            );
+          })}
+        </div>
       </div>
-      <div ref={listRef} onMouseDown={(ev) => { if (ev.target === ev.currentTarget || !(ev.target as HTMLElement).closest('.rw')) { ev.preventDefault(); sink.current?.focus(); } }} style={{ position: 'relative', flexGrow: 1, overflowY: 'auto', padding: '4px 0', userSelect: 'none' }}>
+      <div ref={listRef} onMouseDown={(ev) => { if (ev.target === ev.currentTarget || !(ev.target as HTMLElement).closest('.rw')) { ev.preventDefault(); sink.current?.focus(); } }} style={{ position: 'relative', flexGrow: 1, overflowY: 'auto', scrollbarGutter: 'stable', padding: '4px 0', userSelect: 'none' }}>
         <textarea ref={sink} className="list-sink" aria-label="條目欄" value="" onChange={() => {}}
           onCopy={onCopy} onPaste={onPaste} onKeyDown={onSinkKey}
           style={{ position: 'absolute', left: 0, top: 0, width: 1, height: 1, padding: 0, border: 0, opacity: 0, resize: 'none', pointerEvents: 'none' }} />
@@ -362,7 +433,7 @@ export function EntryList() {
                   </svg>
                 )}
               </span>
-              <div role="row" style={{ minWidth: 0, minHeight: 38, display: 'grid', gridTemplateColumns: ROW_COLS, alignItems: 'stretch', fontSize: fz(13) }}>
+              <div role="row" style={{ minWidth: 0, minHeight: 38, display: 'grid', gridTemplateColumns: colsOf(s.colWidths), alignItems: 'stretch', fontSize: fz(13) }}>
                 <span {...cellProps(0)} title={e.id} style={{ display: 'flex', alignItems: 'center', justifyContent: 'flex-end', minWidth: 0 }}>
                   {editor(0) ?? <span className="mono" style={{ paddingRight: 2, fontSize: fz(10), letterSpacing: -0.5, color: ver ? 'var(--mute3)' : 'var(--mute)', overflow: 'hidden', whiteSpace: 'nowrap', textOverflow: 'ellipsis' }}>{e.id}</span>}
                 </span>

@@ -111,6 +111,8 @@ interface State {
   dictOverrides: Record<string, boolean>;
   /** 檔案選單裡收起來的專案 */
   collapsedProjects: string[];
+  /** 條目欄 #、發話者、原文、譯文的欄寬比例，會跟著條目欄的寬度縮放 */
+  colWidths: number[];
 
   checkSettings: CheckSettings;
   shortcuts: Bindings;
@@ -205,6 +207,8 @@ function withDict(p: ProjectData, project: string, dict: string): ProjectData {
   const has = p.dicts.some((d) => d.project === project && d.name === dict);
   return { ...p, projects, dicts: has ? p.dicts : [...p.dicts, { project, name: dict }] };
 }
+
+export const DEFAULT_COL_WIDTHS = [6, 11, 41.5, 41.5];
 
 /** 名稱重複時加上編號 */
 export function uniqueName(name: string, taken: string[]) {
@@ -355,6 +359,7 @@ export const useStore = create<Store>((set, get) => {
     moveDir: 1,
     dictOverrides: {},
     collapsedProjects: [],
+    colWidths: DEFAULT_COL_WIDTHS,
     checkSettings: defaultCheckSettings(),
     shortcuts: defaultBindings(),
     reported: {},
