@@ -32,7 +32,7 @@ function useWindowSize() {
   return size;
 }
 
-/** 畫面中間短暫出現、自己消失的提示（例如手動存檔後的「已保存」） */
+/** 畫面中間短暫出現、自己消失的提示（例如手動存檔後的「已儲存」） */
 function Toast() {
   const toast = useStore((s) => s.toast);
   useEffect(() => {

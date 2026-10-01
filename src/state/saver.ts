@@ -113,7 +113,7 @@ export async function saveNow(): Promise<boolean> {
 /** 手動存檔（儲存鈕、Ctrl+S）：存好後在畫面中間提示 */
 export async function manualSave() {
   const ok = await saveNow();
-  if (ok) useStore.setState((s) => ({ toast: { text: '已保存', k: (s.toast?.k ?? 0) + 1 } }));
+  if (ok) useStore.setState((s) => ({ toast: { text: '已儲存', k: (s.toast?.k ?? 0) + 1 } }));
 }
 
 // ---- 設定檔 ----
