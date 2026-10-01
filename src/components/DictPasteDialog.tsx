@@ -1,10 +1,10 @@
 import { useEffect, useState } from 'react';
 import { currentProjectOf, useStore } from '../state/store';
 import { DictPicker, NEW, ProjectPicker, firstDict, nameError, picked } from './Pickers';
-import { PasteBox } from './PasteBox';
+import { PasteBox, type BoxSel } from './PasteBox';
 import { dragWindow } from './windowDrag';
 import { handleUndoKeys, useUndoable } from './useUndo';
-import { fitsRows, spreadColumns, type Col } from '../model/paste';
+import { fitsRows, pasteColumns, type Col } from '../model/paste';
 import { IconWinClose } from './icons';
 import { fz } from '../model/fonts';
 
@@ -23,7 +23,7 @@ export function DictPasteDialog() {
   const { src, tgt } = cols.value;
   const setSrc = (c: Col | null) => cols.commit({ ...cols.current.current, src: c });
   const setTgt = (c: Col | null) => cols.commit({ ...cols.current.current, tgt: c });
-  const [selRow, setSelRow] = useState<{ key: string; i: number } | null>(null);
+  const [selRow, setSelRow] = useState<{ key: string; sel: BoxSel } | null>(null);
 
   useEffect(() => {
     if (open) {
@@ -35,8 +35,8 @@ export function DictPasteDialog() {
   if (!open) return null;
 
   // 一次貼兩欄到原文時，譯文一起填上
-  const spread = (from: 'src' | 'tgt', values: string[][]) => {
-    const out = spreadColumns(['src', 'tgt'], from, values);
+  const spread = (from: 'src' | 'tgt', values: string[][], start?: number) => {
+    const out = pasteColumns(['src', 'tgt'], from, values, cols.current.current, start);
     cols.commit({ ...cols.current.current, ...out });
   };
 
@@ -76,10 +76,10 @@ export function DictPasteDialog() {
             <DictPicker id="verso-dict-target" focus={projSel !== NEW} project={projName} sel={target} newName={newName} onSel={setTarget} onNewName={setNewName} width={180} />
           </div>
           <div style={{ flexGrow: 1, minHeight: 0, display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12 }}>
-            <PasteBox label="原文" col={src} onChange={setSrc} onPaste={(v) => spread('src', v)}
-              selected={selRow?.key === 'src' ? selRow.i : null} onSelect={(i) => setSelRow(i === null ? null : { key: 'src', i })} />
-            <PasteBox label="譯文" col={tgt} onChange={setTgt} onPaste={(v) => spread('tgt', v)}
-              selected={selRow?.key === 'tgt' ? selRow.i : null} onSelect={(i) => setSelRow(i === null ? null : { key: 'tgt', i })} />
+            <PasteBox label="原文" col={src} onChange={setSrc} onPaste={(v, st) => spread('src', v, st)}
+              selected={selRow?.key === 'src' ? selRow.sel : null} onSelect={(sel) => setSelRow(sel === null ? null : { key: 'src', sel })} />
+            <PasteBox label="譯文" col={tgt} onChange={setTgt} onPaste={(v, st) => spread('tgt', v, st)}
+              selected={selRow?.key === 'tgt' ? selRow.sel : null} onSelect={(sel) => setSelRow(sel === null ? null : { key: 'tgt', sel })} />
           </div>
         </div>
 

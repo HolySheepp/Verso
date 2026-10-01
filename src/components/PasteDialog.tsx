@@ -1,8 +1,8 @@
 import { useEffect, useRef, useState } from 'react';
 import { currentOf, currentProjectOf, useStore } from '../state/store';
 import { ProjectPicker, nameError, picked } from './Pickers';
-import { COLS, checkColumns, columnsToEntries, emptyColumns, spreadColumns, type Columns } from '../model/paste';
-import { PasteBox } from './PasteBox';
+import { COLS, checkColumns, columnsToEntries, emptyColumns, pasteColumns, type Columns } from '../model/paste';
+import { PasteBox, type BoxSel } from './PasteBox';
 import { ContextMenu } from './ContextMenu';
 import { dragWindow, focusOnMount } from './windowDrag';
 import { IconPlus, IconWinClose } from './icons';
@@ -34,7 +34,7 @@ export function PasteDialog() {
   const [sheets, setSheetsState] = useState<DraftSheet[]>([newSheet(1)]);
   const [cur, setCur] = useState(0);
   const [renaming, setRenaming] = useState<number | null>(null);
-  const [selRow, setSelRow] = useState<{ key: string; i: number } | null>(null);
+  const [selRow, setSelRow] = useState<{ key: string; sel: BoxSel } | null>(null);
   const [tabMenu, setTabMenu] = useState<{ i: number; x: number; y: number } | null>(null);
   const [tabDrag, setTabDrag] = useState<TabDrag | null>(null);
   const press = useRef<{ i: number; x: number; moved: boolean } | null>(null);
@@ -296,10 +296,10 @@ export function PasteDialog() {
           <div role="tabpanel" style={{ flexGrow: 1, minHeight: 0, display: 'grid', gridTemplateColumns: '0.7fr 0.8fr 1.5fr 1.5fr', gap: 12 }}>
             {COLS.map((c) => (
               <PasteBox key={cur + c.key} label={c.label} col={sheet.cols[c.key]}
-                onPaste={(values) => patchSheet(cur, (sh) => ({ cols: { ...sh.cols, ...spreadColumns(COLS.map((x) => x.key), c.key, values) } }))}
+                onPaste={(values, start) => patchSheet(cur, (sh) => ({ cols: { ...sh.cols, ...pasteColumns(COLS.map((x) => x.key), c.key, values, sh.cols, start) } }))}
                 onChange={(col) => patchSheet(cur, (sh) => ({ cols: { ...sh.cols, [c.key]: col } }))}
-                selected={selRow?.key === c.key ? selRow.i : null}
-                onSelect={(i) => setSelRow(i === null ? null : { key: c.key, i })} />
+                selected={selRow?.key === c.key ? selRow.sel : null}
+                onSelect={(sel) => setSelRow(sel === null ? null : { key: c.key, sel })} />
             ))}
           </div>
         </div>

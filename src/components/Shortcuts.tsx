@@ -5,7 +5,7 @@ import { effectiveMark } from '../model/marks';
 import { markMenuIds } from './MarkMenu';
 import { rowMenuPos } from './rowMenu';
 import { saveNow } from '../state/saver';
-import { TGT_COL, cellKey, clearCells } from '../model/cells';
+import { TGT_COL, cellKey, clearCells, deleteCells } from '../model/cells';
 
 /** 工作用的輸入框：翻譯、驗證模式是譯文框，原文修正模式是原文框 */
 function isWorkInput(el: Element | null, mode: string) {
@@ -53,10 +53,10 @@ export function Shortcuts() {
       // 對話框開著時只處理 Esc 關閉設定與詞條視窗；貼入視窗怕內容遺失，不用 Esc 關
       if (s.settingsOpen || s.termDraft || s.pasteOpen || s.dictPasteOpen || s.manageProjectsOpen || s.manageDictsOpen || s.moveTarget) {
         if (ev.key === 'Escape' && s.moveTarget) { ev.preventDefault(); s.set({ moveTarget: null }); return; }
-        // 管理字典裡可能有還沒存的詞條修改，不用 Esc 關
-        if (ev.key === 'Escape' && !s.pasteOpen && !s.dictPasteOpen && !s.manageDictsOpen) {
+        // 管理專案、管理字典裡可能有還沒存的修改，不用 Esc 關
+        if (ev.key === 'Escape' && !s.pasteOpen && !s.dictPasteOpen && !s.manageDictsOpen && !s.manageProjectsOpen) {
           ev.preventDefault();
-          s.set({ settingsOpen: false, termDraft: null, accentPreview: null, manageProjectsOpen: false });
+          s.set({ settingsOpen: false, termDraft: null, accentPreview: null });
         }
         return;
       }
@@ -151,6 +151,13 @@ export function Shortcuts() {
           if (s.mode === 'view') break;
           const keys = s.cellSel?.keys.length ? s.cellSel.keys : [cellKey(sel, TGT_COL)];
           s.editSheet((es) => ({ entries: clearCells(es, keys), keys }));
+          break;
+        }
+        case 'deleteCells': {
+          // 刪除選取的格子，同一欄下面的往上補；檢視模式不能改
+          if (s.mode === 'view') break;
+          const keys = s.cellSel?.keys.length ? s.cellSel.keys : [cellKey(sel, TGT_COL)];
+          s.editSheet((es) => ({ entries: deleteCells(es, keys), keys }));
           break;
         }
         case 'prevSheet': s.setSheet(currentOf(s).sheetIdx - 1); break;

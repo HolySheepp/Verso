@@ -1,12 +1,12 @@
 import { useEffect, useState } from 'react';
 import { useStore, type MoveTarget } from '../state/store';
 import { saveNow } from '../state/saver';
-import { SHARED } from '../model/types';
-import { fitsRows, spreadColumns, type Col } from '../model/paste';
+import { SHARED, type Entry, type FileDoc, type Sheet } from '../model/types';
+import { COLS, checkColumns, fitsRows, newUid, pasteColumns, type Col, type Columns } from '../model/paste';
 import { fz } from '../model/fonts';
 import { ConfirmDialog } from './ConfirmDialog';
 import { ContextMenu } from './ContextMenu';
-import { PasteBox } from './PasteBox';
+import { PasteBox, type BoxSel } from './PasteBox';
 import { NEW, ProjectPicker, nameError, picked } from './Pickers';
 import { dragWindow, focusOnMount } from './windowDrag';
 import { handleUndoKeys, useUndoable } from './useUndo';
@@ -191,7 +191,13 @@ function ManageProjects() {
   const [menu, setMenu] = useState<{ x: number; y: number; target: Pending } | null>(null);
   const [renaming, setRenaming] = useState<Pending | null>(null);
   const { renameProject, renameFile } = useStore.getState();
-  const close = () => set({ manageProjectsOpen: false });
+  // 正在編輯的檔案：用頁簽陣列認檔案，改名、搬專案時陣列不變，所以還認得到
+  const [curSheets, setCurSheets] = useState<Sheet[] | null>(null);
+  const curIdx = curSheets ? project.files.findIndex((f) => f.sheets === curSheets) : -1;
+  const [dirty, setDirty] = useState(false);
+  const [askLeave, setAskLeave] = useState<(() => void) | null>(null);
+  const guard = (fn: () => void) => { if (dirty && curIdx >= 0) setAskLeave(() => fn); else fn(); };
+  const close = () => guard(() => set({ manageProjectsOpen: false }));
   const renameBtn = (t: Pending) => (
     <button type="button" className="ib" title="重新命名" aria-label="重新命名" style={actBtn} onClick={() => setRenaming(t)}><IconPenEdit size={13} sw={2.2} /></button>
   );
@@ -206,12 +212,14 @@ function ManageProjects() {
   return (
     <div className="scrim" style={{ zIndex: 45 }} onMouseDown={dragWindow}>
       <div role="dialog" aria-modal="true" aria-labelledby="verso-mp-title" className="dialog"
-        style={{ width: 520, height: 560, maxWidth: 'calc(100% - 48px)', maxHeight: 'calc(100% - 48px)', boxShadow: '0 24px 64px rgba(0,0,0,0.5)' }}>
+        style={{ width: 1080, height: 680, maxWidth: 'calc(100% - 48px)', maxHeight: 'calc(100% - 48px)', boxShadow: '0 24px 64px rgba(0,0,0,0.5)' }}>
         <Header id="verso-mp-title" title="管理專案" onClose={close} />
-        <div style={{ display: 'flex', padding: '12px 20px 4px' }}>
+        <div style={{ flexGrow: 1, minHeight: 0, display: 'flex' }}>
+        <div style={{ width: 280, flexShrink: 0, display: 'flex', flexDirection: 'column', borderRight: '1px solid var(--line)' }}>
+        <div style={{ display: 'flex', padding: '12px 14px 4px' }}>
           <button type="button" className="btn btn-ghost" onClick={() => setAdding(true)} style={ghostBtn}><IconPlus size={13} sw={2.2} />新增專案</button>
         </div>
-        <div style={{ flexGrow: 1, minHeight: 0, overflowY: 'auto', padding: '6px 14px 14px' }}>
+        <div style={{ flexGrow: 1, minHeight: 0, overflowY: 'auto', padding: '6px 10px 14px' }}>
           {adding && <NameInput placeholder="專案名稱" error={(v) => nameError('專案', NEW, v, project.projects)}
             onDone={(n) => { setAdding(false); if (n) { addProject(n); commit(); } }} />}
           {project.projects.map((p) => {
@@ -233,6 +241,7 @@ function ManageProjects() {
                   </>} />
                 {isOpen && files.map(({ f, i }) => (
                   <TreeRow key={i} depth={1} label={f.name} icon={<IconFile size={13} stroke="var(--mute)" />}
+                    selected={i === curIdx} onClick={() => { if (i !== curIdx) guard(() => { setDirty(false); setCurSheets(f.sheets); }); }}
                     onRename={() => setRenaming({ kind: 'file', index: i })}
                     rename={renaming?.kind === 'file' && renaming.index === i ? {
                       error: (v) => nameError('檔案', NEW, v, files.map((x) => x.f.name)),
@@ -245,7 +254,22 @@ function ManageProjects() {
             );
           })}
         </div>
+        </div>
+        <div style={{ flexGrow: 1, minWidth: 0, display: 'flex', flexDirection: 'column' }}>
+          {curIdx < 0
+            ? <div className="empty" style={{ margin: 20, flexGrow: 1, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>選擇左邊的檔案</div>
+            : <FileEditor key={String(curIdx) + '/' + project.files.length} file={project.files[curIdx]} index={curIdx}
+                onDirty={setDirty} onSaved={(sheets) => { setCurSheets(sheets); setDirty(false); }} />}
+        </div>
+        </div>
       </div>
+      {askLeave && (
+        <ConfirmDialog zIndex={58} title="有未儲存的修改" body="這個檔案的修改還沒儲存。"
+          choices={[
+            { label: '取消', onClick: () => setAskLeave(null) },
+            { label: '不儲存', danger: true, onClick: () => { const fn = askLeave; setAskLeave(null); setDirty(false); fn(); } },
+          ]} />
+      )}
       {menu && (
         <ContextMenu x={menu.x} y={menu.y} label="專案操作"
           items={menu.target.kind === 'file'
@@ -261,6 +285,125 @@ function ManageProjects() {
           }} />
       )}
       {pending && <DeleteConfirm pending={pending} onDone={() => setPending(null)} />}
+    </div>
+  );
+}
+
+// ---- 管理專案：右邊編輯檔案 ----
+
+type FileDraft = { name: string; cols: Columns }[];
+const FILE_KEYS = COLS.map((c) => c.key);
+
+/** 檔案轉成手動貼入那種分欄的樣子；譯文欄帶著條目編號，條目的資料跟著譯文走 */
+function toDraft(f: FileDoc): FileDraft {
+  return f.sheets.map((sh) => {
+    const es = sh.entries;
+    const col = (g: (e: Entry) => string): Col | null => (es.length ? { rows: es.map(g), extra: 0 } : null);
+    return {
+      name: sh.name,
+      cols: { id: col((e) => e.id), speaker: col((e) => e.speaker), src: col((e) => e.src), tgt: es.length ? { rows: es.map((e) => e.tgt), extra: 0, ids: es.map((e) => e.uid) } : null },
+    };
+  });
+}
+
+/** 分欄轉回條目：譯文那一行原本屬於哪個條目，就沿用那個條目的標記、備註、修改紀錄 */
+function fromDraft(f: FileDoc, draft: FileDraft): Sheet[] {
+  const orig = new Map(f.sheets.flatMap((sh) => sh.entries).map((e) => [e.uid, e]));
+  return draft.map((sh, si) => ({
+    name: sh.name.trim() || '頁簽 ' + (si + 1),
+    entries: (sh.cols.src?.rows ?? []).map((src, i): Entry => {
+      const id = sh.cols.id?.rows[i] ?? '';
+      const speaker = (sh.cols.speaker?.rows[i] ?? '').trim() || '無';
+      const tgt = sh.cols.tgt?.rows[i] ?? '';
+      const uid = sh.cols.tgt?.ids?.[i];
+      const base = uid ? orig.get(uid) : undefined;
+      if (base) return { ...base, id, speaker, src, tgt };
+      return { uid: newUid(), id, speaker, src, src0: src, tgt, tgt0: tgt, mark: '', pending: true, skipCheck: false, note: '', sugg: '' };
+    }),
+  }));
+}
+
+const isEmpty = (c: Columns) => FILE_KEYS.every((k) => !c[k]);
+
+function FileEditor({ file, index, onDirty, onSaved }: { file: FileDoc; index: number; onDirty(d: boolean): void; onSaved(sheets: Sheet[]): void }) {
+  const { setFileSheets } = useStore.getState();
+  const [base, setBase] = useState(() => toDraft(file));
+  const draft = useUndoable<FileDraft>(base);
+  const [cur, setCur] = useState(0);
+  const [selRow, setSelRow] = useState<{ key: string; sel: BoxSel } | null>(null);
+  const [renaming, setRenaming] = useState<number | null>(null);
+  const [tabMenu, setTabMenu] = useState<{ i: number; x: number; y: number } | null>(null);
+  const sheets = draft.value;
+  const sheetIdx = Math.min(cur, sheets.length - 1);
+  const sheet = sheets[sheetIdx];
+  const dirty = JSON.stringify(sheets) !== JSON.stringify(base);
+  useEffect(() => { onDirty(dirty); }, [dirty]);
+
+  const patchSheet = (i: number, cols: Partial<Columns>) =>
+    draft.commit(draft.current.current.map((sh, j) => (j === i ? { ...sh, cols: { ...sh.cols, ...cols } } : sh)));
+  const results = sheets.map((sh) => (isEmpty(sh.cols) ? { ok: true, msg: '' } : checkColumns(sh.cols)));
+  const bad = results.findIndex((r) => !r.ok);
+  const error = bad < 0 ? '' : (sheets.length > 1 ? `「${sheets[bad].name}」` : '') + results[bad].msg;
+  const total = sheets.reduce((n, sh) => n + (sh.cols.src?.rows.length ?? 0), 0);
+
+  const save = () => {
+    if (error) return;
+    const next = fromDraft(file, draft.current.current);
+    setFileSheets(index, next);
+    commit();
+    const d = toDraft({ ...file, sheets: next });
+    setBase(d); draft.reset(d); setSelRow(null);
+    onSaved(next);
+  };
+  const addSheet = () => { draft.commit([...sheets, { name: '頁簽 ' + (sheets.length + 1), cols: { id: null, speaker: null, src: null, tgt: null } }]); setCur(sheets.length); };
+  const tabAct = (k: string, i: number) => {
+    setTabMenu(null);
+    if (k === 'rename') setRenaming(i);
+    if (k === 'delete' && sheets.length > 1) { draft.commit(sheets.filter((_, j) => j !== i)); setCur(Math.max(0, Math.min(cur, sheets.length - 2))); setSelRow(null); }
+  };
+
+  return (
+    <div style={{ flexGrow: 1, minHeight: 0, display: 'flex', flexDirection: 'column' }}
+      onKeyDown={(ev) => handleUndoKeys(ev, () => { if (draft.undo()) setSelRow(null); }, () => { if (draft.redo()) setSelRow(null); })}>
+      <div style={{ padding: '14px 20px 0', fontSize: fz(13), color: 'var(--text2)' }}>{file.project} / <span style={{ color: 'var(--text)', fontWeight: 600 }}>{file.name}</span></div>
+      <div role="tablist" aria-label="頁簽" className="no-scrollbar" style={{ display: 'flex', alignItems: 'center', gap: 4, padding: '10px 20px 0', overflowX: 'auto', borderBottom: '1px solid var(--line)' }}>
+        {sheets.map((sh, i) => (
+          renaming === i
+            ? <input key={i} className="field" ref={focusOnMount} defaultValue={sh.name} aria-label="頁簽名稱" style={{ height: 30, width: 140 }}
+                onBlur={(e) => { const v = e.target.value.trim(); setRenaming(null); if (v && v !== sh.name) draft.commit(sheets.map((x, j) => (j === i ? { ...x, name: v } : x))); }}
+                onKeyDown={(e) => { if (e.key === 'Enter') (e.target as HTMLInputElement).blur(); if (e.key === 'Escape') { e.stopPropagation(); setRenaming(null); } }} />
+            : <button key={i} type="button" role="tab" aria-selected={i === sheetIdx} className={'tb' + (i === sheetIdx ? ' on' : '')}
+                onClick={() => { setCur(i); setSelRow(null); }} onDoubleClick={() => setRenaming(i)}
+                onContextMenu={(e) => { e.preventDefault(); setCur(i); setTabMenu({ i, x: e.clientX, y: e.clientY }); }}
+                style={{
+                  height: 32, padding: '0 12px', background: 'transparent', border: 0, borderBottom: `2px solid ${i === sheetIdx ? 'var(--accent)' : 'transparent'}`,
+                  color: i === sheetIdx ? 'var(--text)' : 'var(--text2)', fontSize: fz(12.5), whiteSpace: 'nowrap',
+                }}>{sh.name || '頁簽 ' + (i + 1)}</button>
+        ))}
+        <button type="button" className="ib" aria-label="新增頁簽" title="新增頁簽" onClick={addSheet} style={{ ...actBtn, color: 'var(--text2)' }}><IconPlus size={13} sw={2.2} /></button>
+      </div>
+      <div style={{ flexGrow: 1, minHeight: 0, display: 'grid', gridTemplateColumns: '0.7fr 0.8fr 1.5fr 1.5fr', gap: 12, padding: '12px 20px' }}>
+        {COLS.map((c) => (
+          <PasteBox key={sheetIdx + c.key} label={c.label} col={sheet.cols[c.key]}
+            onPaste={(values, start) => patchSheet(sheetIdx, pasteColumns(FILE_KEYS, c.key, values, draft.current.current[sheetIdx].cols, start))}
+            onChange={(col) => patchSheet(sheetIdx, { [c.key]: col })}
+            selected={selRow?.key === c.key ? selRow.sel : null}
+            onSelect={(sel) => setSelRow(sel === null ? null : { key: c.key, sel })} />
+        ))}
+      </div>
+      <div style={{ flexShrink: 0, display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 12, padding: '12px 20px 16px', borderTop: '1px solid var(--line)' }}>
+        <span role="alert" style={{ fontSize: fz(12.5), color: error ? 'var(--errtx)' : 'var(--mute)' }}>{error || `${total} 條`}</span>
+        <div style={{ display: 'flex', gap: 8 }}>
+          <button type="button" className="btn btn-ghost" disabled={!dirty} onClick={() => { draft.reset(base); setSelRow(null); }}
+            style={{ ...ghostBtn, height: 36, padding: '0 16px', fontSize: fz(13), opacity: dirty ? 1 : 0.5 }}>還原</button>
+          <button type="button" className="btn btn-primary" disabled={!dirty || !!error} onClick={save} style={primaryBtn}>儲存</button>
+        </div>
+      </div>
+      {tabMenu && (
+        <ContextMenu x={tabMenu.x} y={tabMenu.y} label={'頁簽「' + (sheets[tabMenu.i]?.name ?? '') + '」'}
+          items={[{ key: 'rename', label: '重新命名' }, { key: 'delete', label: '刪除', danger: true, disabled: sheets.length <= 1 }]}
+          onPick={(k) => tabAct(k, tabMenu.i)} onClose={() => setTabMenu(null)} />
+      )}
     </div>
   );
 }
@@ -288,7 +431,7 @@ function ManageDicts() {
   const [renaming, setRenaming] = useState<{ project: string; name: string } | null>(null);
   const { renameDict } = useStore.getState();
   const cols = useUndoable<EditCols>({ term: null, en: null, note: null });
-  const [selRow, setSelRow] = useState<{ key: string; i: number } | null>(null);
+  const [selRow, setSelRow] = useState<{ key: string; sel: BoxSel } | null>(null);
   const toggle = (p: string) => setClosed(closed.includes(p) ? closed.filter((x) => x !== p) : [...closed, p]);
 
   // 目前字典的詞條轉成三欄
@@ -325,7 +468,8 @@ function ManageDicts() {
     const v = { term: rows.length ? { rows: rows.map((r) => r.term), extra: 0 } : null, en: rows.length ? { rows: rows.map((r) => r.en), extra: 0 } : null, note: rows.length ? { rows: rows.map((r) => r.note), extra: 0 } : null };
     setBase(v); cols.reset(v);
   };
-  const spread = (from: keyof EditCols, values: string[][]) => cols.commit({ ...cols.current.current, ...spreadColumns(EDIT_KEYS, from, values) });
+  const spread = (from: keyof EditCols, values: string[][], start?: number) =>
+    cols.commit({ ...cols.current.current, ...pasteColumns(EDIT_KEYS, from, values, cols.current.current, start) });
 
   return (
     <div className="scrim" style={{ zIndex: 45 }} onMouseDown={dragWindow}
@@ -392,8 +536,8 @@ function ManageDicts() {
                 <div style={{ flexGrow: 1, minHeight: 0, display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: 12, padding: '12px 20px' }}>
                   {EDIT_KEYS.map((k) => (
                     <PasteBox key={cur.project + '/' + cur.name + k} label={EDIT_LABELS[k]} col={cols.value[k]}
-                      onChange={(c) => cols.commit({ ...cols.current.current, [k]: c })} onPaste={(v) => spread(k, v)}
-                      selected={selRow?.key === k ? selRow.i : null} onSelect={(i) => setSelRow(i === null ? null : { key: k, i })} />
+                      onChange={(c) => cols.commit({ ...cols.current.current, [k]: c })} onPaste={(v, st) => spread(k, v, st)}
+                      selected={selRow?.key === k ? selRow.sel : null} onSelect={(sel) => setSelRow(sel === null ? null : { key: k, sel })} />
                   ))}
                 </div>
                 <div style={{ flexShrink: 0, display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 12, padding: '12px 20px 16px', borderTop: '1px solid var(--line)' }}>

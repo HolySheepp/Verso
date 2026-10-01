@@ -9,7 +9,7 @@ export const CONTEXTS: { id: ShortcutContext; label: string }[] = [
 
 export type ActionId =
   | 'main' | 'newline' | 'stampNext' | 'prevEntry' | 'nextEntry' | 'markMenu' | 'record' | 'leaveInput'
-  | 'editEntry' | 'clearTgt' | 'prevSheet' | 'nextSheet' | 'close' | 'peek' | 'prevPending' | 'nextPending' | 'save';
+  | 'editEntry' | 'clearTgt' | 'deleteCells' | 'prevSheet' | 'nextSheet' | 'close' | 'peek' | 'prevPending' | 'nextPending' | 'save';
 
 export const ACTION_LABELS: Record<ActionId, string> = {
   main: '下一條／驗證並下一條',
@@ -22,6 +22,7 @@ export const ACTION_LABELS: Record<ActionId, string> = {
   leaveInput: '離開譯文框',
   editEntry: '編輯選取條目的譯文',
   clearTgt: '清除選取的格子',
+  deleteCells: '刪除選取的格子（下面的往上補）',
   prevSheet: '上一個頁簽',
   nextSheet: '下一個頁簽',
   close: '關閉選單與視窗',
@@ -37,7 +38,7 @@ export const HOLD_ACTIONS: ActionId[] = ['peek'];
 /** 各情境有哪些操作（依設定頁的顯示順序） */
 export const CONTEXT_ACTIONS: Record<ShortcutContext, ActionId[]> = {
   input: ['main', 'newline', 'stampNext', 'prevEntry', 'nextEntry', 'prevPending', 'nextPending', 'markMenu', 'record', 'peek', 'save', 'leaveInput', 'prevSheet', 'nextSheet'],
-  list: ['prevEntry', 'nextEntry', 'prevPending', 'nextPending', 'editEntry', 'clearTgt', 'markMenu', 'record', 'peek', 'save', 'prevSheet', 'nextSheet', 'close'],
+  list: ['prevEntry', 'nextEntry', 'prevPending', 'nextPending', 'editEntry', 'clearTgt', 'deleteCells', 'markMenu', 'record', 'peek', 'save', 'prevSheet', 'nextSheet', 'close'],
 };
 
 export type Bindings = Record<ShortcutContext, Partial<Record<ActionId, string[]>>>;
@@ -65,7 +66,8 @@ export const defaultBindings = (): Bindings => ({
     prevPending: ['Ctrl+↑'],
     nextPending: ['Ctrl+↓'],
     editEntry: ['Enter'],
-    clearTgt: ['Delete', 'Backspace'],
+    clearTgt: ['Backspace'],
+    deleteCells: ['Delete'],
     markMenu: ['Ctrl+M'],
     record: ['Ctrl+R'],
     peek: ['Ctrl+D'],
@@ -93,6 +95,12 @@ export function comboOf(ev: Pick<KeyboardEvent, 'key' | 'code' | 'ctrlKey' | 'me
   const mods = [ev.ctrlKey || ev.metaKey ? 'Ctrl' : '', ev.altKey ? 'Alt' : '', ev.shiftKey ? 'Shift' : ''].filter(Boolean);
   if (heldTab && key !== 'Tab') mods.push('Tab');
   return [...mods, key].join('+');
+}
+
+/** 舊版的「清除」同時綁了 Delete 和 Backspace；現在 Delete 改成刪除 */
+export function migrateList(list: Bindings['list']): Bindings['list'] {
+  if (list.deleteCells || !list.clearTgt?.includes('Delete')) return list;
+  return { ...list, clearTgt: list.clearTgt.filter((k) => k !== 'Delete'), deleteCells: ['Delete'] };
 }
 
 /** 找出某情境下這個組合鍵對應的操作 */

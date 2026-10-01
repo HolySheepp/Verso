@@ -160,6 +160,8 @@ interface Actions {
   addDict(project: string, name: string): void;
   renameProject(from: string, to: string): void;
   renameFile(i: number, name: string): void;
+  /** 管理專案裡編輯完整個檔案的頁簽與條目 */
+  setFileSheets(i: number, sheets: Sheet[]): void;
   renameDict(project: string, from: string, to: string): void;
   deleteDict(project: string, name: string): void;
   moveDict(project: string, name: string, to: string): void;
@@ -673,6 +675,14 @@ export const useStore = create<Store>((set, get) => {
       if (!p || !f || !name || f.name === name) return;
       if (p.files.some((x, j) => j !== i && x.project === f.project && x.name === name)) return;
       set({ project: { ...p, files: p.files.map((x, j) => (j === i ? { ...x, name } : x)) } });
+    },
+
+    setFileSheets(i, sheets) {
+      const s = get();
+      const f = s.project?.files[i];
+      if (!f || !sheets.length) return;
+      replaceFile(i, { ...f, sheets });
+      if (s.file === i) set({ cellSel: null, ...noView });
     },
 
     renameDict(project, from, to) {
