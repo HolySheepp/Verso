@@ -92,6 +92,7 @@ function LengthForm({ target }: { target: 'file' | 'entry' }) {
   const drag = useRef<{ x: number; w: number } | null>(null);
   const onEdgeDown = (ev: React.MouseEvent) => {
     ev.preventDefault();
+    ev.stopPropagation();
     drag.current = { x: ev.clientX, w: visWidth };
     const move = (e: MouseEvent) => { if (drag.current) setVisWidth(Math.max(40, Math.round(drag.current.w + e.clientX - drag.current.x))); };
     const up = () => { drag.current = null; window.removeEventListener('mousemove', move); window.removeEventListener('mouseup', up); document.body.style.cursor = ''; };
@@ -170,7 +171,7 @@ function LengthForm({ target }: { target: 'file' | 'entry' }) {
               <NumField id="verso-len-v" value={visCount} onChange={setVisCount} />
               <span style={{ ...label, marginLeft: 16 }}>欄寬 {visWidth}px・{visLines} 行</span>
             </div>
-            <div style={{ overflowX: 'auto', paddingBottom: 4 }}>
+            <div data-nodrag style={{ overflowX: 'auto', paddingBottom: 4 }}>
               <div style={{
                 position: 'relative', width: visWidth, boxSizing: 'border-box', padding: `2px ${CELL_PADDING}px`,
                 background: '#ffffff', color: '#000000', border: '1px solid var(--line6)',
