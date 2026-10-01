@@ -42,6 +42,8 @@ export function EntryList() {
   // 接收鍵盤、複製貼上用的隱藏文字框；點條目欄時焦點交給它，這樣 Ctrl+C／V 才會作用在條目欄
   const sink = useRef<HTMLTextAreaElement>(null);
   const drag = useRef<Cell | null>(null);
+  // 從條目最左邊按住拖動：起點那一條，以及按下前已選的格子（Ctrl 加選時保留）
+  const rowDrag = useRef<{ i: number; base: string[] } | null>(null);
   // 滑鼠按住期間記下按下的位置：這段時間不自動捲動，也要真的移動了才算拖動選取
   const pressAt = useRef<{ x: number; y: number } | null>(null);
   const [menu, setMenu] = useState<{ x: number; y: number } | null>(null);
@@ -139,12 +141,13 @@ export function EntryList() {
     pick([cellKey(i, c)], cell);
   };
   const onCellEnter = (ev: React.MouseEvent, i: number, c: CellCol) => {
+    if (rowDrag.current) { onRowEnter(ev, i); return; }
     if (!drag.current || !(ev.buttons & 1) || !pressAt.current) return;
     if (Math.abs(ev.clientX - pressAt.current.x) + Math.abs(ev.clientY - pressAt.current.y) < 4) return;
     pick(rectKeys(visible, drag.current, { i, c }), drag.current);
   };
   useEffect(() => {
-    const up = () => { drag.current = null; pressAt.current = null; };
+    const up = () => { drag.current = null; rowDrag.current = null; pressAt.current = null; };
     window.addEventListener('mouseup', up);
     return () => window.removeEventListener('mouseup', up);
   }, []);
@@ -187,9 +190,22 @@ export function EntryList() {
       const add = rowKeys(i).some((k) => !selected.has(k));
       const next = add ? [...new Set([...keys, ...rowKeys(i)])] : keys.filter((k) => parseKey(k).i !== i);
       pick(next.length ? next : rowKeys(i), cell);
+      rowDrag.current = { i, base: add ? keys : next };
+      pressAt.current = { x: ev.clientX, y: ev.clientY };
       return;
     }
     pick(rowKeys(i), cell);
+    rowDrag.current = { i, base: [] };
+    pressAt.current = { x: ev.clientX, y: ev.clientY };
+  };
+  // 按住拖過的條目整條選起來
+  const onRowEnter = (ev: React.MouseEvent, i: number) => {
+    const d = rowDrag.current;
+    if (!d || !(ev.buttons & 1)) return;
+    const a = visible.indexOf(d.i), b = visible.indexOf(i);
+    const [p0, p1] = a < b ? [a, b] : [b, a];
+    const rows = visible.slice(Math.max(0, p0), p1 + 1).flatMap(rowKeys);
+    pick([...new Set([...d.base, ...rows])], { i: d.i, c: 0 });
   };
   const commitEdit = () => {
     const ed = editing;
@@ -339,7 +355,7 @@ export function EntryList() {
                 style={{ width: 24, minHeight: 38, display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 0, background: 'transparent', border: 0, borderRadius: 4 }}>
                 <MarkIcon mark={markVisual(customs, m)} size={14} />
               </button>
-              <span className="row-pick" onMouseDown={(ev) => onRowPick(ev, i)} style={{ display: 'flex', alignItems: 'center', justifyContent: 'flex-start' }}>
+              <span className="row-pick" onMouseDown={(ev) => onRowPick(ev, i)} onMouseEnter={(ev) => onRowEnter(ev, i)} style={{ display: 'flex', alignItems: 'center', justifyContent: 'flex-start' }}>
                 {e.note && (
                   <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="var(--text2)" strokeWidth="2.2" strokeLinejoin="round" role="img" aria-label="有備註">
                     <title>有備註</title><path d="M4 5h16v11H9.5L4 20.5z" />
