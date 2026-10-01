@@ -43,7 +43,7 @@ function countOf(list: string[]) {
   return m;
 }
 
-const ENDINGS = ['."', '—"', '?"', '!"', '.', '—', '?', '!'];
+const ENDINGS = ['."', '—"', '?"', '!"', '~"', '♡"', '.', '—', '?', '!', '~', '♡'];
 
 /** 句尾：指定標點，後面可以再接右括號，例如 .) */
 const endsWell = (s: string) => ENDINGS.some((e) => s.endsWith(e) || s.endsWith(e + ')'));

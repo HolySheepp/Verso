@@ -26,6 +26,7 @@ describe('標點檢測', () => {
     expect(ids('開始遊戲', 'Start Game')).toEqual(['ending']);
     expect(ids('', '"Hello?"')).toEqual([]);
     expect(ids('', 'Hello,')).toEqual(['ending']);
+    for (const t of ['Hi~', '(Hi~)', '"Hi~"', 'Thanks♡', '"Thanks♡"', '(Thanks♡)']) expect(ids('', t)).toEqual([]);
   });
 
   it('全形符號與殘留中文', () => {
