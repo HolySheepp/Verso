@@ -6,7 +6,7 @@ import { MAX_PT, MIN_PT, fontStack, fz, ptToPx, pushRecent } from '../model/font
 import { FontSelect } from './FontSelect';
 import { Select } from './Select';
 import { dragWindow } from './windowDrag';
-import { IconWinClose } from './icons';
+import { IconTrash, IconWinClose } from './icons';
 
 type Way = 'params' | 'cjk' | 'visual';
 const WAYS: { id: Way; label: string }[] = [
@@ -14,6 +14,9 @@ const WAYS: { id: Way; label: string }[] = [
   { id: 'cjk', label: '中文上限' },
   { id: 'visual', label: '視覺' },
 ];
+
+/** 常用標準下拉最下面的「管理常用標準」 */
+const MANAGE = '__manage__';
 
 const DEFAULT_STD: LengthStd = { family: 'Times New Roman', size: 12, width: 550, lines: 2 };
 const DIGITS = '一二三四五六七八九十';
@@ -59,6 +62,7 @@ function LengthForm({ target }: { target: 'file' | 'entry' }) {
   const [visCount, setVisCount] = useState(30);
   const [visWidth, setVisWidth] = useState(init.width);
   const [presetName, setPresetName] = useState('');
+  const [managing, setManaging] = useState(false);
   const close = () => s.set({ lengthDialog: null });
 
   // 中文上限：微軟正黑體 12pt 的 N 個字寬，加上儲存格兩側內距
@@ -69,7 +73,7 @@ function LengthForm({ target }: { target: 'file' | 'entry' }) {
   const std: LengthStd = way === 'params' ? { family, size, width, lines }
     : way === 'cjk' ? { family, size, width: cjkWidth, lines: cjkLines }
     : { family, size, width: visWidth, lines: Math.max(1, visLines) };
-  const valid = std.width > CELL_PADDING * 2 && std.lines >= 1 && std.size > 0;
+  const valid = std.width > CELL_PADDING * 2 && std.lines >= 1 && std.size > 0 && !!std.family;
 
   const apply = (v: StdValue | undefined) => {
     if (target === 'file') s.setFileStd(v);
@@ -82,6 +86,9 @@ function LengthForm({ target }: { target: 'file' | 'entry' }) {
     setPresetName('');
   };
   const usePreset = (name: string) => {
+    if (name === MANAGE) { setManaging(true); return; }
+    // (無)：清空參數，讓使用者自己設定
+    if (!name) { setWay('params'); setFamily(''); setSize(NaN); setWidth(NaN); setLines(NaN); return; }
     const p = presets.find((x) => x.name === name);
     if (!p) return;
     setWay('params'); setFamily(p.std.family); setSize(p.std.size); setWidth(p.std.width); setLines(p.std.lines);
@@ -127,13 +134,11 @@ function LengthForm({ target }: { target: 'file' | 'entry' }) {
             目前：{stdLabel(current)}{target === 'entry' && entryStd === undefined && fileStd !== undefined ? '（檔案標準）' : ''}
           </div>
 
-          {presets.length > 0 && (
-            <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-              <span style={{ ...label, width: 64, flexShrink: 0 }}>常用標準</span>
-              <Select ariaLabel="套用常用標準" value={presets.find((p) => sameStd(p.std, std))?.name ?? ''} onChange={usePreset}
-                options={[{ value: '', label: '選擇常用標準…' }, ...presets.map((p) => ({ value: p.name, label: p.name }))]} style={{ width: 240, height: 34 }} />
-            </div>
-          )}
+          <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+            <span style={{ ...label, width: 64, flexShrink: 0 }}>常用標準</span>
+            <Select ariaLabel="套用常用標準" value={presets.find((p) => sameStd(p.std, std))?.name ?? ''} onChange={usePreset}
+              options={[{ value: '', label: '(無)' }, ...presets.map((p) => ({ value: p.name, label: p.name })), { value: MANAGE, label: '管理常用標準…' }]} style={{ width: 240, height: 34 }} />
+          </div>
 
           <div role="radiogroup" aria-label="設定方式" style={{ display: 'flex', gap: 2, padding: 3, alignSelf: 'flex-start', background: 'var(--bg0)', border: '1px solid var(--line)', borderRadius: 9 }}>
             {WAYS.map((w) => (
@@ -206,6 +211,35 @@ function LengthForm({ target }: { target: 'file' | 'entry' }) {
           </div>
         </div>
       </div>
+      {managing && (
+        <div className="scrim" style={{ zIndex: 55 }}>
+          <div role="dialog" aria-modal="true" aria-labelledby="verso-preset-title" className="dialog" style={{ width: 460, maxHeight: 'calc(100% - 48px)', boxShadow: '0 24px 64px rgba(0,0,0,0.5)' }}>
+            <div style={{ height: 52, flexShrink: 0, display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '0 10px 0 20px', borderBottom: '1px solid var(--line)' }}>
+              <h2 id="verso-preset-title" style={{ margin: 0, fontSize: fz(15), fontWeight: 600 }}>管理常用標準</h2>
+              <button type="button" className="ib" aria-label="關閉" onClick={() => setManaging(false)}
+                style={{ width: 34, height: 34, display: 'flex', alignItems: 'center', justifyContent: 'center', background: 'transparent', border: 0, borderRadius: 8, color: 'var(--text2)' }}>
+                <IconWinClose size={13} sw={1.4} />
+              </button>
+            </div>
+            <div style={{ display: 'flex', flexDirection: 'column', gap: 6, padding: '14px 20px 18px', overflowY: 'auto' }}>
+              {presets.length === 0 && <div className="empty" style={{ padding: '24px 12px' }}>還沒有常用標準</div>}
+              {presets.map((p) => (
+                <div key={p.name} style={{ display: 'flex', alignItems: 'center', gap: 10, padding: '8px 10px', background: 'var(--card)', border: '1px solid var(--line2)', borderRadius: 8 }}>
+                  <div style={{ flexGrow: 1, minWidth: 0, display: 'flex', flexDirection: 'column', gap: 2 }}>
+                    <span style={{ fontSize: fz(13), fontWeight: 600 }}>{p.name}</span>
+                    <span style={{ fontSize: fz(11.5), color: 'var(--mute)' }}>{stdLabel(p.std)}</span>
+                  </div>
+                  <button type="button" className="ib" aria-label={'刪除常用標準「' + p.name + '」'} title="刪除"
+                    onClick={() => s.set({ lengthPresets: presets.filter((x) => x.name !== p.name) })}
+                    style={{ width: 30, height: 30, display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 0, background: 'transparent', border: 0, borderRadius: 6, color: 'var(--mute)' }}>
+                    <IconTrash size={14} />
+                  </button>
+                </div>
+              ))}
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }
