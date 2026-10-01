@@ -11,12 +11,13 @@ interface Props {
   id?: string;
   ariaLabel?: string;
   style?: React.CSSProperties;
+  disabled?: boolean;
 }
 
 const MAX_H = 280;
 
 /** 下拉選單：外觀跟檔案選單一樣，套用主題色（系統內建的下拉清單由 Windows 畫，套不到） */
-export function Select({ value, options, onChange, id, ariaLabel, style }: Props) {
+export function Select({ value, options, onChange, id, ariaLabel, style, disabled }: Props) {
   const [open, setOpen] = useState(false);
   const [hi, setHi] = useState(0);
   const btn = useRef<HTMLButtonElement>(null);
@@ -51,10 +52,10 @@ export function Select({ value, options, onChange, id, ariaLabel, style }: Props
   return (
     <>
       <button ref={btn} id={id} type="button" className="fs" aria-haspopup="listbox" aria-expanded={open} aria-label={ariaLabel}
-        onClick={() => (open ? close() : show())} onKeyDown={onKey}
+        onClick={() => (open ? close() : show())} onKeyDown={onKey} disabled={disabled}
         style={{
           height: 36, display: 'flex', alignItems: 'center', gap: 8, padding: '0 10px', minWidth: 0,
-          background: 'var(--bg0)', border: '1px solid var(--line4)', borderRadius: 8, color: 'var(--text)', textAlign: 'left', ...style,
+          background: 'var(--bg0)', border: '1px solid var(--line4)', borderRadius: 8, color: 'var(--text)', textAlign: 'left', opacity: disabled ? 0.5 : 1, ...style,
         }}>
         <span style={{ flexGrow: 1, minWidth: 0, overflow: 'hidden', whiteSpace: 'nowrap', textOverflow: 'ellipsis', fontSize: fz(13) }}>{cur?.label ?? ''}</span>
         <IconChevD size={13} stroke="var(--mute)" style={{ flexShrink: 0 }} />

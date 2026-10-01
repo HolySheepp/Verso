@@ -7,10 +7,11 @@ interface Props {
   recent: string[];
   onChange(family: string): void;
   label: string;
+  disabled?: boolean;
 }
 
 /** 字形選單：可搜尋，最上面是近期用過的字形，每個名稱用該字形顯示 */
-export function FontSelect({ value, recent, onChange, label }: Props) {
+export function FontSelect({ value, recent, onChange, label, disabled }: Props) {
   const [open, setOpen] = useState(false);
   const [fonts, setFonts] = useState<string[]>([]);
   const [q, setQ] = useState('');
@@ -47,10 +48,10 @@ export function FontSelect({ value, recent, onChange, label }: Props) {
 
   return (
     <>
-      <button ref={btn} type="button" className="fs" aria-haspopup="listbox" aria-expanded={open} aria-label={label + '字形'} onClick={toggle}
+      <button ref={btn} type="button" className="fs" aria-haspopup="listbox" aria-expanded={open} aria-label={label + '字形'} onClick={toggle} disabled={disabled}
         style={{
           flexGrow: 1, minWidth: 0, height: 34, display: 'flex', alignItems: 'center', gap: 8, padding: '0 10px',
-          background: 'var(--bg0)', border: '1px solid var(--line4)', borderRadius: 8, textAlign: 'left',
+          background: 'var(--bg0)', border: '1px solid var(--line4)', borderRadius: 8, textAlign: 'left', opacity: disabled ? 0.5 : 1,
         }}>
         <span style={{ flexGrow: 1, minWidth: 0, overflow: 'hidden', whiteSpace: 'nowrap', textOverflow: 'ellipsis', fontFamily: fontStack(value), fontSize: fz(13) }}>{value || '預設'}</span>
         <IconChevD size={13} stroke="var(--mute)" />

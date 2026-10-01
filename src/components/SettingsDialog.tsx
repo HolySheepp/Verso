@@ -10,7 +10,7 @@ import { pickSaveRoot } from '../state/saver';
 import { ColorPicker } from './ColorPicker';
 import { FontSelect } from './FontSelect';
 import { Select } from './Select';
-import { DEFAULT_FONTS, FONT_SLOTS, MAX_PT, MIN_PT, pushRecent, type FontSetting, type FontSlot } from '../model/fonts';
+import { DEFAULT_FONTS, FONT_SLOTS, MAX_PT, MIN_PT, OVERFLOWS, isDefaultFont, overflowOf, pushRecent, type FontSetting, type FontSlot, type Overflow } from '../model/fonts';
 import { useEffectiveTheme } from './useTheme';
 import { ACCENTS, MAX_CUSTOM_ACCENTS } from '../model/color';
 import { ACTION_LABELS, CONTEXTS, CONTEXT_ACTIONS, comboOf, createTabHold, type ActionId, type ShortcutContext } from '../model/shortcuts';
@@ -466,17 +466,38 @@ function FontsSection() {
   return (
     <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
       <h3 style={h3}>字體</h3>
-      {FONT_SLOTS.map(({ id, label }) => {
+      {FONT_SLOTS.map(({ id, label, sub }) => {
         const f = fonts[id];
-        const isDefault = f.family === DEFAULT_FONTS[id].family && f.size === DEFAULT_FONTS[id].size;
+        const isDefault = isDefaultFont(f, id);
+        // 跟隨系統字時顯示系統字的設定，不能改
+        const shown = f.inherit ? fonts.ui : f;
+        const hasOverflow = id !== 'ui';
         return (
-          <div key={id} style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-            <span style={{ width: 52, flexShrink: 0, fontSize: fz(13) }}>{label}</span>
-            <FontSelect value={f.family} recent={recent} label={label} onChange={(family) => update(id, { family })} />
-            <Select ariaLabel={label + '字型大小'} value={String(f.size)} onChange={(v) => update(id, { size: Number(v) })}
-              options={sizes.map((n) => ({ value: String(n), label: n + ' pt' }))} style={{ width: 84, height: 34, flexShrink: 0 }} />
-            <button type="button" className="btn btn-ghost" disabled={isDefault} onClick={() => set({ fonts: { ...fonts, [id]: DEFAULT_FONTS[id] } })}
-              style={{ height: 34, padding: '0 12px', flexShrink: 0, background: 'var(--btn)', border: '1px solid var(--line4)', borderRadius: 8, fontSize: fz(12.5), opacity: isDefault ? 0.5 : 1 }}>還原預設</button>
+          <div key={id} style={{ display: 'flex', flexDirection: 'column', gap: 6, paddingLeft: sub ? 20 : 0 }}>
+            <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+              <span style={{ width: 52, flexShrink: 0, fontSize: fz(13) }}>{label}</span>
+              <FontSelect value={shown.family} recent={recent} label={label} disabled={f.inherit} onChange={(family) => update(id, { family })} />
+              <Select ariaLabel={label + '字型大小'} value={String(shown.size)} onChange={(v) => update(id, { size: Number(v) })} disabled={f.inherit}
+                options={sizes.map((n) => ({ value: String(n), label: n + ' pt' }))} style={{ width: 84, height: 34, flexShrink: 0 }} />
+              <button type="button" className="btn btn-ghost" disabled={isDefault} onClick={() => set({ fonts: { ...fonts, [id]: DEFAULT_FONTS[id] } })}
+                style={{ height: 34, padding: '0 12px', flexShrink: 0, background: 'var(--btn)', border: '1px solid var(--line4)', borderRadius: 8, fontSize: fz(12.5), opacity: isDefault ? 0.5 : 1 }}>還原預設</button>
+            </div>
+            {hasOverflow && (
+              <div style={{ display: 'flex', alignItems: 'center', gap: 16, paddingLeft: 60, fontSize: fz(12.5), color: 'var(--text2)' }}>
+                {sub && (
+                  <label style={{ display: 'flex', alignItems: 'center', gap: 8, cursor: 'pointer' }}>
+                    <input type="checkbox" role="switch" className="switch" checked={!!f.inherit}
+                      onChange={(e) => update(id, e.target.checked ? { inherit: true } : { inherit: false, family: fonts.ui.family, size: fonts.ui.size })} />
+                    跟隨系統字
+                  </label>
+                )}
+                <span style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+                  超框時
+                  <Select ariaLabel={label + '超框時'} value={overflowOf(fonts, id)} onChange={(v) => update(id, { overflow: v as Overflow })}
+                    options={OVERFLOWS.map((o) => ({ value: o.id, label: o.label }))} style={{ width: 110, height: 30, flexShrink: 0 }} />
+                </span>
+              </div>
+            )}
           </div>
         );
       })}

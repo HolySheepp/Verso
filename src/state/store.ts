@@ -208,7 +208,7 @@ function withDict(p: ProjectData, project: string, dict: string): ProjectData {
   return { ...p, projects, dicts: has ? p.dicts : [...p.dicts, { project, name: dict }] };
 }
 
-export const DEFAULT_COL_WIDTHS = [6, 11, 41.5, 41.5];
+export const DEFAULT_COL_WIDTHS = [9, 12, 39.5, 39.5];
 
 /** 名稱重複時加上編號 */
 export function uniqueName(name: string, taken: string[]) {

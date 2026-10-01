@@ -2,6 +2,7 @@
 import { isTauri } from '@tauri-apps/api/core';
 import { getCurrentWindow } from '@tauri-apps/api/window';
 import { io } from '../data/fsio';
+import { withFontDefaults } from '../model/fonts';
 import {
   loadConfig, loadWorkspace, reloadFile, saveConfig, sortProjects, trashDict, trashFile, trashProject, writeDict, writeFile, writeMeta,
   type AppConfig, type LastPosition,
@@ -147,7 +148,7 @@ export async function startApp() {
     accent: config.accent ?? st.accent,
     customAccents: config.customAccents ?? [],
     rainbowUnlocked: config.rainbowUnlocked ?? false,
-    fonts: config.fonts ? { ...st.fonts, ...config.fonts } : st.fonts,
+    fonts: withFontDefaults(config.fonts),
     recentFonts: config.recentFonts ?? [],
     shortcuts: config.shortcuts ? { input: { ...st.shortcuts.input, ...config.shortcuts.input }, list: { ...st.shortcuts.list, ...config.shortcuts.list } } : st.shortcuts,
     checkSettings: config.checkSettings ? { ...st.checkSettings, ...config.checkSettings } : st.checkSettings,

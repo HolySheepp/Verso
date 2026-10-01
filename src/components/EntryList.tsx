@@ -12,11 +12,15 @@ import { MarkIcon } from './MarkIcon';
 import { rowMenuPos } from './rowMenu';
 import { CopyConfirm } from './CopyConfirm';
 import { IconCheck, IconCopy, IconScan, IconWarn } from './icons';
-import { fz } from '../model/fonts';
+import { fz, overflowOf } from '../model/fonts';
+import { CellText } from './CellText';
 
 /** # 欄（對話 id）、發話者欄、原文、譯文：依比例分配寬度 */
 const colsOf = (w: number[]) => w.map((x) => `minmax(0, ${x}fr)`).join(' ');
 const HEADS = ['#', '發話者', '原文', '譯文'];
+/** 條目欄的原文、譯文比工作欄小一點 */
+const SRC_FS = 'calc(var(--fs-src) * 13 / 15)';
+const TGT_FS = 'calc(var(--fs-tgt) * 13 / 15)';
 /** 拖動欄寬時每欄至少留這麼寬 */
 const MIN_COL_PX = 24;
 
@@ -54,6 +58,7 @@ export function EntryList() {
   const [menu, setMenu] = useState<{ x: number; y: number } | null>(null);
   const [editing, setEditing] = useState<{ i: number; c: CellCol; text: string } | null>(null);
   const readOnly = s.mode === 'view';
+  const ovf = { id: overflowOf(s.fonts, 'id'), speaker: overflowOf(s.fonts, 'speaker'), src: overflowOf(s.fonts, 'src'), tgt: overflowOf(s.fonts, 'tgt') };
 
   // 換條目時讓目前這條保持在可見範圍。
   // 用下一條或快捷鍵往下（上）移動時，下方（上方）至少保留 3 條看得到；滑鼠點選只確保這條看得到。
@@ -434,22 +439,22 @@ export function EntryList() {
                 )}
               </span>
               <div role="row" style={{ minWidth: 0, minHeight: 38, display: 'grid', gridTemplateColumns: colsOf(s.colWidths), alignItems: 'stretch', fontSize: fz(13) }}>
-                <span {...cellProps(0)} title={e.id} style={{ display: 'flex', alignItems: 'center', justifyContent: 'flex-end', minWidth: 0 }}>
-                  {editor(0) ?? <span className="mono" style={{ paddingRight: 2, fontSize: fz(10), letterSpacing: -0.5, color: ver ? 'var(--mute3)' : 'var(--mute)', overflow: 'hidden', whiteSpace: 'nowrap', textOverflow: 'ellipsis' }}>{e.id}</span>}
+                <span {...cellProps(0)} title={e.id} style={{ display: 'flex', alignItems: 'center', justifyContent: 'flex-end', minWidth: 0, padding: '4px 0', fontFamily: 'var(--font-id)', fontSize: 'var(--fs-id)' }}>
+                  {editor(0) ?? <CellText mode={ovf.id} fontSize="var(--fs-id)" style={{ paddingRight: 2, textAlign: 'right', color: ver ? 'var(--mute3)' : 'var(--mute)' }}>{e.id}</CellText>}
                 </span>
-                <span {...cellProps(1)} title={e.speaker} style={{ display: 'flex', alignItems: 'center', minWidth: 0, padding: '0 8px 0 4px', fontSize: fz(12), color: ver ? 'var(--mute3)' : 'var(--text2)' }}>
-                  {editor(1) ?? <span style={{ overflow: 'hidden', whiteSpace: 'nowrap', textOverflow: 'ellipsis' }}>{e.speaker}</span>}
+                <span {...cellProps(1)} title={e.speaker} style={{ display: 'flex', alignItems: 'center', minWidth: 0, padding: '4px 8px 4px 4px', fontFamily: 'var(--font-spk)', fontSize: 'var(--fs-spk)', color: ver ? 'var(--mute3)' : 'var(--text2)' }}>
+                  {editor(1) ?? <CellText mode={ovf.speaker} fontSize="var(--fs-spk)">{e.speaker}</CellText>}
                 </span>
-                <span {...cellProps(2)} style={{ display: 'flex', alignItems: 'center', minWidth: 0, padding: '9px 16px 9px 0', lineHeight: 1.45, color: ver ? 'var(--mute2)' : 'var(--text)', fontSize: 'calc(var(--fs-src) * 13 / 15)', fontFamily: 'var(--font-src)' }}>
-                  {editor(2) ?? <span style={{ overflow: 'hidden', whiteSpace: 'nowrap', textOverflow: 'ellipsis' }}>{e.src}</span>}
+                <span {...cellProps(2)} style={{ display: 'flex', alignItems: 'center', minWidth: 0, padding: '9px 16px 9px 0', lineHeight: 1.45, color: ver ? 'var(--mute2)' : 'var(--text)', fontSize: SRC_FS, fontFamily: 'var(--font-src)' }}>
+                  {editor(2) ?? <CellText mode={ovf.src} fontSize={SRC_FS}>{e.src}</CellText>}
                 </span>
                 <span {...cellProps(3)} style={{
-                  fontSize: 'calc(var(--fs-tgt) * 13 / 15)', fontFamily: 'var(--font-tgt)',
+                  fontSize: TGT_FS, fontFamily: 'var(--font-tgt)',
                   display: 'flex', alignItems: 'center', minWidth: 0, padding: '9px 16px', lineHeight: 1.45, borderLeft: '1px solid var(--line0)',
                   color: ver ? 'var(--mute2)' : e.tgt ? 'var(--textsoft)' : 'var(--mute2)', fontStyle: e.tgt ? 'normal' : 'italic',
                 }}>
                   {editor(3) ?? (
-                    <span style={{ overflow: 'hidden', whiteSpace: 'nowrap', textOverflow: 'ellipsis' }}>
+                    <CellText mode={ovf.tgt} fontSize={TGT_FS}>
                       {issues.length > 0 && (
                         <span role="img" aria-label={issues.map((x) => x.msg).join('、')} title={issues.map((x) => x.msg).join('、')}
                           style={{ display: 'inline-flex', verticalAlign: '-2px', marginRight: 6, color: 'var(--warntx)', fontStyle: 'normal' }}>
@@ -457,7 +462,7 @@ export function EntryList() {
                         </span>
                       )}
                       {e.tgt || (ign ? '不需翻譯' : '尚未翻譯')}
-                    </span>
+                    </CellText>
                   )}
                 </span>
               </div>
