@@ -13,6 +13,7 @@ import { SettingsDialog } from './components/SettingsDialog';
 import { PasteDialog } from './components/PasteDialog';
 import { DictPasteDialog } from './components/DictPasteDialog';
 import { LengthDialog } from './components/LengthDialog';
+import { Splash } from './components/Splash';
 import { ManageDictsDialog, ManageProjectsDialog, MoveProjectDialog } from './components/ManageDialogs';
 import { Shortcuts } from './components/Shortcuts';
 import { ConfirmDialog } from './components/ConfirmDialog';
@@ -121,7 +122,7 @@ export default function App() {
     requestAnimationFrame(() => requestAnimationFrame(() => root.classList.remove('theme-switching')));
   }, [theme]);
 
-  if (!hasProject) return null;
+  const loading = useStore((st) => !!st.loading);
 
   // 版面尺寸，規則同設計檔
   const W = Math.max(1024, w), H = Math.max(640, h);
@@ -134,6 +135,16 @@ export default function App() {
   const tabW = mainW < 980 ? 150 : 200;
 
   const anyPop = !!s.rowMenu || s.stampOpen || s.fileMenuOpen;
+
+  // 啟動中：同樣的底色與主題色，中間是啟動畫面
+  if (!hasProject || loading) {
+    return (
+      <div data-root="1" className={theme === 'light' ? 'vl' : 'vd'} data-accent={accent.startsWith('#') ? undefined : accent}
+        style={{ ...(accent.startsWith('#') ? { ['--accent' as string]: accent } : {}), width: '100%', height: '100vh', display: 'flex', background: 'var(--bg0)', color: 'var(--text)', fontFamily: 'var(--font-ui)' }}>
+        <Splash />
+      </div>
+    );
+  }
 
   return (
     <div data-root="1" className={theme === 'light' ? 'vl' : 'vd'}

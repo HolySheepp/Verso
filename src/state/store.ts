@@ -122,6 +122,8 @@ interface State {
   toast: { text: string; k: number } | null;
   /** 存檔時發現超過 Excel 單格上限的格子（給人看的位置） */
   longCells: string[] | null;
+  /** 啟動載入中：進度（0–1）與正在做的事；載入完是 null */
+  loading: { p: number; text: string } | null;
   /** 上次存檔失敗的項目與原因 */
   saveErrors: SaveError[];
   manageDictsOpen: boolean;
@@ -246,6 +248,14 @@ export const DEFAULT_COL_WIDTHS = [9, 12, 39.5, 39.5];
 
 /** 工具欄搜尋：原文、譯文（不分大小寫）或 id 有包含搜尋字 */
 export const searchHit = (e: Entry, q: string) => !!q && (e.src.includes(q) || e.tgt.toLowerCase().includes(q.toLowerCase()) || e.id.includes(q));
+
+/** 上次的色彩模式與主題色（存在瀏覽器裡），啟動畫面一開始就用它鋪底色，不用等設定檔讀完 */
+export function bootLook(): { theme: Theme; accent: string } {
+  try {
+    const v = JSON.parse(localStorage.getItem('verso-boot') ?? '{}');
+    return { theme: v.theme ?? 'dark', accent: v.accent ?? 'blue' };
+  } catch { return { theme: 'dark', accent: 'blue' }; }
+}
 
 /** 名稱重複時加上編號 */
 export function uniqueName(name: string, taken: string[]) {
@@ -376,8 +386,8 @@ export const useStore = create<Store>((set, get) => {
     side: 'dict',
     mode: 'translate',
     stamps: {},
-    theme: 'dark',
-    accent: 'blue',
+    theme: bootLook().theme,
+    accent: bootLook().accent,
     customAccents: [],
     rainbowUnlocked: false,
     fonts: DEFAULT_FONTS,
@@ -405,6 +415,7 @@ export const useStore = create<Store>((set, get) => {
     toast: null,
     longCells: null,
     saveErrors: [],
+    loading: { p: 0, text: '啟動中' },
     manageDictsOpen: false,
     moveTarget: null,
     moveSeq: 0,

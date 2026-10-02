@@ -112,7 +112,7 @@ export const sortProjects = (names: Iterable<string>) =>
   [...new Set([...names, SHARED])].sort((a, b) => (a === SHARED ? 1 : b === SHARED ? -1 : a.localeCompare(b)));
 
 /** 載入整個存檔資料夾 */
-export async function loadWorkspace(root: string): Promise<{ data: ProjectData; last?: LastPosition; remapped: boolean }> {
+export async function loadWorkspace(root: string, onProgress?: (p: number, text: string) => void): Promise<{ data: ProjectData; last?: LastPosition; remapped: boolean }> {
   let ws: WorkspaceMeta | null = null;
   try { ws = JSON.parse(await io.readText(io.join(root, WORKSPACE))); } catch { /* 舊版沒有這個檔 */ }
   try { await migrateDicts(root); } catch { /* 搬不動就照舊讀 */ }
@@ -126,8 +126,9 @@ export async function loadWorkspace(root: string): Promise<{ data: ProjectData; 
   let nextId = ws?.nextMarkId ?? 1;
   let remapped = false;
   const files: FileDoc[] = [];
-  for (const name of projectNames) {
+  for (const [pi, name] of projectNames.entries()) {
     const dir = io.join(root, name);
+    onProgress?.(0.15 + 0.7 * (pi / Math.max(1, projectNames.length)), `讀取專案「${name}」`);
     let meta: ProjectMeta = { fileOrder: [] };
     try { meta = { ...meta, ...JSON.parse(await io.readText(io.join(dir, META))) }; } catch { /* 沒有設定檔 */ }
     const idMap = new Map<string, string>();
@@ -164,6 +165,7 @@ export async function loadWorkspace(root: string): Promise<{ data: ProjectData; 
     }
   }
 
+  onProgress?.(0.88, '讀取字典');
   const d = await loadDicts(root);
   return {
     data: {

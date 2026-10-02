@@ -208,6 +208,8 @@ async function persistConfig(patch: Partial<AppConfig> = {}) {
     shortcuts: s.shortcuts, checkSettings: s.checkSettings, dictOverrides: s.dictOverrides, collapsedProjects: s.collapsedProjects, colWidths: s.colWidths, finishLine: s.finishLine, lengthPresets: s.lengthPresets,
   };
   try { await saveConfig(config); } catch { /* 設定存不下不影響使用 */ }
+  // 啟動畫面用：下次一開就知道要鋪什麼底色
+  try { localStorage.setItem('verso-boot', JSON.stringify({ theme: s.theme, accent: s.accent })); } catch { /* 存不下就算了 */ }
 }
 
 /** 回到上次的位置；條目被刪了就停在最接近的一條，頁簽不在就回到檔案開頭 */
@@ -225,6 +227,8 @@ function restorePosition(p: ProjectData, last?: LastPosition) {
 
 /** 啟動：讀設定、載入存檔資料夾裡所有專案的檔案和字典 */
 export async function startApp() {
+  const step = (p: number, text: string) => useStore.setState({ loading: { p, text } });
+  step(0.05, '讀取設定');
   config = await loadConfig();
   const saveRoot = config.saveRoot || await io.defaultRoot();
   const st = useStore.getState();
@@ -250,7 +254,9 @@ export async function startApp() {
   let last: LastPosition | undefined;
   let migrated = false;
   try {
-    const r = await loadWorkspace(saveRoot);
+    try { localStorage.setItem('verso-boot', JSON.stringify({ theme: useStore.getState().theme, accent: useStore.getState().accent })); } catch { /* 存不下就算了 */ }
+    step(0.12, '讀取專案');
+    const r = await loadWorkspace(saveRoot, step);
     project = r.data; last = r.last; migrated = r.remapped;
   } catch { /* 讀不到就從空的開始 */ }
   // 先記下已存的內容再換專案，避免監聽到變動時誤判成未存
@@ -259,6 +265,9 @@ export async function startApp() {
   // 舊版的自訂標記合併後要重寫一次（檔案裡的標記編號、工作區設定檔）
   if (migrated) { saved = { ...saved, files: new Map(), customs: null }; useStore.setState({ saveStatus: 'dirty' }); dirtySince = 0; }
   restorePosition(project, last);
+  step(1, '完成');
+  // 讓進度條停在填滿的樣子一下再進主畫面
+  setTimeout(() => useStore.setState({ loading: null }), 220);
   watch();
 }
 
