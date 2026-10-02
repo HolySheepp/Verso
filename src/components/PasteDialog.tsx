@@ -33,6 +33,7 @@ export function PasteDialog() {
   const [projSel, setProjSel] = useState('');
   const [newProj, setNewProj] = useState('');
   const projects = useStore((s) => s.project!.projects);
+  const allFiles = useStore((s) => s.project!.files);
   const [sheets, setSheetsState] = useState<DraftSheet[]>([newSheet(1)]);
   const [cur, setCur] = useState(0);
   const [renaming, setRenaming] = useState<number | null>(null);
@@ -99,7 +100,6 @@ export function PasteDialog() {
   const projName = picked(projSel, newProj);
   const projError = insert ? '' : nameError('專案', projSel, newProj, projects);
   // 同一個專案裡不能有同名檔案（大小寫、存檔後會變成同一個檔名的都算）
-  const allFiles = useStore((s) => s.project!.files);
   const fileError = insert || !name.trim() ? '' : nameError('檔案', NEW, name, allFiles.filter((f) => f.project === projName).map((f) => f.name));
   const error = projError || fileError || (firstBad < 0 ? '' : (sheets.length > 1 ? `「${sheets[firstBad].name}」` : '') + results[firstBad].msg);
   // 新增專案但還沒打名稱時不能建立
