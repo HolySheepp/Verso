@@ -25,8 +25,10 @@ function textSheet(rows: string[][]): XLSX.WorkSheet {
   Object.keys(ws).forEach((k) => {
     if (k[0] === '!') return;
     const c = ws[k] as XLSX.CellObject;
+    // 空白格不寫進檔案（讀回來時缺的格子就是空白），檔案小、存得快
+    if (c.v == null || c.v === '') { delete ws[k]; return; }
     c.t = 's';
-    c.v = String(c.v ?? '');
+    c.v = String(c.v);
   });
   return ws;
 }
@@ -58,7 +60,7 @@ export function fileToXlsx(file: FileDoc, customs: CustomMark[]): Uint8Array {
     XLSX.utils.book_append_sheet(wb, textSheet([['項目', '值'], ['長度標準', stdToText(file.lengthStd)]]), SETTINGS_SHEET);
     wb.Workbook = { Sheets: wb.SheetNames.map((n) => ({ name: n, Hidden: n === SETTINGS_SHEET ? 1 : 0 })) } as XLSX.WorkBook['Workbook'];
   }
-  return new Uint8Array(XLSX.write(wb, { type: 'array', bookType: 'xlsx' }) as ArrayBuffer);
+  return new Uint8Array(XLSX.write(wb, { type: 'array', bookType: 'xlsx', compression: true }) as ArrayBuffer);
 }
 
 const str = (v: unknown) => (v == null ? '' : String(v));
@@ -117,7 +119,7 @@ export function dictToXlsx(terms: GlossaryTerm[]): Uint8Array {
   const wb = XLSX.utils.book_new();
   const rows = [DICT_HEADERS, ...terms.map((t) => [t.term, t.en, t.note])];
   XLSX.utils.book_append_sheet(wb, textSheet(rows), '字典');
-  return new Uint8Array(XLSX.write(wb, { type: 'array', bookType: 'xlsx' }) as ArrayBuffer);
+  return new Uint8Array(XLSX.write(wb, { type: 'array', bookType: 'xlsx', compression: true }) as ArrayBuffer);
 }
 
 /** 詞條的專案由字典所在的專案資料夾決定（舊檔案裡的「所屬專案」欄不再使用） */

@@ -4,9 +4,10 @@
 //   <存檔資料夾>/字典/<專案>/<字典>.xlsx
 //   <存檔資料夾>/verso.json（自訂標記、上次的位置；不分專案）
 import { io } from './fsio';
+import { dictToXlsxAsync, fileToXlsxAsync } from './xlsxAsync';
 import { DICT_DIR, safeName } from '../model/names';
 export { DICT_DIR, safeName };
-import { dictToXlsx, fileToXlsx, xlsxToDict, xlsxToFile } from './xlsxio';
+import { xlsxToDict, xlsxToFile } from './xlsxio';
 import type { CheckSettings } from '../model/checks';
 import type { FontSettings } from '../model/fonts';
 import type { Bindings } from '../model/shortcuts';
@@ -187,7 +188,7 @@ export async function reloadFile(root: string, project: string, name: string, cu
 export async function writeFile(root: string, file: FileDoc, customs: CustomMark[]) {
   const dir = io.join(root, file.project);
   await io.mkdir(dir);
-  await io.writeBinary(io.join(dir, safeName(file.name) + '.xlsx'), fileToXlsx(file, customs));
+  await io.writeBinary(io.join(dir, safeName(file.name) + '.xlsx'), await fileToXlsxAsync(file, customs));
 }
 
 /** 各專案的檔案順序，與工作區設定（自訂標記、上次位置） */
@@ -220,5 +221,5 @@ export async function trashProject(root: string, project: string) {
 export async function writeDict(root: string, project: string, dict: string, terms: GlossaryTerm[]) {
   const dir = io.join(root, DICT_DIR, project);
   await io.mkdir(dir);
-  await io.writeBinary(io.join(dir, safeName(dict) + '.xlsx'), dictToXlsx(terms));
+  await io.writeBinary(io.join(dir, safeName(dict) + '.xlsx'), await dictToXlsxAsync(terms));
 }
