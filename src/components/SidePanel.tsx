@@ -3,6 +3,7 @@ import { useShallow } from 'zustand/react/shallow';
 import { currentOf, currentProjectOf, dictEnabledIn, overrideKey, searchHit, useStore, useStorePick, type SideTab } from '../state/store';
 import { SHARED, dictKey, type DictInfo, type FileDoc, type GlossaryTerm } from '../model/types';
 import { fz } from '../model/fonts';
+import { findHits } from '../state/dictHits';
 import { ContextMenu } from './ContextMenu';
 import {
   IconBook, IconBookmark, IconCheck, IconChevD, IconCopy, IconChevL, IconChevR, IconFile, IconGlobe, IconHideRight, IconList, IconPaste, IconPenEdit, IconPlus, IconRefresh, IconSearch, IconUse,
@@ -22,7 +23,7 @@ export function ProjTag({ name }: { name: string }) {
   );
 }
 
-function TermCard({ g }: { g: GlossaryTerm }) {
+function TermCard({ g, altKey }: { g: GlossaryTerm; altKey?: number }) {
   const set = useStore((s) => s.set);
   const [copied, setCopied] = useState(false);
   const copy = () => {
@@ -32,7 +33,10 @@ function TermCard({ g }: { g: GlossaryTerm }) {
   return (
     <div className="card">
       <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 8 }}>
-        <span style={{ fontSize: fz(15), fontWeight: 500 }}>{g.term}</span>
+        <span style={{ display: 'flex', alignItems: 'center', gap: 8, minWidth: 0 }}>
+          <span style={{ fontSize: fz(15), fontWeight: 500 }}>{g.term}</span>
+          {altKey && <span className="mono" title={`按 Alt+${altKey} 把譯名放進譯文框`} style={{ fontSize: fz(10.5), color: 'var(--mute)', padding: '1px 5px', border: '1px solid var(--line3)', borderRadius: 4 }}>Alt+{altKey}</span>}
+        </span>
         <span style={{ display: 'flex', alignItems: 'center', gap: 5 }}>
         <ProjTag name={g.proj} />
         <span style={{
@@ -98,7 +102,7 @@ function DictTab() {
     return () => clearTimeout(t);
   }, [uid, src]);
   const matchSrc = uid !== srcNow.uid ? src : srcNow.src;
-  const matches = useMemo(() => active.filter((g) => g.term && matchSrc.includes(g.term)), [active, matchSrc]);
+  const matches = useMemo(() => findHits(matchSrc, active).map((h) => h.term), [active, matchSrc]);
   // 目前專案的字典排最前面，再來是共用，其他照原本順序
   const rank = (d: DictInfo) => (d.project === current ? 0 : d.project === SHARED ? 1 : 2);
   const sorted = [...dicts].sort((a, b) => rank(a) - rank(b));
@@ -165,7 +169,7 @@ function DictTab() {
         </div>
       )}
       <div style={{ fontSize: fz(11.5), color: 'var(--mute)' }}>這一條命中 {matches.length} 個詞條</div>
-      {matches.map((g) => <TermCard key={g.id} g={g} />)}
+      {matches.map((g, i) => <TermCard key={g.id} g={g} altKey={i < 9 ? i + 1 : undefined} />)}
       {matches.length === 0 && <div className="empty" style={{ padding: '32px 12px' }}>這一條沒有符合的詞條</div>}
       {dictMenu && (
         <ContextMenu x={dictMenu.x} y={dictMenu.y} label={'字典「' + dictMenu.d.name + '」'} items={[{ key: 'move', label: '更改專案' }]}

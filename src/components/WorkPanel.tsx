@@ -1,5 +1,8 @@
-import { useRef, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import { FinishLine } from './FinishLine';
+import { TextMarks, type MarkRange } from './TextMarks';
+import { useCurrentHits } from '../state/dictHits';
+import { locateIssues } from '../model/checks';
 import { effectiveStd } from '../model/length';
 import { STAMP_EXCLUDE, currentOf, currentStamp, useStore, useStorePick, visibleIssues } from '../state/store';
 import { markName, markVisual } from '../model/marks';
@@ -39,6 +42,10 @@ function WorkPanelInner({ height }: { height: number }) {
   const { sheet, sel, entry } = currentOf(s);
   const cur = entry!;
   const [tgtEl, setTgtEl] = useState<HTMLTextAreaElement | null>(null);
+  const [srcEl, setSrcEl] = useState<HTMLTextAreaElement | null>(null);
+  // 目前這一條原文命中的字典詞（只算這一條）
+  const hits = useCurrentHits();
+  const hitRanges = useMemo<MarkRange[]>(() => hits.flatMap((h) => h.spans.map((sp) => ({ ...sp, kind: 'hit' as const }))), [hits]);
   const total = sheet.entries.length;
   const mode = s.mode;
   const customs = project.customMarks;
@@ -67,6 +74,34 @@ function WorkPanelInner({ height }: { height: number }) {
     if (!tgtEditable || showHist) return;
     s.updateEntry({ tgt: v });
   };
+
+  // 問題的位置：只標畫面上正在顯示的問題
+  const issueRanges = useMemo<MarkRange[]>(
+    () => (issues.length ? locateIssues(cur.tgt, new Set(issues.map((x) => x.check))).map((r) => ({ ...r, kind: 'issue' as const })) : []),
+    [issues, cur.tgt],
+  );
+
+  // Alt+1、Alt+2…：把原文第幾個命中詞的譯名放進譯文框；有框選文字就取代
+  const altRef = useRef({ hits, tgtEl, onTarget, ok: tgtEditable && !showHist });
+  altRef.current = { hits, tgtEl, onTarget, ok: tgtEditable && !showHist };
+  useEffect(() => {
+    const onKey = (ev: KeyboardEvent) => {
+      if (!ev.altKey || ev.ctrlKey || ev.metaKey || ev.shiftKey || !/^Digit[1-9]$/.test(ev.code)) return;
+      const st = useStore.getState();
+      if (st.settingsOpen || st.termDraft || st.pasteOpen || st.dictPasteOpen || st.manageProjectsOpen || st.manageDictsOpen || st.lengthDialog || st.moveTarget) return;
+      const { hits: hs, tgtEl: ta, onTarget: put, ok } = altRef.current;
+      const hit = hs[Number(ev.code.slice(5)) - 1];
+      ev.preventDefault();
+      if (!hit || !ta || !ok) return;
+      const a = ta.selectionStart, b = ta.selectionEnd;
+      const next = ta.value.slice(0, a) + hit.term.en + ta.value.slice(b);
+      put(next);
+      ta.focus();
+      requestAnimationFrame(() => { ta.selectionStart = ta.selectionEnd = a + hit.term.en.length; });
+    };
+    window.addEventListener('keydown', onKey);
+    return () => window.removeEventListener('keydown', onKey);
+  }, []);
 
   // 整段貼上（貼上的內容取代全部譯文）時，先記下貼上前的譯文
   const onPaste = (ev: React.ClipboardEvent<HTMLTextAreaElement>) => {
@@ -98,13 +133,17 @@ function WorkPanelInner({ height }: { height: number }) {
             </span>
             <span style={meta}>{cur.id && <span className="mono">#{cur.id}</span>}<span>{cur.speaker}</span><span>{cur.src.length} 字</span></span>
           </div>
-          <textarea id="verso-source" value={cur.src} readOnly={!srcEditable}
+          <div style={{ position: 'relative', display: 'flex', flexShrink: 0 }}>
+          <textarea id="verso-source" ref={setSrcEl} value={cur.src} readOnly={!srcEditable}
             onChange={(ev) => srcEditable && s.updateEntry({ src: ev.target.value })}
             style={{
-              height: 66, flexShrink: 0, resize: 'none', boxSizing: 'border-box', padding: '10px 12px',
+              flexGrow: 1, height: 66, flexShrink: 0, resize: 'none', boxSizing: 'border-box', padding: '10px 12px',
               background: srcEditable ? 'var(--bg0)' : 'var(--bgdeep)', border: `1px solid ${srcEditable ? 'rgba(240,165,74,0.55)' : 'var(--line)'}`,
               borderRadius: 8, fontSize: 'var(--fs-src)', fontFamily: 'var(--font-src)', lineHeight: 1.6, color: 'var(--text)',
             }} />
+            {/* 命中字典的詞標色 */}
+            <TextMarks target={srcEl} text={cur.src} ranges={hitRanges} />
+          </div>
 
           <div style={{ ...labelRow, marginTop: 6, gap: 12 }}>
             <span style={{ display: 'flex', alignItems: 'center', gap: 8, minWidth: 0 }}>
@@ -138,6 +177,8 @@ function WorkPanelInner({ height }: { height: number }) {
                 border: `1px ${showHist ? 'dashed' : 'solid'} ${showHist ? 'var(--accent)' : tgtEditable ? 'var(--line4)' : 'var(--line)'}`,
                 borderRadius: 8, color: tgtEditable ? 'var(--texthi)' : 'var(--textsoft)', fontSize: 'var(--fs-tgt)', fontFamily: 'var(--font-tgt)', lineHeight: 1.6,
               }} />
+            {/* QA 問題的位置標色 */}
+            {!showHist && <TextMarks target={tgtEl} text={cur.tgt} ranges={issueRanges} />}
             {s.finishLine && !showHist && <FinishLine target={tgtEl} text={cur.tgt} std={effectiveStd(cur.lengthStd, currentOf(s).fileDoc.lengthStd)} />}
 
             <div role="toolbar" aria-label="譯文記錄" aria-orientation="vertical" style={{ position: 'absolute', right: 6, top: 6, display: 'flex', flexDirection: 'column', gap: 2 }}>

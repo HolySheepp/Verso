@@ -125,3 +125,27 @@ export function enabledIssues(src: string, tgt: string, settings: CheckSettings,
   if (std && settings.overflow && overflows(tgt, std)) out.push({ check: 'overflow', key: '', msg: `超框（超過 ${std.lines} 行）` });
   return out;
 }
+
+/**
+ * 問題在譯文裡的位置（給譯文框標色用）。
+ * 缺數字、缺標籤、句尾缺標點、成對符號、超框這類沒有具體位置的問題不標。
+ */
+export function locateIssues(tgt: string, checks: Set<CheckId>): { start: number; end: number }[] {
+  const out: { start: number; end: number }[] = [];
+  const all = (re: RegExp) => { for (const m of tgt.matchAll(re)) out.push({ start: m.index!, end: m.index! + m[0].length }); };
+  if (checks.has('fullwidth')) all(/[　-〿＀-￯]/g);
+  if (checks.has('doubleSpace')) all(/ {2,}/g);
+  if (checks.has('edgeSpace')) all(/^\s+|\s+$/g);
+  if (checks.has('repeatPunct')) all(/([,;:—-])\1+/g);
+  if (checks.has('curlyQuotes')) all(/[“”‘’]/g);
+  if (checks.has('cjk')) all(/[㐀-䶿一-鿿]+/g);
+  if (checks.has('ellipsis')) { const m = tgt.match(/\.+/); if (m && /^"?\.+"?$/.test(tgt.trim())) out.push({ start: m.index!, end: m.index! + m[0].length }); }
+  if (checks.has('capital')) {
+    // 句首小寫、句號問號驚嘆號後小寫、破折號後大寫：標出那個字母
+    const first = tgt.match(/^[\s"'(\[.]*([a-z])/);
+    if (first) { const i = first[0].length - 1; out.push({ start: i, end: i + 1 }); }
+    for (const m of tgt.matchAll(/(?:^|[^.])[.?!]["')]*\s+["'(]*([a-z])/g)) { const i = m.index! + m[0].length - 1; out.push({ start: i, end: i + 1 }); }
+    for (const m of tgt.matchAll(/—\s*["'(]*(?!I\b|I')([A-Z])/g)) { const i = m.index! + m[0].length - 1; out.push({ start: i, end: i + 1 }); }
+  }
+  return out;
+}
