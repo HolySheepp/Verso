@@ -207,6 +207,25 @@ export async function loadWorkspace(root: string, onProgress?: (p: number, text:
 }
 
 /** 重新讀取一個檔案（放棄未存的修改時用） */
+/** 換存檔資料夾前：新資料夾裡已經有同名的檔案或字典 */
+export interface RootConflict { kind: 'file' | 'dict'; project: string; name: string }
+
+export async function findRootConflicts(root: string, data: ProjectData): Promise<RootConflict[]> {
+  const out: RootConflict[] = [];
+  for (const f of data.files) {
+    if (await io.exists(io.join(root, f.project, safeName(f.name) + '.xlsx'))) out.push({ kind: 'file', project: f.project, name: f.name });
+  }
+  for (const d of data.dicts) {
+    if (await io.exists(io.join(root, DICT_DIR, d.project, safeName(d.name) + '.xlsx'))) out.push({ kind: 'dict', project: d.project, name: d.name });
+  }
+  return out;
+}
+
+/** 讀某個資料夾裡的一本字典 */
+export async function readDict(root: string, project: string, name: string): Promise<GlossaryTerm[]> {
+  return xlsxToDict(project, name, await io.readBinary(io.join(root, DICT_DIR, project, safeName(name) + '.xlsx')));
+}
+
 export async function reloadFile(root: string, project: string, name: string, customs: CustomMark[]): Promise<FileDoc | null> {
   const p = io.join(root, project, safeName(name) + '.xlsx');
   if (!(await io.exists(p))) return null;

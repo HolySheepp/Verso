@@ -14,6 +14,7 @@ import { PasteDialog } from './components/PasteDialog';
 import { DictPasteDialog } from './components/DictPasteDialog';
 import { LengthDialog } from './components/LengthDialog';
 import { Splash } from './components/Splash';
+import { RootConflictDialog } from './components/RootConflictDialog';
 import { ManageDictsDialog, ManageProjectsDialog, MoveProjectDialog } from './components/ManageDialogs';
 import { Shortcuts } from './components/Shortcuts';
 import { ConfirmDialog } from './components/ConfirmDialog';
@@ -214,6 +215,7 @@ export default function App() {
       <PasteDialog />
       <LongCellsNotice />
       <UnreadableNotice />
+      <RootConflictDialog />
       {s.askSave && (
         <ConfirmDialog zIndex={60} title="有未儲存的修改"
           body={s.askSave.kind === 'close' ? '關閉前要儲存嗎？' : '切換檔案前要儲存嗎？'}

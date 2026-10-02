@@ -8,7 +8,7 @@ import { DEFAULT_FONTS, type FontSettings } from '../model/fonts';
 import { defaultBindings, type ActionId, type Bindings, type ShortcutContext } from '../model/shortcuts';
 import { defaultCheckSettings, enabledIssues, type CheckId, type CheckSettings, type Issue } from '../model/checks';
 import { SHARED, dictKey, type CustomMark, type DictInfo, type Entry, type FileDoc, type GlossaryTerm, type MarkId, type Mode, type ProjectData, type Sheet } from '../model/types';
-import { sortProjects } from '../data/persist';
+import { sortProjects, type RootConflict } from '../data/persist';
 import { DICT_DIR, safeName, sameName, sheetNameError } from '../model/names';
 
 export type Filter = 'all' | 'untranslated' | 'doubt' | 'think' | 'issues';
@@ -120,6 +120,8 @@ interface State {
   manageProjectsOpen: boolean;
   /** 畫面中間短暫出現的提示 */
   toast: { text: string; k: number } | null;
+  /** 換存檔資料夾時，新資料夾已有同名內容：讓使用者逐項選要用哪一份 */
+  rootConflicts: { root: string; items: RootConflict[] } | null;
   /** 啟動時讀不到的檔案、字典 */
   unreadable: string[] | null;
   /** 存檔時發現超過 Excel 單格上限的格子（給人看的位置） */
@@ -417,6 +419,7 @@ export const useStore = create<Store>((set, get) => {
     toast: null,
     longCells: null,
     unreadable: null,
+    rootConflicts: null,
     saveErrors: [],
     loading: { p: 0, text: '啟動中' },
     manageDictsOpen: false,

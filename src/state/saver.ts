@@ -6,12 +6,13 @@ import { withFontDefaults } from '../model/fonts';
 import { MAX_CELL_CHARS } from '../model/names';
 import { migrateList } from '../model/shortcuts';
 import {
-  loadConfig, loadWorkspace, reloadFile, saveConfig, sortProjects, trashDict, trashFile, trashProject, writeDict, writeFile, writeMeta,
+  findRootConflicts, loadConfig, loadWorkspace, readDict, reloadFile, saveConfig, sortProjects, trashDict, trashFile, trashProject, writeDict, writeFile, writeMeta,
   type AppConfig, type LastPosition,
 } from '../data/persist';
 import { emptyHistory } from '../model/history';
 import { dictKey, type CustomMark, type FileDoc, type GlossaryTerm, type ProjectData } from '../model/types';
 import { currentOf, useStore, type SaveError } from './store';
+import type { RootConflict } from '../data/persist';
 
 const fileKey = (f: FileDoc) => f.project + '/' + f.name;
 
@@ -382,6 +383,39 @@ export async function resolveAskSave(choice: 'save' | 'discard' | 'cancel') {
 
 /** 更換存檔資料夾：之後的存檔都存到新資料夾，目前的內容馬上存一份過去 */
 export async function changeSaveRoot(root: string) {
+  const p = useStore.getState().project;
+  // 新資料夾已有同名的檔案或字典：先列出來讓使用者逐項選
+  const items = p ? await findRootConflicts(root, p).catch(() => []) : [];
+  if (items.length) { useStore.setState({ rootConflicts: { root, items } }); return; }
+  await switchRoot(root);
+}
+
+/**
+ * 處理同名衝突的選擇：useFolder 裡的項目改用資料夾裡原有的那份（讀進來取代軟體裡的），
+ * 其他的用目前軟體裡的（存過去覆蓋）。
+ */
+export async function resolveRootConflicts(useFolder: RootConflict[]) {
+  const s = useStore.getState();
+  const rc = s.rootConflicts;
+  useStore.setState({ rootConflicts: null });
+  if (!rc || !s.project) return;
+  let p = s.project;
+  for (const c of useFolder) {
+    try {
+      if (c.kind === 'file') {
+        const doc = await reloadFile(rc.root, c.project, c.name, p.customMarks);
+        if (doc) p = { ...p, files: p.files.map((f) => (f.project === c.project && f.name === c.name ? doc : f)) };
+      } else {
+        const terms = await readDict(rc.root, c.project, c.name);
+        p = { ...p, glossary: [...p.glossary.filter((g) => !(g.proj === c.project && g.dict === c.name)), ...terms] };
+      }
+    } catch { /* 讀不到就用軟體裡的 */ }
+  }
+  useStore.setState({ project: p });
+  await switchRoot(rc.root);
+}
+
+async function switchRoot(root: string) {
   useStore.setState({ saveRoot: root });
   saved = { files: new Map(), customs: null, dicts: new Map(), projects: [] };
   await persistConfig();
