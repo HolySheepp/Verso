@@ -72,6 +72,12 @@ export async function saveConfig(cfg: AppConfig) {
   const p = await io.configPath();
   await io.mkdir(p.replace(/[\\/][^\\/]*$/, ''));
   await io.writeText(p, JSON.stringify(cfg, null, 2));
+  // 給解除安裝程式看的存檔資料夾位置（UTF-16，安裝程式才讀得懂中文路徑）
+  const root = cfg.saveRoot || await io.defaultRoot();
+  const bytes = new Uint8Array(2 + root.length * 2);
+  bytes[0] = 0xff; bytes[1] = 0xfe;
+  for (let i = 0; i < root.length; i++) { const c = root.charCodeAt(i); bytes[2 + i * 2] = c & 0xff; bytes[3 + i * 2] = c >> 8; }
+  await io.writeBinary(p.replace(/[^\\/]*$/, 'saveroot.txt'), bytes);
 }
 
 const isXlsx = (n: string) => n.toLowerCase().endsWith('.xlsx') && !n.startsWith('~$');

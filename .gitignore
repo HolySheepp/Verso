@@ -5,3 +5,5 @@ src-tauri/gen/schemas
 *.log
 *.tsbuildinfo
 Verso.exe
+Verso-*.zip
+*-setup.exe
