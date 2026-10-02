@@ -11,6 +11,7 @@ export interface FileIO {
   /** 列出資料夾裡的項目名稱 */
   list(path: string): Promise<{ name: string; dir: boolean }[]>;
   remove(path: string): Promise<void>;
+  rename(from: string, to: string): Promise<void>;
   /** 移到資源回收筒（瀏覽器預覽時直接刪掉） */
   trash(path: string): Promise<void>;
   join(...parts: string[]): string;
@@ -22,15 +23,45 @@ export interface FileIO {
   pickFolder(start?: string): Promise<string | null>;
 }
 
+type FsPlugin = typeof import('@tauri-apps/plugin-fs');
+
+/**
+ * 安全存檔：先寫到暫存檔、讀回確認完整，再取代原檔。
+ * 取代時原檔先改名成備份，新檔就位後才刪掉備份；中途失敗就把原檔放回去。
+ * 所以不管在哪一步出事（當機、斷電、被別的程式鎖住），原本的檔案都還在。
+ */
+async function safeWrite(fs: FsPlugin, p: string, d: Uint8Array) {
+  const tmp = p + '.tmp', bak = p + '.bak';
+  await fs.writeFile(tmp, d);
+  const back = await fs.readFile(tmp);
+  if (back.length !== d.length) {
+    await fs.remove(tmp).catch(() => undefined);
+    throw new Error('寫入的檔案不完整');
+  }
+  const had = await fs.exists(p);
+  if (had) {
+    if (await fs.exists(bak)) await fs.remove(bak);
+    await fs.rename(p, bak);
+  }
+  try {
+    await fs.rename(tmp, p);
+  } catch (e) {
+    if (had) await fs.rename(bak, p).catch(() => undefined);
+    throw e;
+  }
+  if (had) await fs.remove(bak).catch(() => undefined);
+}
+
 const tauriIO = (): FileIO => {
   const fsp = import('@tauri-apps/plugin-fs');
   const pathp = import('@tauri-apps/api/path');
   const sep = '\\';
   return {
     async readBinary(p) { return (await fsp).readFile(p); },
-    async writeBinary(p, d) { await (await fsp).writeFile(p, d); },
+    async writeBinary(p, d) { await safeWrite(await fsp, p, d); },
     async readText(p) { return (await fsp).readTextFile(p); },
-    async writeText(p, t) { await (await fsp).writeTextFile(p, t); },
+    async writeText(p, t) { await safeWrite(await fsp, p, new TextEncoder().encode(t)); },
+    async rename(a, b) { await (await fsp).rename(a, b); },
     async exists(p) { return (await fsp).exists(p); },
     async mkdir(p) { await (await fsp).mkdir(p, { recursive: true }); },
     async list(p) { return (await (await fsp).readDir(p)).map((e) => ({ name: e.name, dir: e.isDirectory })); },
@@ -77,6 +108,7 @@ const browserIO = (): FileIO => {
     },
     async remove(p) { keys().filter((k) => k === p || k.startsWith(p + '/')).forEach((k) => { try { localStorage.removeItem(P + k); } catch { /* 忽略 */ } }); },
     async trash(p) { await this.remove(p); },
+    async rename(a, b) { const v = get(a); if (v == null) throw new Error('not found'); put(b, v); await this.remove(a); },
     join: (...parts) => parts.join('/').replace(/\/+/g, '/'),
     async defaultRoot() { return 'Verso'; },
     async configPath() { return 'config.json'; },

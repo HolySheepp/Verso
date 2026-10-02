@@ -91,29 +91,54 @@ async function migrateDicts(root: string) {
   }
 }
 
-async function loadDicts(root: string): Promise<{ dicts: DictInfo[]; terms: GlossaryTerm[]; projects: string[] }> {
+async function loadDicts(root: string): Promise<{ dicts: DictInfo[]; terms: GlossaryTerm[]; projects: string[]; unreadable: string[] }> {
   const dir = io.join(root, DICT_DIR);
   const dicts: DictInfo[] = [];
   const terms: GlossaryTerm[] = [];
   const projects: string[] = [];
-  if (!(await io.exists(dir))) return { dicts, terms, projects };
+  const unreadable: string[] = [];
+  if (!(await io.exists(dir))) return { dicts, terms, projects, unreadable };
   for (const p of (await io.list(dir)).filter((e) => e.dir)) {
     projects.push(p.name);
+    await recoverBackups(io.join(dir, p.name));
     for (const f of (await io.list(io.join(dir, p.name))).filter((e) => !e.dir && isXlsx(e.name))) {
       const name = f.name.slice(0, -5);
       dicts.push({ project: p.name, name });
-      try { terms.push(...xlsxToDict(p.name, name, await io.readBinary(io.join(dir, p.name, f.name)))); } catch { /* 讀不了的字典略過 */ }
+      try { terms.push(...xlsxToDict(p.name, name, await io.readBinary(io.join(dir, p.name, f.name)))); } catch { unreadable.push(`字典 / ${p.name} / ${f.name}`); }
     }
   }
-  return { dicts, terms, projects };
+  return { dicts, terms, projects, unreadable };
 }
 
 /** 依名稱排序，共用放最後 */
 export const sortProjects = (names: Iterable<string>) =>
   [...new Set([...names, SHARED])].sort((a, b) => (a === SHARED ? 1 : b === SHARED ? -1 : a.localeCompare(b)));
 
+/**
+ * 存到一半中斷時留下的檔案：原檔不見但有備份（.bak）就把備份放回去；暫存檔（.tmp）刪掉。
+ */
+async function recoverBackups(dir: string) {
+  let entries: { name: string; dir: boolean }[] = [];
+  try { entries = await io.list(dir); } catch { return; }
+  const names = new Set(entries.map((e) => e.name));
+  for (const e of entries) {
+    if (e.dir) continue;
+    if (e.name.endsWith('.bak')) {
+      const orig = e.name.slice(0, -4);
+      try {
+        if (!names.has(orig)) await io.rename(io.join(dir, e.name), io.join(dir, orig));
+        else await io.remove(io.join(dir, e.name));
+      } catch { /* 處理不了就留著 */ }
+    } else if (e.name.endsWith('.tmp')) {
+      try { await io.remove(io.join(dir, e.name)); } catch { /* 留著 */ }
+    }
+  }
+}
+
 /** 載入整個存檔資料夾 */
-export async function loadWorkspace(root: string, onProgress?: (p: number, text: string) => void): Promise<{ data: ProjectData; last?: LastPosition; remapped: boolean }> {
+export async function loadWorkspace(root: string, onProgress?: (p: number, text: string) => void): Promise<{ data: ProjectData; last?: LastPosition; remapped: boolean; unreadable: string[] }> {
+  const unreadable: string[] = [];
+  await recoverBackups(root);
   let ws: WorkspaceMeta | null = null;
   try { ws = JSON.parse(await io.readText(io.join(root, WORKSPACE))); } catch { /* 舊版沒有這個檔 */ }
   try { await migrateDicts(root); } catch { /* 搬不動就照舊讀 */ }
@@ -129,6 +154,7 @@ export async function loadWorkspace(root: string, onProgress?: (p: number, text:
   const files: FileDoc[] = [];
   for (const [pi, name] of projectNames.entries()) {
     const dir = io.join(root, name);
+    await recoverBackups(dir);
     onProgress?.(0.15 + 0.7 * (pi / Math.max(1, projectNames.length)), `讀取專案「${name}」`);
     let meta: ProjectMeta = { fileOrder: [] };
     try { meta = { ...meta, ...JSON.parse(await io.readText(io.join(dir, META))) }; } catch { /* 沒有設定檔 */ }
@@ -162,12 +188,13 @@ export async function loadWorkspace(root: string, onProgress?: (p: number, text:
           }) })) };
         }
         files.push(f);
-      } catch { /* 讀不了的檔案略過 */ }
+      } catch { unreadable.push(`${name} / ${n}.xlsx`); }
     }
   }
 
   onProgress?.(0.88, '讀取字典');
   const d = await loadDicts(root);
+  unreadable.push(...d.unreadable);
   return {
     data: {
       files, customMarks: customs, nextMarkId: nextId, glossary: d.terms, dicts: d.dicts,
@@ -175,6 +202,7 @@ export async function loadWorkspace(root: string, onProgress?: (p: number, text:
     },
     last: ws?.last,
     remapped: remapped || (!ws && customs.length > 0),
+    unreadable,
   };
 }
 

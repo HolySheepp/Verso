@@ -68,6 +68,17 @@ function LongCellsNotice() {
   );
 }
 
+/** 啟動時有檔案或字典讀不到 */
+function UnreadableNotice() {
+  const list = useStore((st) => st.unreadable);
+  if (!list) return null;
+  return (
+    <ConfirmDialog zIndex={60} title="有檔案讀不到"
+      body={'下列檔案打不開，這次先略過（檔案本身沒有被改動）：' + list.slice(0, 8).join('、') + (list.length > 8 ? ` 等 ${list.length} 個` : '') + '。可能被 Excel 開著或檔案損毀，處理好後重新開啟 Verso 就會讀進來。'}
+      choices={[{ label: '知道了', primary: true, onClick: () => useStore.setState({ unreadable: null }) }]} />
+  );
+}
+
 function StatusBar() {
   const files = useStore((s) => s.project!.files);
   const mode = useStore((s) => s.mode);
@@ -202,6 +213,7 @@ export default function App() {
       <SettingsDialog />
       <PasteDialog />
       <LongCellsNotice />
+      <UnreadableNotice />
       {s.askSave && (
         <ConfirmDialog zIndex={60} title="有未儲存的修改"
           body={s.askSave.kind === 'close' ? '關閉前要儲存嗎？' : '切換檔案前要儲存嗎？'}

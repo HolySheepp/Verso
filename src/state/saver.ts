@@ -258,6 +258,7 @@ export async function startApp() {
     step(0.12, '讀取專案');
     const r = await loadWorkspace(saveRoot, step);
     project = r.data; last = r.last; migrated = r.remapped;
+    if (r.unreadable.length) useStore.setState({ unreadable: r.unreadable });
   } catch { /* 讀不到就從空的開始 */ }
   // 先記下已存的內容再換專案，避免監聽到變動時誤判成未存
   markSaved(project);

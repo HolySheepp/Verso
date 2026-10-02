@@ -120,6 +120,8 @@ interface State {
   manageProjectsOpen: boolean;
   /** 畫面中間短暫出現的提示 */
   toast: { text: string; k: number } | null;
+  /** 啟動時讀不到的檔案、字典 */
+  unreadable: string[] | null;
   /** 存檔時發現超過 Excel 單格上限的格子（給人看的位置） */
   longCells: string[] | null;
   /** 啟動載入中：進度（0–1）與正在做的事；載入完是 null */
@@ -414,6 +416,7 @@ export const useStore = create<Store>((set, get) => {
     manageProjectsOpen: false,
     toast: null,
     longCells: null,
+    unreadable: null,
     saveErrors: [],
     loading: { p: 0, text: '啟動中' },
     manageDictsOpen: false,
