@@ -11,7 +11,7 @@ import {
 } from '../data/persist';
 import { emptyHistory } from '../model/history';
 import { dictKey, type CustomMark, type FileDoc, type GlossaryTerm, type ProjectData } from '../model/types';
-import { currentOf, useStore } from './store';
+import { currentOf, useStore, type SaveError } from './store';
 
 const fileKey = (f: FileDoc) => f.project + '/' + f.name;
 
@@ -51,6 +51,17 @@ function markSaved(p: ProjectData) {
 
 const warnedLong = new Set<string>();
 
+/** 存檔失敗的原因，翻成看得懂的話（Windows 的錯誤代碼） */
+export function saveReason(e: unknown): string {
+  const m = String((e as { message?: string })?.message ?? e);
+  if (/os error 32|os error 33|being used by another process|used by another/i.test(m)) return '檔案被其他程式開著（例如 Excel），關掉後會自動重試';
+  if (/os error 5\b|access is denied|permission denied/i.test(m)) return '沒有寫入權限';
+  if (/os error 123|os error 161|invalid filename|syntax is incorrect/i.test(m)) return '名稱不合法';
+  if (/os error 112|not enough space|no space/i.test(m)) return '磁碟空間不足';
+  if (/os error (2|3)\b|cannot find|not found/i.test(m)) return '找不到存檔資料夾';
+  return m.length > 80 ? m.slice(0, 80) + '…' : m;
+}
+
 /** Excel 一格最多 32767 字；超過的格子列出位置 */
 function longCellsOf(f: FileDoc): string[] {
   const out: string[] = [];
@@ -61,14 +72,30 @@ function longCellsOf(f: FileDoc): string[] {
   return out;
 }
 
-/** 有沒有還沒存的修改 */
+/** 檔案有沒有還沒存的修改（字典另外存，不算在這裡） */
 export function isDirty(): boolean {
   const p = useStore.getState().project;
   if (!p) return false;
   if (p.customMarks !== saved.customs || p.projects !== saved.projects) return true;
-  if (saved.files.size !== p.files.length || saved.dicts.size !== dictGroups(p).size) return true;
-  if (p.files.some((f) => saved.files.get(fileKey(f)) !== f)) return true;
-  return [...dictGroups(p)].some(([d, t]) => saved.dicts.get(d) !== dictSignature(t));
+  if (saved.files.size !== p.files.length) return true;
+  return p.files.some((f) => saved.files.get(fileKey(f)) !== f);
+}
+
+/** 字典有沒有還沒存的修改 */
+function dictsDirty(): boolean {
+  const p = useStore.getState().project;
+  if (!p) return false;
+  const groups = dictGroups(p);
+  if (saved.dicts.size !== groups.size) return true;
+  return [...groups].some(([d, t]) => saved.dicts.get(d) !== dictSignature(t));
+}
+
+// 存檔一次只做一件事：檔案和字典的存檔排隊進行，避免同時寫入、互相蓋掉「已存」的紀錄
+let chain: Promise<unknown> = Promise.resolve();
+function serial<T>(fn: () => Promise<T>): Promise<T> {
+  const run = chain.then(fn, fn);
+  chain = run.catch(() => undefined);
+  return run;
 }
 
 function lastPosition(): LastPosition | undefined {
@@ -79,27 +106,61 @@ function lastPosition(): LastPosition | undefined {
 }
 
 /** 存檔。成功回傳 true；檔案被 Excel 開著之類的失敗會標成「未存檔」，之後自動重試 */
-export async function saveNow(): Promise<boolean> {
+export function saveNow(): Promise<boolean> {
+  return serial(saveAll);
+}
+
+/** 字典改了就馬上存（新增詞條、新字典、修改字典），不等自動存檔 */
+export function saveDicts(): Promise<boolean> {
+  return serial(async () => {
+    const s = useStore.getState();
+    const p = s.project;
+    if (!p || !s.saveRoot || !dictsDirty()) return true;
+    const errors: SaveError[] = [];
+    const dicts = new Map(saved.dicts);
+    const groups = dictGroups(p);
+    for (const k of saved.dicts.keys()) {
+      if (groups.has(k)) continue;
+      const i = k.indexOf('/');
+      // 整個專案被刪掉時，交給檔案存檔一起處理
+      if (!p.projects.includes(k.slice(0, i))) continue;
+      try { await trashDict(s.saveRoot, k.slice(0, i), k.slice(i + 1)); dicts.delete(k); } catch (e) { errors.push({ target: '字典 ' + k, reason: saveReason(e) }); }
+    }
+    for (const [k, terms] of groups) {
+      const sig = dictSignature(terms);
+      if (saved.dicts.get(k) === sig) continue;
+      const i = k.indexOf('/');
+      try { await writeDict(s.saveRoot, k.slice(0, i), k.slice(i + 1), terms); dicts.set(k, sig); } catch (e) { errors.push({ target: '字典 ' + k, reason: saveReason(e) }); }
+    }
+    saved = { ...saved, dicts };
+    if (errors.length) useStore.setState({ saveStatus: 'error', saveErrors: errors });
+    return !errors.length;
+  });
+}
+
+async function saveAll(): Promise<boolean> {
   const s = useStore.getState();
   const p = s.project;
   if (!p || !s.saveRoot) return true;
   lastAttempt = Date.now();
   useStore.setState({ saveStatus: 'saving' });
   let ok = true;
+  const errors: SaveError[] = [];
+  const fail = (target: string, e: unknown) => { ok = false; errors.push({ target, reason: saveReason(e) }); };
   const done = { files: new Map(saved.files), customs: saved.customs, dicts: new Map(saved.dicts), projects: saved.projects };
   // 刪掉（或搬走）的專案、檔案、字典移到資源回收筒
   const gone = saved.projects.filter((x) => !p.projects.includes(x));
-  for (const x of gone) { try { await trashProject(s.saveRoot, x); } catch { ok = false; } }
+  for (const x of gone) { try { await trashProject(s.saveRoot, x); } catch (e) { fail('專案資料夾「' + x + '」', e); } }
   const keys = new Set(p.files.map(fileKey));
   for (const [k, f] of saved.files) {
     if (keys.has(k)) continue;
-    try { if (!gone.includes(f.project)) await trashFile(s.saveRoot, f.project, f.name); done.files.delete(k); } catch { ok = false; }
+    try { if (!gone.includes(f.project)) await trashFile(s.saveRoot, f.project, f.name); done.files.delete(k); } catch (e) { fail(`${f.project} / ${f.name}`, e); }
   }
   const groups = dictGroups(p);
   for (const k of saved.dicts.keys()) {
     if (groups.has(k)) continue;
     const i = k.indexOf('/');
-    try { if (!gone.includes(k.slice(0, i))) await trashDict(s.saveRoot, k.slice(0, i), k.slice(i + 1)); done.dicts.delete(k); } catch { ok = false; }
+    try { if (!gone.includes(k.slice(0, i))) await trashDict(s.saveRoot, k.slice(0, i), k.slice(i + 1)); done.dicts.delete(k); } catch (e) { fail('字典 ' + k, e); }
   }
   // 還沒有檔案時不必建立專案資料夾（只存字典）
   if (p.files.length || saved.files.size || p.projects !== saved.projects) {
@@ -109,23 +170,23 @@ export async function saveNow(): Promise<boolean> {
       // 自訂標記改了名稱也要重寫，因為「標記」欄寫的是名稱
       if (saved.files.get(fileKey(f)) === f && !customsChanged) continue;
       long.push(...longCellsOf(f));
-      try { await writeFile(s.saveRoot, f, p.customMarks); done.files.set(fileKey(f), f); } catch { ok = false; }
+      try { await writeFile(s.saveRoot, f, p.customMarks); done.files.set(fileKey(f), f); } catch (e) { fail(`${f.project} / ${f.name}`, e); }
     }
     // 新出現的超長格子才提示，同一格不重複提示
     const fresh = long.filter((x) => !warnedLong.has(x));
     fresh.forEach((x) => warnedLong.add(x));
     if (fresh.length) useStore.setState({ longCells: fresh });
-    try { await writeMeta(s.saveRoot, p, lastPosition()); if (ok) { done.customs = p.customMarks; done.projects = p.projects; } } catch { ok = false; }
+    try { await writeMeta(s.saveRoot, p, lastPosition()); if (ok) { done.customs = p.customMarks; done.projects = p.projects; } } catch (e) { fail('專案設定檔', e); }
   }
   for (const [k, terms] of groups) {
     const sig = dictSignature(terms);
     if (saved.dicts.get(k) === sig) continue;
     const i = k.indexOf('/');
-    try { await writeDict(s.saveRoot, k.slice(0, i), k.slice(i + 1), terms); done.dicts.set(k, sig); } catch { ok = false; }
+    try { await writeDict(s.saveRoot, k.slice(0, i), k.slice(i + 1), terms); done.dicts.set(k, sig); } catch (e) { fail('字典 ' + k, e); }
   }
   saved = done;
   const dirty = isDirty();
-  useStore.setState({ saveStatus: !ok ? 'error' : dirty ? 'dirty' : 'saved' });
+  useStore.setState({ saveStatus: !ok ? 'error' : dirty ? 'dirty' : 'saved', saveErrors: errors });
   return ok;
 }
 
@@ -207,7 +268,13 @@ function watch() {
   watching = true;
 
   // 內容一有變動就標成未存
+  let dictTimer: ReturnType<typeof setTimeout> | undefined;
   useStore.subscribe((s, prev) => {
+    // 字典內容變了：稍等一下（連續修改合成一次）就存
+    if (s.project && (s.project.glossary !== prev.project?.glossary || s.project.dicts !== prev.project?.dicts)) {
+      clearTimeout(dictTimer);
+      dictTimer = setTimeout(() => { void saveDicts(); }, 300);
+    }
     if (s.project !== prev.project && s.saveStatus !== 'saving') {
       const dirty = isDirty();
       if (dirty && s.saveStatus === 'saved') { dirtySince = Date.now(); useStore.setState({ saveStatus: 'dirty' }); }
@@ -249,6 +316,7 @@ function watch() {
 /** 關閉前記下位置，然後真的關掉視窗 */
 async function finishAndClose() {
   closing = true;
+  await saveDicts();
   const p = useStore.getState().project;
   if (p && p.files.length) { try { await writeMeta(useStore.getState().saveRoot, p, lastPosition()); } catch { /* 忽略 */ } }
   await persistConfig();

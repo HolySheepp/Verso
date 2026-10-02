@@ -408,6 +408,19 @@ export function EntryList() {
     sink.current?.focus({ preventScroll: true });
     if (readOnly) return;
     const first = parseKey([...keys].sort(order)[0]);
+    // 標記選單出現在滑鼠位置（相對於整個畫面），太靠下時往上移
+    const menuAt = (x: number, y: number) => {
+      const root = listRef.current?.closest('[data-root]') as HTMLElement | null;
+      const rr = root?.getBoundingClientRect() ?? new DOMRect();
+      const h = 44 + (6 + customs.length) * 32 + (customs.length ? 9 : 0) + 42;
+      return { x: Math.round(x - rr.left), y: Math.round(Math.max(8, Math.min(y - rr.top, (root?.offsetHeight ?? 800) - h - 10))) };
+    };
+    if (k === 'mark' && menu) {
+      // 框選了幾條就一次改幾條
+      const rowsSel = [...new Set(keys.map((x) => parseKey(x).i))].sort((a, b) => a - b);
+      set({ rowMenu: { index: rowsSel[0], indices: rowsSel, ...menuAt(menu.x, menu.y) }, stampOpen: false, fileMenuOpen: false });
+      return;
+    }
     if (k === 'edit') startEdit(first.i, first.c);
     if (k === 'clear') s.editSheet((es) => ({ entries: clearCells(es, keys), keys }));
     if (k === 'delete') s.editSheet((es) => ({ entries: deleteCells(es, keys), keys }));
@@ -557,6 +570,7 @@ export function EntryList() {
             { key: 'clear', label: '清除', disabled: readOnly },
             { key: 'delete', label: '刪除', danger: true, disabled: readOnly },
             { key: 'insert', label: '插入', disabled: readOnly },
+            { key: 'mark', label: '標記', disabled: readOnly },
             { key: 'up', label: '上移', disabled: readOnly },
             { key: 'down', label: '下移', disabled: readOnly },
           ]}

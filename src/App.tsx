@@ -97,7 +97,7 @@ function RowMarkMenu() {
       current={effectiveMark(e)}
       style={{ position: 'absolute', left: s.rowMenu.x, top: s.rowMenu.y, boxShadow: '0 16px 40px rgba(0,0,0,0.5)' }}
       numbered={!!s.rowMenu.keys} active={s.rowMenu.keys ? s.rowMenu.active : undefined}
-      onPick={(id) => { s.setEntryMark(s.rowMenu!.index, id); s.set({ rowMenu: null }); }} />
+      onPick={(id) => { (s.rowMenu!.indices ?? [s.rowMenu!.index]).forEach((i) => s.setEntryMark(i, id)); s.set({ rowMenu: null }); }} />
   );
 }
 

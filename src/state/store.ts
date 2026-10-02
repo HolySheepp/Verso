@@ -21,7 +21,8 @@ export type AskSave = { kind: 'close' } | { kind: 'switch'; file: number };
 
 
 /** keys：用快捷鍵打開的選單，可以按數字選取 */
-export interface RowMenu { index: number; x: number; y: number; keys?: boolean; active?: number }
+/** indices：從條目欄右鍵打開時，一次改這幾條的標記 */
+export interface RowMenu { index: number; x: number; y: number; keys?: boolean; active?: number; indices?: number[] }
 
 /** 「標記並下一條」在各模式下不能選的標記 */
 export const STAMP_EXCLUDE: Record<Mode, MarkId[]> = {
@@ -30,6 +31,8 @@ export const STAMP_EXCLUDE: Record<Mode, MarkId[]> = {
   view: ['untranslated', 'translated'],
   source: ['untranslated', 'translated'],
 };
+
+export interface SaveError { target: string; reason: string }
 
 /** 「更改專案」的對象 */
 export type MoveTarget = { kind: 'file'; index: number } | { kind: 'dict'; project: string; name: string };
@@ -119,6 +122,8 @@ interface State {
   toast: { text: string; k: number } | null;
   /** 存檔時發現超過 Excel 單格上限的格子（給人看的位置） */
   longCells: string[] | null;
+  /** 上次存檔失敗的項目與原因 */
+  saveErrors: SaveError[];
   manageDictsOpen: boolean;
   moveTarget: MoveTarget | null;
   /** 用下一條、快捷鍵移動選取時遞增，條目列表據此保留前後 3 條可見（滑鼠點選不算） */
@@ -399,6 +404,7 @@ export const useStore = create<Store>((set, get) => {
     manageProjectsOpen: false,
     toast: null,
     longCells: null,
+    saveErrors: [],
     manageDictsOpen: false,
     moveTarget: null,
     moveSeq: 0,

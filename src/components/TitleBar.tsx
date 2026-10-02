@@ -33,6 +33,7 @@ const winBtn: React.CSSProperties = {
 export function TitleBar() {
   const projectName = useStore((s) => (s.project?.files.length ? currentProjectOf(s) : ''));
   const status = useStore((s) => s.saveStatus);
+  const errors = useStore((s) => s.saveErrors);
   const saveKey = useStore((s) => keyOf(s.shortcuts, 'list', 'save'));
   const mode = useStore((s) => s.mode);
   const theme = useEffectiveTheme();
@@ -48,10 +49,11 @@ export function TitleBar() {
         <IconLogo size={20} stroke="var(--accent)" />
         <span data-tauri-drag-region style={{ fontSize: fz(15), fontWeight: 600, letterSpacing: 0.3 }}>Verso</span>
         <span data-tauri-drag-region className="proj" style={{ color: 'var(--mute)', fontSize: fz(12), marginLeft: 6 }}>{projectName}</span>
-        <span data-tauri-drag-region style={{ display: 'flex', alignItems: 'center', gap: 5, fontSize: fz(11.5), color: status === 'error' ? 'var(--errtx)' : 'var(--mute)', marginLeft: 4 }}>
+        <span data-tauri-drag-region title={status === 'error' ? errors.map((x) => x.target + '：' + x.reason).join('\n') : undefined}
+          style={{ display: 'flex', alignItems: 'center', gap: 5, minWidth: 0, maxWidth: 420, overflow: 'hidden', whiteSpace: 'nowrap', textOverflow: 'ellipsis', fontSize: fz(11.5), color: status === 'error' ? 'var(--errtx)' : 'var(--mute)', marginLeft: 4 }}>
           {status === 'saved' ? <><IconCheck size={11} sw={2.4} stroke="var(--accent2)" />已儲存</>
             : status === 'saving' ? '儲存中…'
-            : status === 'error' ? '未存檔，稍後自動重試'
+            : status === 'error' ? (errors[0] ? `未存檔：${errors[0].target}，${errors[0].reason}${errors.length > 1 ? `（另有 ${errors.length - 1} 項）` : ''}` : '未存檔，稍後自動重試')
             : '有未儲存的修改'}
         </span>
         <button type="button" className="ib" aria-label="儲存" title={'儲存' + (saveKey ? `（${saveKey}）` : '')} onClick={() => void manualSave()}
