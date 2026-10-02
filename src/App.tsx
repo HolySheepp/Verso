@@ -56,6 +56,17 @@ function Toast() {
   );
 }
 
+/** 存檔時發現有格子超過 Excel 的單格上限 */
+function LongCellsNotice() {
+  const cells = useStore((st) => st.longCells);
+  if (!cells) return null;
+  return (
+    <ConfirmDialog zIndex={60} title="有格子超過 Excel 的單格上限"
+      body={'Excel 一格最多 32767 字，下列條目超過了，用 Excel 開啟時會被截斷：' + cells.slice(0, 8).join('、') + (cells.length > 8 ? ` 等 ${cells.length} 條` : '')}
+      choices={[{ label: '知道了', primary: true, onClick: () => useStore.setState({ longCells: null }) }]} />
+  );
+}
+
 function StatusBar() {
   const files = useStore((s) => s.project!.files);
   const mode = useStore((s) => s.mode);
@@ -179,6 +190,7 @@ export default function App() {
       <TermDialog />
       <SettingsDialog />
       <PasteDialog />
+      <LongCellsNotice />
       {s.askSave && (
         <ConfirmDialog zIndex={60} title="有未儲存的修改"
           body={s.askSave.kind === 'close' ? '關閉前要儲存嗎？' : '切換檔案前要儲存嗎？'}

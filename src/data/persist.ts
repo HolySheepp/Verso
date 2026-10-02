@@ -4,13 +4,14 @@
 //   <存檔資料夾>/字典/<專案>/<字典>.xlsx
 //   <存檔資料夾>/verso.json（自訂標記、上次的位置；不分專案）
 import { io } from './fsio';
+import { DICT_DIR, safeName } from '../model/names';
+export { DICT_DIR, safeName };
 import { dictToXlsx, fileToXlsx, xlsxToDict, xlsxToFile } from './xlsxio';
 import type { CheckSettings } from '../model/checks';
 import type { FontSettings } from '../model/fonts';
 import type { Bindings } from '../model/shortcuts';
 import { SHARED, type CustomMark, type DictInfo, type FileDoc, type GlossaryTerm, type ProjectData } from '../model/types';
 
-export const DICT_DIR = '字典';
 const META = 'project.json';
 const WORKSPACE = 'verso.json';
 
@@ -61,7 +62,6 @@ export interface LastPosition {
 }
 
 /** 檔名不能有這些字元 */
-export const safeName = (name: string) => name.replace(/[\\/:*?"<>|]/g, '_').trim() || '未命名';
 
 export async function loadConfig(): Promise<AppConfig> {
   try { return JSON.parse(await io.readText(await io.configPath())) as AppConfig; } catch { return {}; }

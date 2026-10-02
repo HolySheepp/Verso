@@ -8,7 +8,8 @@ import { DEFAULT_FONTS, type FontSettings } from '../model/fonts';
 import { defaultBindings, type ActionId, type Bindings, type ShortcutContext } from '../model/shortcuts';
 import { defaultCheckSettings, enabledIssues, type CheckId, type CheckSettings, type Issue } from '../model/checks';
 import { SHARED, dictKey, type CustomMark, type DictInfo, type Entry, type FileDoc, type GlossaryTerm, type MarkId, type Mode, type ProjectData, type Sheet } from '../model/types';
-import { safeName, sortProjects } from '../data/persist';
+import { sortProjects } from '../data/persist';
+import { DICT_DIR, safeName, sameName, sheetNameError } from '../model/names';
 
 export type Filter = 'all' | 'untranslated' | 'doubt' | 'think' | 'issues';
 export type SideTab = 'dict' | 'search' | 'web' | 'ref';
@@ -116,6 +117,8 @@ interface State {
   manageProjectsOpen: boolean;
   /** 畫面中間短暫出現的提示 */
   toast: { text: string; k: number } | null;
+  /** 存檔時發現超過 Excel 單格上限的格子（給人看的位置） */
+  longCells: string[] | null;
   manageDictsOpen: boolean;
   moveTarget: MoveTarget | null;
   /** 用下一條、快捷鍵移動選取時遞增，條目列表據此保留前後 3 條可見（滑鼠點選不算） */
@@ -242,7 +245,7 @@ export const searchHit = (e: Entry, q: string) => !!q && (e.src.includes(q) || e
 /** 名稱重複時加上編號 */
 export function uniqueName(name: string, taken: string[]) {
   let n = name, k = 2;
-  while (taken.includes(n)) n = `${name} (${k++})`;
+  while (taken.some((t) => sameName(t, n))) n = `${name} (${k++})`;
   return n;
 }
 
@@ -395,6 +398,7 @@ export const useStore = create<Store>((set, get) => {
     dictPasteOpen: false,
     manageProjectsOpen: false,
     toast: null,
+    longCells: null,
     manageDictsOpen: false,
     moveTarget: null,
     moveSeq: 0,
@@ -475,6 +479,7 @@ export const useStore = create<Store>((set, get) => {
       const s = get();
       const f = s.project?.files[s.file];
       if (!f || !f.sheets[i] || !name.trim() || f.sheets[i].name === name.trim()) return;
+      if (sheetNameError(name, f.sheets.filter((_, j) => j !== i).map((x) => x.name))) return;
       pushUndo();
       replaceFile(s.file, { ...f, sheets: f.sheets.map((sh, j) => (j === i ? { ...sh, name: name.trim() } : sh)) });
     },
@@ -617,7 +622,7 @@ export const useStore = create<Store>((set, get) => {
       if (!project) return;
       // 同一個專案裡同名的檔案加上編號
       let name = f.name, k = 2;
-      while (project.files.some((x) => x.project === f.project && x.name === name)) name = `${f.name} (${k++})`;
+      while (project.files.some((x) => x.project === f.project && sameName(x.name, name))) name = `${f.name} (${k++})`;
       const idx = project.files.length;
       // 新檔案沒有長度標準時，沿用剛才那個檔案的
       const prevStd = project.files[get().file]?.lengthStd;
@@ -725,7 +730,7 @@ export const useStore = create<Store>((set, get) => {
 
     renameProject(from, to) {
       const p = get().project;
-      if (!p || from === SHARED || !to || from === to || p.projects.includes(to)) return;
+      if (!p || from === SHARED || !to || from === to || sameName(to, DICT_DIR) || p.projects.some((x) => x !== from && sameName(x, to))) return;
       const r = (x: string) => (x === from ? to : x);
       set({
         project: {
@@ -743,7 +748,7 @@ export const useStore = create<Store>((set, get) => {
       const p = get().project;
       const f = p?.files[i];
       if (!p || !f || !name || f.name === name) return;
-      if (p.files.some((x, j) => j !== i && x.project === f.project && x.name === name)) return;
+      if (p.files.some((x, j) => j !== i && x.project === f.project && sameName(x.name, name))) return;
       set({ project: { ...p, files: p.files.map((x, j) => (j === i ? { ...x, name } : x)) } });
     },
 
@@ -757,7 +762,7 @@ export const useStore = create<Store>((set, get) => {
 
     renameDict(project, from, to) {
       const p = get().project;
-      if (!p || !to || from === to || p.dicts.some((d) => d.project === project && d.name === to)) return;
+      if (!p || !to || from === to || p.dicts.some((d) => d.project === project && d.name !== from && sameName(d.name, to))) return;
       set({ project: {
         ...p,
         dicts: p.dicts.map((d) => (d.project === project && d.name === from ? { ...d, name: to } : d)),

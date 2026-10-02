@@ -56,6 +56,8 @@ function TermCard({ g }: { g: GlossaryTerm }) {
   );
 }
 
+const DICT_BATCH = 50;
+
 function DictTab() {
   // 只訂閱字典分頁用得到的值：打譯文時這些都不變，這一頁就不會重畫
   const { glossary, dicts, dq, overrides, current, uid, src } = useStore(useShallow((s) => ({
@@ -76,6 +78,17 @@ function DictTab() {
   const on = useMemo(() => new Set(dicts.filter(isOn).map((d) => dictKey(d.project, d.name))), [dicts, overrides, current]);
   const active = useMemo(() => glossary.filter((g) => on.has(dictKey(g.proj, g.dict))), [glossary, on]);
   const results = useMemo(() => (!ql ? [] : active.filter((g) => g.term.includes(q) || g.en.toLowerCase().includes(ql))), [active, q]);
+  // 搜尋結果先顯示 50 筆，捲到底再顯示下一批
+  const [shown, setShown] = useState(DICT_BATCH);
+  useEffect(() => { setShown(DICT_BATCH); }, [q]);
+  const moreRef = useRef<HTMLDivElement>(null);
+  useEffect(() => {
+    const el = moreRef.current;
+    if (!el) return;
+    const io = new IntersectionObserver((es) => { if (es.some((x) => x.isIntersecting)) setShown((n) => n + DICT_BATCH); });
+    io.observe(el);
+    return () => io.disconnect();
+  }, [shown, results]);
   // 命中的詞條：換條目時馬上算；同一條的原文在改時，停下來一下才算
   const [srcNow, setSrcNow] = useState({ uid, src });
   useEffect(() => {
@@ -145,7 +158,8 @@ function DictTab() {
       {dq && (
         <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
           <div style={{ fontSize: fz(11.5), color: 'var(--mute)' }}>搜尋結果 {results.length} 筆</div>
-          {results.map((g) => <TermCard key={g.id} g={g} />)}
+          {results.slice(0, shown).map((g) => <TermCard key={g.id} g={g} />)}
+          {results.length > shown && <div ref={moreRef} style={{ height: 1 }} />}
           {results.length === 0 && <div className="empty" style={{ padding: '20px 12px' }}>找不到「{dq}」</div>}
           <div style={{ height: 1, background: 'var(--line)', margin: '4px 0' }} />
         </div>

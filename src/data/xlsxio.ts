@@ -3,12 +3,12 @@ import * as XLSX from 'xlsx';
 import { BUILTIN_MARKS } from '../model/marks';
 import { newUid } from '../model/paste';
 import { stdToText, textToStd } from '../model/length';
+import { SETTINGS_SHEET } from '../model/names';
 import type { CustomMark, Entry, FileDoc, GlossaryTerm, StoredMark } from '../model/types';
 
 /** 給人看的欄位在前，程式要用的資料放在最右邊（不隱藏） */
 export const ENTRY_HEADERS = ['#', '發話者', '原文', '譯文', '標記', '備註', '建議翻譯', '匯入時的原文', '匯入時的譯文', '待確認', '略過檢查', '標記編號', '長度標準'];
-/** 檔案層級的設定（例如長度標準）放在這個隱藏工作表 */
-export const SETTINGS_SHEET = 'Verso設定';
+export { SETTINGS_SHEET };
 export const DICT_HEADERS = ['原文', '譯文', '備註'];
 
 const STORED_BUILTIN = new Set(['verified', 'doubt', 'think', 'ignore']);

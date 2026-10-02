@@ -1,10 +1,12 @@
 import { useEffect, useRef, useState } from 'react';
 import { currentOf, currentProjectOf, useStore } from '../state/store';
-import { ProjectPicker, nameError, picked } from './Pickers';
+import { NEW, ProjectPicker, nameError, picked } from './Pickers';
+import { RenameInput } from './RenameInput';
+import { sheetNameError } from '../model/names';
 import { COLS, checkColumns, columnsToEntries, emptyColumns, pasteColumns, type Columns } from '../model/paste';
 import { PasteBox, type BoxSel } from './PasteBox';
 import { ContextMenu } from './ContextMenu';
-import { dragWindow, focusOnMount } from './windowDrag';
+import { dragWindow } from './windowDrag';
 import { IconPlus, IconWinClose } from './icons';
 import { fz } from '../model/fonts';
 
@@ -41,7 +43,6 @@ export function PasteDialog() {
   // 拖動後放開時會觸發一次點擊，要略過
   const justDragged = useRef(false);
   // 改名開始前的內容，改完有變才算一次改動
-  const renameSnap = useRef<Snapshot | null>(null);
 
   // 復原／重做：記下每次改動前的頁簽內容
   const sheetsRef = useRef(sheets);
@@ -97,7 +98,10 @@ export function PasteDialog() {
   const firstBad = results.findIndex((r) => !r.ok);
   const projName = picked(projSel, newProj);
   const projError = insert ? '' : nameError('專案', projSel, newProj, projects);
-  const error = projError || (firstBad < 0 ? '' : (sheets.length > 1 ? `「${sheets[firstBad].name}」` : '') + results[firstBad].msg);
+  // 同一個專案裡不能有同名檔案（大小寫、存檔後會變成同一個檔名的都算）
+  const allFiles = useStore((s) => s.project!.files);
+  const fileError = insert || !name.trim() ? '' : nameError('檔案', NEW, name, allFiles.filter((f) => f.project === projName).map((f) => f.name));
+  const error = projError || fileError || (firstBad < 0 ? '' : (sheets.length > 1 ? `「${sheets[firstBad].name}」` : '') + results[firstBad].msg);
   // 新增專案但還沒打名稱時不能建立
   const blocked = !!error || (!insert && !projName);
   // 還沒貼東西時不顯示錯誤，只擋下建立
@@ -128,19 +132,10 @@ export function PasteDialog() {
 
   /** 整段改名算一次改動 */
   const startRename = (i: number) => {
-    renameSnap.current = { sheets: sheetsRef.current, cur: i };
     setCur(i);
     setRenaming(i);
   };
-  const endRename = () => {
-    const snap = renameSnap.current;
-    renameSnap.current = null;
-    setRenaming(null);
-    if (snap && snap.sheets !== sheetsRef.current) {
-      undo.current = [...undo.current, snap].slice(-MAX_UNDO);
-      redo.current = [];
-    }
-  };
+
 
   const onTabMenu = (key: string, i: number) => {
     setTabMenu(null);
@@ -237,7 +232,7 @@ export function PasteDialog() {
           {!insert && <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
             <label htmlFor="verso-paste-name" style={{ fontSize: fz(12), color: 'var(--text2)', flexShrink: 0 }}>檔名</label>
             <input id="verso-paste-name" type="text" className="field" value={name} onChange={(e) => setName(e.target.value)}
-              placeholder="未命名檔案" autoFocus style={{ width: 320 }} />
+              placeholder="未命名檔案" autoFocus aria-invalid={!!fileError} style={{ width: 320, borderColor: fileError ? 'var(--errtx)' : undefined }} />
             <label htmlFor="verso-paste-proj" style={{ marginLeft: 8, fontSize: fz(12), color: 'var(--text2)', flexShrink: 0 }}>專案</label>
             <ProjectPicker id="verso-paste-proj" sel={projSel} newName={newProj} onSel={setProjSel} onNewName={setNewProj} width={160} />
           </div>}
@@ -259,10 +254,9 @@ export function PasteDialog() {
                   boxShadow: dragging ? '0 4px 14px rgba(0,0,0,0.25)' : undefined,
                 }}>
                   {renaming === i ? (
-                    <input className="field" ref={focusOnMount} value={sh.name} aria-label="頁簽名稱"
-                      onChange={(e) => { const name = e.target.value; patchSheet(i, () => ({ name }), false); }}
-                      onBlur={endRename}
-                      onKeyDown={(e) => { if (e.key === 'Enter' || e.key === 'Escape') endRename(); }}
+                    <RenameInput initial={sh.name} label="頁簽名稱"
+                      validate={(v) => sheetNameError(v, sheets.filter((_, j) => j !== i).map((x) => x.name))}
+                      onDone={(v) => { if (v) patchSheet(i, () => ({ name: v })); setRenaming(null); }}
                       style={{ height: 28, width: 140, margin: '4px 0', padding: '0 8px' }} />
                   ) : (
                     <button type="button" role="tab" className="stab" aria-selected={on} title="雙擊改名"
@@ -305,7 +299,7 @@ export function PasteDialog() {
         </div>
 
         <div style={{ flexShrink: 0, display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 12, padding: '12px 20px 16px', borderTop: '1px solid var(--line)' }}>
-          <span role="alert" style={{ fontSize: fz(12.5), color: 'var(--errtx)', minWidth: 0 }}>{touched || projError ? error : ''}</span>
+          <span role="alert" style={{ fontSize: fz(12.5), color: 'var(--errtx)', minWidth: 0 }}>{touched || projError || fileError ? error : ''}</span>
           <div style={{ display: 'flex', gap: 8, flexShrink: 0 }}>
             <button type="button" className="btn btn-ghost" onClick={close}
               style={{ height: 36, padding: '0 16px', background: 'var(--btn)', border: '1px solid var(--line4)', borderRadius: 8, fontSize: fz(13) }}>取消</button>

@@ -7,6 +7,8 @@ import { fz } from '../model/fonts';
 import { ConfirmDialog } from './ConfirmDialog';
 import { ContextMenu } from './ContextMenu';
 import { PasteBox, type BoxSel } from './PasteBox';
+import { RenameInput } from './RenameInput';
+import { sheetNameError } from '../model/names';
 import { NEW, ProjectPicker, nameError, picked } from './Pickers';
 import { dragWindow, focusOnMount } from './windowDrag';
 import { handleUndoKeys, useUndoable } from './useUndo';
@@ -369,9 +371,9 @@ function FileEditor({ file, index, onDirty, onSaved }: { file: FileDoc; index: n
       <div role="tablist" aria-label="頁簽" className="no-scrollbar" style={{ flexShrink: 0, display: 'flex', alignItems: 'center', gap: 4, padding: '10px 20px 0', overflowX: 'auto', borderBottom: '1px solid var(--line)' }}>
         {sheets.map((sh, i) => (
           renaming === i
-            ? <input key={i} className="field" ref={focusOnMount} defaultValue={sh.name} aria-label="頁簽名稱" style={{ height: 30, width: 140 }}
-                onBlur={(e) => { const v = e.target.value.trim(); setRenaming(null); if (v && v !== sh.name) draft.commit(sheets.map((x, j) => (j === i ? { ...x, name: v } : x))); }}
-                onKeyDown={(e) => { if (e.key === 'Enter') (e.target as HTMLInputElement).blur(); if (e.key === 'Escape') { e.stopPropagation(); setRenaming(null); } }} />
+            ? <RenameInput key={i} initial={sh.name} label="頁簽名稱" style={{ height: 30, width: 140 }}
+                validate={(v) => sheetNameError(v, sheets.filter((_, j) => j !== i).map((x) => x.name))}
+                onDone={(v) => { setRenaming(null); if (v) draft.commit(sheets.map((x, j) => (j === i ? { ...x, name: v } : x))); }} />
             : <button key={i} type="button" role="tab" aria-selected={i === sheetIdx} className={'tb' + (i === sheetIdx ? ' on' : '')}
                 onClick={() => { setCur(i); setSelRow(null); }} onDoubleClick={() => setRenaming(i)}
                 onContextMenu={(e) => { e.preventDefault(); setCur(i); setTabMenu({ i, x: e.clientX, y: e.clientY }); }}

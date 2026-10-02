@@ -3,7 +3,8 @@ import { currentOf, useStore, useStorePick } from '../state/store';
 import { requestFile } from '../state/saver';
 import { ContextMenu } from './ContextMenu';
 import { ConfirmDialog } from './ConfirmDialog';
-import { focusOnMount } from './windowDrag';
+import { RenameInput } from './RenameInput';
+import { sheetNameError } from '../model/names';
 import { isDone, markName, markVisual } from '../model/marks';
 import type { Entry, MarkId } from '../model/types';
 import { MarkIcon } from './MarkIcon';
@@ -46,10 +47,6 @@ export function FileNav({ tabW }: { tabW: number }) {
     if (k === 'rename') setRenaming({ i, name: fileDoc.sheets[i].name });
     if (k === 'clear' || k === 'delete') setAsk({ kind: k, i });
     if (k === 'insert') s.set({ pasteOpen: true, pasteInsert: { after: i } });
-  };
-  const endRename = (commit: boolean) => {
-    if (renaming && commit) s.renameSheet(renaming.i, renaming.name);
-    setRenaming(null);
   };
   const drag = useRef<{ x: number; moved: boolean; id: number } | null>(null);
   const justDragged = useRef(false);
@@ -129,12 +126,10 @@ export function FileNav({ tabW }: { tabW: number }) {
                 <span style={{ display: 'flex', alignItems: 'center', gap: 6, minWidth: 0, width: '100%' }}>
                   <IconSheet size={12} style={{ flexShrink: 0, color: 'var(--mute)' }} />
                   {renaming?.i === i ? (
-                    <input ref={focusOnMount} className="field" aria-label="頁簽名稱" value={renaming.name}
-                      onPointerDown={(ev) => ev.stopPropagation()} onClick={(ev) => ev.stopPropagation()}
-                      onChange={(ev) => setRenaming({ i, name: ev.target.value })}
-                      onKeyDown={(ev) => { ev.stopPropagation(); if (ev.key === 'Enter') endRename(true); if (ev.key === 'Escape') endRename(false); }}
-                      onBlur={() => endRename(true)}
-                      style={{ flexGrow: 1, minWidth: 0, height: 22, padding: '0 6px', fontSize: fz(12.5) }} />
+                    <RenameInput initial={renaming.name} label="頁簽名稱"
+                      validate={(v) => sheetNameError(v, fileDoc.sheets.filter((_, j) => j !== i).map((x) => x.name))}
+                      onDone={(v) => { if (v) s.renameSheet(i, v); setRenaming(null); }}
+                      style={{ flexGrow: 1, minWidth: 0, width: '100%', height: 22, padding: '0 6px', fontSize: fz(12.5) }} />
                   ) : (
                     <span style={{ flexGrow: 1, minWidth: 0, fontSize: fz(12.5), fontWeight: 500, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{sh.name}</span>
                   )}

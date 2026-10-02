@@ -1,5 +1,6 @@
 import { useStore } from '../state/store';
 import { Select } from './Select';
+import { DICT_DIR, sameName } from '../model/names';
 
 /** 下拉選單裡「新增」那一項的值 */
 export const NEW = '__new__';
@@ -59,6 +60,9 @@ export function nameError(kind: '專案' | '字典' | '檔案', sel: string, new
   const n = newName.trim();
   if (!n) return '';
   if (/[\\/:*?"<>|]/.test(n)) return kind + '名稱不能有 \\ / : * ? " < > |';
-  if (existing.includes(n)) return '已有同名' + kind;
+  // 專案資料夾和字典資料夾放在一起，不能同名
+  if (kind === '專案' && sameName(n, DICT_DIR)) return `「${DICT_DIR}」是保留名稱`;
+  // 大小寫不同、或存檔後會變成同一個檔名的，都算同名
+  if (existing.some((x) => sameName(x, n))) return '已有同名' + kind;
   return '';
 }

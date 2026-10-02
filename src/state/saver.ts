@@ -3,6 +3,7 @@ import { isTauri } from '@tauri-apps/api/core';
 import { getCurrentWindow } from '@tauri-apps/api/window';
 import { io } from '../data/fsio';
 import { withFontDefaults } from '../model/fonts';
+import { MAX_CELL_CHARS } from '../model/names';
 import { migrateList } from '../model/shortcuts';
 import {
   loadConfig, loadWorkspace, reloadFile, saveConfig, sortProjects, trashDict, trashFile, trashProject, writeDict, writeFile, writeMeta,
@@ -48,6 +49,18 @@ function markSaved(p: ProjectData) {
   };
 }
 
+const warnedLong = new Set<string>();
+
+/** Excel 一格最多 32767 字；超過的格子列出位置 */
+function longCellsOf(f: FileDoc): string[] {
+  const out: string[] = [];
+  f.sheets.forEach((sh) => sh.entries.forEach((e, i) => {
+    const cells = [e.id, e.speaker, e.src, e.tgt, e.note, e.sugg, e.src0, e.tgt0];
+    if (cells.some((c) => c.length > MAX_CELL_CHARS)) out.push(`${f.project} / ${f.name} / ${sh.name} #${e.id || i + 1}`);
+  }));
+  return out;
+}
+
 /** 有沒有還沒存的修改 */
 export function isDirty(): boolean {
   const p = useStore.getState().project;
@@ -91,11 +104,17 @@ export async function saveNow(): Promise<boolean> {
   // 還沒有檔案時不必建立專案資料夾（只存字典）
   if (p.files.length || saved.files.size || p.projects !== saved.projects) {
     const customsChanged = p.customMarks !== saved.customs;
+    const long: string[] = [];
     for (const f of p.files) {
       // 自訂標記改了名稱也要重寫，因為「標記」欄寫的是名稱
       if (saved.files.get(fileKey(f)) === f && !customsChanged) continue;
+      long.push(...longCellsOf(f));
       try { await writeFile(s.saveRoot, f, p.customMarks); done.files.set(fileKey(f), f); } catch { ok = false; }
     }
+    // 新出現的超長格子才提示，同一格不重複提示
+    const fresh = long.filter((x) => !warnedLong.has(x));
+    fresh.forEach((x) => warnedLong.add(x));
+    if (fresh.length) useStore.setState({ longCells: fresh });
     try { await writeMeta(s.saveRoot, p, lastPosition()); if (ok) { done.customs = p.customMarks; done.projects = p.projects; } } catch { ok = false; }
   }
   for (const [k, terms] of groups) {

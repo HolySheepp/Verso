@@ -121,3 +121,4 @@ textarea[data-hist="1"]:focus{border-color:var(--accent) !important}
 /* 畫面中間的短暫提示：淡入、停一下、淡出 */
 @keyframes verso-toast{0%{opacity:0}12%{opacity:1}75%{opacity:1}100%{opacity:0}}
 .toast{animation:verso-toast 1400ms ease forwards}
+.rw{content-visibility:auto;contain-intrinsic-size:auto 40px}
