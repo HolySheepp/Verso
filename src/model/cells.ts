@@ -144,3 +144,27 @@ export function moveCells(entries: Entry[], keys: string[], dir: -1 | 1): { entr
   });
   return { entries: out, keys: moved };
 }
+
+// ---- 整列操作：條目本身（含標記、備註等資料）一起動 ----
+
+/** 在第 after 條後面插入 count 條空白條目 */
+export function insertRows(entries: Entry[], after: number, count: number): Entry[] {
+  const add = Array.from({ length: Math.max(1, count) }, blankEntry);
+  return [...entries.slice(0, after + 1), ...add, ...entries.slice(after + 1)];
+}
+
+/** 刪掉整條條目 */
+export function deleteRows(entries: Entry[], rows: number[]): Entry[] {
+  const d = new Set(rows);
+  return entries.filter((_, i) => !d.has(i));
+}
+
+/** 整條往上或往下移一格；碰到頭尾就不動 */
+export function moveRows(entries: Entry[], rows: number[], dir: -1 | 1): { entries: Entry[]; rows: number[] } {
+  const sorted = [...rows].sort((a, b) => a - b);
+  if ((dir < 0 && sorted[0] === 0) || (dir > 0 && sorted[sorted.length - 1] === entries.length - 1)) return { entries, rows };
+  const out = [...entries];
+  const order = dir < 0 ? sorted : [...sorted].reverse();
+  order.forEach((i) => { [out[i], out[i + dir]] = [out[i + dir], out[i]]; });
+  return { entries: out, rows: sorted.map((i) => i + dir) };
+}

@@ -3,7 +3,7 @@ import { currentOf, searchHit, useStorePick, visibleIssues, type Filter } from '
 import { effectiveMark, markName, markVisual } from '../model/marks';
 import { columnToClipboard, parseHtmlTable, parseTsv, writeColumn } from '../model/clipboard';
 import {
-  TGT_COL, cellKey, clearCells, copyMatrix, deleteCells, getCell, insertCells, moveCells, parseKey, pasteMatrix, rectKeys, setCell,
+  TGT_COL, cellKey, clearCells, copyMatrix, deleteRows, getCell, insertRows, moveCells, moveRows, parseKey, pasteMatrix, rectKeys, setCell,
   type Cell, type CellCol,
 } from '../model/cells';
 import { ContextMenu } from './ContextMenu';
@@ -47,6 +47,7 @@ interface RowHandlers {
   openMark(ev: React.MouseEvent<HTMLButtonElement>, i: number): void;
   rowPick(ev: React.MouseEvent, i: number): void;
   rowEnter(ev: React.MouseEvent, i: number): void;
+  rowMenu(ev: React.MouseEvent, i: number): void;
   editText(text: string): void;
   /** refocus：結束後把焦點交回條目欄 */
   commitEdit(refocus: boolean): void;
@@ -114,7 +115,7 @@ const EntryRow = memo(function EntryRow({ e, i, m, issues, on, hit, selCols, edi
         style={{ width: 24, minHeight: 38, display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 0, background: 'transparent', border: 0, borderRadius: 4 }}>
         <MarkIcon mark={markVisual(customs, m)} size={14} />
       </button>
-      <span className="row-pick" onMouseDown={(ev) => h.current.rowPick(ev, i)} onMouseEnter={(ev) => h.current.rowEnter(ev, i)} style={{ display: 'flex', flexDirection: 'column', gap: 3, alignItems: 'flex-start', justifyContent: 'center' }}>
+      <span className="row-pick" onMouseDown={(ev) => h.current.rowPick(ev, i)} onMouseEnter={(ev) => h.current.rowEnter(ev, i)} onContextMenu={(ev) => h.current.rowMenu(ev, i)} style={{ display: 'flex', flexDirection: 'column', gap: 3, alignItems: 'flex-start', justifyContent: 'center' }}>
         {e.lengthStd !== undefined && (
           <span role="img" aria-label="特殊長度標準" title={'特殊標準：' + stdLabel(e.lengthStd)} style={{ display: 'flex', color: 'var(--accent2)' }}><IconRuler size={11} sw={2.2} /></span>
         )}
@@ -191,7 +192,9 @@ export function EntryList() {
   const rowDrag = useRef<{ i: number; base: string[] } | null>(null);
   // 滑鼠按住期間記下按下的位置：這段時間不自動捲動，也要真的移動了才算拖動選取
   const pressAt = useRef<{ x: number; y: number } | null>(null);
-  const [menu, setMenu] = useState<{ x: number; y: number } | null>(null);
+  /** 右鍵選單：格子、整列（選了整列，或在列最左邊右鍵）、整欄（欄標題右鍵） */
+  const [menu, setMenu] = useState<{ x: number; y: number; kind: 'cell' | 'row' | 'col'; col?: number } | null>(null);
+  const [insertCount, setInsertCount] = useState(1);
   const [editing, setEditing] = useState<{ i: number; c: CellCol; text: string } | null>(null);
   const readOnly = s.mode === 'view';
   const ovf = { id: overflowOf(s.fonts, 'id'), speaker: overflowOf(s.fonts, 'speaker'), src: overflowOf(s.fonts, 'src'), tgt: overflowOf(s.fonts, 'tgt') };
@@ -260,6 +263,9 @@ export function EntryList() {
   // 選到的格子；沒有特別選時就是目前這條的譯文格
   const keys = s.cellSel?.keys.length ? s.cellSel.keys : [cellKey(sel, TGT_COL)];
   const selected = new Set(keys);
+  // 選到的列；每一列四欄都選了才算「選整列」
+  const selRows = [...new Set(keys.map((k) => parseKey(k).i))].sort((a, b) => a - b);
+  const wholeRows = selRows.length > 0 && selRows.every((i) => [0, 1, 2, 3].every((c) => selected.has(cellKey(i, c))));
   // 每一行選到哪幾欄（給行元件比對用的字串）
   const selByRow = new Map<number, number[]>();
   keys.forEach((k) => { const { i, c } = parseKey(k); if (!selByRow.has(i)) selByRow.set(i, []); selByRow.get(i)!.push(c); });
@@ -440,10 +446,16 @@ export function EntryList() {
     }
     if (k === 'edit') startEdit(first.i, first.c);
     if (k === 'clear') s.editSheet((es) => ({ entries: clearCells(es, keys), keys }));
-    if (k === 'delete') s.editSheet((es) => ({ entries: deleteCells(es, keys), keys }));
-    if (k === 'insert') {
-      const cols = [...new Set(keys.map((x) => parseKey(x).c))];
-      s.editSheet((es) => ({ entries: insertCells(es, keys), keys: cols.map((c) => cellKey(first.i + 1, c)) }));
+    if (menu?.kind === 'row') {
+      // 整列：條目本身一起刪、插入、移動（標記、備註跟著走）
+      const last = selRows[selRows.length - 1];
+      if (k === 'delete') {
+        const next = Math.min(selRows[0], sheet.entries.length - selRows.length - 1);
+        s.editSheet((es) => ({ entries: deleteRows(es, selRows), keys: next >= 0 ? rowKeys(next) : [] }));
+      }
+      if (k === 'insert') s.editSheet((es) => ({ entries: insertRows(es, last, insertCount), keys: Array.from({ length: insertCount }, (_, j) => rowKeys(last + 1 + j)).flat() }));
+      if (k === 'up' || k === 'down') s.editSheet((es) => { const r = moveRows(es, selRows, k === 'up' ? -1 : 1); return { entries: r.entries, keys: r.rows.flatMap(rowKeys) }; });
+      return;
     }
     if (k === 'up' || k === 'down') s.editSheet((es) => moveCells(es, keys, k === 'up' ? -1 : 1));
   };
@@ -485,7 +497,14 @@ export function EntryList() {
     cellDown: onCellDown,
     cellEnter: onCellEnter,
     startEdit,
-    cellMenu: (ev) => { ev.preventDefault(); sink.current?.focus({ preventScroll: true }); setMenu({ x: ev.clientX, y: ev.clientY }); },
+    cellMenu: (ev) => { ev.preventDefault(); sink.current?.focus({ preventScroll: true }); setMenu({ x: ev.clientX, y: ev.clientY, kind: wholeRows ? 'row' : 'cell' }); },
+    rowMenu: (ev, i) => {
+      ev.preventDefault();
+      sink.current?.focus({ preventScroll: true });
+      // 在沒選到的列上右鍵：先選那一整列
+      if (!selRows.includes(i) || !wholeRows) pick(rowKeys(i), { i, c: 0 });
+      setMenu({ x: ev.clientX, y: ev.clientY, kind: 'row' });
+    },
     openMark,
     rowPick: onRowPick,
     rowEnter: onRowEnter,
@@ -548,6 +567,12 @@ export function EntryList() {
             return (
               <span key={h} role="columnheader" className={'col-head' + (allSel ? ' col-head-sel' : '')}
                 onMouseDown={(ev) => onHeadDown(ev, c)} onMouseEnter={(ev) => onHeadEnter(ev, c)}
+                onContextMenu={(ev) => {
+                  ev.preventDefault();
+                  if (!allSel) pick(colKeys(c, c), { i: visible[0], c: c as CellCol });
+                  sink.current?.focus({ preventScroll: true });
+                  setMenu({ x: ev.clientX, y: ev.clientY, kind: 'col', col: c });
+                }}
                 style={{
                   position: 'relative', display: 'flex', alignItems: 'center', minWidth: 0, whiteSpace: 'nowrap',
                   justifyContent: c === 0 ? 'flex-end' : 'flex-start',
@@ -584,11 +609,18 @@ export function EntryList() {
       </div>
       {menu && (
         <ContextMenu x={menu.x} y={menu.y} label="條目"
-          items={[
+          items={menu.kind === 'col' ? [
+            { key: 'clear', label: '清除整欄', disabled: readOnly },
+          ] : menu.kind === 'row' ? [
+            { key: 'mark', label: '標記', disabled: readOnly },
+            { key: 'clear', label: '清除', disabled: readOnly },
+            { key: 'delete', label: `刪除 ${selRows.length} 列`, danger: true, disabled: readOnly },
+            { key: 'insert', label: '在下方插入', disabled: readOnly, stepper: { value: insertCount, min: 1, max: 100, onChange: setInsertCount } },
+            { key: 'up', label: '上移', disabled: readOnly },
+            { key: 'down', label: '下移', disabled: readOnly },
+          ] : [
             { key: 'edit', label: '編輯', disabled: readOnly || !canEdit(parseKey([...keys].sort(order)[0]).c) },
             { key: 'clear', label: '清除', disabled: readOnly },
-            { key: 'delete', label: '刪除', danger: true, disabled: readOnly },
-            { key: 'insert', label: '插入', disabled: readOnly },
             { key: 'mark', label: '標記', disabled: readOnly },
             { key: 'up', label: '上移', disabled: readOnly },
             { key: 'down', label: '下移', disabled: readOnly },
