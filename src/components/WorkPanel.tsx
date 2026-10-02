@@ -37,7 +37,7 @@ export function WorkPanel({ height }: { height: number }) {
 
 function WorkPanelInner({ height }: { height: number }) {
   // 只訂閱這個區塊用到的資料（包含 currentOf 等輔助函式間接用到的）
-  const s = useStorePick('project', 'file', 'sheetBy', 'selBy', 'mode', 'finishLine', 'stampOpen', 'stamps', 'viewOn', 'peek', 'history', 'shortcuts', 'reported', 'checkSettings', 'set', 'updateEntry', 'record', 'useShownSlot', 'stampNext', 'skipCheck', 'prev', 'pickSlot', 'next', 'mainNext');
+  const s = useStorePick('project', 'file', 'sheetBy', 'selBy', 'mode', 'finishLine', 'beginEdit', 'endEdit', 'stampOpen', 'stamps', 'viewOn', 'peek', 'history', 'shortcuts', 'reported', 'checkSettings', 'set', 'updateEntry', 'record', 'useShownSlot', 'stampNext', 'skipCheck', 'prev', 'pickSlot', 'next', 'mainNext');
   const project = s.project!;
   const { sheet, sel, entry } = currentOf(s);
   const cur = entry!;
@@ -69,6 +69,24 @@ function WorkPanelInner({ height }: { height: number }) {
   const stampLabel = '選擇標記，目前：' + markName(customs, stamp);
 
   const press = useRef<{ t: number } | null>(null);
+
+  // 復原：輸入框裡逐字撤回；離開輸入框時，這段編輯在條目欄算一步
+  const editFocus = () => s.beginEdit();
+  const editBlur = (ev: React.FocusEvent<HTMLTextAreaElement>) => {
+    s.endEdit();
+    // 清掉輸入框自己的撤回紀錄：離開再回來後，Ctrl+Z 不會撤回上一段編輯
+    const ta = ev.currentTarget, v = ta.value;
+    ta.value = '';
+    ta.value = v;
+  };
+  // 在輸入框裡換到別條（例如 Alt+↓）：前一條的編輯先結束，新的一條重新開始
+  const editUid = useRef(cur.uid);
+  useEffect(() => {
+    if (editUid.current === cur.uid) return;
+    editUid.current = cur.uid;
+    const a = document.activeElement;
+    if (a && (a.id === 'verso-target' || a.id === 'verso-source')) { s.endEdit(); s.beginEdit(); }
+  }, [cur.uid]);
 
   const onTarget = (v: string) => {
     if (!tgtEditable || showHist) return;
@@ -134,7 +152,7 @@ function WorkPanelInner({ height }: { height: number }) {
             <span style={meta}>{cur.id && <span className="mono">#{cur.id}</span>}<span>{cur.speaker}</span><span>{cur.src.length} 字</span></span>
           </div>
           <div style={{ position: 'relative', display: 'flex', flexShrink: 0 }}>
-          <textarea id="verso-source" ref={setSrcEl} value={cur.src} readOnly={!srcEditable}
+          <textarea id="verso-source" ref={setSrcEl} value={cur.src} readOnly={!srcEditable} onFocus={editFocus} onBlur={editBlur}
             onChange={(ev) => srcEditable && s.updateEntry({ src: ev.target.value })}
             style={{
               flexGrow: 1, height: 66, flexShrink: 0, resize: 'none', boxSizing: 'border-box', padding: '10px 12px',
@@ -168,7 +186,7 @@ function WorkPanelInner({ height }: { height: number }) {
             </span>
           </div>
           <div style={{ flexGrow: 1, minHeight: 0, position: 'relative', display: 'flex' }}>
-            <textarea id="verso-target" ref={setTgtEl} data-hist={showHist ? '1' : '0'} value={showHist ? texts[slot] : cur.tgt}
+            <textarea id="verso-target" ref={setTgtEl} onFocus={editFocus} onBlur={editBlur} data-hist={showHist ? '1' : '0'} value={showHist ? texts[slot] : cur.tgt}
               readOnly={!tgtEditable || showHist}
               onChange={(ev) => onTarget(ev.target.value)} onPaste={onPaste}
               style={{

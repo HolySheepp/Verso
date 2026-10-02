@@ -100,7 +100,7 @@ function StatusBar() {
 
 /** 條目標記選單（點條目左邊的標記時打開）；自己訂閱條目內容，主畫面不必跟著重畫 */
 function RowMarkMenu() {
-  const s = useStorePick('project', 'file', 'sheetBy', 'selBy', 'rowMenu', 'set', 'setEntryMark');
+  const s = useStorePick('project', 'file', 'sheetBy', 'selBy', 'rowMenu', 'set', 'setEntryMarks');
   if (!s.project || !s.rowMenu) return null;
   const { sheet } = currentOf(s);
   const e = sheet.entries[s.rowMenu.index];
@@ -110,7 +110,7 @@ function RowMarkMenu() {
       current={effectiveMark(e)}
       style={{ position: 'absolute', left: s.rowMenu.x, top: s.rowMenu.y, boxShadow: '0 16px 40px rgba(0,0,0,0.5)' }}
       numbered={!!s.rowMenu.keys} active={s.rowMenu.keys ? s.rowMenu.active : undefined}
-      onPick={(id) => { (s.rowMenu!.indices ?? [s.rowMenu!.index]).forEach((i) => s.setEntryMark(i, id)); s.set({ rowMenu: null }); }} />
+      onPick={(id) => { s.setEntryMarks(s.rowMenu!.indices ?? [s.rowMenu!.index], id); s.set({ rowMenu: null }); }} />
   );
 }
 

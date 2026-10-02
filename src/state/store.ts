@@ -175,6 +175,12 @@ interface Actions {
   prev(): void;
   updateEntry(patch: Partial<Entry>): void;
   setEntryMark(index: number, id: MarkId): void;
+  /** 一次改好幾條的標記（復原時算一步） */
+  setEntryMarks(indices: number[], id: MarkId): void;
+  /** 開始在工作欄輸入框編輯：這段編輯結束時算條目欄復原的一步 */
+  beginEdit(): void;
+  /** 離開工作欄輸入框：有改動就把這次編輯記成一步 */
+  endEdit(): void;
   record(text?: string): void;
   pickSlot(slot: number): void;
   useShownSlot(): void;
@@ -329,11 +335,15 @@ export const useStore = create<Store>((set, get) => {
     const s = get();
     return { file: s.file, doc: s.project!.files[s.file], sheet: currentOf(s).sheetIdx, keys: s.cellSel?.keys ?? [] };
   };
-  const pushUndo = () => {
-    undoStack.push(snapNow());
+  const pushSnap = (snap: Snap) => {
+    undoStack.push(snap);
     if (undoStack.length > 100) undoStack.shift();
     redoStack.length = 0;
   };
+  const pushUndo = () => pushSnap(snapNow());
+
+  // 工作欄輸入框的編輯：進輸入框時記下當時的檔案，離開時有改動就把整段編輯算成一步
+  let editSnap: Snap | null = null;
 
   const replaceFile = (fileIdx: number, doc: FileDoc) => {
     const p = get().project!;
@@ -551,6 +561,8 @@ export const useStore = create<Store>((set, get) => {
     },
 
     updateEntry(patch) {
+      // 不是在輸入框裡打字（例如按清除譯文、套用建議）：這一下就算一步
+      if (!editSnap) pushUndo();
       // 第一次改動譯文前（這條還沒有記錄時），自動記下原本的譯文
       const { entry } = cur();
       if (entry && patch.tgt !== undefined && patch.tgt !== entry.tgt && entry.tgt && !get().history.byEntry[entry.uid]) {
@@ -564,7 +576,24 @@ export const useStore = create<Store>((set, get) => {
     },
 
     setEntryMark(index, id) {
+      // 改標記也算一步
+      pushUndo();
       patchEntry(index, (e) => ({ ...e, mark: toStoredMark(id), keptMark: undefined }));
+    },
+
+    setEntryMarks(indices, id) {
+      pushUndo();
+      indices.forEach((i) => patchEntry(i, (e) => ({ ...e, mark: toStoredMark(id), keptMark: undefined })));
+    },
+
+    beginEdit() {
+      if (!editSnap && get().project?.files[get().file]) editSnap = snapNow();
+    },
+
+    endEdit() {
+      const snap = editSnap;
+      editSnap = null;
+      if (snap && get().project?.files[snap.file] !== snap.doc) pushSnap(snap);
     },
 
     record(text) {
