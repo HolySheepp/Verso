@@ -89,6 +89,34 @@ export function fontVars(f: FontSettings): Record<string, string> {
   };
 }
 
+/** 條目欄各欄實際用的字型（canvas 的 font 寫法），給自動縮放算字寬用；要跟 fontVars、條目欄的字級一致 */
+export function cellFontCss(f: FontSettings, slot: 'id' | 'speaker' | 'src' | 'tgt'): string {
+  const ui = ptToPx(f.ui.size) / UI_BASE_PX;
+  if (slot === 'id') return f.id.inherit ? `${ui * 10}px ${fontStack(f.ui.family)}` : `${ptToPx(f.id.size)}px ${fontStack(f.id.family)}`;
+  if (slot === 'speaker') return f.speaker.inherit ? `${ui * 12}px ${fontStack(f.ui.family)}` : `${ptToPx(f.speaker.size)}px ${fontStack(f.speaker.family)}`;
+  // 條目欄的原文、譯文比工作欄小一點（13/15）
+  return `${(ptToPx(f[slot].size) * 13) / 15}px ${fontStack(f[slot].family)}`;
+}
+
+let ctx: CanvasRenderingContext2D | null = null;
+const widths = new Map<string, number>();
+// 字型晚一點才載入完成時，之前量的寬度可能不準，清掉重量
+if (typeof document !== 'undefined' && document.fonts) document.fonts.addEventListener('loadingdone', () => widths.clear());
+
+/** 用 canvas 量一段文字在指定字型下的寬度（px），結果會記住 */
+export function canvasWidth(text: string, font: string): number {
+  const key = font + '\u0000' + text;
+  const hit = widths.get(key);
+  if (hit !== undefined) return hit;
+  if (!ctx) ctx = typeof document !== 'undefined' ? document.createElement('canvas').getContext('2d') : null;
+  if (!ctx) return 0;
+  ctx.font = font;
+  const w = ctx.measureText(text).width;
+  if (widths.size > 20000) widths.clear();
+  widths.set(key, w);
+  return w;
+}
+
 /** 介面上的文字大小：跟著系統字大小等比例縮放 */
 export const fz = (px: number) => `calc(var(--ui-scale, 1) * ${px}px)`;
 

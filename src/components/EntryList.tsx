@@ -13,7 +13,7 @@ import { rowMenuPos } from './rowMenu';
 import { CopyConfirm } from './CopyConfirm';
 import { IconCheck, IconCopy, IconRuler, IconScan, IconWarn } from './icons';
 import { stdLabel } from '../model/length';
-import { fz, overflowOf, type Overflow } from '../model/fonts';
+import { cellFontCss, fz, overflowOf, type Overflow } from '../model/fonts';
 import type { CustomMark, Entry, MarkId } from '../model/types';
 import type { Issue } from '../model/checks';
 import { CellText } from './CellText';
@@ -67,12 +67,15 @@ interface RowProps {
   editing: { c: CellCol; text: string } | null;
   customs: CustomMark[];
   cols: string;
+  /** 各欄能放文字的寬度（自動縮放用） */
+  fitId: number; fitSpk: number; fitSrc: number; fitTgt: number;
+  fontId: string; fontSpk: string; fontSrc: string; fontTgt: string;
   ovfId: Overflow; ovfSpk: Overflow; ovfSrc: Overflow; ovfTgt: Overflow;
   h: React.RefObject<RowHandlers>;
 }
 
 /** 條目欄的一行：只有自己的內容、選取、標記等變了才重畫 */
-const EntryRow = memo(function EntryRow({ e, i, m, issues, on, hit, selCols, editing, customs, cols, ovfId, ovfSpk, ovfSrc, ovfTgt, h }: RowProps) {
+const EntryRow = memo(function EntryRow({ e, i, m, issues, on, hit, selCols, editing, customs, cols, fitId, fitSpk, fitSrc, fitTgt, fontId, fontSpk, fontSrc, fontTgt, ovfId, ovfSpk, ovfSrc, ovfTgt, h }: RowProps) {
   const doubt = m === 'doubt', ver = m === 'verified', ign = m === 'ignore';
   const label = '標記：' + markName(customs, m) + '，點擊變更';
   const cellProps = (c: CellCol) => {
@@ -123,13 +126,13 @@ const EntryRow = memo(function EntryRow({ e, i, m, issues, on, hit, selCols, edi
       </span>
       <div role="row" style={{ minWidth: 0, minHeight: 38, display: 'grid', gridTemplateColumns: cols, alignItems: 'stretch', fontSize: fz(13) }}>
         <span {...cellProps(0)} title={e.id} style={{ display: 'flex', alignItems: 'center', justifyContent: 'flex-end', minWidth: 0, padding: '4px 0', fontFamily: 'var(--font-id)', fontSize: 'var(--fs-id)' }}>
-          {editor(0) ?? <CellText mode={ovfId} fontSize="var(--fs-id)" style={{ paddingRight: 2, textAlign: 'right', color: ver ? 'var(--mute3)' : 'var(--mute)' }}>{e.id}</CellText>}
+          {editor(0) ?? <CellText mode={ovfId} fontSize="var(--fs-id)" fit={{ width: fitId, font: fontId, text: e.id }} style={{ paddingRight: 2, textAlign: 'right', color: ver ? 'var(--mute3)' : 'var(--mute)' }}>{e.id}</CellText>}
         </span>
         <span {...cellProps(1)} title={e.speaker} style={{ display: 'flex', alignItems: 'center', minWidth: 0, padding: '4px 8px 4px 4px', fontFamily: 'var(--font-spk)', fontSize: 'var(--fs-spk)', color: ver ? 'var(--mute3)' : 'var(--text2)' }}>
-          {editor(1) ?? <CellText mode={ovfSpk} fontSize="var(--fs-spk)">{e.speaker}</CellText>}
+          {editor(1) ?? <CellText mode={ovfSpk} fontSize="var(--fs-spk)" fit={{ width: fitSpk, font: fontSpk, text: e.speaker }}>{e.speaker}</CellText>}
         </span>
         <span {...cellProps(2)} style={{ display: 'flex', alignItems: 'center', minWidth: 0, padding: '9px 16px 9px 0', lineHeight: 1.45, color: ver ? 'var(--mute2)' : 'var(--text)', fontSize: SRC_FS, fontFamily: 'var(--font-src)' }}>
-          {editor(2) ?? <CellText mode={ovfSrc} fontSize={SRC_FS}>{e.src}</CellText>}
+          {editor(2) ?? <CellText mode={ovfSrc} fontSize={SRC_FS} fit={{ width: fitSrc, font: fontSrc, text: e.src }}>{e.src}</CellText>}
         </span>
         <span {...cellProps(3)} style={{
           fontSize: TGT_FS, fontFamily: 'var(--font-tgt)',
@@ -137,7 +140,7 @@ const EntryRow = memo(function EntryRow({ e, i, m, issues, on, hit, selCols, edi
           color: ver ? 'var(--mute2)' : e.tgt ? 'var(--textsoft)' : 'var(--mute2)', fontStyle: e.tgt ? 'normal' : 'italic',
         }}>
           {editor(3) ?? (
-            <CellText mode={ovfTgt} fontSize={TGT_FS}>
+            <CellText mode={ovfTgt} fontSize={TGT_FS} fit={{ width: fitTgt - (issues.length ? 19 : 0), font: fontTgt, text: e.tgt || (ign ? '不需翻譯' : '尚未翻譯') }}>
               {issues.length > 0 && (
                 <span role="img" aria-label={issues.map((x) => x.msg).join('、')} title={issues.map((x) => x.msg).join('、')}
                   style={{ display: 'inline-flex', verticalAlign: '-2px', marginRight: 6, color: 'var(--warntx)', fontStyle: 'normal' }}>
@@ -170,6 +173,20 @@ export function EntryList() {
   // 點欄標題選整欄：按下的那一欄，以及按下前已選的格子（Ctrl 加選時保留）
   const colDrag = useRef<{ c: number; base: string[] } | null>(null);
   const headRef = useRef<HTMLDivElement>(null);
+  // 各欄寬度：只在欄寬或視窗大小改變時量一次（量標題列的格子），自動縮放用
+  const [colPx, setColPx] = useState([0, 0, 0, 0]);
+  useEffect(() => {
+    const head = headRef.current;
+    if (!head) return;
+    const measure = () => {
+      const w = Array.from(head.children).map((c) => (c as HTMLElement).getBoundingClientRect().width);
+      setColPx((prev) => (prev.every((x, i) => Math.abs(x - (w[i] ?? 0)) < 0.5) ? prev : w));
+    };
+    measure();
+    const ro = new ResizeObserver(measure);
+    ro.observe(head);
+    return () => ro.disconnect();
+  }, []);
   // 從條目最左邊按住拖動：起點那一條，以及按下前已選的格子（Ctrl 加選時保留）
   const rowDrag = useRef<{ i: number; base: string[] } | null>(null);
   // 滑鼠按住期間記下按下的位置：這段時間不自動捲動，也要真的移動了才算拖動選取
@@ -555,7 +572,9 @@ export function EntryList() {
         {rows.map(({ e, i, m, issues }) => (
           <EntryRow key={e.uid} e={e} i={i} m={m} issues={issues} on={i === sel} hit={searchOn && searchHit(e, searchQ)}
             selCols={selColsOf(i)} editing={editing && editing.i === i ? editing : null}
-            customs={customs} cols={cols} ovfId={ovf.id} ovfSpk={ovf.speaker} ovfSrc={ovf.src} ovfTgt={ovf.tgt} h={handlers} />
+            customs={customs} cols={cols} fitId={colPx[0] - 2} fitSpk={colPx[1] - 12} fitSrc={colPx[2] - 16} fitTgt={colPx[3] - 32}
+            fontId={cellFontCss(s.fonts, 'id')} fontSpk={cellFontCss(s.fonts, 'speaker')} fontSrc={cellFontCss(s.fonts, 'src')} fontTgt={cellFontCss(s.fonts, 'tgt')}
+            ovfId={ovf.id} ovfSpk={ovf.speaker} ovfSrc={ovf.src} ovfTgt={ovf.tgt} h={handlers} />
         ))}
         {rows.length === 0 && (
           <div style={{ padding: '48px 0', textAlign: 'center', color: 'var(--mute)' }}>

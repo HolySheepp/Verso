@@ -1,8 +1,10 @@
 import { useLayoutEffect, useRef } from 'react';
-import type { Overflow } from '../model/fonts';
+import { canvasWidth, type Overflow } from '../model/fonts';
 
 interface Props {
   mode: Overflow;
+  /** 自動縮放：格子能放文字的寬度與字型；有給就用 canvas 算字寬，不量畫面 */
+  fit?: { width: number; font: string; text: string };
   /** 字級，CSS 寫法（可以是 var() 或 calc()） */
   fontSize: string;
   style?: React.CSSProperties;
@@ -13,9 +15,14 @@ interface Props {
 const MIN_FIT = 0.4;
 
 /** 條目欄格子裡的文字：依「超框時」設定省略、換行或縮小字級 */
-export function CellText({ mode, fontSize, style, children }: Props) {
+export function CellText({ mode, fontSize, style, children, fit }: Props) {
   if (mode === 'wrap') {
     return <span style={{ ...style, fontSize, minWidth: 0, whiteSpace: 'pre-wrap', overflowWrap: 'anywhere' }}>{children}</span>;
+  }
+  if (mode === 'shrink' && fit) {
+    const need = canvasWidth(fit.text.replace(/\n/g, ' '), fit.font);
+    const k = need > fit.width && need > 0 && fit.width > 0 ? Math.max(MIN_FIT, fit.width / need) : 1;
+    return <span style={{ ...style, fontSize: k === 1 ? fontSize : `calc(${fontSize} * ${k})`, minWidth: 0, overflow: 'hidden', whiteSpace: 'nowrap' }}>{children}</span>;
   }
   if (mode === 'shrink') return <FitText fontSize={fontSize} style={style}>{children}</FitText>;
   return <span style={{ ...style, fontSize, minWidth: 0, overflow: 'hidden', whiteSpace: 'nowrap', textOverflow: 'ellipsis' }}>{children}</span>;
