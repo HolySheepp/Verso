@@ -124,7 +124,9 @@ textarea[data-hist="1"]:focus{border-color:var(--accent) !important}
 .rw{content-visibility:auto;contain-intrinsic-size:auto 40px}
 /* 輸入框上的標色：QA 問題的位置、命中字典的詞 */
 mark.tm-issue{color:transparent;background:color-mix(in srgb,#e8b93a 32%,transparent);border-radius:2px;box-shadow:inset 0 -2px 0 #e8b93a}
-mark.tm-hit{color:transparent;background:var(--acc-soft2);border-radius:2px;box-shadow:inset 0 -2px 0 var(--accent)}
+mark.tm-hit{color:transparent;background:transparent;border-radius:2px;box-shadow:inset 0 -2px 0 var(--accent)}
+mark.tm-hit[data-on]{background:var(--acc-soft2)}
+.hit-tip{position:fixed;z-index:70;max-width:320px;padding:4px 9px;border-radius:6px;background:var(--pop);border:1px solid var(--line5);box-shadow:0 6px 18px rgba(0,0,0,0.28);color:var(--text);font-size:calc(var(--ui-scale,1) * 12.5px);pointer-events:none;white-space:pre-wrap;transform:translateY(-100%)}
 /* 匯入檔案：預覽表格與欄位標示 */
 .imp-f-id{--imp:rgba(150,115,235,0.22)}
 .imp-f-speaker{--imp:rgba(232,155,50,0.24)}

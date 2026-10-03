@@ -45,7 +45,11 @@ function WorkPanelInner({ height }: { height: number }) {
   const [srcEl, setSrcEl] = useState<HTMLTextAreaElement | null>(null);
   // 目前這一條原文命中的字典詞（只算這一條）
   const hits = useCurrentHits();
-  const hitRanges = useMemo<MarkRange[]>(() => hits.flatMap((h) => h.spans.map((sp) => ({ ...sp, kind: 'hit' as const }))), [hits]);
+  // 滑鼠停在原文框的哪個命中詞上：只有那一段畫底色，並在滑鼠旁顯示譯名
+  const [hover, setHover] = useState<{ hit: number; span: number; x: number; y: number } | null>(null);
+  const hitRanges = useMemo<MarkRange[]>(() => hits.flatMap((h, i) => h.spans.map((sp, j) => ({
+    ...sp, kind: 'hit' as const, ref: i * 1000 + j, on: hover?.hit === i && hover.span === j,
+  }))), [hits, hover?.hit, hover?.span]);
   const total = sheet.entries.length;
   const mode = s.mode;
   const customs = project.customMarks;
@@ -99,6 +103,48 @@ function WorkPanelInner({ height }: { height: number }) {
     [issues, cur.tgt],
   );
 
+  /**
+   * 把譯名放進譯文框的游標位置；有框選文字就取代。
+   * 用瀏覽器的插入文字指令，輸入框裡按 Ctrl+Z 可以撤回。
+   */
+  const insertTerm = (en: string) => {
+    const { tgtEl: ta, onTarget: put, ok } = altRef.current;
+    if (!ta || !ok) return;
+    const a = ta.selectionStart, b = ta.selectionEnd;
+    ta.focus();
+    ta.setSelectionRange(a, b);
+    if (document.execCommand('insertText', false, en)) return;
+    put(ta.value.slice(0, a) + en + ta.value.slice(b));
+    requestAnimationFrame(() => { ta.selectionStart = ta.selectionEnd = a + en.length; });
+  };
+
+  // 滑鼠在原文框上移動：找出底下是哪個命中詞
+  const onSrcMove = (ev: React.MouseEvent) => {
+    const box = srcEl?.parentElement;
+    let found: { hit: number; span: number } | null = null;
+    box?.querySelectorAll<HTMLElement>('mark.tm-hit').forEach((m) => {
+      if (found) return;
+      for (const r of Array.from(m.getClientRects())) {
+        if (ev.clientX >= r.left && ev.clientX <= r.right && ev.clientY >= r.top && ev.clientY <= r.bottom) {
+          const ref = Number(m.dataset.ref);
+          found = { hit: Math.floor(ref / 1000), span: ref % 1000 };
+          break;
+        }
+      }
+    });
+    const f = found as { hit: number; span: number } | null;
+    setHover(f ? { ...f, x: ev.clientX, y: ev.clientY } : null);
+  };
+  // 點命中詞：和快捷鍵一樣插入譯名（譯文框不能編輯時照一般的點擊）
+  const onSrcDown = (ev: React.MouseEvent) => {
+    if (ev.button !== 0 || !hover || !altRef.current.ok) return;
+    const hit = hits[hover.hit];
+    if (!hit) return;
+    ev.preventDefault();
+    insertTerm(hit.term.en);
+  };
+  useEffect(() => { setHover(null); }, [cur.uid]);
+
   // Alt+1、Alt+2…：把原文第幾個命中詞的譯名放進譯文框；有框選文字就取代
   const altRef = useRef({ hits, tgtEl, onTarget, ok: tgtEditable && !showHist });
   altRef.current = { hits, tgtEl, onTarget, ok: tgtEditable && !showHist };
@@ -107,15 +153,9 @@ function WorkPanelInner({ height }: { height: number }) {
       if (!ev.altKey || ev.ctrlKey || ev.metaKey || ev.shiftKey || !/^Digit[1-9]$/.test(ev.code)) return;
       const st = useStore.getState();
       if (st.settingsOpen || st.termDraft || st.pasteOpen || st.importOpen || st.dictPasteOpen || st.manageProjectsOpen || st.manageDictsOpen || st.lengthDialog || st.moveTarget) return;
-      const { hits: hs, tgtEl: ta, onTarget: put, ok } = altRef.current;
-      const hit = hs[Number(ev.code.slice(5)) - 1];
+      const hit = altRef.current.hits[Number(ev.code.slice(5)) - 1];
       ev.preventDefault();
-      if (!hit || !ta || !ok) return;
-      const a = ta.selectionStart, b = ta.selectionEnd;
-      const next = ta.value.slice(0, a) + hit.term.en + ta.value.slice(b);
-      put(next);
-      ta.focus();
-      requestAnimationFrame(() => { ta.selectionStart = ta.selectionEnd = a + hit.term.en.length; });
+      if (hit) insertTerm(hit.term.en);
     };
     window.addEventListener('keydown', onKey);
     return () => window.removeEventListener('keydown', onKey);
@@ -153,14 +193,19 @@ function WorkPanelInner({ height }: { height: number }) {
           </div>
           <div style={{ position: 'relative', display: 'flex', flexShrink: 0 }}>
           <textarea id="verso-source" ref={setSrcEl} value={cur.src} readOnly={!srcEditable} onFocus={editFocus} onBlur={editBlur}
+            onMouseMove={onSrcMove} onMouseLeave={() => setHover(null)} onMouseDown={onSrcDown}
             onChange={(ev) => srcEditable && s.updateEntry({ src: ev.target.value })}
             style={{
               flexGrow: 1, height: 66, flexShrink: 0, resize: 'none', boxSizing: 'border-box', padding: '10px 12px',
+              cursor: hover && tgtEditable && !showHist ? 'pointer' : undefined,
               background: srcEditable ? 'var(--bg0)' : 'var(--bgdeep)', border: `1px solid ${srcEditable ? 'rgba(240,165,74,0.55)' : 'var(--line)'}`,
               borderRadius: 8, fontSize: 'var(--fs-src)', fontFamily: 'var(--font-src)', lineHeight: 1.6, color: 'var(--text)',
             }} />
             {/* 命中字典的詞標色 */}
             <TextMarks target={srcEl} text={cur.src} ranges={hitRanges} />
+            {hover && hits[hover.hit] && (
+              <div className="hit-tip" style={{ left: hover.x, top: hover.y - 2 }}>{hits[hover.hit].term.en}</div>
+            )}
           </div>
 
           <div style={{ ...labelRow, marginTop: 6, gap: 12 }}>

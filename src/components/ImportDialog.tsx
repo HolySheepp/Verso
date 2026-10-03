@@ -46,9 +46,17 @@ export function ImportDialog() {
     }
   }, [open]);
 
+  // 拖進軟體視窗的檔案：還在選檔案這一步時才讀，已經在設定欄位就不換掉
+  const dropped = useStore((s) => s.importFile);
+  useEffect(() => {
+    if (!open || !dropped) return;
+    useStore.getState().set({ importFile: null });
+    if (!book) void load(dropped);
+  }, [open, dropped]);
+
   if (!open) return null;
 
-  const load = async (file: File | undefined) => {
+  async function load(file: File | undefined) {
     if (!file) return;
     setErr('');
     const res = readImport(file.name, new Uint8Array(await file.arrayBuffer()));
@@ -60,7 +68,7 @@ export function ImportDialog() {
       width: Math.max(1, ...sh.rows.map((r) => r.length)), fields: emptyFields(),
     })));
     setCur(0);
-  };
+  }
 
   const shell = (title: string, width: number, height: number | undefined, body: React.ReactNode, footer?: React.ReactNode) => (
     <div className="scrim" style={{ zIndex: 45 }} onMouseDown={dragWindow}>
@@ -86,7 +94,8 @@ export function ImportDialog() {
         <div
           onDragOver={(ev) => { ev.preventDefault(); ev.dataTransfer.dropEffect = 'copy'; setOver(true); }}
           onDragLeave={() => setOver(false)}
-          onDrop={(ev) => { ev.preventDefault(); setOver(false); void load(ev.dataTransfer.files[0]); }}
+          onDrop={(ev) => { ev.preventDefault(); ev.stopPropagation(); setOver(false); void load(ev.dataTransfer.files[0]); }}
+          data-nodrag
           style={{
             height: 200, display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', gap: 14,
             border: `1.5px dashed ${over ? 'var(--accent)' : 'var(--line6)'}`, borderRadius: 10,
@@ -325,7 +334,7 @@ function Preview({ sheet, onFields }: { sheet: DraftSheet; onFields(f: FieldMap)
   const total = NUM_W + width * COL_W;
 
   return (
-    <div style={{ flexGrow: 1, minHeight: 0, display: 'flex', flexDirection: 'column', gap: 10 }}>
+    <div data-nodrag style={{ flexGrow: 1, minHeight: 0, display: 'flex', flexDirection: 'column', gap: 10 }}>
       <div style={{ display: 'flex', alignItems: 'center', gap: 8, flexWrap: 'wrap' }}>
         {COLS.map((c) => {
           const f = fields[c.key];

@@ -119,6 +119,8 @@ interface State {
   pasteOpen: boolean;
   /** 匯入檔案視窗 */
   importOpen: boolean;
+  /** 拖進軟體視窗的檔案：交給匯入視窗讀 */
+  importFile: File | null;
   /** 手動填入視窗用來在現有檔案插入頁簽時：插在第幾個頁簽後面 */
   pasteInsert: { after: number } | null;
   dictPasteOpen: boolean;
@@ -431,6 +433,7 @@ export const useStore = create<Store>((set, get) => {
     termDraft: null,
     pasteOpen: false,
     importOpen: false,
+    importFile: null,
     pasteInsert: null,
     dictPasteOpen: false,
     manageProjectsOpen: false,

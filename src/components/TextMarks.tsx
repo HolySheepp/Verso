@@ -1,6 +1,12 @@
 import { useEffect, useLayoutEffect, useRef, useState } from 'react';
 
-export interface MarkRange { start: number; end: number; kind: 'issue' | 'hit' }
+export interface MarkRange {
+  start: number; end: number; kind: 'issue' | 'hit';
+  /** 滑鼠所在的那一段：畫上底色 */
+  on?: boolean;
+  /** 給外層找出滑鼠在哪一段用 */
+  ref?: number;
+}
 
 interface Props {
   /** 要標的輸入框 */
@@ -53,7 +59,7 @@ export function TextMarks({ target, text, ranges }: Props) {
     const s = Math.max(r.start, at), e = Math.min(r.end, text.length);
     if (e <= s) return;
     if (s > at) parts.push(text.slice(at, s));
-    parts.push(<mark key={i} className={'tm-' + r.kind}>{text.slice(s, e)}</mark>);
+    parts.push(<mark key={i} className={'tm-' + r.kind} data-on={r.on ? '' : undefined} data-ref={r.ref}>{text.slice(s, e)}</mark>);
     at = e;
   });
   parts.push(text.slice(at) + '​');
