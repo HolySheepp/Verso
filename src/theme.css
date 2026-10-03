@@ -125,3 +125,21 @@ textarea[data-hist="1"]:focus{border-color:var(--accent) !important}
 /* 輸入框上的標色：QA 問題的位置、命中字典的詞 */
 mark.tm-issue{color:transparent;background:color-mix(in srgb,#e8b93a 32%,transparent);border-radius:2px;box-shadow:inset 0 -2px 0 #e8b93a}
 mark.tm-hit{color:transparent;background:var(--acc-soft2);border-radius:2px;box-shadow:inset 0 -2px 0 var(--accent)}
+/* 匯入檔案：預覽表格與欄位標示 */
+.imp-f-id{--imp:rgba(150,115,235,0.22)}
+.imp-f-speaker{--imp:rgba(232,155,50,0.24)}
+.imp-f-src{--imp:rgba(70,140,255,0.22)}
+.imp-f-tgt{--imp:rgba(55,180,115,0.24)}
+.imp-chip{display:flex;align-items:center;gap:2px;height:32px;padding:0 4px 0 0;border:1px solid var(--line4);border-radius:8px;background:var(--btn)}
+.imp-chip[data-set]{background:var(--imp);border-color:transparent}
+.imp-chip-btn{display:flex;align-items:center;gap:8px;height:100%;padding:0 6px 0 10px;background:transparent;border:0;color:var(--text);font-size:calc(var(--ui-scale,1) * 12.5px);cursor:pointer}
+.imp-chip:hover{border-color:var(--line6)}
+.imp-grid{user-select:none;font-size:calc(var(--ui-scale,1) * 12.5px)}
+.imp-num{position:sticky;left:0;z-index:2;flex-shrink:0;width:52px;box-sizing:border-box;display:flex;align-items:center;justify-content:flex-end;padding-right:8px;background:var(--bg0);border-right:1px solid var(--line);color:var(--mute);font-size:calc(var(--ui-scale,1) * 11px);cursor:default}
+.imp-num:hover{color:var(--text)}
+.imp-head{flex-shrink:0;width:180px;box-sizing:border-box;display:flex;align-items:center;gap:6px;padding:0 8px;border-right:1px solid var(--line);color:var(--mute);font-size:calc(var(--ui-scale,1) * 11.5px);cursor:default}
+.imp-head:hover{color:var(--text);background:var(--ov2)}
+.imp-tag{padding:1px 6px;border-radius:4px;background:var(--imp);color:var(--text);font-size:calc(var(--ui-scale,1) * 11px)}
+.imp-cell{flex-shrink:0;width:180px;box-sizing:border-box;padding:0 8px;line-height:26px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;border-right:1px solid var(--line0);border-bottom:1px solid var(--line0);color:var(--textsoft);cursor:default}
+.imp-cell[class*=imp-f-]{background:var(--imp);color:var(--text)}
+.imp-cell[data-sel]{background:var(--acc-soft);box-shadow:inset 0 0 0 1px var(--acc-line)}

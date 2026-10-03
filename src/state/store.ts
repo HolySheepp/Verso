@@ -117,6 +117,8 @@ interface State {
   settingsOpen: boolean;
   termDraft: TermDraft | null;
   pasteOpen: boolean;
+  /** 匯入檔案視窗 */
+  importOpen: boolean;
   /** 手動填入視窗用來在現有檔案插入頁簽時：插在第幾個頁簽後面 */
   pasteInsert: { after: number } | null;
   dictPasteOpen: boolean;
@@ -428,6 +430,7 @@ export const useStore = create<Store>((set, get) => {
     settingsOpen: false,
     termDraft: null,
     pasteOpen: false,
+    importOpen: false,
     pasteInsert: null,
     dictPasteOpen: false,
     manageProjectsOpen: false,
@@ -687,7 +690,7 @@ export const useStore = create<Store>((set, get) => {
       const lengthStd = f.lengthStd ?? prevStd;
       set({
         project: { ...project, projects: withProject(project.projects, f.project), files: [...project.files, { ...f, name, ...(lengthStd ? { lengthStd } : {}) }] },
-        file: idx, sheetBy: { ...get().sheetBy, [idx]: 0 }, pasteOpen: false, filter: 'all',
+        file: idx, sheetBy: { ...get().sheetBy, [idx]: 0 }, pasteOpen: false, importOpen: false, filter: 'all',
         ...noPopups, ...noView,
       });
     },

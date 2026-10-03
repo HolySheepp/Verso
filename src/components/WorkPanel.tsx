@@ -106,7 +106,7 @@ function WorkPanelInner({ height }: { height: number }) {
     const onKey = (ev: KeyboardEvent) => {
       if (!ev.altKey || ev.ctrlKey || ev.metaKey || ev.shiftKey || !/^Digit[1-9]$/.test(ev.code)) return;
       const st = useStore.getState();
-      if (st.settingsOpen || st.termDraft || st.pasteOpen || st.dictPasteOpen || st.manageProjectsOpen || st.manageDictsOpen || st.lengthDialog || st.moveTarget) return;
+      if (st.settingsOpen || st.termDraft || st.pasteOpen || st.importOpen || st.dictPasteOpen || st.manageProjectsOpen || st.manageDictsOpen || st.lengthDialog || st.moveTarget) return;
       const { hits: hs, tgtEl: ta, onTarget: put, ok } = altRef.current;
       const hit = hs[Number(ev.code.slice(5)) - 1];
       ev.preventDefault();

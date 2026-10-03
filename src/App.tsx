@@ -11,6 +11,7 @@ import { MarkMenu } from './components/MarkMenu';
 import { TermDialog } from './components/TermDialog';
 import { SettingsDialog } from './components/SettingsDialog';
 import { PasteDialog } from './components/PasteDialog';
+import { ImportDialog } from './components/ImportDialog';
 import { DictPasteDialog } from './components/DictPasteDialog';
 import { LengthDialog } from './components/LengthDialog';
 import { Splash } from './components/Splash';
@@ -224,6 +225,7 @@ export default function App() {
       <TermDialog />
       <SettingsDialog />
       <PasteDialog />
+      <ImportDialog />
       <LongCellsNotice />
       <UnreadableNotice />
       <GoneNotice />
