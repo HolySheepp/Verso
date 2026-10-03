@@ -4,6 +4,7 @@ import { currentOf, currentProjectOf, dictEnabledIn, overrideKey, searchHit, use
 import { SHARED, dictKey, type DictInfo, type FileDoc, type GlossaryTerm } from '../model/types';
 import { fz } from '../model/fonts';
 import { findHits } from '../state/dictHits';
+import { leaveFile } from '../state/saver';
 import { ContextMenu } from './ContextMenu';
 import {
   IconBook, IconBookmark, IconCheck, IconChevD, IconCopy, IconChevL, IconChevR, IconFile, IconGlobe, IconHideRight, IconList, IconPaste, IconPenEdit, IconPlus, IconRefresh, IconSearch, IconUse,
@@ -246,7 +247,7 @@ function SearchTab() {
       <input id="verso-search" type="search" className="field" value={q} onChange={(ev) => set({ searchQuery: ev.target.value })}
         placeholder="搜尋所有檔案" />
       {results.map((r) => (
-        <button key={r.f + ':' + r.sh + ':' + r.i} type="button" className="sr" onClick={() => select(r.f, r.sh, r.i)}
+        <button key={r.f + ':' + r.sh + ':' + r.i} type="button" className="sr" onClick={() => leaveFile(files[r.f] ?? null, (idx) => { if (idx >= 0) select(idx, r.sh, r.i); })}
           style={{ display: 'flex', flexDirection: 'column', gap: 4, padding: '10px 12px', textAlign: 'left', background: 'var(--card)', border: '1px solid var(--line2)', borderRadius: 8 }}>
           <span className="mono" style={{ fontSize: fz(11), color: 'var(--mute)' }}>{r.where}</span>
           <span style={{ fontSize: fz(13), lineHeight: 1.5 }}>{r.src}</span>

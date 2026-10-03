@@ -21,6 +21,8 @@ export interface FileIO {
   configPath(): Promise<string>;
   /** 讓使用者選一個資料夾 */
   pickFolder(start?: string): Promise<string | null>;
+  /** 監看資料夾（含子資料夾），有變動時呼叫 onChange（連續的變動合成一次）；回傳停止監看的函式 */
+  watch(path: string, onChange: () => void): Promise<() => void>;
 }
 
 type FsPlugin = typeof import('@tauri-apps/plugin-fs');
@@ -79,6 +81,10 @@ const tauriIO = (): FileIO => {
       const r = await open({ directory: true, defaultPath: start });
       return typeof r === 'string' ? r : null;
     },
+    async watch(p, onChange) {
+      const stop = await (await fsp).watch(p, () => onChange(), { recursive: true, delayMs: 800 });
+      return () => { try { stop(); } catch { /* 已經停了 */ } };
+    },
   };
 };
 
@@ -113,6 +119,7 @@ const browserIO = (): FileIO => {
     async defaultRoot() { return 'Verso'; },
     async configPath() { return 'config.json'; },
     async pickFolder() { return null; },
+    async watch() { return () => {}; },
   };
 };
 

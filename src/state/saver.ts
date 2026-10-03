@@ -3,14 +3,14 @@ import { isTauri } from '@tauri-apps/api/core';
 import { getCurrentWindow } from '@tauri-apps/api/window';
 import { io } from '../data/fsio';
 import { withFontDefaults } from '../model/fonts';
-import { MAX_CELL_CHARS } from '../model/names';
+import { MAX_CELL_CHARS, nameKey } from '../model/names';
 import { migrateList } from '../model/shortcuts';
 import {
-  findRootConflicts, loadConfig, loadWorkspace, readDict, reloadFile, saveConfig, sortProjects, trashDict, trashFile, trashProject, writeDict, writeFile, writeMeta,
+  findRootConflicts, scanFolder, loadConfig, loadWorkspace, readDict, reloadFile, saveConfig, sortProjects, trashDict, trashFile, trashProject, writeDict, writeFile, writeMeta,
   type AppConfig, type LastPosition,
 } from '../data/persist';
 import { emptyHistory } from '../model/history';
-import { dictKey, type CustomMark, type FileDoc, type GlossaryTerm, type ProjectData } from '../model/types';
+import { dictKey, type CustomMark, type DictInfo, type FileDoc, type GlossaryTerm, type ProjectData } from '../model/types';
 import { currentOf, useStore, type SaveError } from './store';
 import type { RootConflict } from '../data/persist';
 
@@ -268,6 +268,7 @@ export async function startApp() {
   if (migrated) { saved = { ...saved, files: new Map(), customs: null }; useStore.setState({ saveStatus: 'dirty' }); dirtySince = 0; }
   restorePosition(project, last);
   step(1, '完成');
+  startFolderWatch();
   // 讓進度條停在填滿的樣子一下再進主畫面
   setTimeout(() => useStore.setState({ loading: null }), 220);
   watch();
@@ -334,16 +335,32 @@ async function finishAndClose() {
   if (isTauri()) await getCurrentWindow().destroy();
 }
 
-/** 切換檔案：有未存的修改就先問 */
+/**
+ * 離開目前檔案的總入口：任何會換到別的檔案的操作都經過這裡。
+ * 有未存的修改就先問；target 是要去的檔案（新建檔案時是 null），go 拿到那個檔案現在的位置再執行。
+ */
+export function leaveFile(target: FileDoc | null, go: (index: number) => void) {
+  const s = useStore.getState();
+  const key = target ? fileKey(target) : null;
+  const cur = s.project?.files[s.file];
+  if (target && cur && fileKey(cur) === key) { go(s.file); return; }
+  if (isDirty()) { useStore.setState({ askSave: { kind: 'leave', target: key, go }, fileMenuOpen: false }); return; }
+  go(indexOf(key));
+}
+
+const indexOf = (key: string | null) => (key === null ? -1 : useStore.getState().project?.files.findIndex((f) => fileKey(f) === key) ?? -1);
+
+/** 檔案選單切換檔案 */
 export function requestFile(i: number) {
   const s = useStore.getState();
   if (i === s.file) { s.set({ fileMenuOpen: false }); return; }
-  if (isDirty()) { useStore.setState({ askSave: { kind: 'switch', file: i }, fileMenuOpen: false }); return; }
-  s.setFile(i);
+  const target = s.project?.files[i];
+  if (!target) return;
+  leaveFile(target, (idx) => { if (idx >= 0) useStore.getState().setFile(idx); });
 }
 
-/** 放棄未存的修改：改過的檔案重新從硬碟讀回來，從沒存過的檔案拿掉；然後切到 target 那個檔案 */
-async function discardChanges(target?: FileDoc) {
+/** 放棄未存的修改：改過的檔案重新從硬碟讀回來，從沒存過的檔案拿掉 */
+async function discardChanges(target: string | null) {
   const s = useStore.getState();
   const p = s.project;
   if (!p) return;
@@ -355,7 +372,7 @@ async function discardChanges(target?: FileDoc) {
   }
   const customMarks = saved.customs ?? p.customMarks;
   const next = { ...p, files, customMarks };
-  const idx = Math.max(0, files.findIndex((f) => target && fileKey(f) === fileKey(target)));
+  const idx = Math.max(0, files.findIndex((f) => fileKey(f) === target));
   // 檔案可能少了，位置一律重設，避免指到不存在的檔案
   useStore.setState({ project: next, file: idx, sheetBy: {}, selBy: {}, reported: {}, viewOn: false, peek: false, saveStatus: 'saved' });
   markSaved(next);
@@ -374,11 +391,8 @@ export async function resolveAskSave(choice: 'save' | 'discard' | 'cancel') {
     await finishAndClose();
     return;
   }
-  const target = useStore.getState().project?.files[ask.file];
-  if (choice === 'discard') { await discardChanges(target); return; }
-  const p = useStore.getState().project!;
-  const idx = Math.max(0, p.files.findIndex((f) => target && fileKey(f) === fileKey(target)));
-  if (idx !== useStore.getState().file) useStore.getState().setFile(idx);
+  if (choice === 'discard') await discardChanges(ask.target);
+  ask.go(indexOf(ask.target));
 }
 
 /** 更換存檔資料夾：之後的存檔都存到新資料夾，目前的內容馬上存一份過去 */
@@ -426,4 +440,116 @@ async function switchRoot(root: string) {
 export async function pickSaveRoot() {
   const r = await io.pickFolder(useStore.getState().saveRoot);
   if (r) await changeSaveRoot(r);
+}
+
+// ---- 監看存檔資料夾：資料夾裡多了檔案或字典就載入，軟體裡有、資料夾裡不見了就提示並在下次存檔寫回 ----
+
+/** 比對資料夾裡的名稱用：不分大小寫，特殊符號照存檔時的換法 */
+const diskKey = (project: string, name: string) => project.toLowerCase() + '/' + nameKey(name);
+const splitKey = (k: string) => { const i = k.indexOf('/'); return [k.slice(0, i), k.slice(i + 1)] as const; };
+
+async function syncFolder() {
+  const s0 = useStore.getState();
+  if (!s0.project || !s0.saveRoot || s0.loading) return;
+  const root = s0.saveRoot;
+  let scan: Awaited<ReturnType<typeof scanFolder>>;
+  try { scan = await scanFolder(root); } catch { return; }
+
+  // 已知的：軟體裡有的，以及剛在軟體裡刪掉、還沒從資料夾移走的
+  const known = () => {
+    const p = useStore.getState().project!;
+    return {
+      files: new Set([...p.files, ...saved.files.values()].map((f) => diskKey(f.project, f.name))),
+      dicts: new Set([...p.dicts.map((d) => diskKey(d.project, d.name)), ...[...saved.dicts.keys()].map((k) => diskKey(...splitKey(k)))]),
+      projects: new Set([...p.projects, ...saved.projects].map((x) => x.toLowerCase())),
+    };
+  };
+  let k = known();
+  const customs = useStore.getState().project!.customMarks;
+  const added: FileDoc[] = [];
+  for (const f of scan.files) {
+    if (k.files.has(diskKey(f.project, f.name))) continue;
+    // 讀不到（例如還在複製中）就先略過，下次有變動時再試
+    try { const doc = await reloadFile(root, f.project, f.name, customs); if (doc) added.push(doc); } catch { /* 下次再試 */ }
+  }
+  const addedDicts: { info: DictInfo; terms: GlossaryTerm[] }[] = [];
+  for (const d of scan.dicts) {
+    if (k.dicts.has(diskKey(d.project, d.name))) continue;
+    try { addedDicts.push({ info: d, terms: await readDict(root, d.project, d.name) }); } catch { /* 下次再試 */ }
+  }
+
+  // 讀檔期間使用者可能改了東西：用最新的內容再比一次
+  if (useStore.getState().saveRoot !== root) return;
+  const p = useStore.getState().project!;
+  k = known();
+  const files = added.filter((f) => !k.files.has(diskKey(f.project, f.name)));
+  const dicts = addedDicts.filter((d) => !k.dicts.has(diskKey(d.info.project, d.info.name)));
+  const newProjects = scan.projects.filter((x) => !k.projects.has(x.toLowerCase()));
+
+  // 存過、但資料夾裡不見了：留在軟體裡，下次存檔寫回去
+  const onDisk = new Set(scan.files.map((f) => diskKey(f.project, f.name)));
+  const gone = p.files.filter((f) => saved.files.get(fileKey(f)) === f && !onDisk.has(diskKey(f.project, f.name)));
+  const dictsOnDisk = new Set(scan.dicts.map((d) => diskKey(d.project, d.name)));
+  const goneDicts = p.dicts.filter((d) => saved.dicts.has(dictKey(d.project, d.name)) && !dictsOnDisk.has(diskKey(d.project, d.name)));
+
+  if (!files.length && !dicts.length && !newProjects.length && !gone.length && !goneDicts.length) return;
+
+  gone.forEach((f) => saved.files.delete(fileKey(f)));
+  goneDicts.forEach((d) => saved.dicts.delete(dictKey(d.project, d.name)));
+  files.forEach((f) => saved.files.set(fileKey(f), f));
+  dicts.forEach((d) => saved.dicts.set(dictKey(d.info.project, d.info.name), dictSignature(d.terms)));
+  const projects = files.length || dicts.length || newProjects.length
+    ? sortProjects([...p.projects, ...newProjects, ...files.map((f) => f.project), ...dicts.map((d) => d.info.project)])
+    : p.projects;
+  // 專案清單本來沒有未存的修改，加進來的專案也算已存
+  if (saved.projects === p.projects) saved = { ...saved, projects };
+  useStore.setState({
+    project: {
+      ...p, projects,
+      files: files.length ? [...p.files, ...files] : p.files,
+      dicts: dicts.length ? [...p.dicts, ...dicts.map((d) => d.info)] : p.dicts,
+      glossary: dicts.length ? [...p.glossary, ...dicts.flatMap((d) => d.terms)] : p.glossary,
+    },
+  });
+  const names = [...files.map((f) => f.name), ...dicts.map((d) => d.info.name)];
+  if (names.length) useStore.setState((st) => ({ toast: { text: '已載入：' + names.slice(0, 3).join('、') + (names.length > 3 ? ` 等 ${names.length} 個` : ''), k: (st.toast?.k ?? 0) + 1 } }));
+  const goneNames = [...gone.map((f) => `${f.project} / ${f.name}`), ...goneDicts.map((d) => `字典 / ${d.project} / ${d.name}`)];
+  if (goneNames.length) useStore.setState((st) => ({ goneFiles: [...new Set([...(st.goneFiles ?? []), ...goneNames])] }));
+  // 不見的字典馬上寫回（排在這次檢查之後）
+  if (goneDicts.length) void saveDicts();
+}
+
+let syncTimer: ReturnType<typeof setTimeout> | undefined;
+/** 稍等一下再檢查資料夾（連續的變動合成一次），和存檔排隊、不同時進行 */
+function requestSync() {
+  clearTimeout(syncTimer);
+  syncTimer = setTimeout(() => { void serial(syncFolder); }, 300);
+}
+
+let stopWatch: (() => void) | null = null;
+let watchedRoot = '';
+let folderWatchOn = false;
+
+async function watchRoot(root: string) {
+  if (root === watchedRoot) return;
+  stopWatch?.();
+  stopWatch = null;
+  watchedRoot = root;
+  try {
+    await io.mkdir(root);
+    const stop = await io.watch(root, requestSync);
+    // 等待期間又換了資料夾：這個監看不要了
+    if (watchedRoot !== root) stop(); else stopWatch = stop;
+  } catch { /* 監看不了時，至少切回軟體時會檢查 */ }
+}
+
+function startFolderWatch() {
+  if (folderWatchOn) return;
+  folderWatchOn = true;
+  void watchRoot(useStore.getState().saveRoot);
+  useStore.subscribe((s, prev) => {
+    if (s.saveRoot !== prev.saveRoot) { void watchRoot(s.saveRoot); requestSync(); }
+  });
+  // 監看漏掉時的保險：切回軟體時也檢查一次
+  window.addEventListener('focus', requestSync);
 }

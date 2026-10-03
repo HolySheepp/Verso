@@ -80,7 +80,7 @@ export async function saveConfig(cfg: AppConfig) {
   await io.writeBinary(p.replace(/[^\\/]*$/, 'saveroot.txt'), bytes);
 }
 
-const isXlsx = (n: string) => n.toLowerCase().endsWith('.xlsx') && !n.startsWith('~$');
+export const isXlsx = (n: string) => n.toLowerCase().endsWith('.xlsx') && !n.startsWith('~$');
 
 /** 舊版的字典直接放在「字典」底下；搬到「字典/共用」 */
 async function migrateDicts(root: string) {
@@ -223,6 +223,25 @@ export async function findRootConflicts(root: string, data: ProjectData): Promis
   }
   for (const d of data.dicts) {
     if (await io.exists(io.join(root, DICT_DIR, d.project, safeName(d.name) + '.xlsx'))) out.push({ kind: 'dict', project: d.project, name: d.name });
+  }
+  return out;
+}
+
+/** 存檔資料夾裡現在有的專案資料夾、檔案、字典（名稱不含 .xlsx） */
+export async function scanFolder(root: string): Promise<{ projects: string[]; files: { project: string; name: string }[]; dicts: { project: string; name: string }[] }> {
+  const out = { projects: [] as string[], files: [] as { project: string; name: string }[], dicts: [] as { project: string; name: string }[] };
+  if (!(await io.exists(root))) return out;
+  for (const e of await io.list(root)) {
+    if (!e.dir) continue;
+    if (e.name === DICT_DIR) {
+      for (const p of (await io.list(io.join(root, DICT_DIR))).filter((x) => x.dir)) {
+        out.projects.push(p.name);
+        for (const f of await io.list(io.join(root, DICT_DIR, p.name))) if (!f.dir && isXlsx(f.name)) out.dicts.push({ project: p.name, name: f.name.slice(0, -5) });
+      }
+      continue;
+    }
+    out.projects.push(e.name);
+    for (const f of await io.list(io.join(root, e.name))) if (!f.dir && isXlsx(f.name)) out.files.push({ project: e.name, name: f.name.slice(0, -5) });
   }
   return out;
 }

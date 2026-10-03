@@ -80,6 +80,17 @@ function UnreadableNotice() {
   );
 }
 
+/** 存檔資料夾裡有檔案或字典不見了（軟體裡的還在） */
+function GoneNotice() {
+  const list = useStore((st) => st.goneFiles);
+  if (!list?.length) return null;
+  return (
+    <ConfirmDialog zIndex={60} title="存檔資料夾裡有檔案不見了"
+      body={'下列檔案在資料夾裡找不到了，軟體裡的內容還在，下次存檔會重新寫回：' + list.slice(0, 8).join('、') + (list.length > 8 ? ` 等 ${list.length} 個` : '')}
+      choices={[{ label: '知道了', primary: true, onClick: () => useStore.setState({ goneFiles: null }) }]} />
+  );
+}
+
 function StatusBar() {
   const files = useStore((s) => s.project!.files);
   const mode = useStore((s) => s.mode);
@@ -215,10 +226,11 @@ export default function App() {
       <PasteDialog />
       <LongCellsNotice />
       <UnreadableNotice />
+      <GoneNotice />
       <RootConflictDialog />
       {s.askSave && (
         <ConfirmDialog zIndex={60} title="有未儲存的修改"
-          body={s.askSave.kind === 'close' ? '關閉前要儲存嗎？' : '切換檔案前要儲存嗎？'}
+          body={s.askSave.kind === 'close' ? '關閉前要儲存嗎？' : '離開這個檔案前要儲存嗎？'}
           choices={[
             { label: '取消', onClick: () => void resolveAskSave('cancel') },
             { label: '不儲存', danger: true, onClick: () => void resolveAskSave('discard') },

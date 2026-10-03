@@ -1,5 +1,6 @@
 import { useEffect, useRef, useState } from 'react';
 import { currentOf, currentProjectOf, useStore } from '../state/store';
+import { leaveFile } from '../state/saver';
 import { NEW, ProjectPicker, nameError, picked } from './Pickers';
 import { RenameInput } from './RenameInput';
 import { sheetNameError } from '../model/names';
@@ -113,11 +114,13 @@ export function PasteDialog() {
       insertSheets(insert.after, sheets.map((sh, i) => ({ name: sh.name.trim() || '頁簽 ' + (existingSheets + i + 1), entries: columnsToEntries(sh.cols) })));
       return;
     }
-    addFile({
+    const doc = {
       name: name.trim() || '未命名檔案',
       project: projName,
       sheets: sheets.map((sh, i) => ({ name: sh.name.trim() || '頁簽 ' + (i + 1), entries: columnsToEntries(sh.cols) })),
-    });
+    };
+    // 建立新檔案會換到新檔案：目前的檔案有未存的修改就先問
+    leaveFile(null, () => addFile(doc));
   };
 
   const addSheet = () => commit([...sheets, newSheet(existingSheets + sheets.length + 1)], sheets.length);

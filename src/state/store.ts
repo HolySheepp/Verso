@@ -16,8 +16,11 @@ export type SideTab = 'dict' | 'search' | 'web' | 'ref';
 export type Theme = 'dark' | 'light' | 'system';
 export type SaveStatus = 'saved' | 'dirty' | 'saving' | 'error';
 
-/** 有未存修改時要先問使用者：關閉 App，或切換到別的檔案 */
-export type AskSave = { kind: 'close' } | { kind: 'switch'; file: number };
+/**
+ * 有未存修改時要先問使用者：關閉 App，或離開目前的檔案。
+ * leave：target 是要去的檔案（專案/檔名），新建檔案時是 null；決定後呼叫 go，帶入那個檔案現在的位置（找不到是 -1）。
+ */
+export type AskSave = { kind: 'close' } | { kind: 'leave'; target: string | null; go: (index: number) => void };
 
 
 /** keys：用快捷鍵打開的選單，可以按數字選取 */
@@ -124,6 +127,8 @@ interface State {
   rootConflicts: { root: string; items: RootConflict[] } | null;
   /** 啟動時讀不到的檔案、字典 */
   unreadable: string[] | null;
+  /** 軟體裡有、但存檔資料夾裡不見了的檔案、字典（下次存檔會寫回） */
+  goneFiles: string[] | null;
   /** 存檔時發現超過 Excel 單格上限的格子（給人看的位置） */
   longCells: string[] | null;
   /** 啟動載入中：進度（0–1）與正在做的事；載入完是 null */
@@ -429,6 +434,7 @@ export const useStore = create<Store>((set, get) => {
     toast: null,
     longCells: null,
     unreadable: null,
+    goneFiles: null,
     rootConflicts: null,
     saveErrors: [],
     loading: { p: 0, text: '啟動中' },
