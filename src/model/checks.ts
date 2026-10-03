@@ -110,11 +110,25 @@ export function runChecks(src: string, tgt: string): Issue[] {
   if (firstLetter && /[a-z]/.test(firstLetter[1])) add('capital', 'start', '句首要大寫');
   // 刪節號後不檢查（例如 Are you... are you mad?），只有整句以刪節號開頭時，刪節號後的字算句首
   if (/(?:^|[^.])[.?!]["')]*\s+["'(]*[a-z]/.test(tgt)) add('capital', 'sentence', '句號、問號、驚嘆號後要大寫');
-  if (/—\s*["'(]*(?!I\b|I')[A-Z]/.test(tgt)) add('capital', 'dash', '破折號後要小寫');
+  if (dashCapitals(tgt).length) add('capital', 'dash', '破折號後要小寫');
 
   // 殘留中文
   if (/[㐀-䶿一-鿿]/.test(tgt)) add('cjk', '', '譯文裡有中文字');
 
+  return out;
+}
+
+/**
+ * 破折號後的大寫字母位置（I 除外）。
+ * 破折號在句子開頭時（整段開頭，或句號、問號、驚嘆號之後），後面本來就是句首，大寫不算錯。
+ */
+function dashCapitals(tgt: string): number[] {
+  const out: number[] = [];
+  for (const m of tgt.matchAll(/—\s*["'(]*(?!I\b|I')([A-Z])/g)) {
+    const before = tgt.slice(0, m.index).replace(/[\s"'(\[]+$/, '');
+    if (before === '' || /[.?!]["')\]]*$/.test(before)) continue;
+    out.push(m.index! + m[0].length - 1);
+  }
   return out;
 }
 
@@ -145,7 +159,7 @@ export function locateIssues(tgt: string, checks: Set<CheckId>): { start: number
     const first = tgt.match(/^[\s"'(\[.]*([a-z])/);
     if (first) { const i = first[0].length - 1; out.push({ start: i, end: i + 1 }); }
     for (const m of tgt.matchAll(/(?:^|[^.])[.?!]["')]*\s+["'(]*([a-z])/g)) { const i = m.index! + m[0].length - 1; out.push({ start: i, end: i + 1 }); }
-    for (const m of tgt.matchAll(/—\s*["'(]*(?!I\b|I')([A-Z])/g)) { const i = m.index! + m[0].length - 1; out.push({ start: i, end: i + 1 }); }
+    for (const i of dashCapitals(tgt)) out.push({ start: i, end: i + 1 });
   }
   return out;
 }

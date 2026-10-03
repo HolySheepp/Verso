@@ -33,10 +33,11 @@ export type MarkVisual =
   | { kind: 'sym'; sym: SymbolId; color: string }
   | { kind: 'text'; text: string; color: string };
 
-type MarkFields = Pick<Entry, 'mark' | 'tgt'> & { pending?: boolean };
+type MarkFields = Pick<Entry, 'mark' | 'tgt'> & { pending?: boolean; src?: string };
 
-/** 有譯文、且不是待確認，才算已翻譯 */
+/** 有譯文、且不是待確認，才算已翻譯；原文和譯文都空白的條目沒有東西要翻，也算已翻譯 */
 export function isTranslated(e: MarkFields): boolean {
+  if (e.src !== undefined && !e.src.trim() && !e.tgt.trim()) return true;
   return !!e.tgt && !e.pending;
 }
 

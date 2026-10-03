@@ -247,6 +247,9 @@ interface Actions {
 
 export type Store = State & Actions;
 
+/** 設標記；手動選「已翻譯」時，剛貼入待確認的條目也一起確認 */
+const withMark = (e: Entry, id: MarkId): Entry => ({ ...e, mark: toStoredMark(id), keptMark: undefined, ...(id === 'translated' ? { pending: false } : {}) });
+
 const noPopups = { fileMenuOpen: false, rowMenu: null, stampOpen: false } as const;
 const noView = { viewOn: false, peek: false } as const;
 
@@ -590,12 +593,12 @@ export const useStore = create<Store>((set, get) => {
     setEntryMark(index, id) {
       // 改標記也算一步
       pushUndo();
-      patchEntry(index, (e) => ({ ...e, mark: toStoredMark(id), keptMark: undefined }));
+      patchEntry(index, (e) => withMark(e, id));
     },
 
     setEntryMarks(indices, id) {
       pushUndo();
-      indices.forEach((i) => patchEntry(i, (e) => ({ ...e, mark: toStoredMark(id), keptMark: undefined })));
+      indices.forEach((i) => patchEntry(i, (e) => withMark(e, id)));
     },
 
     beginEdit() {
