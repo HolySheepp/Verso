@@ -87,8 +87,9 @@ function WorkPanelInner({ height }: { height: number }) {
   // 能不能放進字典詞：翻譯模式放進譯文框，驗證模式放進修改框
   const canInsert = verify || (tgtEditable && !showHist);
 
-  // 驗證修改：每組修改在譯文框和修改框的位置
-  const edits = verify ? editsOf(cur) : NO_EDITS;
+  // 驗證修改：每組修改在譯文框和修改框的位置。翻譯模式打開驗證過的條目時也顯示，讓譯者處理
+  const edits = verify || mode === 'translate' ? editsOf(cur) : NO_EDITS;
+  const showEdits = verify || edits.length > 0;
   const spans = useMemo(() => spansOf(edits), [edits]);
   const modText = useMemo(() => compose(cur.tgt, edits), [cur.tgt, edits]);
   const [modEl, setModEl] = useState<HTMLTextAreaElement | null>(null);
@@ -191,18 +192,21 @@ function WorkPanelInner({ height }: { height: number }) {
     });
   };
   const onVLeave = () => { cancelAnimationFrame(vFrame.current); vFrame.current = 0; setVHover(null); };
-  // 點譯文框裡的修改：到修改框重新編輯；點修改框裡的修改：游標照常放，這組高亮
+  // 驗證模式：點譯文框裡的修改到修改框重新編輯；點修改框裡的修改，游標照常放，這組高亮
+  // 翻譯模式：點任一框的修改就套用
   const onTgtDown = (ev: React.MouseEvent) => {
-    if (!verify || ev.button !== 0 || vHover === null) return;
+    if (!showEdits || ev.button !== 0 || vHover === null) return;
     ev.preventDefault();
-    editGroup(vHover);
+    if (verify) editGroup(vHover);
+    else { applyGroup(vHover); setVHover(null); }
   };
   const onModDown = (ev: React.MouseEvent) => {
     if (ev.button !== 0 || vHover === null || !spans[vHover]) return;
+    if (!verify) { ev.preventDefault(); applyGroup(vHover); setVHover(null); return; }
     setVActive(spans[vHover].s);
   };
   const onVMenu = (ev: React.MouseEvent) => {
-    if (!verify || vHover === null) return;
+    if (!showEdits || vHover === null) return;
     ev.preventDefault();
     commitEdit();
     setVMenu({ x: ev.clientX, y: ev.clientY, i: vHover });
@@ -213,7 +217,11 @@ function WorkPanelInner({ height }: { height: number }) {
 
   const onTarget = (v: string) => {
     if (!tgtEditable || showHist) return;
+    const had = editsOf(cur).length > 0;
     s.updateEntry({ tgt: v });
+    // 改到修改的部分：那組修改算處理過了；全部處理完就清掉記錄
+    const e = currentOf(useStore.getState()).entry;
+    if (had && e && !editsOf(e).length) s.setVerify([]);
   };
 
   // 問題的位置：只標畫面上正在顯示的問題
@@ -365,16 +373,16 @@ function WorkPanelInner({ height }: { height: number }) {
             <textarea id="verso-target" ref={setTgtEl} onFocus={editFocus} onBlur={editBlur} data-hist={showHist ? '1' : '0'} value={showHist ? texts[slot] : cur.tgt}
               readOnly={!tgtEditable || showHist}
               onChange={(ev) => onTarget(ev.target.value)} onPaste={onPaste}
-              onMouseMove={verify ? onVMove : undefined} onMouseLeave={verify ? onVLeave : undefined} onMouseDown={onTgtDown} onContextMenu={onVMenu}
+              onMouseMove={showEdits ? onVMove : undefined} onMouseLeave={showEdits ? onVLeave : undefined} onMouseDown={onTgtDown} onContextMenu={onVMenu}
               style={{
-                cursor: verify && vHover !== null ? 'pointer' : undefined,
+                cursor: showEdits && vHover !== null ? 'pointer' : undefined,
                 flexGrow: 1, minHeight: 0, resize: 'none', boxSizing: 'border-box', padding: '10px 44px 10px 12px',
                 background: tgtEditable ? 'var(--bg0)' : 'var(--bgdeep)',
                 border: `1px ${showHist ? 'dashed' : 'solid'} ${showHist ? 'var(--accent)' : tgtEditable ? 'var(--line4)' : 'var(--line)'}`,
                 borderRadius: 8, color: tgtEditable ? 'var(--texthi)' : 'var(--textsoft)', fontSize: 'var(--fs-tgt)', fontFamily: 'var(--font-tgt)', lineHeight: 1.6,
               }} />
             {/* QA 問題的位置標色 */}
-            {!showHist && <TextMarks target={tgtEl} text={cur.tgt} ranges={verify ? [...tgtEditRanges, ...issueRanges] : issueRanges} />}
+            {!showHist && <TextMarks target={tgtEl} text={cur.tgt} ranges={showEdits ? [...tgtEditRanges, ...issueRanges] : issueRanges} />}
             {s.finishLine && !showHist && <FinishLine target={tgtEl} text={cur.tgt} std={effectiveStd(cur.lengthStd, currentOf(s).fileDoc.lengthStd)} />}
 
             <div role="toolbar" aria-label="譯文記錄" aria-orientation="vertical" style={{ position: 'absolute', right: 6, top: 6, display: 'flex', flexDirection: 'column', gap: 2 }}>
@@ -430,7 +438,7 @@ function WorkPanelInner({ height }: { height: number }) {
             )}
           </div>
 
-          {verify && (
+          {showEdits && (
             <>
               <div style={{ ...labelRow, marginTop: 6, gap: 12 }}>
                 <label htmlFor="verso-edit" className="sec-label">修改</label>
@@ -441,12 +449,15 @@ function WorkPanelInner({ height }: { height: number }) {
                 </span>
               </div>
               <div style={{ flexGrow: 1, minHeight: 0, position: 'relative', display: 'flex' }}>
-                <textarea id="verso-edit" ref={setModEl} value={modText} onFocus={editFocus} onBlur={modBlur}
-                  onChange={(ev) => onModValue(ev.target.value, ev.target.selectionEnd)}
+                {/* 翻譯模式：修改框只給譯者看，不能改 */}
+                <textarea id="verso-edit" ref={setModEl} value={modText} readOnly={!verify} onFocus={verify ? editFocus : undefined} onBlur={verify ? modBlur : undefined}
+                  onChange={(ev) => verify && onModValue(ev.target.value, ev.target.selectionEnd)}
                   onMouseMove={onVMove} onMouseLeave={onVLeave} onMouseDown={onModDown} onContextMenu={onVMenu}
                   style={{
                     flexGrow: 1, minHeight: 0, resize: 'none', boxSizing: 'border-box', padding: '10px 12px',
-                    background: 'var(--bg0)', border: '1px solid var(--line4)', borderRadius: 8, color: 'var(--texthi)',
+                    cursor: !verify && vHover !== null ? 'pointer' : undefined,
+                    background: verify ? 'var(--bg0)' : 'var(--bgdeep)', border: `1px solid ${verify ? 'var(--line4)' : 'var(--line)'}`, borderRadius: 8,
+                    color: verify ? 'var(--texthi)' : 'var(--textsoft)',
                     fontSize: 'var(--fs-tgt)', fontFamily: 'var(--font-tgt)', lineHeight: 1.6,
                   }} />
                 <TextMarks target={modEl} text={modText} ranges={modRanges} />
@@ -454,7 +465,9 @@ function WorkPanelInner({ height }: { height: number }) {
               </div>
               {vMenu && spans[vMenu.i] && (
                 <ContextMenu x={vMenu.x} y={vMenu.y} label="修改" onClose={() => setVMenu(null)}
-                  items={[{ key: 'edit', label: '編輯' }, { key: 'del', label: '刪除' }, { key: 'apply', label: '套用' }]}
+                  items={verify
+                    ? [{ key: 'edit', label: '編輯' }, { key: 'del', label: '刪除' }, { key: 'apply', label: '套用' }]
+                    : [{ key: 'apply', label: '套用' }, { key: 'del', label: '忽略修改' }]}
                   onPick={(k) => {
                     const i = vMenu.i;
                     setVMenu(null);

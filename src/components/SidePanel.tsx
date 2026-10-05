@@ -334,10 +334,16 @@ function NotesSectionInner() {
               建議翻譯
             </button>
             {mode === 'translate' && cur.sugg && (
-              <button type="button" className="btn btn-ghost" title="記錄目前譯文，並把建議翻譯套用到譯文框" onClick={() => s.applySuggestion()}
-                style={{ height: 26, display: 'flex', alignItems: 'center', gap: 5, padding: '0 10px', background: 'var(--btn)', border: '1px solid var(--line4)', borderRadius: 6, fontSize: fz(12), fontWeight: 500, color: 'var(--text)' }}>
-                <IconUse size={12} sw={2.4} />套用
-              </button>
+              <span style={{ display: 'flex', gap: 6 }}>
+                <button type="button" className="btn btn-ghost" title="刪除建議翻譯" onClick={() => s.updateEntry({ sugg: '' })}
+                  style={{ height: 26, display: 'flex', alignItems: 'center', padding: '0 10px', background: 'var(--btn)', border: '1px solid var(--line4)', borderRadius: 6, fontSize: fz(12), fontWeight: 500, color: 'var(--text)' }}>
+                  刪除
+                </button>
+                <button type="button" className="btn btn-ghost" title="記錄目前譯文，並把建議翻譯套用到譯文框" onClick={() => s.applySuggestion()}
+                  style={{ height: 26, display: 'flex', alignItems: 'center', gap: 5, padding: '0 10px', background: 'var(--btn)', border: '1px solid var(--line4)', borderRadius: 6, fontSize: fz(12), fontWeight: 500, color: 'var(--text)' }}>
+                  <IconUse size={12} sw={2.4} />套用
+                </button>
+              </span>
             )}
           </div>
           {suggOpen && (
