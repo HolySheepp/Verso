@@ -48,23 +48,12 @@ $latest = [ordered]@{
 $latestPath = Join-Path $nsis 'latest.json'
 [IO.File]::WriteAllText($latestPath, ($latest | ConvertTo-Json -Depth 5), (New-Object Text.UTF8Encoding $false))
 
-# 3. 用這台電腦登入 GitHub 的帳號建立 Release、上傳檔案
-# 直接寫進 git 的標準輸入（用 PowerShell 管線傳會被加上編碼標記，git 讀不懂）
-$psi = New-Object Diagnostics.ProcessStartInfo 'git', 'credential fill'
-$psi.UseShellExecute = $false; $psi.RedirectStandardInput = $true; $psi.RedirectStandardOutput = $true
-$proc = [Diagnostics.Process]::Start($psi)
-$proc.StandardInput.Write("protocol=https`nhost=github.com`n`n"); $proc.StandardInput.Close()
-$cred = $proc.StandardOutput.ReadToEnd() -split "`n"; $proc.WaitForExit()
-$token = (($cred | Where-Object { $_ -like 'password=*' }) -replace '^password=', '').Trim()
-if (-not $token) { throw '找不到 GitHub 登入資訊' }
-$headers = @{ Authorization = "token $token"; Accept = 'application/vnd.github+json'; 'User-Agent' = 'verso-release' }
-$api = 'https://api.github.com/repos/HolySheepp/Verso'
-$body = @{ tag_name = $tag; name = "Verso $version"; body = $Notes } | ConvertTo-Json
-$rel = Invoke-RestMethod -Method Post -Uri "$api/releases" -Headers $headers -Body ([Text.Encoding]::UTF8.GetBytes($body)) -ContentType 'application/json; charset=utf-8'
-foreach ($f in @($setup.FullName, $sig.FullName, $latestPath)) {
-  $name = [IO.Path]::GetFileName($f)
-  $uri = "https://uploads.github.com/repos/HolySheepp/Verso/releases/$($rel.id)/assets?name=$([Uri]::EscapeDataString($name))"
-  Invoke-RestMethod -Method Post -Uri $uri -Headers $headers -InFile $f -ContentType 'application/octet-stream' | Out-Null
-  Write-Host "已上傳 $name"
-}
-Write-Host "發布完成：$($rel.html_url)"
+# 3. 用 GitHub CLI（gh，這台電腦已登入）建立 Release、上傳檔案
+$gh = (Get-Command gh -ErrorAction SilentlyContinue).Source
+if (-not $gh) { $gh = 'C:\Program Files\GitHub CLI\gh.exe' }
+if (-not (Test-Path $gh)) { throw '找不到 GitHub CLI（gh），請先安裝並登入' }
+$notesFile = Join-Path $env:CARGO_TARGET_DIR 'release-notes.txt'
+[IO.File]::WriteAllText($notesFile, $Notes, (New-Object Text.UTF8Encoding $false))
+& $gh release create $tag $setup.FullName $sig.FullName $latestPath --repo HolySheepp/Verso --title "Verso $version" --notes-file $notesFile
+if ($LASTEXITCODE -ne 0) { throw '上傳到 GitHub 失敗' }
+Write-Host "發布完成：https://github.com/HolySheepp/Verso/releases/tag/$tag"
