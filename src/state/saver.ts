@@ -492,32 +492,71 @@ async function syncFolder() {
   const dictsOnDisk = new Set(scan.dicts.map((d) => diskKey(d.project, d.name)));
   const goneDicts = p.dicts.filter((d) => saved.dicts.has(dictKey(d.project, d.name)) && !dictsOnDisk.has(diskKey(d.project, d.name)));
 
-  if (!files.length && !dicts.length && !newProjects.length && !gone.length && !goneDicts.length) return;
+  // 在外面改名或搬到別的專案資料夾：內容完全一樣的「不見的」和「新出現的」當成同一個，
+  // 只改軟體裡的名稱，不會變成兩份（條目的修改紀錄等也都保留）
+  const renamed: { from: FileDoc; to: FileDoc }[] = [];
+  for (const g of [...gone]) {
+    const sig = fileSignature(g);
+    const j = files.findIndex((f) => fileSignature(f) === sig);
+    if (j < 0) continue;
+    renamed.push({ from: g, to: files[j] });
+    files.splice(j, 1);
+    gone.splice(gone.indexOf(g), 1);
+  }
+  const renamedDicts: { from: DictInfo; to: DictInfo }[] = [];
+  for (const g of [...goneDicts]) {
+    const sig = dictSignature(p.glossary.filter((t) => t.proj === g.project && t.dict === g.name));
+    const j = dicts.findIndex((d) => dictSignature(d.terms) === sig);
+    if (j < 0) continue;
+    renamedDicts.push({ from: g, to: dicts[j].info });
+    dicts.splice(j, 1);
+    goneDicts.splice(goneDicts.indexOf(g), 1);
+  }
+
+  if (!files.length && !dicts.length && !newProjects.length && !gone.length && !goneDicts.length && !renamed.length && !renamedDicts.length) return;
 
   gone.forEach((f) => saved.files.delete(fileKey(f)));
   goneDicts.forEach((d) => saved.dicts.delete(dictKey(d.project, d.name)));
   files.forEach((f) => saved.files.set(fileKey(f), f));
   dicts.forEach((d) => saved.dicts.set(dictKey(d.info.project, d.info.name), dictSignature(d.terms)));
-  const projects = files.length || dicts.length || newProjects.length
-    ? sortProjects([...p.projects, ...newProjects, ...files.map((f) => f.project), ...dicts.map((d) => d.info.project)])
+  // 改名的檔案：沿用軟體裡的內容，只換名稱與專案，記成已存（資料夾裡已經是新名稱）
+  const renamedDocs = new Map(renamed.map(({ from, to }) => [from, { ...from, name: to.name, project: to.project }]));
+  renamedDocs.forEach((doc, from) => { saved.files.delete(fileKey(from)); saved.files.set(fileKey(doc), doc); });
+  renamedDicts.forEach(({ from, to }) => {
+    const sig = saved.dicts.get(dictKey(from.project, from.name));
+    saved.dicts.delete(dictKey(from.project, from.name));
+    if (sig !== undefined) saved.dicts.set(dictKey(to.project, to.name), sig);
+  });
+  const moved = [...renamed.map((r) => r.to.project), ...renamedDicts.map((r) => r.to.project)];
+  const projects = files.length || dicts.length || newProjects.length || moved.length
+    ? sortProjects([...p.projects, ...newProjects, ...files.map((f) => f.project), ...dicts.map((d) => d.info.project), ...moved])
     : p.projects;
   // 專案清單本來沒有未存的修改，加進來的專案也算已存
   if (saved.projects === p.projects) saved = { ...saved, projects };
+  const isRenamedDict = (project: string, name: string) => renamedDicts.find((r) => r.from.project === project && r.from.name === name)?.to;
   useStore.setState({
     project: {
       ...p, projects,
-      files: files.length ? [...p.files, ...files] : p.files,
-      dicts: dicts.length ? [...p.dicts, ...dicts.map((d) => d.info)] : p.dicts,
-      glossary: dicts.length ? [...p.glossary, ...dicts.flatMap((d) => d.terms)] : p.glossary,
+      files: [...p.files.map((f) => renamedDocs.get(f) ?? f), ...files],
+      dicts: [...p.dicts.map((d) => isRenamedDict(d.project, d.name) ?? d), ...dicts.map((d) => d.info)],
+      glossary: [
+        ...(renamedDicts.length ? p.glossary.map((t) => { const to = isRenamedDict(t.proj, t.dict); return to ? { ...t, proj: to.project, dict: to.name } : t; }) : p.glossary),
+        ...dicts.flatMap((d) => d.terms),
+      ],
     },
   });
   const names = [...files.map((f) => f.name), ...dicts.map((d) => d.info.name)];
-  if (names.length) useStore.setState((st) => ({ toast: { text: '已載入：' + names.slice(0, 3).join('、') + (names.length > 3 ? ` 等 ${names.length} 個` : ''), k: (st.toast?.k ?? 0) + 1 } }));
+  const renames = [...renamed.map((r) => `${r.from.name} → ${r.to.name}`), ...renamedDicts.map((r) => `${r.from.name} → ${r.to.name}`)];
+  const toastText = [names.length ? '已載入：' + names.slice(0, 3).join('、') + (names.length > 3 ? ` 等 ${names.length} 個` : '') : '', renames.length ? '已改名：' + renames.slice(0, 2).join('、') + (renames.length > 2 ? ` 等 ${renames.length} 個` : '') : ''].filter(Boolean).join('；');
+  if (toastText) useStore.setState((st) => ({ toast: { text: toastText, k: (st.toast?.k ?? 0) + 1 } }));
   const goneNames = [...gone.map((f) => `${f.project} / ${f.name}`), ...goneDicts.map((d) => `字典 / ${d.project} / ${d.name}`)];
   if (goneNames.length) useStore.setState((st) => ({ goneFiles: [...new Set([...(st.goneFiles ?? []), ...goneNames])] }));
   // 不見的字典馬上寫回（排在這次檢查之後）
   if (goneDicts.length) void saveDicts();
 }
+
+/** 比對檔案內容用：頁簽名稱與每一條的 id、發話者、原文、譯文、備註 */
+const fileSignature = (f: FileDoc) => JSON.stringify(f.sheets.map((sh) => [sh.name, sh.entries.map((e) => [e.id, e.speaker, e.src, e.tgt, e.note])]));
 
 let syncTimer: ReturnType<typeof setTimeout> | undefined;
 /** 稍等一下再檢查資料夾（連續的變動合成一次），和存檔排隊、不同時進行 */

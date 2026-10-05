@@ -119,7 +119,18 @@ function WorkPanelInner({ height }: { height: number }) {
   };
 
   // 滑鼠在原文框上移動：找出底下是哪個命中詞
+  const moveFrame = useRef(0);
   const onSrcMove = (ev: React.MouseEvent) => {
+    if (!hits.length) return;
+    const { clientX, clientY } = ev;
+    if (moveFrame.current) return;
+    moveFrame.current = requestAnimationFrame(() => {
+      moveFrame.current = 0;
+      findHover(clientX, clientY);
+    });
+  };
+  const findHover = (clientX: number, clientY: number) => {
+    const ev = { clientX, clientY };
     const box = srcEl?.parentElement;
     let found: { hit: number; span: number } | null = null;
     box?.querySelectorAll<HTMLElement>('mark.tm-hit').forEach((m) => {
@@ -133,7 +144,8 @@ function WorkPanelInner({ height }: { height: number }) {
       }
     });
     const f = found as { hit: number; span: number } | null;
-    setHover(f ? { ...f, x: ev.clientX, y: ev.clientY } : null);
+    // 同一個詞上移動：只更新提示框位置；離開命中詞時才清掉
+    setHover((h) => (!f ? (h ? null : h) : { ...f, x: ev.clientX, y: ev.clientY }));
   };
   // 點命中詞：和快捷鍵一樣插入譯名（譯文框不能編輯時照一般的點擊）
   const onSrcDown = (ev: React.MouseEvent) => {
@@ -193,7 +205,7 @@ function WorkPanelInner({ height }: { height: number }) {
           </div>
           <div style={{ position: 'relative', display: 'flex', flexShrink: 0 }}>
           <textarea id="verso-source" ref={setSrcEl} value={cur.src} readOnly={!srcEditable} onFocus={editFocus} onBlur={editBlur}
-            onMouseMove={onSrcMove} onMouseLeave={() => setHover(null)} onMouseDown={onSrcDown}
+            onMouseMove={onSrcMove} onMouseLeave={() => { cancelAnimationFrame(moveFrame.current); moveFrame.current = 0; setHover(null); }} onMouseDown={onSrcDown}
             onChange={(ev) => srcEditable && s.updateEntry({ src: ev.target.value })}
             style={{
               flexGrow: 1, height: 66, flexShrink: 0, resize: 'none', boxSizing: 'border-box', padding: '10px 12px',
