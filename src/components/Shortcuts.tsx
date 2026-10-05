@@ -6,11 +6,12 @@ import { markMenuIds } from './MarkMenu';
 import { rowMenuPos } from './rowMenu';
 import { manualSave } from '../state/saver';
 import { TGT_COL, cellKey, clearCells, deleteCells } from '../model/cells';
+import { verifySession } from '../state/verifySession';
 
-/** 工作用的輸入框：翻譯、驗證模式是譯文框，原文修正模式是原文框 */
+/** 工作用的輸入框：翻譯模式是譯文框，驗證模式是修改框，原文修正模式是原文框 */
 function isWorkInput(el: Element | null, mode: string) {
   if (!el) return false;
-  if (el.id === 'verso-target') return true;
+  if (el.id === 'verso-target' || el.id === 'verso-edit') return true;
   return el.id === 'verso-source' && mode === 'source';
 }
 
@@ -24,7 +25,7 @@ function isOtherInput(el: Element | null) {
 
 /** 把游標放進工作用的輸入框最後面 */
 function focusWorkInput(mode: string) {
-  const el = document.getElementById(mode === 'source' ? 'verso-source' : 'verso-target') as HTMLTextAreaElement | null;
+  const el = document.getElementById(mode === 'source' ? 'verso-source' : mode === 'verify' ? 'verso-edit' : 'verso-target') as HTMLTextAreaElement | null;
   if (!el || el.readOnly) return;
   el.focus();
   el.setSelectionRange(el.value.length, el.value.length);
@@ -110,6 +111,11 @@ export function Shortcuts() {
       // 不在輸入框時，Ctrl+Z／Ctrl+Y 復原或重做條目欄與頁簽的操作
       if (!inWork && combo === 'Ctrl+Z') { s.undoSheet(); return true; }
       if (!inWork && (combo === 'Ctrl+Y' || combo === 'Ctrl+Shift+Z')) { s.redoSheet(); return true; }
+      // 修改框：已經確定的修改用 Ctrl+Z 撤回整次（還在編輯中時照輸入框逐字撤回）
+      if (el?.id === 'verso-edit' && !verifySession.dirty) {
+        if (combo === 'Ctrl+Z') { s.undoSheet(); return true; }
+        if (combo === 'Ctrl+Y' || combo === 'Ctrl+Shift+Z') { s.redoSheet(); return true; }
+      }
       const action = actionFor(s.shortcuts, inWork ? 'input' : 'list', combo);
       if (!action) return false;
       // 用滑鼠點過的條目按鈕留著焦點時會顯示外框，用鍵盤移動前先放掉
@@ -138,7 +144,11 @@ export function Shortcuts() {
       const s = useStore.getState();
       const { sel, entry } = currentOf(s);
       switch (action) {
-        case 'main': s.mainNext(); break;
+        case 'main':
+          // 修改框編輯中：第一次先確定修改，再按一次才是下一條
+          if (el?.id === 'verso-edit' && verifySession.dirty) verifySession.commit();
+          else s.mainNext();
+          break;
         case 'stampNext': s.stampNext(); break;
         case 'prevEntry': s.step(-1); break;
         case 'nextEntry': s.step(1); break;
@@ -173,6 +183,8 @@ export function Shortcuts() {
         case 'newline': {
           const ta = el as HTMLTextAreaElement | null;
           if (!ta || ta.readOnly) break;
+          // 修改框：當成打字，才會算進修改
+          if (ta.id === 'verso-edit') { document.execCommand('insertText', false, '\n'); break; }
           ta.setRangeText('\n', ta.selectionStart, ta.selectionEnd, 'end');
           if (ta.id === 'verso-target') s.updateEntry({ tgt: ta.value });
           else s.updateEntry({ src: ta.value });

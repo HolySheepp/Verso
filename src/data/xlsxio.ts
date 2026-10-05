@@ -4,10 +4,11 @@ import { BUILTIN_MARKS } from '../model/marks';
 import { newUid } from '../model/paste';
 import { stdToText, textToStd } from '../model/length';
 import { SETTINGS_SHEET } from '../model/names';
+import { textToVerify, verifyToText, editsOf } from '../model/verify';
 import type { CustomMark, Entry, FileDoc, GlossaryTerm, StoredMark } from '../model/types';
 
 /** 給人看的欄位在前，程式要用的資料放在最右邊（不隱藏） */
-export const ENTRY_HEADERS = ['#', '發話者', '原文', '譯文', '標記', '備註', '建議翻譯', '匯入時的原文', '匯入時的譯文', '待確認', '略過檢查', '標記編號', '長度標準'];
+export const ENTRY_HEADERS = ['#', '發話者', '原文', '譯文', '標記', '備註', '建議翻譯', '匯入時的原文', '匯入時的譯文', '待確認', '略過檢查', '標記編號', '長度標準', '驗證修改'];
 export { SETTINGS_SHEET };
 export const DICT_HEADERS = ['原文', '譯文', '備註'];
 
@@ -51,9 +52,14 @@ export function fileToXlsx(file: FileDoc, customs: CustomMark[]): Uint8Array {
       return [
         e.id, e.speaker, e.src, e.tgt, markLabel(e.mark, customs), e.note, e.sugg,
         e.src0, e.tgt0, e.pending ? '1' : '', e.skipCheck ? '1' : '', mark, stdToText(e.lengthStd),
+        // 存之前先對好位置：存的是對應目前譯文的修改
+        e.ver ? verifyToText({ ...e.ver, base: e.tgt, edits: editsOf(e) }) : '',
       ];
     })];
-    XLSX.utils.book_append_sheet(wb, textSheet(rows), sheetName(sh.name, used));
+    const ws = textSheet(rows);
+    // 驗證修改只給程式用：這一欄隱藏
+    ws['!cols'] = ENTRY_HEADERS.map((h) => (h === '驗證修改' ? { hidden: true } : {}));
+    XLSX.utils.book_append_sheet(wb, ws, sheetName(sh.name, used));
   });
   if (!file.sheets.length) XLSX.utils.book_append_sheet(wb, textSheet([ENTRY_HEADERS]), '頁簽 1');
   // 檔案層級的設定：檔案 ID、長度標準
@@ -121,6 +127,7 @@ export function xlsxToFile(name: string, project: string, data: Uint8Array, cust
           pending: truthy(get(r, '待確認')), skipCheck: truthy(get(r, '略過檢查')),
           note: get(r, '備註'), sugg: get(r, '建議翻譯'),
           ...(textToStd(get(r, '長度標準')) ? { lengthStd: textToStd(get(r, '長度標準')) } : {}),
+          ...(textToVerify(get(r, '驗證修改')) ? { ver: textToVerify(get(r, '驗證修改')) } : {}),
         };
       });
       return { name: sn, entries };

@@ -1,4 +1,5 @@
 import type { StdValue } from './length';
+import type { VerifyData } from './verify';
 // 資料模型。之後接真正的檔案讀寫時，讀寫層只需要產生/接收這些型別。
 // 結構：專案 → 檔案 → 頁簽 → 條目
 
@@ -46,6 +47,8 @@ export interface Entry {
   note: string;
   /** 建議翻譯 */
   sugg: string;
+  /** 驗證模式的修改（沒有修改時不設） */
+  ver?: VerifyData;
 }
 
 export interface Sheet {

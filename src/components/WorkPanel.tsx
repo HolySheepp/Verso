@@ -10,6 +10,9 @@ import { keyOf, type ActionId } from '../model/shortcuts';
 import type { Mode } from '../model/types';
 import { MarkIcon } from './MarkIcon';
 import { MarkMenu } from './MarkMenu';
+import { ContextMenu } from './ContextMenu';
+import { applyChange, applyOne, compose, editsOf, removeOne, spansOf, type VEdit } from '../model/verify';
+import { verifySession } from '../state/verifySession';
 import { fz } from '../model/fonts';
 import {
   IconWarn, IconCopyPair, IconRuler,
@@ -18,13 +21,28 @@ import {
 
 const MODE_HINTS: Record<Mode, string> = {
   translate: '只能編輯譯文',
-  verify: '可修正譯文',
+  verify: '在修改框修正譯文',
   view: '唯讀',
   source: '只能編輯原文，原始版本會保留',
 };
 
 const labelRow: React.CSSProperties = { display: 'flex', alignItems: 'center', justifyContent: 'space-between', height: 18 };
 const meta: React.CSSProperties = { display: 'flex', gap: 12, fontSize: fz(11.5), color: 'var(--mute)' };
+const smallBtn: React.CSSProperties = { flexShrink: 0, height: 20, padding: '0 8px', background: 'transparent', border: '1px solid var(--line4)', borderRadius: 5, color: 'var(--text2)', fontSize: fz(11) };
+const NO_EDITS: VEdit[] = [];
+
+/** 找出滑鼠底下的標記（沒有寬度的小標記左右放寬一點） */
+function markUnder(box: HTMLElement | null | undefined, selector: string, x: number, y: number): HTMLElement | null {
+  let found: HTMLElement | null = null;
+  box?.querySelectorAll<HTMLElement>(selector).forEach((m) => {
+    if (found) return;
+    const pad = m.classList.contains('tm-gap') ? 5 : 0;
+    for (const r of Array.from(m.getClientRects())) {
+      if (x >= r.left - pad && x <= r.right + pad && y >= r.top && y <= r.bottom) { found = m; break; }
+    }
+  });
+  return found;
+}
 
 /** 頁簽清空、沒有條目時，工作欄只留空白的框 */
 export function WorkPanel({ height }: { height: number }) {
@@ -37,7 +55,7 @@ export function WorkPanel({ height }: { height: number }) {
 
 function WorkPanelInner({ height }: { height: number }) {
   // 只訂閱這個區塊用到的資料（包含 currentOf 等輔助函式間接用到的）
-  const s = useStorePick('project', 'file', 'sheetBy', 'selBy', 'mode', 'finishLine', 'beginEdit', 'endEdit', 'stampOpen', 'stamps', 'viewOn', 'peek', 'history', 'shortcuts', 'reported', 'checkSettings', 'set', 'updateEntry', 'record', 'useShownSlot', 'stampNext', 'skipCheck', 'prev', 'pickSlot', 'next', 'mainNext');
+  const s = useStorePick('project', 'file', 'sheetBy', 'selBy', 'mode', 'finishLine', 'beginEdit', 'endEdit', 'stampOpen', 'stamps', 'viewOn', 'peek', 'history', 'shortcuts', 'reported', 'checkSettings', 'set', 'updateEntry', 'record', 'useShownSlot', 'stampNext', 'skipCheck', 'prev', 'pickSlot', 'next', 'mainNext', 'setVerify');
   const project = s.project!;
   const { sheet, sel, entry } = currentOf(s);
   const cur = entry!;
@@ -63,7 +81,22 @@ function WorkPanelInner({ height }: { height: number }) {
   const showHist = (viewOn || s.peek) && texts.length > 0;
 
   const srcEditable = mode === 'source';
-  const tgtEditable = mode === 'translate' || mode === 'verify';
+  const verify = mode === 'verify';
+  // 驗證模式不直接改譯文框，在下面的修改框改
+  const tgtEditable = mode === 'translate';
+  // 能不能放進字典詞：翻譯模式放進譯文框，驗證模式放進修改框
+  const canInsert = verify || (tgtEditable && !showHist);
+
+  // 驗證修改：每組修改在譯文框和修改框的位置
+  const edits = verify ? editsOf(cur) : NO_EDITS;
+  const spans = useMemo(() => spansOf(edits), [edits]);
+  const modText = useMemo(() => compose(cur.tgt, edits), [cur.tgt, edits]);
+  const [modEl, setModEl] = useState<HTMLTextAreaElement | null>(null);
+  // 滑鼠停在哪一組上、正在編輯哪一組（用這組在譯文的起點認）
+  const [vHover, setVHover] = useState<number | null>(null);
+  const [vActive, setVActive] = useState<number | null>(null);
+  const [vMenu, setVMenu] = useState<{ x: number; y: number; i: number } | null>(null);
+  const dirty = useRef(false);
 
   // 標記並下一條：各模式分別記住選的標記
   const exclude = STAMP_EXCLUDE[mode];
@@ -89,8 +122,94 @@ function WorkPanelInner({ height }: { height: number }) {
     if (editUid.current === cur.uid) return;
     editUid.current = cur.uid;
     const a = document.activeElement;
-    if (a && (a.id === 'verso-target' || a.id === 'verso-source')) { s.endEdit(); s.beginEdit(); }
+    if (a && (a.id === 'verso-target' || a.id === 'verso-source' || a.id === 'verso-edit')) { s.endEdit(); s.beginEdit(); }
+    dirty.current = false; verifySession.dirty = false;
+    setVActive(null); setVHover(null); setVMenu(null);
   }, [cur.uid]);
+
+  /** 確定修改框裡這次的修改：高亮消失，Ctrl+Z 改成撤回整次修改 */
+  const commitEdit = () => {
+    if (!dirty.current) return;
+    dirty.current = false; verifySession.dirty = false;
+    setVActive(null);
+    s.endEdit();
+    const ta = modEl;
+    if (ta && document.activeElement === ta) {
+      s.beginEdit();
+      // 清掉輸入框自己的撤回紀錄
+      const v = ta.value, a = ta.selectionStart, b = ta.selectionEnd;
+      ta.value = ''; ta.value = v; ta.setSelectionRange(a, b);
+    }
+  };
+  verifySession.commit = commitEdit;
+  const modBlur = (ev: React.FocusEvent<HTMLTextAreaElement>) => {
+    dirty.current = false; verifySession.dirty = false;
+    setVActive(null);
+    editBlur(ev);
+  };
+  useEffect(() => () => { verifySession.dirty = false; verifySession.commit = () => {}; }, []);
+
+  /** 修改框的內容變了：算出改到哪一組 */
+  const onModValue = (value: string, caret: number) => {
+    const e = currentOf(useStore.getState()).entry;
+    if (!e) return;
+    const ed = editsOf(e);
+    const r = applyChange(e.tgt, ed, compose(e.tgt, ed), value, caret);
+    dirty.current = true; verifySession.dirty = true;
+    setVActive(r.active >= 0 ? r.active : null);
+    s.setVerify(r.edits);
+  };
+
+  /** 重新編輯某一組：游標放進修改框，選取這組修改後的內容 */
+  const editGroup = (i: number) => {
+    const sp = spans[i];
+    if (!sp || !modEl) return;
+    modEl.focus();
+    modEl.setSelectionRange(sp.ms, sp.me);
+    setVActive(sp.s);
+  };
+  const applyGroup = (i: number) => {
+    const sp = spans[i];
+    if (!sp) return;
+    const r = applyOne(cur.tgt, edits, sp.s);
+    s.setVerify(r.edits, r.tgt);
+  };
+  const removeGroup = (i: number) => { const sp = spans[i]; if (sp) s.setVerify(removeOne(edits, sp.s)); };
+
+  // 滑鼠移到任一框的修改上：兩邊對應的部分一起高亮
+  const vFrame = useRef(0);
+  const onVMove = (ev: React.MouseEvent<HTMLTextAreaElement>) => {
+    if (!spans.length) return;
+    const { clientX, clientY } = ev;
+    const box = ev.currentTarget.parentElement;
+    if (vFrame.current) return;
+    vFrame.current = requestAnimationFrame(() => {
+      vFrame.current = 0;
+      const m = markUnder(box, 'mark.tm-edit, mark.tm-gap', clientX, clientY);
+      const i = m ? Number(m.dataset.ref) : null;
+      setVHover((h) => (h === i ? h : i));
+    });
+  };
+  const onVLeave = () => { cancelAnimationFrame(vFrame.current); vFrame.current = 0; setVHover(null); };
+  // 點譯文框裡的修改：到修改框重新編輯；點修改框裡的修改：游標照常放，這組高亮
+  const onTgtDown = (ev: React.MouseEvent) => {
+    if (!verify || ev.button !== 0 || vHover === null) return;
+    ev.preventDefault();
+    editGroup(vHover);
+  };
+  const onModDown = (ev: React.MouseEvent) => {
+    if (ev.button !== 0 || vHover === null || !spans[vHover]) return;
+    setVActive(spans[vHover].s);
+  };
+  const onVMenu = (ev: React.MouseEvent) => {
+    if (!verify || vHover === null) return;
+    ev.preventDefault();
+    commitEdit();
+    setVMenu({ x: ev.clientX, y: ev.clientY, i: vHover });
+  };
+  const isOn = (i: number) => vHover === i || (vActive !== null && spans[i].s === vActive);
+  const tgtEditRanges: MarkRange[] = spans.map((sp, i) => ({ start: sp.s, end: sp.e, kind: 'edit', ref: i, on: isOn(i) }));
+  const modRanges: MarkRange[] = spans.map((sp, i) => ({ start: sp.ms, end: sp.me, kind: 'edit', ref: i, on: isOn(i) }));
 
   const onTarget = (v: string) => {
     if (!tgtEditable || showHist) return;
@@ -114,7 +233,7 @@ function WorkPanelInner({ height }: { height: number }) {
     ta.focus();
     ta.setSelectionRange(a, b);
     if (document.execCommand('insertText', false, en)) return;
-    put(ta.value.slice(0, a) + en + ta.value.slice(b));
+    put(ta.value.slice(0, a) + en + ta.value.slice(b), a + en.length);
     requestAnimationFrame(() => { ta.selectionStart = ta.selectionEnd = a + en.length; });
   };
 
@@ -158,8 +277,9 @@ function WorkPanelInner({ height }: { height: number }) {
   useEffect(() => { setHover(null); }, [cur.uid]);
 
   // Alt+1、Alt+2…：把原文第幾個命中詞的譯名放進譯文框；有框選文字就取代
-  const altRef = useRef({ hits, tgtEl, onTarget, ok: tgtEditable && !showHist });
-  altRef.current = { hits, tgtEl, onTarget, ok: tgtEditable && !showHist };
+  const putText = (v: string, caret: number) => (verify ? onModValue(v, caret) : onTarget(v));
+  const altRef = useRef({ hits, tgtEl: verify ? modEl : tgtEl, onTarget: putText, ok: canInsert });
+  altRef.current = { hits, tgtEl: verify ? modEl : tgtEl, onTarget: putText, ok: canInsert };
   useEffect(() => {
     const onKey = (ev: KeyboardEvent) => {
       if (!ev.altKey || ev.ctrlKey || ev.metaKey || ev.shiftKey || !/^Digit[1-9]$/.test(ev.code)) return;
@@ -209,7 +329,7 @@ function WorkPanelInner({ height }: { height: number }) {
             onChange={(ev) => srcEditable && s.updateEntry({ src: ev.target.value })}
             style={{
               flexGrow: 1, height: 66, flexShrink: 0, resize: 'none', boxSizing: 'border-box', padding: '10px 12px',
-              cursor: hover && tgtEditable && !showHist ? 'pointer' : undefined,
+              cursor: hover && canInsert ? 'pointer' : undefined,
               background: srcEditable ? 'var(--bg0)' : 'var(--bgdeep)', border: `1px solid ${srcEditable ? 'rgba(240,165,74,0.55)' : 'var(--line)'}`,
               borderRadius: 8, fontSize: 'var(--fs-src)', fontFamily: 'var(--font-src)', lineHeight: 1.6, color: 'var(--text)',
             }} />
@@ -223,7 +343,7 @@ function WorkPanelInner({ height }: { height: number }) {
           <div style={{ ...labelRow, marginTop: 6, gap: 12 }}>
             <span style={{ display: 'flex', alignItems: 'center', gap: 8, minWidth: 0 }}>
               <label htmlFor="verso-target" className="sec-label">譯文</label>
-              {!tgtEditable && (
+              {!tgtEditable && !verify && (
                 <span style={{ display: 'flex', alignItems: 'center', gap: 4, fontSize: fz(11), color: 'var(--text2)', padding: '1px 7px', borderRadius: 9, background: 'var(--chip)' }}>
                   <IconLock size={10} sw={2.6} />唯讀
                 </span>
@@ -232,8 +352,7 @@ function WorkPanelInner({ height }: { height: number }) {
                 <span role="status" style={{ display: 'flex', alignItems: 'center', gap: 6, minWidth: 0, fontSize: fz(11.5), color: 'var(--warntx)' }}>
                   <IconWarn size={12} sw={2.2} style={{ flexShrink: 0 }} />
                   <span title={issueText} style={{ minWidth: 0, overflow: 'hidden', whiteSpace: 'nowrap', textOverflow: 'ellipsis' }}>{issueText}</span>
-                  <button type="button" className="ib" onClick={() => s.skipCheck()}
-                    style={{ flexShrink: 0, height: 20, padding: '0 8px', background: 'transparent', border: '1px solid var(--line4)', borderRadius: 5, color: 'var(--text2)', fontSize: fz(11) }}>略過</button>
+                  <button type="button" className="ib" onClick={() => s.skipCheck()} style={smallBtn}>略過</button>
                 </span>
               )}
             </span>
@@ -246,14 +365,16 @@ function WorkPanelInner({ height }: { height: number }) {
             <textarea id="verso-target" ref={setTgtEl} onFocus={editFocus} onBlur={editBlur} data-hist={showHist ? '1' : '0'} value={showHist ? texts[slot] : cur.tgt}
               readOnly={!tgtEditable || showHist}
               onChange={(ev) => onTarget(ev.target.value)} onPaste={onPaste}
+              onMouseMove={verify ? onVMove : undefined} onMouseLeave={verify ? onVLeave : undefined} onMouseDown={onTgtDown} onContextMenu={onVMenu}
               style={{
+                cursor: verify && vHover !== null ? 'pointer' : undefined,
                 flexGrow: 1, minHeight: 0, resize: 'none', boxSizing: 'border-box', padding: '10px 44px 10px 12px',
                 background: tgtEditable ? 'var(--bg0)' : 'var(--bgdeep)',
                 border: `1px ${showHist ? 'dashed' : 'solid'} ${showHist ? 'var(--accent)' : tgtEditable ? 'var(--line4)' : 'var(--line)'}`,
                 borderRadius: 8, color: tgtEditable ? 'var(--texthi)' : 'var(--textsoft)', fontSize: 'var(--fs-tgt)', fontFamily: 'var(--font-tgt)', lineHeight: 1.6,
               }} />
             {/* QA 問題的位置標色 */}
-            {!showHist && <TextMarks target={tgtEl} text={cur.tgt} ranges={issueRanges} />}
+            {!showHist && <TextMarks target={tgtEl} text={cur.tgt} ranges={verify ? [...tgtEditRanges, ...issueRanges] : issueRanges} />}
             {s.finishLine && !showHist && <FinishLine target={tgtEl} text={cur.tgt} std={effectiveStd(cur.lengthStd, currentOf(s).fileDoc.lengthStd)} />}
 
             <div role="toolbar" aria-label="譯文記錄" aria-orientation="vertical" style={{ position: 'absolute', right: 6, top: 6, display: 'flex', flexDirection: 'column', gap: 2 }}>
@@ -308,6 +429,42 @@ function WorkPanelInner({ height }: { height: number }) {
               </div>
             )}
           </div>
+
+          {verify && (
+            <>
+              <div style={{ ...labelRow, marginTop: 6, gap: 12 }}>
+                <label htmlFor="verso-edit" className="sec-label">修改</label>
+                <span style={{ ...meta, flexShrink: 0, alignItems: 'center' }}>
+                  <button type="button" className="ib" disabled={!edits.length} onClick={() => s.setVerify([], modText)} title="用修改後的內容取代譯文"
+                    style={{ ...smallBtn, opacity: edits.length ? 1 : 0.5 }}>全部套用</button>
+                  <span>{modText.length} 字元</span>
+                </span>
+              </div>
+              <div style={{ flexGrow: 1, minHeight: 0, position: 'relative', display: 'flex' }}>
+                <textarea id="verso-edit" ref={setModEl} value={modText} onFocus={editFocus} onBlur={modBlur}
+                  onChange={(ev) => onModValue(ev.target.value, ev.target.selectionEnd)}
+                  onMouseMove={onVMove} onMouseLeave={onVLeave} onMouseDown={onModDown} onContextMenu={onVMenu}
+                  style={{
+                    flexGrow: 1, minHeight: 0, resize: 'none', boxSizing: 'border-box', padding: '10px 12px',
+                    background: 'var(--bg0)', border: '1px solid var(--line4)', borderRadius: 8, color: 'var(--texthi)',
+                    fontSize: 'var(--fs-tgt)', fontFamily: 'var(--font-tgt)', lineHeight: 1.6,
+                  }} />
+                <TextMarks target={modEl} text={modText} ranges={modRanges} />
+                {s.finishLine && <FinishLine target={modEl} text={modText} std={effectiveStd(cur.lengthStd, currentOf(s).fileDoc.lengthStd)} />}
+              </div>
+              {vMenu && spans[vMenu.i] && (
+                <ContextMenu x={vMenu.x} y={vMenu.y} label="修改" onClose={() => setVMenu(null)}
+                  items={[{ key: 'edit', label: '編輯' }, { key: 'del', label: '刪除' }, { key: 'apply', label: '套用' }]}
+                  onPick={(k) => {
+                    const i = vMenu.i;
+                    setVMenu(null);
+                    if (k === 'edit') requestAnimationFrame(() => editGroup(i));
+                    else if (k === 'del') removeGroup(i);
+                    else applyGroup(i);
+                  }} />
+              )}
+            </>
+          )}
         </div>
 
         {/* 右側按鈕目前是示範用的暫代功能，之後再決定 */}
@@ -321,9 +478,10 @@ function WorkPanelInner({ height }: { height: number }) {
               <IconEraser size={15} />
             </button>
           )}
-          {mode === 'verify' && (
-            <button type="button" className="ib btn-side" aria-label="還原譯文" title="還原為驗證前的譯文" onClick={() => s.updateEntry({ tgt: cur.tgt0 })}>
-              <IconUndo size={15} />
+          {verify && (
+            <button type="button" className="ib btn-side" aria-label="全部清除" title="清除這一條的所有修改" disabled={!edits.length} onClick={() => s.setVerify([])}
+              style={{ opacity: edits.length ? 1 : 0.5 }}>
+              <IconEraser size={15} />
             </button>
           )}
           {mode === 'source' && (
@@ -379,7 +537,7 @@ function WorkPanelInner({ height }: { height: number }) {
           )}
           {mode === 'verify' && (
             <button type="button" className="btn btn-primary btn-main" onClick={() => s.mainNext()} title={keyTip('main')}>
-              <IconCheck size={14} sw={2.6} />驗證並下一條
+              {edits.length ? <><IconWarn size={14} sw={2.4} />疑慮並下一條</> : <><IconCheck size={14} sw={2.6} />驗證並下一條</>}
             </button>
           )}
           {mode !== 'verify' && (

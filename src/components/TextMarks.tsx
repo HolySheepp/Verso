@@ -1,7 +1,9 @@
 import { useEffect, useLayoutEffect, useRef, useState } from 'react';
 
 export interface MarkRange {
-  start: number; end: number; kind: 'issue' | 'hit';
+  start: number; end: number;
+  /** issue：檢查到的問題；hit：字典命中；edit：驗證修改（start === end 時畫成一個小標記） */
+  kind: 'issue' | 'hit' | 'edit';
   /** 滑鼠所在的那一段：畫上底色 */
   on?: boolean;
   /** 給外層找出滑鼠在哪一段用 */
@@ -57,6 +59,13 @@ export function TextMarks({ target, text, ranges }: Props) {
   let at = 0;
   sorted.forEach((r, i) => {
     const s = Math.max(r.start, at), e = Math.min(r.end, text.length);
+    // 沒有文字的修改（插入、刪除）：在那個位置放一個不佔寬度的小標記
+    if (r.start === r.end && r.start >= at && r.start <= text.length) {
+      if (r.start > at) parts.push(text.slice(at, r.start));
+      parts.push(<mark key={i} className="tm-gap" data-on={r.on ? '' : undefined} data-ref={r.ref} />);
+      at = r.start;
+      return;
+    }
     if (e <= s) return;
     if (s > at) parts.push(text.slice(at, s));
     parts.push(<mark key={i} className={'tm-' + r.kind} data-on={r.on ? '' : undefined} data-ref={r.ref}>{text.slice(s, e)}</mark>);

@@ -10,6 +10,7 @@ import { defaultCheckSettings, enabledIssues, type CheckId, type CheckSettings, 
 import { SHARED, dictKey, newFileId, type CustomMark, type DictInfo, type Entry, type FileDoc, type GlossaryTerm, type MarkId, type Mode, type ProjectData, type Sheet } from '../model/types';
 import { sortProjects, type RootConflict } from '../data/persist';
 import { DICT_DIR, safeName, sameName, sheetNameError } from '../model/names';
+import { editsOf, type VEdit } from '../model/verify';
 
 export type Filter = 'all' | 'untranslated' | 'doubt' | 'think' | 'issues';
 export type SideTab = 'dict' | 'search' | 'web' | 'ref';
@@ -198,6 +199,8 @@ interface Actions {
   pickSlot(slot: number): void;
   useShownSlot(): void;
   applySuggestion(): void;
+  /** 驗證模式：改這一條的修改（可同時改譯文，例如套用）；有修改時自動標疑慮，修改都沒了再取消 */
+  setVerify(edits: VEdit[], tgt?: string): void;
   saveTerm(d: TermDraft): void;
   deleteTerm(id: string): void;
   addCustomMark(c: CustomMark): void;
@@ -252,7 +255,11 @@ interface Actions {
 export type Store = State & Actions;
 
 /** 設標記；手動選「已翻譯」時，剛貼入待確認的條目也一起確認 */
-const withMark = (e: Entry, id: MarkId): Entry => ({ ...e, mark: toStoredMark(id), keptMark: undefined, ...(id === 'translated' ? { pending: false } : {}) });
+const withMark = (e: Entry, id: MarkId): Entry => ({
+  ...e, mark: toStoredMark(id), keptMark: undefined, ...(id === 'translated' ? { pending: false } : {}),
+  // 手動改了標記，之後修改清空時就不自動改回去
+  ...(e.ver?.prev !== undefined ? { ver: { base: e.ver.base, edits: e.ver.edits } } : {}),
+});
 
 const noPopups = { fileMenuOpen: false, rowMenu: null, stampOpen: false } as const;
 const noView = { viewOn: false, peek: false } as const;
@@ -640,6 +647,26 @@ export const useStore = create<Store>((set, get) => {
       set(noView);
     },
 
+    setVerify(edits, tgt) {
+      if (!editSnap) pushUndo();
+      patchEntry(cur().sel, (e) => {
+        const had = editsOf(e).length > 0;
+        const text = tgt ?? e.tgt;
+        const next: Entry = { ...e, tgt: text, pending: false };
+        if (edits.length) {
+          let prev = e.ver?.prev;
+          // 第一次修改：自動標上疑慮，記下原本的標記
+          if (!had && e.mark !== 'doubt') { prev = e.mark; next.mark = 'doubt'; next.keptMark = undefined; }
+          next.ver = { base: text, edits, ...(prev !== undefined ? { prev } : {}) };
+        } else {
+          // 修改全部套用或清除：自動標的疑慮取消，回到原本的標記
+          if (e.ver?.prev !== undefined && e.mark === 'doubt') next.mark = e.ver.prev;
+          delete next.ver;
+        }
+        return next;
+      });
+    },
+
     applySuggestion() {
       const { entry } = cur();
       if (!entry?.sugg) return;
@@ -901,7 +928,12 @@ export const useStore = create<Store>((set, get) => {
 
     mainNext() {
       const s = get();
-      if (s.mode === 'verify') s.setEntryMark(cur().sel, 'verified');
+      if (s.mode === 'verify') {
+        const e = cur().entry;
+        // 有修改：疑慮並下一條（已經是疑慮就不動，修改清空時才能自動取消）
+        if (e && editsOf(e).length) { if (e.mark !== 'doubt') s.setEntryMark(cur().sel, 'doubt'); }
+        else s.setEntryMark(cur().sel, 'verified');
+      }
       get().next();
     },
 
