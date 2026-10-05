@@ -124,7 +124,7 @@ function WorkPanelInner({ height }: { height: number }) {
     editUid.current = cur.uid;
     const a = document.activeElement;
     if (a && (a.id === 'verso-target' || a.id === 'verso-source' || a.id === 'verso-edit')) { s.endEdit(); s.beginEdit(); }
-    dirty.current = false; verifySession.dirty = false;
+    dirty.current = false; verifySession.dirty = false; verifySession.undoToSheet = false;
     setVActive(null); setVHover(null); setVMenu(null);
   }, [cur.uid]);
 
@@ -169,13 +169,28 @@ function WorkPanelInner({ height }: { height: number }) {
     modEl.setSelectionRange(sp.ms, sp.me);
     setVActive(sp.s);
   };
+  /**
+   * 套用、忽略、全部套用這類一次完成的動作：自己算一步，不併進正在輸入的那段編輯。
+   * 之後在譯文框按 Ctrl+Z 會撤回這一步（直到再打字為止）。
+   */
+  const asStep = (fn: () => void) => {
+    commitEdit();
+    const a = document.activeElement as HTMLTextAreaElement | null;
+    const inWork = !!a && (a.id === 'verso-target' || a.id === 'verso-edit');
+    s.endEdit();
+    fn();
+    if (inWork) {
+      s.beginEdit();
+      const v = a.value; a.value = ''; a.value = v;
+    }
+    verifySession.undoToSheet = true;
+  };
   const applyGroup = (i: number) => {
     const sp = spans[i];
     if (!sp) return;
-    const r = applyOne(cur.tgt, edits, sp.s);
-    s.setVerify(r.edits, r.tgt);
+    asStep(() => { const r = applyOne(cur.tgt, edits, sp.s); s.setVerify(r.edits, r.tgt); });
   };
-  const removeGroup = (i: number) => { const sp = spans[i]; if (sp) s.setVerify(removeOne(edits, sp.s)); };
+  const removeGroup = (i: number) => { const sp = spans[i]; if (sp) asStep(() => s.setVerify(removeOne(edits, sp.s))); };
 
   // 滑鼠移到任一框的修改上：兩邊對應的部分一起高亮
   const vFrame = useRef(0);
@@ -201,6 +216,8 @@ function WorkPanelInner({ height }: { height: number }) {
     else { applyGroup(vHover); setVHover(null); }
   };
   const onModDown = (ev: React.MouseEvent) => {
+    // 點修改框的別處：先確定剛才的修改（高亮消失，只留底線）
+    if (ev.button === 0 && verify) commitEdit();
     if (ev.button !== 0 || vHover === null || !spans[vHover]) return;
     if (!verify) { ev.preventDefault(); applyGroup(vHover); setVHover(null); return; }
     setVActive(spans[vHover].s);
@@ -217,11 +234,9 @@ function WorkPanelInner({ height }: { height: number }) {
 
   const onTarget = (v: string) => {
     if (!tgtEditable || showHist) return;
-    const had = editsOf(cur).length > 0;
+    // 改到修改的部分：那組修改算處理過了（顯示時自動移除，在輸入框 Ctrl+Z 改回來就又出現）
+    verifySession.undoToSheet = false;
     s.updateEntry({ tgt: v });
-    // 改到修改的部分：那組修改算處理過了；全部處理完就清掉記錄
-    const e = currentOf(useStore.getState()).entry;
-    if (had && e && !editsOf(e).length) s.setVerify([]);
   };
 
   // 問題的位置：只標畫面上正在顯示的問題
@@ -443,7 +458,7 @@ function WorkPanelInner({ height }: { height: number }) {
               <div style={{ ...labelRow, marginTop: 6, gap: 12 }}>
                 <label htmlFor="verso-edit" className="sec-label">修改</label>
                 <span style={{ ...meta, flexShrink: 0, alignItems: 'center' }}>
-                  <button type="button" className="ib" disabled={!edits.length} onClick={() => s.setVerify([], modText)} title="用修改後的內容取代譯文"
+                  <button type="button" className="ib" disabled={!edits.length} onClick={() => asStep(() => s.setVerify([], modText))} title="用修改後的內容取代譯文"
                     style={{ ...smallBtn, opacity: edits.length ? 1 : 0.5 }}>全部套用</button>
                   <span>{modText.length} 字元</span>
                 </span>
@@ -492,7 +507,7 @@ function WorkPanelInner({ height }: { height: number }) {
             </button>
           )}
           {verify && (
-            <button type="button" className="ib btn-side" aria-label="全部清除" title="清除這一條的所有修改" disabled={!edits.length} onClick={() => s.setVerify([])}
+            <button type="button" className="ib btn-side" aria-label="全部清除" title="清除這一條的所有修改" disabled={!edits.length} onClick={() => asStep(() => s.setVerify([]))}
               style={{ opacity: edits.length ? 1 : 0.5 }}>
               <IconEraser size={15} />
             </button>

@@ -112,7 +112,7 @@ export function Shortcuts() {
       if (!inWork && combo === 'Ctrl+Z') { s.undoSheet(); return true; }
       if (!inWork && (combo === 'Ctrl+Y' || combo === 'Ctrl+Shift+Z')) { s.redoSheet(); return true; }
       // 修改框：已經確定的修改用 Ctrl+Z 撤回整次（還在編輯中時照輸入框逐字撤回）
-      if (el?.id === 'verso-edit' && !verifySession.dirty) {
+      if ((el?.id === 'verso-edit' && !verifySession.dirty) || (el?.id === 'verso-target' && verifySession.undoToSheet)) {
         if (combo === 'Ctrl+Z') { s.undoSheet(); return true; }
         if (combo === 'Ctrl+Y' || combo === 'Ctrl+Shift+Z') { s.redoSheet(); return true; }
       }
