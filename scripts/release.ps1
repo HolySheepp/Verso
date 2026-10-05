@@ -1,7 +1,8 @@
 ﻿# 發布新版本：打包有簽章的安裝檔，上傳到 GitHub Releases，裝好的 Verso 才會收到自動更新。
 # 只在使用者說「發布」時執行。私鑰在專案外的「翻譯界面\簽章金鑰\verso.key」，不放進 GitHub。
-# 用法：powershell -ExecutionPolicy Bypass -File scripts\release.ps1 [-Notes "這版的說明"]
-param([string]$Notes = '')
+# 用法：powershell -ExecutionPolicy Bypass -File scripts\release.ps1 [-Notes "這版的說明"] [-SkipBuild]
+# -SkipBuild：已經打包好、只要上傳時用
+param([string]$Notes = '', [switch]$SkipBuild)
 $ErrorActionPreference = 'Stop'
 [Console]::OutputEncoding = [Text.Encoding]::UTF8
 $root = Split-Path $PSScriptRoot -Parent
@@ -19,11 +20,14 @@ $env:TAURI_SIGNING_PRIVATE_KEY = (Get-Content $key -Raw).Trim()
 $env:TAURI_SIGNING_PRIVATE_KEY_PASSWORD = ''
 $extra = Join-Path $env:CARGO_TARGET_DIR 'release-config.json'
 New-Item -ItemType Directory -Force $env:CARGO_TARGET_DIR | Out-Null
-[IO.File]::WriteAllText($extra, '{"bundle":{"createUpdaterArtifacts":true}}')
-npx tauri build --config $extra
-if ($LASTEXITCODE -ne 0) { throw '打包失敗' }
+if (-not $SkipBuild) {
+  [IO.File]::WriteAllText($extra, '{"bundle":{"createUpdaterArtifacts":true}}')
+  npx tauri build --config $extra
+  if ($LASTEXITCODE -ne 0) { throw '打包失敗' }
+}
 $nsis = Join-Path $env:CARGO_TARGET_DIR 'release\bundle\nsis'
 $setup = Get-ChildItem $nsis -Filter "Verso_${version}_x64-setup.exe" | Select-Object -First 1
+if (-not $setup) { throw "找不到 $version 的安裝檔，請先打包" }
 $sig = Get-Item "$($setup.FullName).sig"
 
 # 安裝檔也放一份到「翻譯界面\安裝包」（先刪掉舊的安裝檔，只留最新的）
@@ -45,8 +49,13 @@ $latestPath = Join-Path $nsis 'latest.json'
 [IO.File]::WriteAllText($latestPath, ($latest | ConvertTo-Json -Depth 5), (New-Object Text.UTF8Encoding $false))
 
 # 3. 用這台電腦登入 GitHub 的帳號建立 Release、上傳檔案
-$cred = "protocol=https`nhost=github.com`n`n" | git credential fill
-$token = ($cred | Where-Object { $_ -like 'password=*' }) -replace '^password=', ''
+# 直接寫進 git 的標準輸入（用 PowerShell 管線傳會被加上編碼標記，git 讀不懂）
+$psi = New-Object Diagnostics.ProcessStartInfo 'git', 'credential fill'
+$psi.UseShellExecute = $false; $psi.RedirectStandardInput = $true; $psi.RedirectStandardOutput = $true
+$proc = [Diagnostics.Process]::Start($psi)
+$proc.StandardInput.Write("protocol=https`nhost=github.com`n`n"); $proc.StandardInput.Close()
+$cred = $proc.StandardOutput.ReadToEnd() -split "`n"; $proc.WaitForExit()
+$token = (($cred | Where-Object { $_ -like 'password=*' }) -replace '^password=', '').Trim()
 if (-not $token) { throw '找不到 GitHub 登入資訊' }
 $headers = @{ Authorization = "token $token"; Accept = 'application/vnd.github+json'; 'User-Agent' = 'verso-release' }
 $api = 'https://api.github.com/repos/HolySheepp/Verso'
