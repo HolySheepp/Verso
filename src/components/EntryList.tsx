@@ -12,7 +12,6 @@ import { MarkIcon } from './MarkIcon';
 import { rowMenuPos } from './rowMenu';
 import { CopyConfirm } from './CopyConfirm';
 import { IconCheck, IconCopy, IconNote, IconRuler, IconScan, IconWarn } from './icons';
-import { verifyCell } from '../model/verifyCopy';
 import { stdLabel } from '../model/length';
 import { cellFontCss, fz, overflowOf, type Overflow } from '../model/fonts';
 import type { CustomMark, Entry, MarkId } from '../model/types';
@@ -229,8 +228,7 @@ export function EntryList() {
   // 複製譯文欄：未翻譯的留空，待確認的照原本譯文輸出
   const doCopy = async () => {
     setConfirm(null);
-    // 驗證模式：修改和建議翻譯用藍色標出來
-    await writeColumn(sheet.entries.map((e) => (s.mode === 'verify' ? verifyCell(e) : e.tgt)));
+    await writeColumn(sheet.entries.map((e) => e.tgt));
     setCopied(true);
     setTimeout(() => setCopied(false), 1500);
   };
