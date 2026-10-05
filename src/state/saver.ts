@@ -12,6 +12,7 @@ import {
 import { emptyHistory } from '../model/history';
 import { dictKey, newFileId, type CustomMark, type DictInfo, type FileDoc, type GlossaryTerm, type ProjectData } from '../model/types';
 import { currentOf, useStore, type SaveError } from './store';
+import { checkAtStartup } from './updater';
 import type { RootConflict } from '../data/persist';
 
 /** 軟體內部認檔案用 ID；檔名、專案只是顯示和存檔位置 */
@@ -242,6 +243,8 @@ function restorePosition(p: ProjectData, last?: LastPosition) {
 
 /** 啟動：讀設定、載入存檔資料夾裡所有專案的檔案和字典 */
 export async function startApp() {
+  // 先檢查更新：選了更新就會裝好並重開，不必繼續啟動
+  if (await checkAtStartup()) return;
   const step = (p: number, text: string) => useStore.setState({ loading: { p, text } });
   step(0.05, '讀取設定');
   config = await loadConfig();

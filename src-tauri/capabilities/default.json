@@ -7,6 +7,8 @@
   ],
   "permissions": [
     "core:default",
+    "process:allow-restart",
+    "updater:default",
     "core:window:allow-minimize",
     "core:window:allow-toggle-maximize",
     "core:window:allow-close",

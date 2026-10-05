@@ -14,7 +14,7 @@ call npm run tauri build
 if errorlevel 1 goto fail
 
 if not exist "..\安裝包" mkdir "..\安裝包"
-copy /y "%CARGO_TARGET_DIR%\release\verso.exe" "..\安裝包\Verso-攜帶版.exe" >nul
+copy /y "%CARGO_TARGET_DIR%\release\verso.exe" "..\安裝包\Verso_portable.exe" >nul
 for %%f in ("%CARGO_TARGET_DIR%\release\bundle\nsis\*-setup.exe") do copy /y "%%f" "..\安裝包\" >nul
 echo.
 echo Done: installer and portable exe are in ..\安裝包

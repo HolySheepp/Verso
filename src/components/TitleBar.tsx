@@ -2,12 +2,13 @@ import { isTauri } from '@tauri-apps/api/core';
 import { getCurrentWindow } from '@tauri-apps/api/window';
 import { currentProjectOf, useStore } from '../state/store';
 import { manualSave } from '../state/saver';
+import { onUpdateIcon } from '../state/updater';
 import { keyOf } from '../model/shortcuts';
 import { useEffectiveTheme } from './useTheme';
 import type { Mode } from '../model/types';
 import { fz } from '../model/fonts';
 import {
-  IconCheck, IconEye, IconGear, IconSave, IconLogo, IconMoon, IconPen, IconShield, IconSrcEdit, IconSun,
+  IconCheck, IconEye, IconGear, IconSave, IconUpdate, IconLogo, IconMoon, IconPen, IconShield, IconSrcEdit, IconSun,
   IconWinClose, IconWinMax, IconWinMin,
 } from './icons';
 
@@ -33,6 +34,7 @@ const winBtn: React.CSSProperties = {
 export function TitleBar() {
   const projectName = useStore((s) => (s.project?.files.length ? currentProjectOf(s) : ''));
   const status = useStore((s) => s.saveStatus);
+  const update = useStore((s) => s.updateAvailable);
   const errors = useStore((s) => s.saveErrors);
   const saveKey = useStore((s) => keyOf(s.shortcuts, 'list', 'save'));
   const mode = useStore((s) => s.mode);
@@ -60,6 +62,12 @@ export function TitleBar() {
           style={{ width: 26, height: 26, display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 0, background: 'transparent', border: 0, borderRadius: 6, color: 'var(--text2)' }}>
           <IconSave size={14} />
         </button>
+        {update && (
+          <button type="button" className="ib update-dot" aria-label={'有新版本 ' + update} title={`有新版本 ${update}，點一下更新`} onClick={() => void onUpdateIcon()}
+            style={{ width: 26, height: 26, display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 0, background: 'var(--acc-soft)', border: 0, borderRadius: 6, color: 'var(--accent2)' }}>
+            <IconUpdate size={14} sw={2.2} />
+          </button>
+        )}
       </div>
 
       <div role="radiogroup" aria-label="工作模式" style={{

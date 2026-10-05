@@ -137,6 +137,10 @@ interface State {
   longCells: string[] | null;
   /** 啟動載入中：進度（0–1）與正在做的事；載入完是 null */
   loading: { p: number; text: string } | null;
+  /** 問使用者要不要更新到新版本（resolve 傳回選擇） */
+  updatePrompt: { version: string; resolve(yes: boolean): void } | null;
+  /** 背景查到的新版本：標題列顯示小圖示 */
+  updateAvailable: string | null;
   /** 上次存檔失敗的項目與原因 */
   saveErrors: SaveError[];
   manageDictsOpen: boolean;
@@ -447,6 +451,8 @@ export const useStore = create<Store>((set, get) => {
     rootConflicts: null,
     saveErrors: [],
     loading: { p: 0, text: '啟動中' },
+    updatePrompt: null,
+    updateAvailable: null,
     manageDictsOpen: false,
     moveTarget: null,
     moveSeq: 0,

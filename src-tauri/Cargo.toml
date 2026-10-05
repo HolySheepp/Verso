@@ -1,6 +1,6 @@
 [package]
 name = "verso"
-version = "0.43.1"
+version = "0.44.0"
 description = "Verso 翻譯工作台"
 edition = "2021"
 
@@ -20,3 +20,5 @@ tauri-plugin-dialog = "2"
 font-kit = "0.14"
 trash = "5"
 tauri-plugin-single-instance = "2"
+tauri-plugin-updater = "2"
+tauri-plugin-process = "2"

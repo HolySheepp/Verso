@@ -1,6 +1,10 @@
 @echo off
+chcp 65001 >nul
 rem Double-click to start Verso (dev mode). Same as running "npm run tauri dev" in this folder.
 cd /d "%~dp0"
+
+rem Check GitHub for a newer version first (asks before updating; skipped when offline)
+powershell -NoProfile -ExecutionPolicy Bypass -File "scripts\check-update.ps1"
 
 rem Install or update dependencies first (needed after git pull)
 call npm install --no-audit --no-fund

@@ -92,6 +92,19 @@ function GoneNotice() {
   );
 }
 
+/** 按了標題列的更新圖示：問要不要更新 */
+function UpdatePromptDialog() {
+  const prompt = useStore((st) => st.updatePrompt);
+  if (!prompt) return null;
+  return (
+    <ConfirmDialog zIndex={70} title={`檢測到新版本 ${prompt.version}`} body="要現在更新嗎？會先存檔，更新完自動重新開啟。"
+      choices={[
+        { label: '稍後', onClick: () => prompt.resolve(false) },
+        { label: '更新', primary: true, onClick: () => prompt.resolve(true) },
+      ]} />
+  );
+}
+
 function StatusBar() {
   const files = useStore((s) => s.project!.files);
   const mode = useStore((s) => s.mode);
@@ -229,6 +242,7 @@ export default function App() {
       <LongCellsNotice />
       <UnreadableNotice />
       <GoneNotice />
+      <UpdatePromptDialog />
       <RootConflictDialog />
       {s.askSave && (
         <ConfirmDialog zIndex={60} title="有未儲存的修改"

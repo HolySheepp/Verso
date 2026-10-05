@@ -18,6 +18,29 @@ fn move_to_trash(path: String) -> Result<(), String> {
     trash::delete(&path).map_err(|e| e.to_string())
 }
 
+/// 這個 Verso 是安裝版還是攜帶版：安裝版的 exe 旁邊有解除安裝程式
+#[tauri::command]
+fn install_kind() -> String {
+    let installed = std::env::current_exe()
+        .ok()
+        .and_then(|p| p.parent().map(|d| d.join("uninstall.exe").exists()))
+        .unwrap_or(false);
+    if installed { "installed".into() } else { "portable".into() }
+}
+
+/// 用預設瀏覽器打開網址（攜帶版打開下載頁用）
+#[tauri::command]
+fn open_url(url: String) -> Result<(), String> {
+    if !url.starts_with("https://github.com/HolySheepp/Verso/") {
+        return Err("不允許的網址".into());
+    }
+    std::process::Command::new("cmd")
+        .args(["/C", "start", "", &url])
+        .spawn()
+        .map(|_| ())
+        .map_err(|e| e.to_string())
+}
+
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
 pub fn run() {
     tauri::Builder::default()
@@ -29,9 +52,11 @@ pub fn run() {
                 let _ = w.set_focus();
             }
         }))
+        .plugin(tauri_plugin_updater::Builder::new().build())
+        .plugin(tauri_plugin_process::init())
         .plugin(tauri_plugin_fs::init())
         .plugin(tauri_plugin_dialog::init())
-        .invoke_handler(tauri::generate_handler![list_fonts, move_to_trash])
+        .invoke_handler(tauri::generate_handler![list_fonts, move_to_trash, install_kind, open_url])
         .run(tauri::generate_context!())
         .expect("error while running tauri application");
 }
