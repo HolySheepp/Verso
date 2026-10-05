@@ -56,11 +56,27 @@ export function fileToXlsx(file: FileDoc, customs: CustomMark[]): Uint8Array {
     XLSX.utils.book_append_sheet(wb, textSheet(rows), sheetName(sh.name, used));
   });
   if (!file.sheets.length) XLSX.utils.book_append_sheet(wb, textSheet([ENTRY_HEADERS]), '頁簽 1');
-  if (file.lengthStd) {
-    XLSX.utils.book_append_sheet(wb, textSheet([['項目', '值'], ['長度標準', stdToText(file.lengthStd)]]), SETTINGS_SHEET);
-    wb.Workbook = { Sheets: wb.SheetNames.map((n) => ({ name: n, Hidden: n === SETTINGS_SHEET ? 1 : 0 })) } as XLSX.WorkBook['Workbook'];
-  }
+  // 檔案層級的設定：檔案 ID、長度標準
+  const settings = [['項目', '值']];
+  if (file.fid) settings.push(['檔案ID', file.fid]);
+  if (file.lengthStd) settings.push(['長度標準', stdToText(file.lengthStd)]);
+  if (settings.length > 1) appendSettings(wb, settings);
   return new Uint8Array(XLSX.write(wb, { type: 'array', bookType: 'xlsx', compression: true }) as ArrayBuffer);
+}
+
+/** 加上隱藏的設定工作表 */
+function appendSettings(wb: XLSX.WorkBook, rows: string[][]) {
+  XLSX.utils.book_append_sheet(wb, textSheet(rows), SETTINGS_SHEET);
+  wb.Workbook = { Sheets: wb.SheetNames.map((n) => ({ name: n, Hidden: n === SETTINGS_SHEET ? 1 : 0 })) } as XLSX.WorkBook['Workbook'];
+}
+
+/** 讀設定工作表裡某一項的值 */
+function readSetting(wb: XLSX.WorkBook, key: string): string {
+  const ws = wb.Sheets[SETTINGS_SHEET];
+  if (!ws) return '';
+  const rows = XLSX.utils.sheet_to_json<unknown[]>(ws, { header: 1, raw: false, defval: '' });
+  const row = rows.find((r) => str(r[0]) === key);
+  return row ? str(row[1]).trim() : '';
 }
 
 const str = (v: unknown) => (v == null ? '' : String(v));
@@ -76,13 +92,10 @@ export function xlsxToFile(name: string, project: string, data: Uint8Array, cust
   const wb = XLSX.read(data, { type: 'array' });
   const known = new Set(customs.map((c) => 'c:' + c.id));
   // 檔案設定工作表：不當成頁簽
-  let lengthStd: FileDoc['lengthStd'];
-  if (wb.Sheets[SETTINGS_SHEET]) {
-    const rows = XLSX.utils.sheet_to_json<unknown[]>(wb.Sheets[SETTINGS_SHEET], { header: 1, raw: false, defval: '' });
-    const row = rows.find((r) => str(r[0]) === '長度標準');
-    if (row) lengthStd = textToStd(str(row[1]));
-  }
+  const lengthStd = textToStd(readSetting(wb, '長度標準'));
+  const fid = readSetting(wb, '檔案ID');
   return {
+    ...(fid ? { fid } : {}),
     name,
     project,
     lengthStd,
@@ -115,17 +128,27 @@ export function xlsxToFile(name: string, project: string, data: Uint8Array, cust
   };
 }
 
-export function dictToXlsx(terms: GlossaryTerm[]): Uint8Array {
+export function dictToXlsx(terms: GlossaryTerm[], did?: string): Uint8Array {
   const wb = XLSX.utils.book_new();
   const rows = [DICT_HEADERS, ...terms.map((t) => [t.term, t.en, t.note])];
   XLSX.utils.book_append_sheet(wb, textSheet(rows), '字典');
+  if (did) appendSettings(wb, [['項目', '值'], ['字典ID', did]]);
   return new Uint8Array(XLSX.write(wb, { type: 'array', bookType: 'xlsx', compression: true }) as ArrayBuffer);
 }
 
 /** 詞條的專案由字典所在的專案資料夾決定（舊檔案裡的「所屬專案」欄不再使用） */
 export function xlsxToDict(project: string, dict: string, data: Uint8Array): GlossaryTerm[] {
+  return readDictBook(project, dict, data).terms;
+}
+
+/** 讀字典：詞條與字典 ID */
+export function readDictBook(project: string, dict: string, data: Uint8Array): { terms: GlossaryTerm[]; did: string } {
   const wb = XLSX.read(data, { type: 'array' });
-  const ws = wb.Sheets[wb.SheetNames[0]];
+  return { terms: dictTerms(wb, project, dict), did: readSetting(wb, '字典ID') };
+}
+
+function dictTerms(wb: XLSX.WorkBook, project: string, dict: string): GlossaryTerm[] {
+  const ws = wb.Sheets[wb.SheetNames.filter((n) => n !== SETTINGS_SHEET)[0]];
   if (!ws) return [];
   const rows = XLSX.utils.sheet_to_json<unknown[]>(ws, { header: 1, raw: false, defval: '' });
   const header = (rows[0] ?? []).map(str);

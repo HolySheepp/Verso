@@ -29,9 +29,9 @@ function getWorker(): Worker | null {
   }
 }
 
-function run(job: { kind: 'file'; file: FileDoc; customs: CustomMark[] } | { kind: 'dict'; terms: GlossaryTerm[] }): Promise<Uint8Array> {
+function run(job: { kind: 'file'; file: FileDoc; customs: CustomMark[] } | { kind: 'dict'; terms: GlossaryTerm[]; did?: string }): Promise<Uint8Array> {
   const w = getWorker();
-  if (!w) return Promise.resolve(job.kind === 'file' ? fileToXlsx(job.file, job.customs) : dictToXlsx(job.terms));
+  if (!w) return Promise.resolve(job.kind === 'file' ? fileToXlsx(job.file, job.customs) : dictToXlsx(job.terms, job.did));
   const id = ++seq;
   return new Promise((resolve, reject) => {
     waiting.set(id, { resolve, reject });
@@ -40,4 +40,4 @@ function run(job: { kind: 'file'; file: FileDoc; customs: CustomMark[] } | { kin
 }
 
 export const fileToXlsxAsync = (file: FileDoc, customs: CustomMark[]) => run({ kind: 'file', file, customs });
-export const dictToXlsxAsync = (terms: GlossaryTerm[]) => run({ kind: 'dict', terms });
+export const dictToXlsxAsync = (terms: GlossaryTerm[], did?: string) => run({ kind: 'dict', terms, did });

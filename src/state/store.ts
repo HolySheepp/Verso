@@ -7,7 +7,7 @@ import { TGT_COL, cellKey, parseKey, type Cell } from '../model/cells';
 import { DEFAULT_FONTS, type FontSettings } from '../model/fonts';
 import { defaultBindings, type ActionId, type Bindings, type ShortcutContext } from '../model/shortcuts';
 import { defaultCheckSettings, enabledIssues, type CheckId, type CheckSettings, type Issue } from '../model/checks';
-import { SHARED, dictKey, type CustomMark, type DictInfo, type Entry, type FileDoc, type GlossaryTerm, type MarkId, type Mode, type ProjectData, type Sheet } from '../model/types';
+import { SHARED, dictKey, newFileId, type CustomMark, type DictInfo, type Entry, type FileDoc, type GlossaryTerm, type MarkId, type Mode, type ProjectData, type Sheet } from '../model/types';
 import { sortProjects, type RootConflict } from '../data/persist';
 import { DICT_DIR, safeName, sameName, sheetNameError } from '../model/names';
 
@@ -260,10 +260,10 @@ export function withProject(projects: string[], name: string) {
   return projects.includes(name) ? projects : sortProjects([...projects, name]);
 }
 
-function withDict(p: ProjectData, project: string, dict: string): ProjectData {
+function withDict(p: ProjectData, project: string, dict: string, did?: string): ProjectData {
   const projects = withProject(p.projects, project);
   const has = p.dicts.some((d) => d.project === project && d.name === dict);
-  return { ...p, projects, dicts: has ? p.dicts : [...p.dicts, { project, name: dict }] };
+  return { ...p, projects, dicts: has ? p.dicts : [...p.dicts, { project, name: dict, did: did ?? newFileId() }] };
 }
 
 export const DEFAULT_COL_WIDTHS = [9, 12, 39.5, 39.5];
@@ -694,8 +694,10 @@ export const useStore = create<Store>((set, get) => {
       // 新檔案沒有長度標準時，沿用剛才那個檔案的
       const prevStd = project.files[get().file]?.lengthStd;
       const lengthStd = f.lengthStd ?? prevStd;
+      // 檔案 ID：沒有的、或跟現有檔案重複（例如匯入同一個檔案的複本）就給新的
+      const fid = f.fid && !project.files.some((x) => x.fid === f.fid) ? f.fid : newFileId();
       set({
-        project: { ...project, projects: withProject(project.projects, f.project), files: [...project.files, { ...f, name, ...(lengthStd ? { lengthStd } : {}) }] },
+        project: { ...project, projects: withProject(project.projects, f.project), files: [...project.files, { ...f, fid, name, ...(lengthStd ? { lengthStd } : {}) }] },
         file: idx, sheetBy: { ...get().sheetBy, [idx]: 0 }, pasteOpen: false, importOpen: false, filter: 'all',
         ...noPopups, ...noView,
       });
@@ -857,7 +859,9 @@ export const useStore = create<Store>((set, get) => {
       const p = get().project;
       if (!p || project === to) return;
       const n = uniqueName(name, p.dicts.filter((d) => d.project === to).map((d) => d.name));
-      const q = withDict({ ...p, dicts: p.dicts.filter((d) => !(d.project === project && d.name === name)) }, to, n);
+      // 搬到別的專案還是同一本字典：ID 不變
+      const did = p.dicts.find((d) => d.project === project && d.name === name)?.did;
+      const q = withDict({ ...p, dicts: p.dicts.filter((d) => !(d.project === project && d.name === name)) }, to, n, did);
       set({ project: { ...q, glossary: p.glossary.map((g) => (g.proj === project && g.dict === name ? { ...g, proj: to, dict: n } : g)) } });
     },
 

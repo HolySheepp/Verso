@@ -29,3 +29,17 @@ describe('長度標準', () => {
     expect(back.sheets[0].entries[1].lengthStd).toBe('none');
   });
 });
+
+describe('檔案、字典 ID', () => {
+  it('存進 xlsx 再讀回來，ID 不變', async () => {
+    const { dictToXlsx, readDictBook } = await import('../data/xlsxio');
+    const e = { uid: 'x', id: '1', speaker: '無', src: 'a', src0: 'a', tgt: 'b', tgt0: 'b', mark: '' as const, pending: false, skipCheck: false, note: '', sugg: '' };
+    const file: FileDoc = { fid: 'fABC', name: 'f', project: 'p', sheets: [{ name: 's', entries: [e] }] };
+    const back = xlsxToFile('f', 'p', fileToXlsx(file, []), []);
+    expect(back.fid).toBe('fABC');
+    expect(back.sheets.map((s) => s.name)).toEqual(['s']);
+    const d = readDictBook('p', '字典', dictToXlsx([{ id: 'a', term: '龍', en: 'Dragon', note: '', proj: 'p', dict: '字典' }], 'dXYZ'));
+    expect(d.did).toBe('dXYZ');
+    expect(d.terms.map((t) => t.en)).toEqual(['Dragon']);
+  });
+});

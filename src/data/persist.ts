@@ -7,11 +7,11 @@ import { io } from './fsio';
 import { dictToXlsxAsync, fileToXlsxAsync } from './xlsxAsync';
 import { DICT_DIR, safeName } from '../model/names';
 export { DICT_DIR, safeName };
-import { xlsxToDict, xlsxToFile } from './xlsxio';
+import { readDictBook, xlsxToFile } from './xlsxio';
 import type { CheckSettings } from '../model/checks';
 import type { FontSettings } from '../model/fonts';
 import type { Bindings } from '../model/shortcuts';
-import { SHARED, type CustomMark, type DictInfo, type FileDoc, type GlossaryTerm, type ProjectData } from '../model/types';
+import { SHARED, newFileId, type CustomMark, type DictInfo, type FileDoc, type GlossaryTerm, type ProjectData } from '../model/types';
 
 const META = 'project.json';
 const WORKSPACE = 'verso.json';
@@ -110,7 +110,11 @@ async function loadDicts(root: string): Promise<{ dicts: DictInfo[]; terms: Glos
     for (const f of (await io.list(io.join(dir, p.name))).filter((e) => !e.dir && isXlsx(e.name))) {
       const name = f.name.slice(0, -5);
       dicts.push({ project: p.name, name });
-      try { terms.push(...xlsxToDict(p.name, name, await io.readBinary(io.join(dir, p.name, f.name)))); } catch { unreadable.push(`字典 / ${p.name} / ${f.name}`); }
+      try {
+        const book = readDictBook(p.name, name, await io.readBinary(io.join(dir, p.name, f.name)));
+        terms.push(...book.terms);
+        if (book.did) dicts[dicts.length - 1].did = book.did;
+      } catch { unreadable.push(`字典 / ${p.name} / ${f.name}`); }
     }
   }
   return { dicts, terms, projects, unreadable };
@@ -142,7 +146,7 @@ async function recoverBackups(dir: string) {
 }
 
 /** 載入整個存檔資料夾 */
-export async function loadWorkspace(root: string, onProgress?: (p: number, text: string) => void): Promise<{ data: ProjectData; last?: LastPosition; remapped: boolean; unreadable: string[] }> {
+export async function loadWorkspace(root: string, onProgress?: (p: number, text: string) => void): Promise<{ data: ProjectData; last?: LastPosition; remapped: boolean; unreadable: string[]; newIds: string[] }> {
   const unreadable: string[] = [];
   await recoverBackups(root);
   let ws: WorkspaceMeta | null = null;
@@ -200,6 +204,22 @@ export async function loadWorkspace(root: string, onProgress?: (p: number, text:
 
   onProgress?.(0.88, '讀取字典');
   const d = await loadDicts(root);
+  // 檔案、字典 ID：沒有的（舊檔案）或重複的（在外面複製出來的）給新的，下次存檔寫進去
+  const newIds: string[] = [];
+  const seenF = new Set<string>();
+  files.forEach((f, i) => {
+    if (f.fid && !seenF.has(f.fid)) { seenF.add(f.fid); return; }
+    files[i] = { ...f, fid: newFileId() };
+    seenF.add(files[i].fid!);
+    newIds.push(files[i].fid!);
+  });
+  const seenD = new Set<string>();
+  d.dicts.forEach((x) => {
+    if (x.did && !seenD.has(x.did)) { seenD.add(x.did); return; }
+    x.did = newFileId();
+    seenD.add(x.did);
+    newIds.push(x.did);
+  });
   unreadable.push(...d.unreadable);
   return {
     data: {
@@ -209,6 +229,7 @@ export async function loadWorkspace(root: string, onProgress?: (p: number, text:
     last: ws?.last,
     remapped: remapped || (!ws && customs.length > 0),
     unreadable,
+    newIds,
   };
 }
 
@@ -248,7 +269,12 @@ export async function scanFolder(root: string): Promise<{ projects: string[]; fi
 
 /** 讀某個資料夾裡的一本字典 */
 export async function readDict(root: string, project: string, name: string): Promise<GlossaryTerm[]> {
-  return xlsxToDict(project, name, await io.readBinary(io.join(root, DICT_DIR, project, safeName(name) + '.xlsx')));
+  return (await readDictFull(root, project, name)).terms;
+}
+
+/** 讀某個資料夾裡的一本字典：詞條與字典 ID */
+export async function readDictFull(root: string, project: string, name: string): Promise<{ terms: GlossaryTerm[]; did: string }> {
+  return readDictBook(project, name, await io.readBinary(io.join(root, DICT_DIR, project, safeName(name) + '.xlsx')));
 }
 
 export async function reloadFile(root: string, project: string, name: string, customs: CustomMark[]): Promise<FileDoc | null> {
@@ -290,8 +316,8 @@ export async function trashProject(root: string, project: string) {
   await io.trash(io.join(root, DICT_DIR, project));
 }
 
-export async function writeDict(root: string, project: string, dict: string, terms: GlossaryTerm[]) {
+export async function writeDict(root: string, project: string, dict: string, terms: GlossaryTerm[], did?: string) {
   const dir = io.join(root, DICT_DIR, project);
   await io.mkdir(dir);
-  await io.writeBinary(io.join(dir, safeName(dict) + '.xlsx'), await dictToXlsxAsync(terms));
+  await io.writeBinary(io.join(dir, safeName(dict) + '.xlsx'), await dictToXlsxAsync(terms, did));
 }

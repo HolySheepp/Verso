@@ -6,15 +6,16 @@ import { withFontDefaults } from '../model/fonts';
 import { MAX_CELL_CHARS, nameKey } from '../model/names';
 import { migrateList } from '../model/shortcuts';
 import {
-  findRootConflicts, scanFolder, loadConfig, loadWorkspace, readDict, reloadFile, saveConfig, sortProjects, trashDict, trashFile, trashProject, writeDict, writeFile, writeMeta,
+  findRootConflicts, scanFolder, loadConfig, loadWorkspace, readDict, readDictFull, reloadFile, saveConfig, sortProjects, trashDict, trashFile, trashProject, writeDict, writeFile, writeMeta,
   type AppConfig, type LastPosition,
 } from '../data/persist';
 import { emptyHistory } from '../model/history';
-import { dictKey, type CustomMark, type DictInfo, type FileDoc, type GlossaryTerm, type ProjectData } from '../model/types';
+import { dictKey, newFileId, type CustomMark, type DictInfo, type FileDoc, type GlossaryTerm, type ProjectData } from '../model/types';
 import { currentOf, useStore, type SaveError } from './store';
 import type { RootConflict } from '../data/persist';
 
-const fileKey = (f: FileDoc) => f.project + '/' + f.name;
+/** 軟體內部認檔案用 ID；檔名、專案只是顯示和存檔位置 */
+const fileKey = (f: FileDoc) => f.fid ?? f.project + '/' + f.name;
 
 /** 上次存檔時的內容（資料都是不可變更新，所以比對參照就知道有沒有改過） */
 let saved = {
@@ -27,7 +28,9 @@ let dirtySince = 0;
 let lastAttempt = 0;
 let closing = false;
 
-const dictSignature = (terms: GlossaryTerm[]) => JSON.stringify(terms.map((t) => [t.term, t.en, t.note]));
+const dictSignature = (terms: GlossaryTerm[], did = '') => JSON.stringify([did, ...terms.map((t) => [t.term, t.en, t.note])]);
+/** 各本字典的 ID（依「專案/字典」） */
+const dictIds = (p: ProjectData) => new Map(p.dicts.map((d) => [dictKey(d.project, d.name), d.did ?? '']));
 
 /** 依「專案/字典」分組的詞條；沒有詞條的字典也算一組 */
 function dictGroups(p: ProjectData) {
@@ -45,7 +48,7 @@ function markSaved(p: ProjectData) {
   saved = {
     files: new Map(p.files.map((f) => [fileKey(f), f])),
     customs: p.customMarks,
-    dicts: new Map([...dictGroups(p)].map(([d, t]) => [d, dictSignature(t)])),
+    dicts: new Map([...dictGroups(p)].map(([d, t]) => [d, dictSignature(t, dictIds(p).get(d))])),
     projects: p.projects,
   };
 }
@@ -88,7 +91,8 @@ function dictsDirty(): boolean {
   if (!p) return false;
   const groups = dictGroups(p);
   if (saved.dicts.size !== groups.size) return true;
-  return [...groups].some(([d, t]) => saved.dicts.get(d) !== dictSignature(t));
+  const ids = dictIds(p);
+  return [...groups].some(([d, t]) => saved.dicts.get(d) !== dictSignature(t, ids.get(d)));
 }
 
 // 存檔一次只做一件事：檔案和字典的存檔排隊進行，避免同時寫入、互相蓋掉「已存」的紀錄
@@ -127,11 +131,12 @@ export function saveDicts(): Promise<boolean> {
       if (!p.projects.includes(k.slice(0, i))) continue;
       try { await trashDict(s.saveRoot, k.slice(0, i), k.slice(i + 1)); dicts.delete(k); } catch (e) { errors.push({ target: '字典 ' + k, reason: saveReason(e) }); }
     }
+    const ids = dictIds(p);
     for (const [k, terms] of groups) {
-      const sig = dictSignature(terms);
+      const sig = dictSignature(terms, ids.get(k));
       if (saved.dicts.get(k) === sig) continue;
       const i = k.indexOf('/');
-      try { await writeDict(s.saveRoot, k.slice(0, i), k.slice(i + 1), terms); dicts.set(k, sig); } catch (e) { errors.push({ target: '字典 ' + k, reason: saveReason(e) }); }
+      try { await writeDict(s.saveRoot, k.slice(0, i), k.slice(i + 1), terms, ids.get(k)); dicts.set(k, sig); } catch (e) { errors.push({ target: '字典 ' + k, reason: saveReason(e) }); }
     }
     saved = { ...saved, dicts };
     if (errors.length) useStore.setState({ saveStatus: 'error', saveErrors: errors });
@@ -152,9 +157,9 @@ async function saveAll(): Promise<boolean> {
   // 刪掉（或搬走）的專案、檔案、字典移到資源回收筒
   const gone = saved.projects.filter((x) => !p.projects.includes(x));
   for (const x of gone) { try { await trashProject(s.saveRoot, x); } catch (e) { fail('專案資料夾「' + x + '」', e); } }
-  const keys = new Set(p.files.map(fileKey));
+  const byKey = new Map(p.files.map((f) => [fileKey(f), f]));
   for (const [k, f] of saved.files) {
-    if (keys.has(k)) continue;
+    if (byKey.has(k)) continue;
     try { if (!gone.includes(f.project)) await trashFile(s.saveRoot, f.project, f.name); done.files.delete(k); } catch (e) { fail(`${f.project} / ${f.name}`, e); }
   }
   const groups = dictGroups(p);
@@ -171,7 +176,15 @@ async function saveAll(): Promise<boolean> {
       // 自訂標記改了名稱也要重寫，因為「標記」欄寫的是名稱
       if (saved.files.get(fileKey(f)) === f && !customsChanged) continue;
       long.push(...longCellsOf(f));
-      try { await writeFile(s.saveRoot, f, p.customMarks); done.files.set(fileKey(f), f); } catch (e) { fail(`${f.project} / ${f.name}`, e); }
+      const old = saved.files.get(fileKey(f));
+      try {
+        await writeFile(s.saveRoot, f, p.customMarks);
+        done.files.set(fileKey(f), f);
+        // 改了名稱或搬了專案：新位置寫好後，舊位置的檔案移到資源回收筒（只差大小寫時是同一個檔案，不用移）
+        if (old && diskKey(old.project, old.name) !== diskKey(f.project, f.name) && !gone.includes(old.project)) {
+          await trashFile(s.saveRoot, old.project, old.name).catch(() => undefined);
+        }
+      } catch (e) { fail(`${f.project} / ${f.name}`, e); }
     }
     // 新出現的超長格子才提示，同一格不重複提示
     const fresh = long.filter((x) => !warnedLong.has(x));
@@ -179,11 +192,12 @@ async function saveAll(): Promise<boolean> {
     if (fresh.length) useStore.setState({ longCells: fresh });
     try { await writeMeta(s.saveRoot, p, lastPosition()); if (ok) { done.customs = p.customMarks; done.projects = p.projects; } } catch (e) { fail('專案設定檔', e); }
   }
+  const ids = dictIds(p);
   for (const [k, terms] of groups) {
-    const sig = dictSignature(terms);
+    const sig = dictSignature(terms, ids.get(k));
     if (saved.dicts.get(k) === sig) continue;
     const i = k.indexOf('/');
-    try { await writeDict(s.saveRoot, k.slice(0, i), k.slice(i + 1), terms); done.dicts.set(k, sig); } catch (e) { fail('字典 ' + k, e); }
+    try { await writeDict(s.saveRoot, k.slice(0, i), k.slice(i + 1), terms, ids.get(k)); done.dicts.set(k, sig); } catch (e) { fail('字典 ' + k, e); }
   }
   saved = done;
   const dirty = isDirty();
@@ -254,11 +268,12 @@ export async function startApp() {
   let project: ProjectData = { files: [], customMarks: [], nextMarkId: 1, glossary: [], dicts: [], projects: sortProjects([]), refs: [] };
   let last: LastPosition | undefined;
   let migrated = false;
+  let newIds: string[] = [];
   try {
     try { localStorage.setItem('verso-boot', JSON.stringify({ theme: useStore.getState().theme, accent: useStore.getState().accent })); } catch { /* 存不下就算了 */ }
     step(0.12, '讀取專案');
     const r = await loadWorkspace(saveRoot, step);
-    project = r.data; last = r.last; migrated = r.remapped;
+    project = r.data; last = r.last; migrated = r.remapped; newIds = r.newIds;
     if (r.unreadable.length) useStore.setState({ unreadable: r.unreadable });
   } catch { /* 讀不到就從空的開始 */ }
   // 先記下已存的內容再換專案，避免監聽到變動時誤判成未存
@@ -266,6 +281,13 @@ export async function startApp() {
   useStore.setState({ project, file: 0, sheetBy: {}, selBy: {}, history: emptyHistory(), saveStatus: 'saved' });
   // 舊版的自訂標記合併後要重寫一次（檔案裡的標記編號、工作區設定檔）
   if (migrated) { saved = { ...saved, files: new Map(), customs: null }; useStore.setState({ saveStatus: 'dirty' }); dirtySince = 0; }
+  // 舊檔案剛配了 ID：記成未存，馬上存一次把 ID 寫進去
+  if (newIds.length) {
+    const ids = new Set(newIds);
+    project.files.forEach((f) => { if (f.fid && ids.has(f.fid)) saved.files.delete(fileKey(f)); });
+    project.dicts.forEach((d) => { if (d.did && ids.has(d.did)) saved.dicts.delete(dictKey(d.project, d.name)); });
+    setTimeout(() => { void saveNow(); }, 0);
+  }
   restorePosition(project, last);
   step(1, '完成');
   startFolderWatch();
@@ -366,9 +388,12 @@ async function discardChanges(target: string | null) {
   if (!p) return;
   const files: FileDoc[] = [];
   for (const f of p.files) {
-    if (saved.files.get(fileKey(f)) === f) { files.push(f); continue; }
-    const back = await reloadFile(s.saveRoot, f.project, f.name, p.customMarks).catch(() => null);
-    if (back) files.push(back);
+    const old = saved.files.get(fileKey(f));
+    if (old === f) { files.push(f); continue; }
+    // 從沒存過的檔案拿掉；改過的從上次存的位置讀回來
+    if (!old) continue;
+    const back = await reloadFile(s.saveRoot, old.project, old.name, p.customMarks).catch(() => null);
+    if (back) files.push({ ...back, fid: f.fid });
   }
   const customMarks = saved.customs ?? p.customMarks;
   const next = { ...p, files, customMarks };
@@ -475,7 +500,7 @@ async function syncFolder() {
   const addedDicts: { info: DictInfo; terms: GlossaryTerm[] }[] = [];
   for (const d of scan.dicts) {
     if (k.dicts.has(diskKey(d.project, d.name))) continue;
-    try { addedDicts.push({ info: d, terms: await readDict(root, d.project, d.name) }); } catch { /* 下次再試 */ }
+    try { const book = await readDictFull(root, d.project, d.name); addedDicts.push({ info: { ...d, ...(book.did ? { did: book.did } : {}) }, terms: book.terms }); } catch { /* 下次再試 */ }
   }
 
   // 讀檔期間使用者可能改了東西：用最新的內容再比一次
@@ -492,40 +517,72 @@ async function syncFolder() {
   const dictsOnDisk = new Set(scan.dicts.map((d) => diskKey(d.project, d.name)));
   const goneDicts = p.dicts.filter((d) => saved.dicts.has(dictKey(d.project, d.name)) && !dictsOnDisk.has(diskKey(d.project, d.name)));
 
-  // 在外面改名或搬到別的專案資料夾：內容完全一樣的「不見的」和「新出現的」當成同一個，
-  // 只改軟體裡的名稱，不會變成兩份（條目的修改紀錄等也都保留）
+  // 在外面改名或搬到別的專案資料夾：同一個 ID 就是同一個檔案，只改軟體裡的名稱，不會變成兩份
+  // （軟體裡的內容為準，條目的修改紀錄等也都保留）。舊檔案還沒有 ID 時，內容完全一樣才算同一個。
   const renamed: { from: FileDoc; to: FileDoc }[] = [];
+  const copies: FileDoc[] = [];
+  for (const f of [...files]) {
+    const same = f.fid ? p.files.find((x) => x.fid === f.fid) : undefined;
+    if (!same) continue;
+    files.splice(files.indexOf(f), 1);
+    if (!onDisk.has(diskKey(same.project, same.name))) {
+      renamed.push({ from: same, to: f });
+      if (gone.includes(same)) gone.splice(gone.indexOf(same), 1);
+    } else {
+      // 原本的還在：這是在外面複製出來的，當成新檔案、給新的 ID（存檔時寫進去）
+      copies.push({ ...f, fid: newFileId() });
+    }
+  }
   for (const g of [...gone]) {
     const sig = fileSignature(g);
-    const j = files.findIndex((f) => fileSignature(f) === sig);
+    const j = files.findIndex((f) => !f.fid && fileSignature(f) === sig);
     if (j < 0) continue;
     renamed.push({ from: g, to: files[j] });
     files.splice(j, 1);
     gone.splice(gone.indexOf(g), 1);
   }
   const renamedDicts: { from: DictInfo; to: DictInfo }[] = [];
+  for (const d of [...dicts]) {
+    const same = d.info.did ? p.dicts.find((x) => x.did === d.info.did) : undefined;
+    if (!same) continue;
+    if (!dictsOnDisk.has(diskKey(same.project, same.name))) {
+      dicts.splice(dicts.indexOf(d), 1);
+      renamedDicts.push({ from: same, to: { ...d.info, did: same.did } });
+      if (goneDicts.includes(same)) goneDicts.splice(goneDicts.indexOf(same), 1);
+    } else {
+      // 複製出來的字典：給新的 ID
+      d.info = { ...d.info, did: newFileId() };
+    }
+  }
   for (const g of [...goneDicts]) {
     const sig = dictSignature(p.glossary.filter((t) => t.proj === g.project && t.dict === g.name));
-    const j = dicts.findIndex((d) => dictSignature(d.terms) === sig);
+    const j = dicts.findIndex((d) => !d.info.did && dictSignature(d.terms) === sig);
     if (j < 0) continue;
-    renamedDicts.push({ from: g, to: dicts[j].info });
+    renamedDicts.push({ from: g, to: { ...dicts[j].info, did: g.did } });
     dicts.splice(j, 1);
     goneDicts.splice(goneDicts.indexOf(g), 1);
   }
 
-  if (!files.length && !dicts.length && !newProjects.length && !gone.length && !goneDicts.length && !renamed.length && !renamedDicts.length) return;
+  if (!files.length && !copies.length && !dicts.length && !newProjects.length && !gone.length && !goneDicts.length && !renamed.length && !renamedDicts.length) return;
 
   gone.forEach((f) => saved.files.delete(fileKey(f)));
   goneDicts.forEach((d) => saved.dicts.delete(dictKey(d.project, d.name)));
   files.forEach((f) => saved.files.set(fileKey(f), f));
-  dicts.forEach((d) => saved.dicts.set(dictKey(d.info.project, d.info.name), dictSignature(d.terms)));
-  // 改名的檔案：沿用軟體裡的內容，只換名稱與專案，記成已存（資料夾裡已經是新名稱）
-  const renamedDocs = new Map(renamed.map(({ from, to }) => [from, { ...from, name: to.name, project: to.project }]));
-  renamedDocs.forEach((doc, from) => { saved.files.delete(fileKey(from)); saved.files.set(fileKey(doc), doc); });
-  renamedDicts.forEach(({ from, to }) => {
+  // 剛讀進來、本來就有 ID 的字典算已存；新配 ID 的（沒有 ID、或複製出來的）等存檔寫進去
+  dicts.forEach((d) => { if (d.info.did && addedDicts.some((a) => a.info.did === d.info.did && a.info.name === d.info.name)) saved.dicts.set(dictKey(d.info.project, d.info.name), dictSignature(d.terms, d.info.did)); });
+  // 改名的檔案：沿用軟體裡的內容，只換名稱與專案；本來沒有未存修改的，記成已存（資料夾裡已經是新名稱）
+  const renamedDocs = new Map(renamed.map(({ from, to }) => [from, { ...from, fid: from.fid ?? to.fid ?? newFileId(), name: to.name, project: to.project }]));
+  renamed.forEach(({ from, to }) => {
+    const doc = renamedDocs.get(from)!;
+    const wasSaved = saved.files.get(fileKey(from)) === from;
+    saved.files.delete(fileKey(from));
+    // 資料夾裡那份的 ID 跟軟體裡的一樣，才算已存（不然要存一次把 ID 寫進去）
+    if (wasSaved && doc.fid === to.fid) saved.files.set(fileKey(doc), doc);
+  });
+  renamedDicts.forEach(({ from, to: t }) => {
     const sig = saved.dicts.get(dictKey(from.project, from.name));
     saved.dicts.delete(dictKey(from.project, from.name));
-    if (sig !== undefined) saved.dicts.set(dictKey(to.project, to.name), sig);
+    if (sig !== undefined && from.did) saved.dicts.set(dictKey(t.project, t.name), sig);
   });
   const moved = [...renamed.map((r) => r.to.project), ...renamedDicts.map((r) => r.to.project)];
   const projects = files.length || dicts.length || newProjects.length || moved.length
@@ -537,7 +594,7 @@ async function syncFolder() {
   useStore.setState({
     project: {
       ...p, projects,
-      files: [...p.files.map((f) => renamedDocs.get(f) ?? f), ...files],
+      files: [...p.files.map((f) => renamedDocs.get(f) ?? f), ...files, ...copies],
       dicts: [...p.dicts.map((d) => isRenamedDict(d.project, d.name) ?? d), ...dicts.map((d) => d.info)],
       glossary: [
         ...(renamedDicts.length ? p.glossary.map((t) => { const to = isRenamedDict(t.proj, t.dict); return to ? { ...t, proj: to.project, dict: to.name } : t; }) : p.glossary),
@@ -545,7 +602,7 @@ async function syncFolder() {
       ],
     },
   });
-  const names = [...files.map((f) => f.name), ...dicts.map((d) => d.info.name)];
+  const names = [...files.map((f) => f.name), ...copies.map((f) => f.name), ...dicts.map((d) => d.info.name)];
   const renames = [...renamed.map((r) => `${r.from.name} → ${r.to.name}`), ...renamedDicts.map((r) => `${r.from.name} → ${r.to.name}`)];
   const toastText = [names.length ? '已載入：' + names.slice(0, 3).join('、') + (names.length > 3 ? ` 等 ${names.length} 個` : '') : '', renames.length ? '已改名：' + renames.slice(0, 2).join('、') + (renames.length > 2 ? ` 等 ${renames.length} 個` : '') : ''].filter(Boolean).join('；');
   if (toastText) useStore.setState((st) => ({ toast: { text: toastText, k: (st.toast?.k ?? 0) + 1 } }));

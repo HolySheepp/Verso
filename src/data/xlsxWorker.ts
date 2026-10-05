@@ -4,12 +4,12 @@ import type { CustomMark, FileDoc, GlossaryTerm } from '../model/types';
 
 type Job =
   | { id: number; kind: 'file'; file: FileDoc; customs: CustomMark[] }
-  | { id: number; kind: 'dict'; terms: GlossaryTerm[] };
+  | { id: number; kind: 'dict'; terms: GlossaryTerm[]; did?: string };
 
 self.onmessage = (ev: MessageEvent<Job>) => {
   const job = ev.data;
   try {
-    const data = job.kind === 'file' ? fileToXlsx(job.file, job.customs) : dictToXlsx(job.terms);
+    const data = job.kind === 'file' ? fileToXlsx(job.file, job.customs) : dictToXlsx(job.terms, job.did);
     (self as unknown as Worker).postMessage({ id: job.id, data }, [data.buffer]);
   } catch (e) {
     (self as unknown as Worker).postMessage({ id: job.id, error: String((e as Error)?.message ?? e) });

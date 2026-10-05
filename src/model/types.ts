@@ -54,6 +54,8 @@ export interface Sheet {
 }
 
 export interface FileDoc {
+  /** 檔案 ID：軟體內部靠它認檔案；在外面改名、搬專案也還是同一個檔案（檔名只是顯示用） */
+  fid?: string;
   name: string;
   /** 檔案的長度標準（套用到全部條目）；沒設定是 undefined */
   lengthStd?: StdValue;
@@ -88,7 +90,12 @@ export interface RefDoc {
 export interface DictInfo {
   project: string;
   name: string;
+  /** 字典 ID：在外面改名、搬專案也認得出是同一本 */
+  did?: string;
 }
+
+/** 新的檔案、字典 ID */
+export const newFileId = () => 'f' + Date.now().toString(36) + Math.random().toString(36).slice(2, 10);
 
 /** 共用專案：一定存在、不能刪除 */
 export const SHARED = '共用';
