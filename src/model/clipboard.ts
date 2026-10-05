@@ -65,22 +65,26 @@ export function readColumns(data: { html?: string; text: string }): string[][] {
   return Array.from({ length: width }, (_, k) => rows.map((r) => r[k] ?? ''));
 }
 
-const escapeHtml = (s: string) =>
+export const escapeHtml = (s: string) =>
   s.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
 
+/** 帶格式的格子：html 是格子裡的內容（已處理好跳脫字元），text 是純文字版本 */
+export interface RichCell { html: string; text: string }
+
 /** 一欄文字轉成剪貼簿內容：表格格式和純文字各一份 */
-export function columnToClipboard(values: string[]): { html: string; text: string } {
+export function columnToClipboard(values: (string | RichCell)[]): { html: string; text: string } {
   const html = '<table><tbody>' +
-    values.map((v) => `<tr><td>${escapeHtml(v).replace(/\n/g, '<br>')}</td></tr>`).join('') +
+    values.map((v) => `<tr><td>${typeof v === 'string' ? escapeHtml(v).replace(/\n/g, '<br>') : v.html}</td></tr>`).join('') +
     '</tbody></table>';
   const text = values
+    .map((c) => (typeof c === 'string' ? c : c.text))
     .map((v) => (/[\n\t]/.test(v) || v.startsWith('"') ? '"' + v.replace(/"/g, '""') + '"' : v))
     .join('\n');
   return { html, text };
 }
 
 /** 把表格格式和純文字同時寫進剪貼簿 */
-export async function writeColumn(values: string[]): Promise<void> {
+export async function writeColumn(values: (string | RichCell)[]): Promise<void> {
   const { html, text } = columnToClipboard(values);
   if (typeof ClipboardItem !== 'undefined' && navigator.clipboard?.write) {
     await navigator.clipboard.write([

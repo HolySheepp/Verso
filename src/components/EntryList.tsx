@@ -11,7 +11,8 @@ import { focusOnMount } from './windowDrag';
 import { MarkIcon } from './MarkIcon';
 import { rowMenuPos } from './rowMenu';
 import { CopyConfirm } from './CopyConfirm';
-import { IconCheck, IconCopy, IconRuler, IconScan, IconWarn } from './icons';
+import { IconCheck, IconCopy, IconNote, IconRuler, IconScan, IconWarn } from './icons';
+import { verifyCell } from '../model/verifyCopy';
 import { stdLabel } from '../model/length';
 import { cellFontCss, fz, overflowOf, type Overflow } from '../model/fonts';
 import type { CustomMark, Entry, MarkId } from '../model/types';
@@ -168,6 +169,7 @@ export function EntryList() {
   const listRef = useRef<HTMLDivElement>(null);
   const [confirm, setConfirm] = useState<{ untranslated: number; pending: number } | null>(null);
   const [copied, setCopied] = useState(false);
+  const [notesCopied, setNotesCopied] = useState(false);
   // 接收鍵盤、複製貼上用的隱藏文字框；點條目欄時焦點交給它，這樣 Ctrl+C／V 才會作用在條目欄
   const sink = useRef<HTMLTextAreaElement>(null);
   const drag = useRef<Cell | null>(null);
@@ -227,9 +229,16 @@ export function EntryList() {
   // 複製譯文欄：未翻譯的留空，待確認的照原本譯文輸出
   const doCopy = async () => {
     setConfirm(null);
-    await writeColumn(sheet.entries.map((e) => e.tgt));
+    // 驗證模式：修改和建議翻譯用藍色標出來
+    await writeColumn(sheet.entries.map((e) => (s.mode === 'verify' ? verifyCell(e) : e.tgt)));
     setCopied(true);
     setTimeout(() => setCopied(false), 1500);
+  };
+  // 複製備註：一條一格，沒有備註也留空格，貼回原檔正好對齊
+  const copyNotes = async () => {
+    await writeColumn(sheet.entries.map((e) => e.note));
+    setNotesCopied(true);
+    setTimeout(() => setNotesCopied(false), 1500);
   };
   const askCopy = () => {
     const open = sheet.entries.filter((e) => e.mark !== 'ignore');
@@ -535,6 +544,10 @@ export function EntryList() {
         <button type="button" className="ib" aria-label="複製譯文欄" title="複製譯文欄" onClick={askCopy}
           style={{ width: 34, height: 34, display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 0, background: 'var(--btn)', border: '1px solid var(--line3)', borderRadius: 8, color: copied ? 'var(--accent2)' : 'var(--text2)' }}>
           {copied ? <IconCheck size={14} sw={2.4} /> : <IconCopy size={14} />}
+        </button>
+        <button type="button" className="ib" aria-label="複製備註" title="複製備註" onClick={() => void copyNotes()}
+          style={{ width: 34, height: 34, display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 0, background: 'var(--btn)', border: '1px solid var(--line3)', borderRadius: 8, color: notesCopied ? 'var(--accent2)' : 'var(--text2)' }}>
+          {notesCopied ? <IconCheck size={14} sw={2.4} /> : <IconNote size={14} />}
         </button>
         <div role="group" aria-label="篩選條目" className="seg-group">
           {FILTERS.map((f) => {
