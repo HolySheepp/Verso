@@ -54,6 +54,7 @@ if (-not $gh) { $gh = 'C:\Program Files\GitHub CLI\gh.exe' }
 if (-not (Test-Path $gh)) { throw '找不到 GitHub CLI（gh），請先安裝並登入' }
 $notesFile = Join-Path $env:CARGO_TARGET_DIR 'release-notes.txt'
 [IO.File]::WriteAllText($notesFile, $Notes, (New-Object Text.UTF8Encoding $false))
-& $gh release create $tag $setup.FullName $sig.FullName $latestPath --repo HolySheepp/Verso --title "Verso $version" --notes-file $notesFile
+# 攜帶版也一起上傳
+& $gh release create $tag $setup.FullName $sig.FullName $latestPath (Join-Path $dist 'Verso_portable.exe') --repo HolySheepp/Verso --title "Verso $version" --notes-file $notesFile
 if ($LASTEXITCODE -ne 0) { throw '上傳到 GitHub 失敗' }
 Write-Host "發布完成：https://github.com/HolySheepp/Verso/releases/tag/$tag"

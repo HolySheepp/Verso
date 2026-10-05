@@ -6,6 +6,7 @@ import { fz } from '../model/fonts';
 import { findHits } from '../state/dictHits';
 import { leaveFile } from '../state/saver';
 import { ContextMenu } from './ContextMenu';
+import { sideFieldKey } from './Shortcuts';
 import {
   IconBook, IconBookmark, IconCheck, IconChevD, IconCopy, IconChevL, IconChevR, IconFile, IconGlobe, IconHideRight, IconList, IconPaste, IconPenEdit, IconPlus, IconRefresh, IconSearch, IconUse,
 } from './icons';
@@ -349,7 +350,7 @@ function NotesSectionInner() {
           {suggOpen && (
             <>
               <label htmlFor="verso-sugg" className="sr-only">建議翻譯</label>
-              <textarea id="verso-sugg" value={cur.sugg} readOnly={!verify}
+              <textarea id="verso-sugg" value={cur.sugg} readOnly={!verify} onKeyDown={(ev) => sideFieldKey(ev, mode)}
                 onChange={(ev) => verify && s.updateEntry({ sugg: ev.target.value })}
                 style={{
                   ...area, flex: noteOpen ? '0 0 84px' : '1 1 auto',
@@ -369,7 +370,7 @@ function NotesSectionInner() {
       {noteOpen && (
         <>
           <label htmlFor="verso-note" className="sr-only">我的備註</label>
-          <textarea id="verso-note" value={cur.note} readOnly={mode === 'view'}
+          <textarea id="verso-note" value={cur.note} readOnly={mode === 'view'} onKeyDown={(ev) => sideFieldKey(ev, mode)}
             onChange={(ev) => mode !== 'view' && s.updateEntry({ note: ev.target.value })}
             style={{ ...area, flex: '1 1 auto', background: 'var(--bg0)', border: '1px solid var(--line4)' }} />
         </>

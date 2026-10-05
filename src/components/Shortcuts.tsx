@@ -23,6 +23,18 @@ function isOtherInput(el: Element | null) {
   return t === 'INPUT' || t === 'TEXTAREA' || t === 'SELECT' || (el as HTMLElement).isContentEditable;
 }
 
+/**
+ * 備註、建議翻譯框的按鍵：Enter 回到工作用的輸入框（依模式），Ctrl+Enter 才是換行。
+ * 有處理就回傳 true。
+ */
+export function sideFieldKey(ev: React.KeyboardEvent<HTMLTextAreaElement>, mode: string): boolean {
+  if (ev.key !== 'Enter' || ev.nativeEvent.isComposing || ev.altKey || ev.shiftKey || ev.metaKey) return false;
+  ev.preventDefault();
+  if (ev.ctrlKey) { if (!ev.currentTarget.readOnly) document.execCommand('insertText', false, '\n'); }
+  else focusWorkInput(mode);
+  return true;
+}
+
 /** 把游標放進工作用的輸入框最後面 */
 function focusWorkInput(mode: string) {
   const el = document.getElementById(mode === 'source' ? 'verso-source' : mode === 'verify' ? 'verso-edit' : 'verso-target') as HTMLTextAreaElement | null;
