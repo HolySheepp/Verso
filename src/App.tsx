@@ -206,8 +206,7 @@ export default function App() {
             </div>
           )}
           <EntryList />
-          <Splitter dir="h" label="調整工作欄高度" value={workH} min={220} max={workMax} onChange={(v) => s.set({ workH: v })} />
-          <WorkPanel height={workH} />
+          <WorkPanel height={workH} maxH={workMax} />
         </main>
 
         {showSide ? (

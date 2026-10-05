@@ -1,4 +1,5 @@
-import { useEffect, useMemo, useRef, useState } from 'react';
+import { useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react';
+import { Splitter } from './Splitter';
 import { FinishLine } from './FinishLine';
 import { TextMarks, type MarkRange } from './TextMarks';
 import { useCurrentHits } from '../state/dictHits';
@@ -44,16 +45,28 @@ function markUnder(box: HTMLElement | null | undefined, selector: string, x: num
   return found;
 }
 
-/** 頁簽清空、沒有條目時，工作欄只留空白的框 */
-export function WorkPanel({ height }: { height: number }) {
+/** 工作欄最矮的高度 */
+export const WORK_MIN = 220;
+
+/**
+ * 工作欄。height 是使用者拉的高度，當作最小高度；框放不下內容時工作欄會長高（最高到 maxH）。
+ * 頁簽清空、沒有條目時，只留空白的框。
+ */
+export function WorkPanel({ height, maxH }: { height: number; maxH: number }) {
   const hasEntry = useStore((s) => !!currentOf(s).entry);
+  const set = useStore((s) => s.set);
   if (!hasEntry) {
-    return <section aria-label="工作欄" style={{ height, flexShrink: 0, boxSizing: 'border-box', background: 'var(--panel)', border: '1px solid var(--line)', borderRadius: 10 }} />;
+    return (
+      <>
+        <Splitter dir="h" label="調整工作欄高度" value={height} min={WORK_MIN} max={maxH} onChange={(v) => set({ workH: v })} />
+        <section aria-label="工作欄" style={{ height, flexShrink: 0, boxSizing: 'border-box', background: 'var(--panel)', border: '1px solid var(--line)', borderRadius: 10 }} />
+      </>
+    );
   }
-  return <WorkPanelInner height={height} />;
+  return <WorkPanelInner height={height} maxH={maxH} />;
 }
 
-function WorkPanelInner({ height }: { height: number }) {
+function WorkPanelInner({ height, maxH }: { height: number; maxH: number }) {
   // 只訂閱這個區塊用到的資料（包含 currentOf 等輔助函式間接用到的）
   const s = useStorePick('project', 'file', 'sheetBy', 'selBy', 'mode', 'finishLine', 'beginEdit', 'endEdit', 'stampOpen', 'stamps', 'viewOn', 'peek', 'history', 'shortcuts', 'reported', 'checkSettings', 'set', 'updateEntry', 'record', 'useShownSlot', 'stampNext', 'skipCheck', 'prev', 'pickSlot', 'next', 'mainNext', 'setVerify');
   const project = s.project!;
@@ -98,6 +111,52 @@ function WorkPanelInner({ height }: { height: number }) {
   const [vActive, setVActive] = useState<number | null>(null);
   const [vMenu, setVMenu] = useState<{ x: number; y: number; i: number } | null>(null);
   const dirty = useRef(false);
+
+  // 框的高度跟內容走：量出每個框放下全部內容要多高
+  const sectionRef = useRef<HTMLElement>(null);
+  const [boxH, setBoxH] = useState({ src: 42, tgt: 42, mod: 42 });
+  const [actualH, setActualH] = useState(height);
+  const [, bump] = useState(0);
+  useLayoutEffect(() => {
+    const m = (ta: HTMLTextAreaElement | null) => {
+      if (!ta) return 42;
+      const prev = ta.style.height;
+      ta.style.height = '0px';
+      const cs = getComputedStyle(ta);
+      const h = ta.scrollHeight + parseFloat(cs.borderTopWidth) + parseFloat(cs.borderBottomWidth);
+      ta.style.height = prev;
+      return Math.ceil(h);
+    };
+    const next = { src: m(srcEl), tgt: m(tgtEl), mod: m(modEl) };
+    setBoxH((o) => (o.src === next.src && o.tgt === next.tgt && o.mod === next.mod ? o : next));
+    const h = sectionRef.current?.offsetHeight;
+    if (h && h !== actualH) setActualH(h);
+  });
+  // 寬度變了（換行跟著變）就重新量
+  useEffect(() => {
+    const el = sectionRef.current;
+    if (!el) return;
+    let w = el.clientWidth;
+    const ro = new ResizeObserver(() => { if (el.clientWidth !== w) { w = el.clientWidth; bump((n) => n + 1); } });
+    ro.observe(el);
+    return () => ro.disconnect();
+  }, []);
+  // 內容少時多出來的空間給哪個框：驗證模式給修改框，原文修正模式給原文框，其他給譯文框
+  const growKey: keyof typeof boxH = mode === 'verify' ? 'mod' : mode === 'source' ? 'src' : 'tgt';
+  const boxStyle = (k: keyof typeof boxH): React.CSSProperties => ({
+    position: 'relative', display: 'flex', flex: `${growKey === k ? 1 : 0} 1 ${boxH[k]}px`, minHeight: Math.min(boxH[k], 42),
+  });
+  // 修改框出現時加在上面，工作欄跟著變高；離開有修改的條目就回到使用者拉的高度。
+  // 翻譯模式在有修改的條目上拉的高度只是暫時的。
+  const modBlock = showEdits ? 36 + boxH.mod : 0;
+  const [tempH, setTempH] = useState<number | null>(null);
+  useEffect(() => { if (!showEdits) setTempH(null); }, [showEdits]);
+  const minH = Math.min(maxH, tempH ?? height + modBlock);
+  const onDrag = (v: number) => {
+    if (mode === 'translate' && showEdits) setTempH(v);
+    else if (verify) { setTempH(null); s.set({ workH: Math.max(WORK_MIN, v - modBlock) }); }
+    else s.set({ workH: v });
+  };
 
   // 標記並下一條：各模式分別記住選的標記
   const exclude = STAMP_EXCLUDE[mode];
@@ -328,8 +387,10 @@ function WorkPanelInner({ height }: { height: number }) {
   const viewTip = viewOn ? '返回目前譯文' : texts.length ? '查看修改（按住預覽）' : '查看修改（尚無記錄）';
 
   return (
-    <section aria-label="工作欄" style={{
-      height, flexShrink: 0, display: 'flex', flexDirection: 'column', gap: 10, padding: '14px 16px', boxSizing: 'border-box',
+    <>
+    <Splitter dir="h" label="調整工作欄高度" value={actualH} min={WORK_MIN} max={maxH} onChange={onDrag} />
+    <section ref={sectionRef} aria-label="工作欄" style={{
+      minHeight: minH, maxHeight: maxH, flexShrink: 0, display: 'flex', flexDirection: 'column', gap: 10, padding: '14px 16px', boxSizing: 'border-box',
       background: 'var(--panel)', border: '1px solid var(--line)', borderRadius: 10,
     }}>
       <div style={{ flexGrow: 1, minHeight: 0, display: 'flex', gap: 12 }}>
@@ -346,12 +407,12 @@ function WorkPanelInner({ height }: { height: number }) {
             </span>
             <span style={meta}>{cur.id && <span className="mono">#{cur.id}</span>}<span>{cur.speaker}</span><span>{cur.src.length} 字</span></span>
           </div>
-          <div style={{ position: 'relative', display: 'flex', flexShrink: 0 }}>
+          <div style={boxStyle('src')}>
           <textarea id="verso-source" ref={setSrcEl} value={cur.src} readOnly={!srcEditable} onFocus={editFocus} onBlur={editBlur}
             onMouseMove={onSrcMove} onMouseLeave={() => { cancelAnimationFrame(moveFrame.current); moveFrame.current = 0; setHover(null); }} onMouseDown={onSrcDown}
             onChange={(ev) => srcEditable && s.updateEntry({ src: ev.target.value })}
             style={{
-              flexGrow: 1, height: 66, flexShrink: 0, resize: 'none', boxSizing: 'border-box', padding: '10px 12px',
+              flexGrow: 1, minHeight: 0, resize: 'none', boxSizing: 'border-box', padding: '10px 12px',
               cursor: hover && canInsert ? 'pointer' : undefined,
               background: srcEditable ? 'var(--bg0)' : 'var(--bgdeep)', border: `1px solid ${srcEditable ? 'rgba(240,165,74,0.55)' : 'var(--line)'}`,
               borderRadius: 8, fontSize: 'var(--fs-src)', fontFamily: 'var(--font-src)', lineHeight: 1.6, color: 'var(--text)',
@@ -384,7 +445,7 @@ function WorkPanelInner({ height }: { height: number }) {
               <span>{cur.tgt.length} 字元</span>
             </span>
           </div>
-          <div style={{ flexGrow: 1, minHeight: 0, position: 'relative', display: 'flex' }}>
+          <div style={boxStyle('tgt')}>
             <textarea id="verso-target" ref={setTgtEl} onFocus={editFocus} onBlur={editBlur} data-hist={showHist ? '1' : '0'} value={showHist ? texts[slot] : cur.tgt}
               readOnly={!tgtEditable || showHist}
               onChange={(ev) => onTarget(ev.target.value)} onPaste={onPaste}
@@ -463,7 +524,7 @@ function WorkPanelInner({ height }: { height: number }) {
                   <span>{modText.length} 字元</span>
                 </span>
               </div>
-              <div style={{ flexGrow: 1, minHeight: 0, position: 'relative', display: 'flex' }}>
+              <div style={boxStyle('mod')}>
                 {/* 翻譯模式：修改框只給譯者看，不能改 */}
                 <textarea id="verso-edit" ref={setModEl} value={modText} readOnly={!verify} onFocus={verify ? editFocus : undefined} onBlur={verify ? modBlur : undefined}
                   onChange={(ev) => verify && onModValue(ev.target.value, ev.target.selectionEnd)}
@@ -576,5 +637,6 @@ function WorkPanelInner({ height }: { height: number }) {
         </div>
       </div>
     </section>
+    </>
   );
 }
