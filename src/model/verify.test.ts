@@ -54,6 +54,17 @@ describe('驗證修改', () => {
     expect(rebase(T, 'Happy Big New Year', edits)).toEqual([{ s: 0, e: 5, t: 'Merry' }, { s: 14, e: 18, t: 'Xmas' }]);
     expect(rebase(T, 'Hoppy New Year', edits)).toEqual([{ s: 10, e: 14, t: 'Xmas' }]);
   });
+  it('以單詞為單位畫底線', () => {
+    const T2 = 'You are stupid';
+    let r = type(T2, [], 4, 7, 'is');
+    const mod = compose(T2, r.edits);
+    r = type(T2, r.edits, mod.indexOf('stupid'), mod.length, 'steward');
+    expect(r.edits).toEqual([{ s: 4, e: 7, t: 'is' }, { s: 8, e: 14, t: 'steward' }]);
+    // 插入新詞不會把前面的詞算進去
+    expect(type('You are', [], 3, 3, ' really').edits).toEqual([{ s: 3, e: 3, t: ' really' }]);
+    // 中文不往外擴
+    expect(type('你好嗎', [], 1, 2, '們').edits).toEqual([{ s: 1, e: 2, t: '們' }]);
+  });
   it('存讀', () => {
     const v = { base: T, edits: [{ s: 0, e: 5, t: 'Merry' }], prev: 'verified' as const };
     expect(textToVerify(verifyToText(v))).toEqual(v);

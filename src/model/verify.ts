@@ -102,12 +102,41 @@ export function applyChange(tgt: string, edits: VEdit[], oldMod: string, newMod:
     for (const sp of hit) if (sp.me <= x) shift += sp.t.length - (sp.e - sp.s);
     return x - shift;
   };
-  const s = hit.length ? Math.min(...hit.map((h) => h.s), toTgt(A)) : toTgt(A);
-  const e = hit.length ? Math.max(...hit.map((h) => h.e), toTgt(B)) : toTgt(B);
-  const t = newMod.slice(A, B + newMod.length - oldMod.length);
-  const rest = keep.map(({ s: ks, e: ke, t: kt }) => ({ s: ks, e: ke, t: kt }));
+  let s = hit.length ? Math.min(...hit.map((h) => h.s), toTgt(A)) : toTgt(A);
+  let e = hit.length ? Math.max(...hit.map((h) => h.e), toTgt(B)) : toTgt(B);
+  let t = newMod.slice(A, B + newMod.length - oldMod.length);
+  let rest = keep.map(({ s: ks, e: ke, t: kt }) => ({ s: ks, e: ke, t: kt }));
+  // 以單詞為單位：改到一個詞的一部分，就算整個詞都改了（例如 stupid → steward 整個詞畫底線）
+  const w = toWords(tgt, s, e, t);
+  s = w.s; e = w.e; t = w.t;
+  // 擴大後碰到別組就合併
+  for (;;) {
+    const touch = rest.filter((x) => (x.s < e && x.e > s) || (x.s === x.e && x.s > s && x.s < e));
+    if (!touch.length) break;
+    const S = Math.min(s, ...touch.map((x) => x.s)), E = Math.max(e, ...touch.map((x) => x.e));
+    t = compose(tgt.slice(S, E), [...touch, { s, e, t }].map((x) => ({ s: x.s - S, e: x.e - S, t: x.t })));
+    s = S; e = E;
+    rest = rest.filter((x) => !touch.includes(x));
+  }
   if (t === tgt.slice(s, e)) return { edits: rest, active: -1 };
   return { edits: [...rest, { s, e, t }].sort((x, y) => x.s - y.s), active: s };
+}
+
+// 會被併成一個詞的字：英文字母、數字之類（中日韓文字一個字就是一個詞，不往外擴）
+const WORD_CH = /[\p{L}\p{N}_'’-]/u;
+const NO_SPREAD = /[\p{Script=Han}\p{Script=Hiragana}\p{Script=Katakana}\p{Script=Hangul}]/u;
+const isWord = (c: string | undefined) => !!c && WORD_CH.test(c) && !NO_SPREAD.test(c);
+
+/** 修改的邊界落在詞的中間時，往外擴到整個詞 */
+function toWords(tgt: string, s: number, e: number, t: string): { s: number; e: number; t: string } {
+  // 左邊：譯文那段或新內容的第一個字是詞的一部分，而且前一個字也是
+  while (s > 0 && isWord(tgt[s - 1]) && (isWord(s < e ? tgt[s] : undefined) || isWord(t[0]))) {
+    t = tgt[s - 1] + t; s--;
+  }
+  while (e < tgt.length && isWord(tgt[e]) && (isWord(s < e ? tgt[e - 1] : undefined) || isWord(t[t.length - 1]))) {
+    t = t + tgt[e]; e++;
+  }
+  return { s, e, t };
 }
 
 /** 套用一組修改：譯文那段換成修改後的內容，這組移除，後面的移位置 */
