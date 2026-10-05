@@ -23,6 +23,14 @@ describe('快捷鍵', () => {
     expect(actionFor(b, 'input', 'Esc')).toBe('leaveInput');
     expect(actionFor(b, 'list', 'Alt+↓')).toBe('nextEntry');
     expect(actionFor(b, 'list', 'Ctrl+R')).toBe('record');
-    expect(actionFor(b, 'input', 'Ctrl+Tab+←')).toBe('prevSheet');
+    expect(actionFor(b, 'input', 'Alt+←')).toBe('prevSheet');
+  });
+});
+
+describe('舊的切換頁簽快捷鍵', () => {
+  it('沒改過的換成 Alt+←/→，改過的保留', async () => {
+    const { migrateSheets } = await import('./shortcuts');
+    expect(migrateSheets({ prevSheet: ['Ctrl+Tab+←'], nextSheet: ['Ctrl+Tab+→'] })).toEqual({ prevSheet: ['Alt+←'], nextSheet: ['Alt+→'] });
+    expect(migrateSheets({ prevSheet: ['Ctrl+PageUp'] })).toEqual({ prevSheet: ['Ctrl+PageUp'] });
   });
 });

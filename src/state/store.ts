@@ -3,7 +3,7 @@ import { useShallow } from 'zustand/react/shallow';
 import { effectiveStd, type LengthStd, type StdValue } from '../model/length';
 import { emptyHistory, recordText, selectSlot, type HistoryStore } from '../model/history';
 import { effectiveMark, findCustom, toStoredMark } from '../model/marks';
-import { TGT_COL, cellKey, parseKey, type Cell } from '../model/cells';
+import { TGT_COL, cellKey, parseKey, rectKeys, type Cell, type CellCol } from '../model/cells';
 import { DEFAULT_FONTS, type FontSettings } from '../model/fonts';
 import { defaultBindings, type ActionId, type Bindings, type ShortcutContext } from '../model/shortcuts';
 import { defaultCheckSettings, enabledIssues, type CheckId, type CheckSettings, type Issue } from '../model/checks';
@@ -174,7 +174,7 @@ interface State {
   /** 刪除自訂標記前，問要不要一起清掉條目上的標記 */
   askDeleteMark: string | null;
   /** 條目欄選到的格子；null 時就是目前這條的譯文格 */
-  cellSel: { keys: string[]; anchor: Cell } | null;
+  cellSel: { keys: string[]; anchor: Cell; focus?: Cell } | null;
   /** 各條目在檢查當下報出的問題（以條目 uid 為 key），不存進檔案 */
   reported: Record<string, string[]>;
 }
@@ -238,8 +238,13 @@ interface Actions {
   step(delta: 1 | -1): void;
   /** 跳到上／下一個待處理條目：有問題、標了疑慮或未翻譯 */
   stepPending(delta: 1 | -1): void;
+  /**
+   * 條目欄的方向鍵：移動選取格。extend：從原本的格子往該方向擴大選取；
+   * jump：左右跳到最左／最右一欄，上下跳到上／下一個待處理條目（只在擴大選取時）。
+   */
+  navCell(dir: 'left' | 'right' | 'up' | 'down', extend: boolean, jump: boolean): void;
   /** 選取格子；工作欄顯示選取範圍的第一條 */
-  selectCells(keys: string[], anchor: Cell, first: number): void;
+  selectCells(keys: string[], anchor: Cell, first: number, focus?: Cell): void;
   /** 修改目前頁簽的條目（可用 Ctrl+Z 復原） */
   editSheet(fn: (entries: Entry[]) => { entries: Entry[]; keys?: string[] }): void;
   undoSheet(): void;
@@ -512,11 +517,11 @@ export const useStore = create<Store>((set, get) => {
       });
     },
 
-    selectCells(keys, anchor, first) {
+    selectCells(keys, anchor, first, focus) {
       const s = get();
       const { sheetIdx, sel } = cur();
       if (first !== sel) s.select(s.file, sheetIdx, first);
-      set({ cellSel: { keys, anchor } });
+      set({ cellSel: { keys, anchor, ...(focus ? { focus } : {}) } });
     },
 
     editSheet(fn) {
@@ -957,14 +962,47 @@ export const useStore = create<Store>((set, get) => {
 
     stepPending(delta) {
       const s = get();
-      const { sel, sheetIdx, sheet } = cur();
-      const pending = visibleRows(s).filter((i) => {
-        const e = sheet.entries[i];
-        const m = effectiveMark(e);
-        return m === 'untranslated' || m === 'doubt' || visibleIssues(e, s.reported, s.checkSettings, cur().fileDoc.lengthStd).length > 0;
-      });
+      const { sel, sheetIdx } = cur();
+      const pending = pendingRows(s);
       const target = delta > 0 ? pending.find((i) => i > sel) : [...pending].reverse().find((i) => i < sel);
       if (target !== undefined) { s.select(s.file, sheetIdx, target); set({ moveSeq: get().moveSeq + 1, moveDir: delta }); }
+    },
+
+    navCell(dir, extend, jump) {
+      const s = get();
+      const { sel } = cur();
+      const visible = visibleRows(s);
+      if (!visible.length) return;
+      const anchor: Cell = s.cellSel?.anchor ?? { i: sel, c: TGT_COL };
+      const from: Cell = extend ? (s.cellSel?.focus ?? anchor) : anchor;
+      let { i, c } = from;
+      const pos = visible.indexOf(i);
+      if (dir === 'left' || dir === 'right') {
+        const d = dir === 'left' ? -1 : 1;
+        c = (jump ? (d < 0 ? 0 : TGT_COL) : Math.max(0, Math.min(TGT_COL, c + d))) as CellCol;
+      } else {
+        const d = dir === 'up' ? -1 : 1;
+        if (jump) {
+          const pending = pendingRows(s);
+          const t = d > 0 ? pending.find((x) => x > i) : [...pending].reverse().find((x) => x < i);
+          if (t === undefined) return;
+          i = t;
+        } else {
+          const p = pos < 0 ? (d > 0 ? visible.findIndex((x) => x > i) : visible.length - 1) : pos + d;
+          if (p < 0 || p >= visible.length) return;
+          i = visible[p];
+        }
+      }
+      const to: Cell = { i, c: c as CellCol };
+      if (!extend) {
+        s.selectCells([cellKey(to.i, to.c)], to, to.i);
+        if (to.i !== sel) set({ moveSeq: get().moveSeq + 1, moveDir: to.i > sel ? 1 : -1 });
+        return;
+      }
+      // 擴大選取：起點不動，另一個角移到新位置；工作欄顯示最上面那條
+      const keys = rectKeys(visible, anchor, to);
+      const top = visible.find((x) => x === anchor.i || x === to.i) ?? to.i;
+      s.selectCells(keys, anchor, top, to);
     },
 
     setCheck(id, on) {
@@ -980,6 +1018,16 @@ export function currentStamp(s: Pick<State, 'mode' | 'stamps' | 'project'>): Mar
   const stamp = s.stamps[s.mode] ?? fallback;
   if (exclude.includes(stamp) || (stamp.startsWith('c:') && !findCustom(s.project?.customMarks ?? [], stamp))) return fallback;
   return stamp;
+}
+
+/** 看得到的條目裡待處理的：未翻譯、疑慮或有問題 */
+function pendingRows(s: State): number[] {
+  const { sheet, fileDoc } = currentOf(s);
+  return visibleRows(s).filter((i) => {
+    const e = sheet.entries[i];
+    const m = effectiveMark(e);
+    return m === 'untranslated' || m === 'doubt' || visibleIssues(e, s.reported, s.checkSettings, fileDoc.lengthStd).length > 0;
+  });
 }
 
 /** 目前篩選下，條目列表裡看得到的條目 */

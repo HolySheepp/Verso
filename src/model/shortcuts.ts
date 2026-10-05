@@ -57,8 +57,8 @@ export const defaultBindings = (): Bindings => ({
     peek: ['Ctrl+D'],
     save: ['Ctrl+S'],
     leaveInput: ['Esc'],
-    prevSheet: ['Ctrl+Tab+←'],
-    nextSheet: ['Ctrl+Tab+→'],
+    prevSheet: ['Alt+←'],
+    nextSheet: ['Alt+→'],
   },
   list: {
     prevEntry: ['↑', 'Alt+↑'],
@@ -72,8 +72,8 @@ export const defaultBindings = (): Bindings => ({
     record: ['Ctrl+R'],
     peek: ['Ctrl+D'],
     save: ['Ctrl+S'],
-    prevSheet: ['Ctrl+Tab+←'],
-    nextSheet: ['Ctrl+Tab+→'],
+    prevSheet: ['Alt+←'],
+    nextSheet: ['Alt+→'],
     close: ['Esc'],
   },
 });
@@ -101,6 +101,14 @@ export function comboOf(ev: Pick<KeyboardEvent, 'key' | 'code' | 'ctrlKey' | 'me
 export function migrateList(list: Bindings['list']): Bindings['list'] {
   if (list.deleteCells || !list.clearTgt?.includes('Delete')) return list;
   return { ...list, clearTgt: list.clearTgt.filter((k) => k !== 'Delete'), deleteCells: ['Delete'] };
+}
+
+/** 舊版切換頁簽是 Ctrl+Tab+←/→；沒改過的換成新的 Alt+←/→ */
+export function migrateSheets<T extends Partial<Record<ActionId, string[]>>>(b: T): T {
+  const out = { ...b };
+  if (out.prevSheet?.length === 1 && out.prevSheet[0] === 'Ctrl+Tab+←') out.prevSheet = ['Alt+←'];
+  if (out.nextSheet?.length === 1 && out.nextSheet[0] === 'Ctrl+Tab+→') out.nextSheet = ['Alt+→'];
+  return out;
 }
 
 /** 找出某情境下這個組合鍵對應的操作 */

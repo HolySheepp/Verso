@@ -1,5 +1,5 @@
 import { useEffect } from 'react';
-import { currentOf, useStore } from '../state/store';
+import { currentOf, useStore, visibleRows } from '../state/store';
 import { HOLD_ACTIONS, actionFor, comboOf, createTabHold, type ActionId } from '../model/shortcuts';
 import { effectiveMark } from '../model/marks';
 import { markMenuIds } from './MarkMenu';
@@ -33,6 +33,37 @@ export function sideFieldKey(ev: React.KeyboardEvent<HTMLTextAreaElement>, mode:
   if (ev.ctrlKey) { if (!ev.currentTarget.readOnly) document.execCommand('insertText', false, '\n'); }
   else focusWorkInput(mode);
   return true;
+}
+
+const ARROWS: Record<string, 'left' | 'right' | 'up' | 'down'> = { '←': 'left', '→': 'right', '↑': 'up', '↓': 'down' };
+
+/**
+ * 條目欄固定的方向鍵。↑/↓ 和 Ctrl+↑/↓ 不在這裡（設定頁可以改鍵）。
+ * 回傳 null 代表不是這些組合。
+ */
+function listNav(combo: string): { dir: 'left' | 'right' | 'up' | 'down'; extend: boolean; jump: boolean } | null {
+  const parts = combo.split('+');
+  const dir = ARROWS[parts[parts.length - 1]];
+  if (!dir) return null;
+  const mods = parts.slice(0, -1).join('+');
+  const horiz = dir === 'left' || dir === 'right';
+  if (mods === '' && horiz) return { dir, extend: false, jump: false };
+  if (mods === 'Ctrl' && horiz) return { dir, extend: false, jump: true };
+  if (mods === 'Shift') return { dir, extend: true, jump: false };
+  if (mods === 'Ctrl+Shift') return { dir, extend: true, jump: true };
+  return null;
+}
+
+/** 擴大選取時，讓移動中的那一角看得到 */
+function revealFocus() {
+  requestAnimationFrame(() => {
+    const st = useStore.getState();
+    const f = st.cellSel?.focus;
+    if (!f) return;
+    const rows = Array.from(document.querySelectorAll<HTMLElement>('.rw'));
+    const k = visibleRows(st).indexOf(f.i);
+    rows[k]?.scrollIntoView({ block: 'nearest' });
+  });
 }
 
 /** 把游標放進工作用的輸入框最後面 */
@@ -127,6 +158,15 @@ export function Shortcuts() {
       if ((el?.id === 'verso-edit' && !verifySession.dirty) || (el?.id === 'verso-target' && verifySession.undoToSheet)) {
         if (combo === 'Ctrl+Z') { s.undoSheet(); return true; }
         if (combo === 'Ctrl+Y' || combo === 'Ctrl+Shift+Z') { s.redoSheet(); return true; }
+      }
+      // 條目欄的方向鍵（固定，不能改鍵）：←/→ 換欄、Shift 擴大選取、Ctrl 跳到最左／最右或待處理條目
+      if (!inWork) {
+        const nav = listNav(combo);
+        if (nav) {
+          s.navCell(nav.dir, nav.extend, nav.jump);
+          revealFocus();
+          return true;
+        }
       }
       const action = actionFor(s.shortcuts, inWork ? 'input' : 'list', combo);
       if (!action) return false;

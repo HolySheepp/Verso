@@ -4,7 +4,7 @@ import { getCurrentWindow } from '@tauri-apps/api/window';
 import { io } from '../data/fsio';
 import { withFontDefaults } from '../model/fonts';
 import { MAX_CELL_CHARS, nameKey } from '../model/names';
-import { migrateList } from '../model/shortcuts';
+import { migrateList, migrateSheets } from '../model/shortcuts';
 import {
   findRootConflicts, scanFolder, loadConfig, loadWorkspace, readDict, readDictFull, reloadFile, saveConfig, sortProjects, trashDict, trashFile, trashProject, writeDict, writeFile, writeMeta,
   type AppConfig, type LastPosition,
@@ -259,7 +259,7 @@ export async function startApp() {
     rainbowUnlocked: config.rainbowUnlocked ?? false,
     fonts: withFontDefaults(config.fonts),
     recentFonts: config.recentFonts ?? [],
-    shortcuts: config.shortcuts ? { input: { ...st.shortcuts.input, ...config.shortcuts.input }, list: { ...st.shortcuts.list, ...migrateList(config.shortcuts.list) } } : st.shortcuts,
+    shortcuts: config.shortcuts ? { input: { ...st.shortcuts.input, ...migrateSheets(config.shortcuts.input) }, list: { ...st.shortcuts.list, ...migrateSheets(migrateList(config.shortcuts.list)) } } : st.shortcuts,
     checkSettings: config.checkSettings ? { ...st.checkSettings, ...config.checkSettings } : st.checkSettings,
     dictOverrides: config.dictOverrides ?? {},
     collapsedProjects: config.collapsedProjects ?? [],
