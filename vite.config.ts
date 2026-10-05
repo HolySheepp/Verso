@@ -7,5 +7,6 @@ export default defineConfig({
   clearScreen: false,
   server: { port: 1420, strictPort: true, watch: { ignored: ['**/src-tauri/**'] } },
   envPrefix: ['VITE_', 'TAURI_ENV_'],
-  build: { target: 'es2022', sourcemap: false },
+  // 打包出來的前端檔案放在專案外的「建置暫存」，不放進本體資料夾
+  build: { target: 'es2022', sourcemap: false, outDir: '../建置暫存/dist', emptyOutDir: true },
 });

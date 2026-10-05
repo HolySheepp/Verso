@@ -31,7 +31,7 @@ $dist = Join-Path $outer '安裝包'
 New-Item -ItemType Directory -Force $dist | Out-Null
 Get-ChildItem $dist -Filter '*-setup.exe' | Remove-Item -Force
 Copy-Item $setup.FullName $dist -Force
-Copy-Item (Join-Path $env:CARGO_TARGET_DIR 'releaseerso.exe') (Join-Path $dist 'Verso_portable.exe') -Force
+Copy-Item (Join-Path $env:CARGO_TARGET_DIR 'release\verso.exe') (Join-Path $dist 'Verso_portable.exe') -Force
 
 # 2. 更新清單 latest.json：裝好的 Verso 會讀這個檔案判斷有沒有新版本
 $asset = $setup.Name
