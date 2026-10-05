@@ -73,9 +73,15 @@ export interface RichCell { html: string; text: string }
 
 /** 一欄文字轉成剪貼簿內容：表格格式和純文字各一份 */
 export function columnToClipboard(values: (string | RichCell)[]): { html: string; text: string } {
-  const html = '<table><tbody>' +
-    values.map((v) => `<tr><td>${typeof v === 'string' ? escapeHtml(v).replace(/\n/g, '<br>') : v.html}</td></tr>`).join('') +
-    '</tbody></table>';
+  const cells = values.map((v) => (typeof v === 'string' ? escapeHtml(v).replace(/\n/g, '<br>') : v.html));
+  // 有帶格式的格子時，照 Google Sheets 自己複製出來的樣子包起來，Google Sheets 才會保留格子裡的部分格式
+  const rich = values.some((v) => typeof v !== 'string');
+  const html = rich
+    ? '<google-sheets-html-origin><style type="text/css"><!--td {border: 1px solid #cccccc;}br {mso-data-placement:same-cell;}--></style>' +
+      '<table xmlns="http://www.w3.org/1999/xhtml" cellspacing="0" cellpadding="0" dir="ltr" border="1" data-sheets-root="1"><tbody>' +
+      cells.map((c) => `<tr><td><span style="font-weight:normal;font-style:normal;">${c}</span></td></tr>`).join('') +
+      '</tbody></table></google-sheets-html-origin>'
+    : '<table><tbody>' + cells.map((c) => `<tr><td>${c}</td></tr>`).join('') + '</tbody></table>';
   const text = values
     .map((c) => (typeof c === 'string' ? c : c.text))
     .map((v) => (/[\n\t]/.test(v) || v.startsWith('"') ? '"' + v.replace(/"/g, '""') + '"' : v))

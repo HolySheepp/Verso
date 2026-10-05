@@ -16,14 +16,14 @@ describe('驗證模式複製譯文欄', () => {
     expect(typeof c).toBe('object');
     if (typeof c === 'string') return;
     expect(c.text).toBe('Happy Christmas');
-    expect(c.html).toContain('line-through">New Year</span> <span');
+    expect(c.html).toContain('line-through;color:#1155cc;">New Year</span> <span');
   });
   it('整句改：換行寫新句子', () => {
     expect(wholeChanged('Hi there!', [{ s: 0, e: 2 }, { s: 3, e: 8 }])).toBe(true);
     expect(wholeChanged('Hi there!', [{ s: 0, e: 2 }])).toBe(false);
     const c = verifyCell(entry('Hi', [{ s: 0, e: 2, t: 'Hello' }]));
     if (typeof c === 'string') throw new Error();
-    expect(c.html).toBe('Hi<br><span style="color:#1155cc">Hello</span>');
+    expect(c.html).toBe('Hi<br><span style="font-weight:normal;font-style:normal;color:#1155cc;">Hello</span>');
   });
   it('建議翻譯', () => {
     const c = verifyCell(entry('Hi', [], 'Hello'));

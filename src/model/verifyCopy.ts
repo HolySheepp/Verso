@@ -5,8 +5,8 @@ import type { Entry } from './types';
 
 const BLUE = '#1155cc';
 const br = (s: string) => escapeHtml(s).replace(/\n/g, '<br>');
-const blue = (s: string) => `<span style="color:${BLUE}">${br(s)}</span>`;
-const struck = (s: string) => `<span style="color:${BLUE};text-decoration:line-through">${br(s)}</span>`;
+const blue = (s: string) => `<span style="font-weight:normal;font-style:normal;color:${BLUE};">${br(s)}</span>`;
+const struck = (s: string) => `<span style="font-weight:normal;font-style:normal;text-decoration:line-through;color:${BLUE};">${br(s)}</span>`;
 const WORD = /[\p{L}\p{N}]/u;
 const CJK = /[\p{Script=Han}\p{Script=Hiragana}\p{Script=Katakana}\p{Script=Hangul}]/u;
 
