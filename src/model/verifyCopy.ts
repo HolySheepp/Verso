@@ -5,6 +5,8 @@ import type { Entry } from './types';
 
 const BLUE = '#1155cc';
 const br = (s: string) => escapeHtml(s).replace(/\n/g, '<br>');
+// 跟 Google Sheets 一樣，每一段文字都包在有樣式的 span 裡
+const plain = (s: string) => (s ? `<span style="font-weight:normal;font-style:normal;">${br(s)}</span>` : '');
 const blue = (s: string) => `<span style="font-weight:normal;font-style:normal;color:${BLUE};">${br(s)}</span>`;
 const struck = (s: string) => `<span style="font-weight:normal;font-style:normal;text-decoration:line-through;color:${BLUE};">${br(s)}</span>`;
 const WORD = /[\p{L}\p{N}]/u;
@@ -34,22 +36,22 @@ export function verifyCell(e: Entry): string | RichCell {
   const mod = compose(e.tgt, edits);
   let html = '';
   let text = mod;
-  if (!edits.length) html = br(e.tgt);
+  if (!edits.length) html = plain(e.tgt);
   else if (wholeChanged(e.tgt, edits)) {
     // 情況二：整句改，原句不動，換行寫新句子
-    html = br(e.tgt) + '<br>' + blue(mod);
+    html = plain(e.tgt) + '<br>' + blue(mod);
   } else {
     // 情況一：部分修改，被改掉的字加刪除線，後面接新字
     let at = 0;
     for (const d of [...edits].sort((a, b) => a.s - b.s)) {
-      html += br(e.tgt.slice(at, d.s));
+      html += plain(e.tgt.slice(at, d.s));
       const old = e.tgt.slice(d.s, d.e);
       if (old) html += struck(old);
-      if (old && d.t && needSpace(old, d.t)) html += ' ';
+      if (old && d.t && needSpace(old, d.t)) html += plain(' ');
       if (d.t) html += blue(d.t);
       at = d.e;
     }
-    html += br(e.tgt.slice(at));
+    html += plain(e.tgt.slice(at));
   }
   if (e.sugg) {
     // 情況三：有建議翻譯

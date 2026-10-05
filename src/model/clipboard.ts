@@ -78,8 +78,8 @@ export function columnToClipboard(values: (string | RichCell)[]): { html: string
   const rich = values.some((v) => typeof v !== 'string');
   const html = rich
     ? '<google-sheets-html-origin><style type="text/css"><!--td {border: 1px solid #cccccc;}br {mso-data-placement:same-cell;}--></style>' +
-      '<table xmlns="http://www.w3.org/1999/xhtml" cellspacing="0" cellpadding="0" dir="ltr" border="1" data-sheets-root="1"><tbody>' +
-      cells.map((c) => `<tr><td><span style="font-weight:normal;font-style:normal;">${c}</span></td></tr>`).join('') +
+      '<table xmlns="http://www.w3.org/1999/xhtml" cellspacing="0" cellpadding="0" dir="ltr" border="1" style="table-layout:fixed;font-size:10pt;font-family:Arial;width:0px;border-collapse:collapse;border:none" data-sheets-root="1" data-sheets-baot="1"><tbody>' +
+      cells.map((c) => `<tr style="height:21px;"><td style="overflow:hidden;padding:2px 3px 2px 3px;vertical-align:bottom;wrap-strategy:4;white-space:normal;word-wrap:break-word;">${c}</td></tr>`).join('') +
       '</tbody></table></google-sheets-html-origin>'
     : '<table><tbody>' + cells.map((c) => `<tr><td>${c}</td></tr>`).join('') + '</tbody></table>';
   const text = values
