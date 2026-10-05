@@ -930,8 +930,8 @@ export const useStore = create<Store>((set, get) => {
       const s = get();
       if (s.mode === 'verify') {
         const e = cur().entry;
-        // 有修改：疑慮並下一條（已經是疑慮就不動，修改清空時才能自動取消）
-        if (e && editsOf(e).length) { if (e.mark !== 'doubt') s.setEntryMark(cur().sel, 'doubt'); }
+        // 有修改或建議翻譯：疑慮並下一條（已經是疑慮就不動，修改清空時才能自動取消）
+        if (e && (editsOf(e).length || e.sugg.trim())) { if (e.mark !== 'doubt') s.setEntryMark(cur().sel, 'doubt'); }
         else s.setEntryMark(cur().sel, 'verified');
       }
       get().next();

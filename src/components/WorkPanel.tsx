@@ -626,7 +626,7 @@ function WorkPanelInner({ height, maxH }: { height: number; maxH: number }) {
           )}
           {mode === 'verify' && (
             <button type="button" className="btn btn-primary btn-main" onClick={() => s.mainNext()} title={keyTip('main')}>
-              {edits.length ? <><IconWarn size={14} sw={2.4} />疑慮並下一條</> : <><IconCheck size={14} sw={2.6} />驗證並下一條</>}
+              {edits.length || cur.sugg.trim() ? <><IconWarn size={14} sw={2.4} />疑慮並下一條</> : <><IconCheck size={14} sw={2.6} />驗證並下一條</>}
             </button>
           )}
           {mode !== 'verify' && (
