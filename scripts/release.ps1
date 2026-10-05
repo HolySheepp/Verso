@@ -26,6 +26,13 @@ $nsis = Join-Path $env:CARGO_TARGET_DIR 'release\bundle\nsis'
 $setup = Get-ChildItem $nsis -Filter "Verso_${version}_x64-setup.exe" | Select-Object -First 1
 $sig = Get-Item "$($setup.FullName).sig"
 
+# 安裝檔也放一份到「翻譯界面\安裝包」（先刪掉舊的安裝檔，只留最新的）
+$dist = Join-Path $outer '安裝包'
+New-Item -ItemType Directory -Force $dist | Out-Null
+Get-ChildItem $dist -Filter '*-setup.exe' | Remove-Item -Force
+Copy-Item $setup.FullName $dist -Force
+Copy-Item (Join-Path $env:CARGO_TARGET_DIR 'releaseerso.exe') (Join-Path $dist 'Verso_portable.exe') -Force
+
 # 2. 更新清單 latest.json：裝好的 Verso 會讀這個檔案判斷有沒有新版本
 $asset = $setup.Name
 $latest = [ordered]@{
