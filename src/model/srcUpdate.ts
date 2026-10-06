@@ -285,29 +285,69 @@ export interface RowInfo {
   arrow: Arrow;
   /** 兩邊的相似度 0～1；有一邊是空格時是 null */
   sim: number | null;
-  /** 跟這列不像，但在別列有高相似的句子：那一列是第幾列（從 1 開始） */
+  /** 這列的新原文跟這列不像，但跟別列的舊原文高度相似：那一列是第幾列（從 1 開始） */
   elsewhere: number | null;
 }
 
 export function rowInfos(oldSrc: string[], newSrc: string[], rows: AlignRow[]): RowInfo[] {
   const ko = oldSrc.map(matchKey), kn = newSrc.map(matchKey);
-  const rowOfOld = new Map<number, number>(), rowOfNew = new Map<number, number>();
-  rows.forEach((r, k) => { if (r.old !== null) rowOfOld.set(r.old, k); if (r.new !== null) rowOfNew.set(r.new, k); });
+  const rowOfOld = new Map<number, number>();
+  rows.forEach((r, k) => { if (r.old !== null) rowOfOld.set(r.old, k); });
   return rows.map((r, k) => {
     const o = r.old === null ? null : oldSrc[r.old];
     const n = r.new === null ? null : newSrc[r.new];
     const arrow = arrowOf(o, n);
     const sim = r.old !== null && r.new !== null ? ratio(ko[r.old], kn[r.new]) : null;
     let elsewhere: number | null = null;
-    if (arrow === 'red') {
-      // 拿這列有的那一邊，去另一邊的其他列找最像的
+    if (arrow === 'red' && r.new !== null) {
+      // 拿這列的新原文，去其他列的舊原文找最像的
       let best = ELSEWHERE;
-      if (r.old !== null) {
-        kn.forEach((key, j) => { const rk = rowOfNew.get(j); if (rk === undefined || rk === k) return; const v = ratio(ko[r.old!], key); if (v >= best) { best = v; elsewhere = rk + 1; } });
-      } else if (r.new !== null) {
-        ko.forEach((key, i) => { const rk = rowOfOld.get(i); if (rk === undefined || rk === k) return; const v = ratio(key, kn[r.new!]); if (v >= best) { best = v; elsewhere = rk + 1; } });
-      }
+      ko.forEach((key, i) => { const rk = rowOfOld.get(i); if (rk === undefined || rk === k) return; const v = ratio(key, kn[r.new!]); if (v >= best) { best = v; elsewhere = rk + 1; } });
     }
     return { arrow, sim, elsewhere };
   });
+}
+
+// ---- 對齊視窗的手動調整（每次只動一邊） ----
+
+export type Side = 'old' | 'new';
+const other = (side: Side): Side => (side === 'old' ? 'new' : 'old');
+
+/** 分開的兩欄重新組成列；只拿掉最後面兩邊都空的列（中間的保留，才不會讓兩邊錯位） */
+function rebuild(side: Side, col: (number | null)[], rest: (number | null)[]): AlignRow[] {
+  const n = Math.max(col.length, rest.length);
+  const out: AlignRow[] = [];
+  for (let k = 0; k < n; k++) {
+    const a = col[k] ?? null, b = rest[k] ?? null;
+    out.push(side === 'old' ? { old: a, new: b } : { old: b, new: a });
+  }
+  while (out.length && out[out.length - 1].old === null && out[out.length - 1].new === null) out.pop();
+  return out;
+}
+
+/**
+ * 把一邊第 a～b 列的格子拖到 drop（插在第 drop 列前面）：原本的格子往下推，拖走的地方留空格。
+ */
+export function moveCells(rows: AlignRow[], side: Side, a: number, b: number, drop: number): AlignRow[] {
+  const col = rows.map((r) => r[side]);
+  const rest = rows.map((r) => r[other(side)]);
+  const cells = col.slice(a, b + 1);
+  const left = col.map((v, i) => (i >= a && i <= b ? null : v));
+  const moved = [...left.slice(0, drop), ...cells, ...left.slice(drop)];
+  return rebuild(side, moved, rest);
+}
+
+/** 在一邊的第 at 列插入空格，下面的往下推 */
+export function insertBlank(rows: AlignRow[], side: Side, at: number): AlignRow[] {
+  const col = rows.map((r) => r[side]);
+  col.splice(at, 0, null);
+  return rebuild(side, col, rows.map((r) => r[other(side)]));
+}
+
+/** 刪掉一邊第 at 列的空格，下面的往上補 */
+export function deleteBlank(rows: AlignRow[], side: Side, at: number): AlignRow[] {
+  if (rows[at]?.[side] !== null) return rows;
+  const col = rows.map((r) => r[side]);
+  col.splice(at, 1);
+  return rebuild(side, col, rows.map((r) => r[other(side)]));
 }

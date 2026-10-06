@@ -84,3 +84,21 @@ describe('原文更新：每列資訊', () => {
     expect(rowInfos(['a'], [], [{ old: 0, new: null }])[0].sim).toBeNull();
   });
 });
+
+describe('原文更新：手動調整', () => {
+  it('拖動、插入、刪除空格', async () => {
+    const { moveCells, insertBlank, deleteBlank } = await import('./srcUpdate');
+    const rows = [{ old: 0, new: 0 }, { old: 1, new: 1 }, { old: 2, new: 2 }];
+    // 把新版第 3 列拖到最前面：原位置留空格，其他往下推
+    expect(moveCells(rows, 'new', 2, 2, 0)).toEqual([{ old: 0, new: 2 }, { old: 1, new: 0 }, { old: 2, new: 1 }]);
+    expect(insertBlank(rows, 'old', 1)).toEqual([{ old: 0, new: 0 }, { old: null, new: 1 }, { old: 1, new: 2 }, { old: 2, new: null }]);
+    expect(deleteBlank(insertBlank(rows, 'old', 1), 'old', 1)).toEqual(rows);
+    expect(deleteBlank(rows, 'old', 0)).toBe(rows);
+  });
+  it('高相似是拿新原文去比別列的舊原文', async () => {
+    const { rowInfos } = await import('./srcUpdate');
+    const infos = rowInfos(['Bring me the sword', 'Completely other'], ['We sail at dawn', 'Bring me the sword'], [{ old: 0, new: 0 }, { old: 1, new: 1 }]);
+    expect(infos[0].elsewhere).toBeNull();
+    expect(infos[1].elsewhere).toBe(1);
+  });
+});
