@@ -23,6 +23,8 @@ interface Props {
   onSelect(sel: BoxSel | null): void;
   /** id、發話者欄照設定裡的字體與超框時行為顯示 */
   fontSlot?: 'id' | 'speaker';
+  /** 標題旁標「＊必填」 */
+  required?: boolean;
 }
 
 interface Menu { x: number; y: number }
@@ -37,7 +39,7 @@ const toTsv = (rows: string[]) => rows.map((r) => (/[\n\t"]/.test(r) ? `"${r.rep
  * 點標題選整欄；點、Shift、Ctrl、拖動可以選多行。
  * Backspace 清除、Delete 刪除；選了行時 Ctrl+V 從那一行往下覆蓋，選整欄（或沒選）時整欄換掉。
  */
-export function PasteBox({ label, col, onPaste, onChange, selected, onSelect, fontSlot }: Props) {
+export function PasteBox({ label, col, onPaste, onChange, selected, onSelect, fontSlot, required }: Props) {
   const ovf = useStore((s) => (fontSlot ? overflowOf(s.fonts, fontSlot) : 'ellipsis'));
   const font = fontSlot === 'id' ? { family: 'var(--font-id)', size: 'var(--fs-id)' } : fontSlot === 'speaker' ? { family: 'var(--font-spk)', size: 'var(--fs-spk)' } : null;
   // 用一個看不見的文字框接收貼上，這樣不管點在方框哪裡、按 Ctrl+V 都一定會觸發貼上
@@ -138,7 +140,9 @@ export function PasteBox({ label, col, onPaste, onChange, selected, onSelect, fo
       <div className={'pb-head' + (colSel ? ' pb-head-sel' : '')} title="選取整欄"
         onMouseDown={(ev) => { if (ev.button !== 0 || (ev.target as HTMLElement).closest('button')) return; ev.preventDefault(); commit(); onSelect('col'); focusSink(); }}
         style={{ height: 22, display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '0 4px', borderRadius: 5, cursor: 'pointer' }}>
-        <span style={{ fontSize: fz(12), color: colSel ? 'var(--accent2)' : 'var(--text2)' }}>{label}</span>
+        <span style={{ fontSize: fz(12), color: colSel ? 'var(--accent2)' : 'var(--text2)' }}>
+          {label}{required && <span style={{ marginLeft: 6, fontSize: fz(11), color: 'var(--warntx)' }}>＊必填</span>}
+        </span>
         <span style={{ display: 'flex', alignItems: 'center', gap: 4, fontSize: fz(11.5), color: 'var(--mute)' }}>
           {rows && <>{rows.length} 行
             <button type="button" className="ib" aria-label={'清除' + label} title="清除" onClick={() => onChange(null)}

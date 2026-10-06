@@ -2,7 +2,7 @@ import { useEffect, useState } from 'react';
 import { useStore, type MoveTarget } from '../state/store';
 import { saveNow } from '../state/saver';
 import { SHARED, type Entry, type FileDoc, type Sheet } from '../model/types';
-import { COLS, checkColumns, fitsRows, newUid, pasteColumns, type Col, type Columns } from '../model/paste';
+import { COLS, COLS_GRID, appendNote, checkColumns, fitsRows, newUid, pasteColumns, type Col, type Columns } from '../model/paste';
 import { fz } from '../model/fonts';
 import { ConfirmDialog } from './ConfirmDialog';
 import { ContextMenu } from './ContextMenu';
@@ -303,7 +303,8 @@ function toDraft(f: FileDoc): FileDraft {
     const col = (g: (e: Entry) => string): Col | null => (es.length ? { rows: es.map(g), extra: 0 } : null);
     return {
       name: sh.name,
-      cols: { id: col((e) => e.id), speaker: col((e) => e.speaker), src: col((e) => e.src), tgt: es.length ? { rows: es.map((e) => e.tgt), extra: 0, ids: es.map((e) => e.uid) } : null },
+      // 備註欄一開始是空的：貼進來的備註接在條目原本的備註後面
+      cols: { id: col((e) => e.id), speaker: col((e) => e.speaker), src: col((e) => e.src), tgt: es.length ? { rows: es.map((e) => e.tgt), extra: 0, ids: es.map((e) => e.uid) } : null, note: null },
     };
   });
 }
@@ -319,8 +320,9 @@ function fromDraft(f: FileDoc, draft: FileDraft): Sheet[] {
       const tgt = sh.cols.tgt?.rows[i] ?? '';
       const uid = sh.cols.tgt?.ids?.[i];
       const base = uid ? orig.get(uid) : undefined;
-      if (base) return { ...base, id, speaker, src, tgt };
-      return { uid: newUid(), id, speaker, src, src0: src, tgt, tgt0: tgt, mark: '', pending: true, skipCheck: false, note: '', sugg: '' };
+      const note = sh.cols.note?.rows[i] ?? '';
+      if (base) return { ...base, id, speaker, src, tgt, note: appendNote(base.note, note) };
+      return { uid: newUid(), id, speaker, src, src0: src, tgt, tgt0: tgt, mark: '', pending: true, skipCheck: false, note: appendNote('', note), sugg: '' };
     }),
   }));
 }
@@ -357,7 +359,7 @@ function FileEditor({ file, index, onDirty, onSaved }: { file: FileDoc; index: n
     setBase(d); draft.reset(d); setSelRow(null);
     onSaved(next);
   };
-  const addSheet = () => { draft.commit([...sheets, { name: '頁簽 ' + (sheets.length + 1), cols: { id: null, speaker: null, src: null, tgt: null } }]); setCur(sheets.length); };
+  const addSheet = () => { draft.commit([...sheets, { name: '頁簽 ' + (sheets.length + 1), cols: { id: null, speaker: null, src: null, tgt: null, note: null } }]); setCur(sheets.length); };
   const tabAct = (k: string, i: number) => {
     setTabMenu(null);
     if (k === 'rename') setRenaming(i);
@@ -384,9 +386,9 @@ function FileEditor({ file, index, onDirty, onSaved }: { file: FileDoc; index: n
         ))}
         <button type="button" className="ib" aria-label="新增頁簽" title="新增頁簽" onClick={addSheet} style={{ ...actBtn, color: 'var(--text2)' }}><IconPlus size={13} sw={2.2} /></button>
       </div>
-      <div style={{ flexGrow: 1, minHeight: 0, display: 'grid', gridTemplateColumns: '0.8fr 0.9fr 1.5fr 1.5fr', gap: 12, padding: '12px 20px' }}>
+      <div style={{ flexGrow: 1, minHeight: 0, display: 'grid', gridTemplateColumns: COLS_GRID, gap: 12, padding: '12px 20px', overflowX: 'auto' }}>
         {COLS.map((c) => (
-          <PasteBox key={sheetIdx + c.key} label={c.label} col={sheet.cols[c.key]} fontSlot={c.key === 'id' || c.key === 'speaker' ? c.key : undefined}
+          <PasteBox key={sheetIdx + c.key} label={c.label} required={c.key === 'src'} col={sheet.cols[c.key]} fontSlot={c.key === 'id' || c.key === 'speaker' ? c.key : undefined}
             onPaste={(values, start) => patchSheet(sheetIdx, pasteColumns(FILE_KEYS, c.key, values, draft.current.current[sheetIdx].cols, start))}
             onChange={(col) => patchSheet(sheetIdx, { [c.key]: col })}
             selected={selRow?.key === c.key ? selRow.sel : null}

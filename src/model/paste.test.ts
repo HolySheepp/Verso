@@ -79,3 +79,15 @@ describe('多欄貼入', () => {
     expect(out.tgt!.rows).toEqual(['Traveler']);
   });
 });
+
+describe('備註欄', () => {
+  it('比條目少可以，比條目多報錯', async () => {
+    const { appendNote } = await import('./paste');
+    expect(checkColumns(cols({ src: ['a', 'b', 'c'], note: ['n1'] })).ok).toBe(true);
+    expect(checkColumns(cols({ src: ['a'], note: ['n1', 'n2'] })).ok).toBe(false);
+    expect(columnsToEntries(cols({ src: ['a', 'b'], note: ['n1'] })).map((e) => e.note)).toEqual(['n1', '']);
+    expect(appendNote('舊', '新')).toBe('舊\n新');
+    expect(appendNote('舊', ' ')).toBe('舊');
+    expect(appendNote('', '新')).toBe('新');
+  });
+});

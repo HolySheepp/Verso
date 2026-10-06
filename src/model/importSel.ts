@@ -9,7 +9,7 @@ export interface FieldSel { col: number; rows: number[] }
 
 export type FieldMap = Record<ColKey, FieldSel | null>;
 
-export const emptyFields = (): FieldMap => ({ id: null, speaker: null, src: null, tgt: null });
+export const emptyFields = (): FieldMap => ({ id: null, speaker: null, src: null, tgt: null, note: null });
 
 /** 兩個角落圍成的範圍 */
 export const rectOf = (a: { c: number; r: number }, b: { c: number; r: number }): Rect => ({

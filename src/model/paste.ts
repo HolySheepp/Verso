@@ -1,14 +1,19 @@
 // 手動貼入：把貼上的整欄資料轉成條目
 import type { Entry } from './types';
 
-export type ColKey = 'id' | 'speaker' | 'src' | 'tgt';
+export type ColKey = 'id' | 'speaker' | 'src' | 'tgt' | 'note';
 
+/** 手動貼入、插入頁簽、管理專案編輯檔案的分欄（備註存成條目的「我的備註」） */
 export const COLS: { key: ColKey; label: string }[] = [
   { key: 'id', label: 'id' },
   { key: 'speaker', label: '發話者' },
   { key: 'src', label: '原文' },
   { key: 'tgt', label: '譯文' },
+  { key: 'note', label: '備註' },
 ];
+
+/** 分欄的寬度：id、發話者固定寬，其他平分；放不下時橫向捲動 */
+export const COLS_GRID = '76px 145px repeat(3, minmax(200px, 1fr))';
 
 /**
  * 貼入的一欄。結尾的空白行（整欄複製時常會多出一大堆）不放進 rows，只記下有幾行。
@@ -24,7 +29,7 @@ export interface Col {
 /** 沒貼的欄是 null */
 export type Columns = Record<ColKey, Col | null>;
 
-export const emptyColumns = (): Columns => ({ id: null, speaker: null, src: null, tgt: null });
+export const emptyColumns = (): Columns => ({ id: null, speaker: null, src: null, tgt: null, note: null });
 
 let seq = 0;
 export const newUid = () => 'e' + Date.now().toString(36) + (seq++).toString(36);
@@ -66,8 +71,10 @@ export const fitsRows = (c: Col, base: number) => c.rows.length <= base && c.row
 export function checkColumns(c: Columns): { ok: boolean; msg: string } {
   const base = c.src?.rows.length ?? 0;
   if (!base) return { ok: false, msg: '還沒貼原文' };
-  const pasted = COLS.filter((col) => c[col.key]);
-  if (!pasted.every((col) => fitsRows(c[col.key]!, base))) {
+  // 備註可以比條目少（只填前面幾條），不能比條目多
+  const pasted = COLS.filter((col) => c[col.key] && col.key !== 'note');
+  if (c.note && c.note.rows.length > base) pasted.push(COLS.find((col) => col.key === 'note')!);
+  if (!pasted.every((col) => (col.key === 'note' ? c.note!.rows.length <= base : fitsRows(c[col.key]!, base)))) {
     return { ok: false, msg: '各欄行數不一致：' + pasted.map((col) => `${col.label} ${c[col.key]!.rows.length}`).join('、') };
   }
   return { ok: true, msg: '' };
@@ -83,10 +90,13 @@ export function columnsToEntries(c: Columns): Entry[] {
       id: c.id?.rows[i] ?? '',
       speaker: (c.speaker?.rows[i] ?? '').trim() || '無',
       src: s, src0: s, tgt, tgt0: tgt,
-      mark: '', pending: true, skipCheck: false, note: '', sugg: '',
+      mark: '', pending: true, skipCheck: false, note: c.note?.rows[i] ?? '', sugg: '',
     };
   });
 }
+
+/** 已經有備註時，新的接在後面、中間換行；貼入的那一行是空的就不動 */
+export const appendNote = (old: string, add: string) => (!add.trim() ? old : old ? old + '\n' + add : add);
 
 // ---- 方框裡的整欄操作 ----
 // 管理專案編輯檔案時，譯文欄的每一行帶著條目的編號（ids），條目的標記、備註等資料跟著譯文走；

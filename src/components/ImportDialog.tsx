@@ -8,7 +8,7 @@ import { dragWindow } from './windowDrag';
 import { IconWinClose } from './icons';
 import { fz } from '../model/fonts';
 import { sheetNameError } from '../model/names';
-import { COLS, checkColumns, columnsToEntries, type ColKey } from '../model/paste';
+import { COLS as ALL_COLS, checkColumns, columnsToEntries, type ColKey } from '../model/paste';
 import { colName, emptyFields, fieldLabel, fieldsToColumns, inRect, rectOf, rectsToField, type FieldMap, type Rect } from '../model/importSel';
 import { IMPORT_EXTS, readImport, type ImportBook } from '../data/importio';
 import { xlsxToFile } from '../data/xlsxio';
@@ -20,6 +20,8 @@ const ROW_H = 26;
 const COL_W = 180;
 const NUM_W = 52;
 const TAB_GAP = 6;
+// 匯入檔案時不對應備註欄（只有手動貼入、插入頁簽、管理專案有）
+const COLS = ALL_COLS.filter((c) => c.key !== 'note');
 
 const label = (k: ColKey) => COLS.find((c) => c.key === k)!.label;
 

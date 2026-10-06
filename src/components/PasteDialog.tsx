@@ -4,7 +4,7 @@ import { leaveFile } from '../state/saver';
 import { NEW, ProjectPicker, nameError, picked } from './Pickers';
 import { RenameInput } from './RenameInput';
 import { sheetNameError } from '../model/names';
-import { COLS, checkColumns, columnsToEntries, emptyColumns, pasteColumns, type Columns } from '../model/paste';
+import { COLS, COLS_GRID, checkColumns, columnsToEntries, emptyColumns, pasteColumns, type Columns } from '../model/paste';
 import { PasteBox, type BoxSel } from './PasteBox';
 import { ContextMenu } from './ContextMenu';
 import { dragWindow } from './windowDrag';
@@ -220,10 +220,11 @@ export function PasteDialog() {
   };
 
   return (
-    <div className="scrim" style={{ zIndex: 45 }} onMouseDown={dragWindow} onKeyDown={onKeyDown}>
+    <div className="scrim" style={{ zIndex: 45 }} onKeyDown={onKeyDown}>
       <div role="dialog" aria-modal="true" aria-labelledby="verso-paste-title" className="dialog"
         style={{ width: 960, height: 640, maxWidth: 'calc(100% - 48px)', maxHeight: 'calc(100% - 48px)', boxShadow: '0 24px 64px rgba(0,0,0,0.5)' }}>
-        <div style={{ height: 52, flexShrink: 0, display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '0 10px 0 20px', borderBottom: '1px solid var(--line)' }}>
+        {/* 只有拖最上面的橫條才會移動整個軟體 */}
+        <div onMouseDown={dragWindow} style={{ height: 52, flexShrink: 0, display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '0 10px 0 20px', borderBottom: '1px solid var(--line)' }}>
           <h2 id="verso-paste-title" style={{ margin: 0, fontSize: fz(15), fontWeight: 600 }}>{insert ? '插入頁簽' : '手動貼入'}</h2>
           <button type="button" className="ib" aria-label="關閉" onClick={close}
             style={{ width: 34, height: 34, display: 'flex', alignItems: 'center', justifyContent: 'center', background: 'transparent', border: 0, borderRadius: 8, color: 'var(--text2)' }}>
@@ -290,9 +291,9 @@ export function PasteDialog() {
             </button>
           </div>
 
-          <div role="tabpanel" style={{ flexGrow: 1, minHeight: 0, display: 'grid', gridTemplateColumns: '0.8fr 0.9fr 1.5fr 1.5fr', gap: 12 }}>
+          <div role="tabpanel" style={{ flexGrow: 1, minHeight: 0, display: 'grid', gridTemplateColumns: COLS_GRID, gap: 12, overflowX: 'auto' }}>
             {COLS.map((c) => (
-              <PasteBox key={cur + c.key} label={c.label} col={sheet.cols[c.key]} fontSlot={c.key === 'id' || c.key === 'speaker' ? c.key : undefined}
+              <PasteBox key={cur + c.key} label={c.label} required={c.key === 'src'} col={sheet.cols[c.key]} fontSlot={c.key === 'id' || c.key === 'speaker' ? c.key : undefined}
                 onPaste={(values, start) => patchSheet(cur, (sh) => ({ cols: { ...sh.cols, ...pasteColumns(COLS.map((x) => x.key), c.key, values, sh.cols, start) } }))}
                 onChange={(col) => patchSheet(cur, (sh) => ({ cols: { ...sh.cols, [c.key]: col } }))}
                 selected={selRow?.key === c.key ? selRow.sel : null}
