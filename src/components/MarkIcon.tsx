@@ -33,6 +33,10 @@ export function MarkIcon({ mark, size: sz, menu = false }: Props) {
     case 'think':
       body = svg(<path d="M12 6l7 12H5z" fill="var(--accent)" stroke="var(--accent)" strokeWidth="1.5" strokeLinejoin="round" />);
       break;
+    case 'srcupd':
+      // 原文更新：主題色的循環箭頭
+      body = svg(<><path d="M19 8.5A7.5 7.5 0 0 0 5.6 7.2" /><path d="M5 4.5v3.2h3.2" /><path d="M5 15.5a7.5 7.5 0 0 0 13.4 1.3" /><path d="M19 19.5v-3.2h-3.2" /></>, { fill: 'none', stroke: 'var(--accent)', strokeWidth: 2.4, strokeLinecap: 'round', strokeLinejoin: 'round' });
+      break;
     case 'ignore':
       body = svg(<path d="M7 12h10" stroke="#7d8494" strokeWidth="2.8" strokeLinecap="round" />);
       break;

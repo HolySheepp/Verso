@@ -36,6 +36,7 @@ const FILTERS: { id: Filter; label: string }[] = [
   { id: 'doubt', label: '疑慮' },
   { id: 'think', label: '待思考' },
   { id: 'issues', label: '有問題' },
+  { id: 'srcupd', label: '原文更新' },
 ];
 
 /** 條目欄一行要用到的操作；放在 ref 裡，行元件拿到的參照永遠不變，才不會因此整排重畫 */
@@ -251,7 +252,7 @@ export function EntryList() {
   const searchQ = s.searchQuery.trim();
   const searchOn = s.side === 'search' && !s.hideSide && !!searchQ;
   const issuesOf = (e: (typeof sheet.entries)[number]) => visibleIssues(e, s.reported, s.checkSettings, fileStd);
-  const cnt: Record<string, number> = { untranslated: 0, doubt: 0, think: 0, issues: 0 };
+  const cnt: Record<string, number> = { untranslated: 0, doubt: 0, think: 0, issues: 0, srcupd: 0 };
   sheet.entries.forEach((e) => {
     const m = effectiveMark(e);
     if (m in cnt) cnt[m]++;

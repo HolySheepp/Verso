@@ -14,6 +14,7 @@ import { MarkMenu } from './MarkMenu';
 import { ContextMenu } from './ContextMenu';
 import { applyChange, applyOne, compose, editsOf, removeOne, spansOf, type VEdit } from '../model/verify';
 import { verifySession } from '../state/verifySession';
+import { srcDiff } from '../model/srcUpdate';
 import { fz } from '../model/fonts';
 import {
   IconWarn, IconCopyPair, IconRuler,
@@ -68,7 +69,7 @@ export function WorkPanel({ height, maxH }: { height: number; maxH: number }) {
 
 function WorkPanelInner({ height, maxH }: { height: number; maxH: number }) {
   // 只訂閱這個區塊用到的資料（包含 currentOf 等輔助函式間接用到的）
-  const s = useStorePick('project', 'file', 'sheetBy', 'selBy', 'mode', 'finishLine', 'beginEdit', 'endEdit', 'stampOpen', 'stamps', 'viewOn', 'peek', 'history', 'shortcuts', 'reported', 'checkSettings', 'set', 'updateEntry', 'record', 'useShownSlot', 'stampNext', 'skipCheck', 'prev', 'pickSlot', 'next', 'mainNext', 'setVerify');
+  const s = useStorePick('project', 'file', 'sheetBy', 'selBy', 'mode', 'finishLine', 'beginEdit', 'endEdit', 'stampOpen', 'stamps', 'viewOn', 'peek', 'history', 'shortcuts', 'reported', 'checkSettings', 'set', 'updateEntry', 'record', 'useShownSlot', 'stampNext', 'skipCheck', 'prev', 'pickSlot', 'next', 'mainNext', 'setVerify', 'applyNewSource');
   const project = s.project!;
   const { sheet, sel, entry } = currentOf(s);
   const cur = entry!;
@@ -111,6 +112,32 @@ function WorkPanelInner({ height, maxH }: { height: number; maxH: number }) {
   const [vActive, setVActive] = useState<number | null>(null);
   const [vMenu, setVMenu] = useState<{ x: number; y: number; i: number } | null>(null);
   const dirty = useRef(false);
+
+  // 原文更新：可以切換看新原文（改過的地方畫底線），按「套用新原文」才換掉
+  const newSrc = cur.upd?.src;
+  const [srcView, setSrcView] = useState(false);
+  const [srcPeek, setSrcPeek] = useState(false);
+  const srcPress = useRef<{ t: number } | null>(null);
+  useEffect(() => { setSrcView(false); setSrcPeek(false); }, [cur.uid]);
+  const showNewSrc = newSrc !== undefined && (srcView || srcPeek);
+  const srcDiffRanges = useMemo<MarkRange[]>(
+    () => (showNewSrc ? srcDiff(cur.src, newSrc!).map((r) => ({ ...r, kind: 'edit' as const })) : []),
+    [showNewSrc, cur.src, newSrc],
+  );
+  // 在原文框裡按住 Ctrl+D 預覽新原文
+  const onSrcKey = (ev: React.KeyboardEvent) => {
+    if (newSrc === undefined || !(ev.ctrlKey || ev.metaKey) || ev.code !== 'KeyD') return;
+    ev.preventDefault();
+    if (!ev.repeat) setSrcPeek(true);
+  };
+  useEffect(() => {
+    if (!srcPeek) return;
+    const up = (ev: KeyboardEvent) => { if (ev.code === 'KeyD' || ev.key === 'Control' || ev.key === 'Meta') setSrcPeek(false); };
+    const off = () => setSrcPeek(false);
+    window.addEventListener('keyup', up);
+    window.addEventListener('blur', off);
+    return () => { window.removeEventListener('keyup', up); window.removeEventListener('blur', off); };
+  }, [srcPeek]);
 
   // 框的高度跟內容走：量出每個框放下全部內容要多高
   const sectionRef = useRef<HTMLElement>(null);
@@ -366,7 +393,7 @@ function WorkPanelInner({ height, maxH }: { height: number; maxH: number }) {
     const onKey = (ev: KeyboardEvent) => {
       if (!ev.altKey || ev.ctrlKey || ev.metaKey || ev.shiftKey || !/^Digit[1-9]$/.test(ev.code)) return;
       const st = useStore.getState();
-      if (st.settingsOpen || st.termDraft || st.pasteOpen || st.importOpen || st.dictPasteOpen || st.manageProjectsOpen || st.manageDictsOpen || st.lengthDialog || st.moveTarget) return;
+      if (st.settingsOpen || st.termDraft || st.pasteOpen || st.srcUpdate !== null || st.importOpen || st.dictPasteOpen || st.manageProjectsOpen || st.manageDictsOpen || st.lengthDialog || st.moveTarget) return;
       const hit = altRef.current.hits[Number(ev.code.slice(5)) - 1];
       ev.preventDefault();
       if (hit) insertTerm(hit.term.en);
@@ -404,21 +431,56 @@ function WorkPanelInner({ height, maxH }: { height: number; maxH: number }) {
                 </span>
               )}
               {cur.src !== cur.src0 && <span style={{ fontSize: fz(11), color: 'var(--text2)' }}>已修改，原始版本會保留</span>}
+              {cur.upd && (
+                <span style={{ fontSize: fz(11), color: 'var(--accent2)', padding: '1px 7px', borderRadius: 9, background: 'var(--acc-soft)' }}>
+                  {cur.upd.removed ? '新版已移除' : cur.upd.applied ? '已套用新原文' : showNewSrc ? '新原文（改過的地方有底線）' : '原文已更新'}
+                </span>
+              )}
             </span>
             <span style={meta}>{cur.id && <span className="mono">#{cur.id}</span>}<span>{cur.speaker}</span><span>{cur.src.length} 字</span></span>
           </div>
           <div style={boxStyle('src')}>
-          <textarea id="verso-source" ref={setSrcEl} value={cur.src} readOnly={!srcEditable} onFocus={editFocus} onBlur={editBlur}
-            onMouseMove={onSrcMove} onMouseLeave={() => { cancelAnimationFrame(moveFrame.current); moveFrame.current = 0; setHover(null); }} onMouseDown={onSrcDown}
+          <textarea id="verso-source" ref={setSrcEl} value={showNewSrc ? newSrc : cur.src} readOnly={!srcEditable || showNewSrc} onFocus={editFocus} onBlur={editBlur}
+            onKeyDown={onSrcKey} onMouseMove={onSrcMove} onMouseLeave={() => { cancelAnimationFrame(moveFrame.current); moveFrame.current = 0; setHover(null); }} onMouseDown={onSrcDown}
             onChange={(ev) => srcEditable && s.updateEntry({ src: ev.target.value })}
             style={{
-              flexGrow: 1, minHeight: 0, resize: 'none', boxSizing: 'border-box', padding: '10px 12px',
+              flexGrow: 1, minHeight: 0, resize: 'none', boxSizing: 'border-box', padding: newSrc !== undefined ? '10px 44px 10px 12px' : '10px 12px',
               cursor: hover && canInsert ? 'pointer' : undefined,
-              background: srcEditable ? 'var(--bg0)' : 'var(--bgdeep)', border: `1px solid ${srcEditable ? 'rgba(240,165,74,0.55)' : 'var(--line)'}`,
+              background: srcEditable ? 'var(--bg0)' : 'var(--bgdeep)',
+              border: `1px ${showNewSrc ? 'dashed' : 'solid'} ${showNewSrc ? 'var(--accent)' : srcEditable ? 'rgba(240,165,74,0.55)' : 'var(--line)'}`,
               borderRadius: 8, fontSize: 'var(--fs-src)', fontFamily: 'var(--font-src)', lineHeight: 1.6, color: 'var(--text)',
             }} />
             {/* 命中字典的詞標色 */}
-            <TextMarks target={srcEl} text={cur.src} ranges={hitRanges} />
+            <TextMarks target={srcEl} text={showNewSrc ? newSrc! : cur.src} ranges={showNewSrc ? srcDiffRanges : hitRanges} />
+            {newSrc !== undefined && (
+              <div role="toolbar" aria-label="原文更新" aria-orientation="vertical" style={{ position: 'absolute', right: 6, top: 6, display: 'flex', flexDirection: 'column', gap: 2 }}>
+                <button type="button" className="hb tip" data-tip={showNewSrc ? '返回目前原文' : '查看新原文（按住預覽）'} aria-label="查看新原文" aria-pressed={srcView}
+                  style={{ color: showNewSrc ? 'var(--accent2)' : 'var(--mute)', background: showNewSrc ? 'var(--acc-soft)' : 'transparent' }}
+                  onPointerDown={(ev) => {
+                    try { ev.currentTarget.setPointerCapture(ev.pointerId); } catch { /* 無法捕捉時照常運作 */ }
+                    srcPress.current = { t: Date.now() };
+                    setSrcPeek(true);
+                  }}
+                  onPointerUp={() => {
+                    if (!srcPress.current) return;
+                    const long = Date.now() - srcPress.current.t >= 300;
+                    srcPress.current = null;
+                    // 短按切換，長按放開就回到目前原文
+                    setSrcPeek(false);
+                    if (!long) setSrcView((v) => !v);
+                  }}
+                  onPointerLeave={() => { if (srcPress.current) { srcPress.current = null; setSrcPeek(false); } }}
+                  onClick={(ev) => { if (ev.detail === 0) setSrcView((v) => !v); }}>
+                  <IconEye size={14} sw={2.2} />
+                </button>
+                {mode !== 'view' && (
+                  <button type="button" className="hb tip" data-tip="套用新原文" aria-label="套用新原文" style={{ color: 'var(--accent2)' }}
+                    onClick={() => { s.applyNewSource(); setSrcView(false); setSrcPeek(false); }}>
+                    <IconUse size={14} sw={2.2} />
+                  </button>
+                )}
+              </div>
+            )}
             {hover && hits[hover.hit] && (
               <div className="hit-tip" style={{ left: hover.x, top: hover.y - 2 }}>{hits[hover.hit].term.en}</div>
             )}

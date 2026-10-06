@@ -20,7 +20,7 @@ window.addEventListener('drop', (ev) => {
   const s = useStore.getState();
   if (!file || !s.project) return;
   // 其他對話框開著時不處理，避免蓋掉正在編輯的內容
-  if (s.settingsOpen || s.termDraft || s.pasteOpen || s.dictPasteOpen || s.manageProjectsOpen || s.manageDictsOpen || s.moveTarget || s.lengthDialog || s.askSave) return;
+  if (s.settingsOpen || s.termDraft || s.pasteOpen || s.srcUpdate !== null || s.dictPasteOpen || s.manageProjectsOpen || s.manageDictsOpen || s.moveTarget || s.lengthDialog || s.askSave) return;
   s.set({ importOpen: true, importFile: file, fileMenuOpen: false });
 });
 

@@ -33,7 +33,7 @@ export type MarkVisual =
   | { kind: 'sym'; sym: SymbolId; color: string }
   | { kind: 'text'; text: string; color: string };
 
-type MarkFields = Pick<Entry, 'mark' | 'tgt'> & { pending?: boolean; src?: string };
+type MarkFields = Pick<Entry, 'mark' | 'tgt'> & { pending?: boolean; src?: string; upd?: Entry['upd'] };
 
 /** 有譯文、且不是待確認，才算已翻譯；原文和譯文都空白的條目沒有東西要翻，也算已翻譯 */
 export function isTranslated(e: MarkFields): boolean {
@@ -43,12 +43,14 @@ export function isTranslated(e: MarkFields): boolean {
 
 /** 條目實際顯示的標記：刻意標記優先，否則看是否已翻譯 */
 export function effectiveMark(e: MarkFields): MarkId {
+  // 原文更新優先顯示，清掉後原本的標記才出現
+  if (e.upd) return 'srcupd';
   return e.mark || (isTranslated(e) ? 'translated' : 'untranslated');
 }
 
 /** 把選單選到的標記轉成要存的值：已翻譯／未翻譯不存 */
 export function toStoredMark(id: MarkId): StoredMark {
-  return id === 'translated' || id === 'untranslated' ? '' : id;
+  return id === 'translated' || id === 'untranslated' || id === 'srcupd' ? '' : id;
 }
 
 /** 算進度用：已翻譯或被忽略就算完成 */
@@ -72,6 +74,7 @@ export function markVisual(customs: CustomMark[], id: MarkId): MarkVisual {
 
 export function markName(customs: CustomMark[], id: MarkId): string {
   if (id.startsWith('c:')) return findCustom(customs, id)?.name ?? '已翻譯';
+  if (id === 'srcupd') return '原文更新';
   return BUILTIN_MARKS.find((b) => b.id === id)?.label ?? id;
 }
 

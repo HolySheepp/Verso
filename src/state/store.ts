@@ -12,7 +12,7 @@ import { sortProjects, type RootConflict } from '../data/persist';
 import { DICT_DIR, safeName, sameName, sheetNameError } from '../model/names';
 import { editsOf, type VEdit } from '../model/verify';
 
-export type Filter = 'all' | 'untranslated' | 'doubt' | 'think' | 'issues';
+export type Filter = 'all' | 'untranslated' | 'doubt' | 'think' | 'issues' | 'srcupd';
 export type SideTab = 'dict' | 'search' | 'web' | 'ref';
 export type Theme = 'dark' | 'light' | 'system';
 export type SaveStatus = 'saved' | 'dirty' | 'saving' | 'error';
@@ -124,6 +124,8 @@ interface State {
   importFile: File | null;
   /** 手動填入視窗用來在現有檔案插入頁簽時：插在第幾個頁簽後面 */
   pasteInsert: { after: number } | null;
+  /** 更新原文（實驗性功能）：正在更新哪個頁簽 */
+  srcUpdate: number | null;
   dictPasteOpen: boolean;
   manageProjectsOpen: boolean;
   /** 畫面中間短暫出現的提示 */
@@ -199,6 +201,10 @@ interface Actions {
   pickSlot(slot: number): void;
   useShownSlot(): void;
   applySuggestion(): void;
+  /** 更新原文：把對齊好的結果套用到頁簽（條目欄復原時算一步） */
+  applySrcUpdate(sheet: number, entries: Entry[]): void;
+  /** 套用暫存的新原文：原文換成新的，舊原文清掉 */
+  applyNewSource(): void;
   /** 驗證模式：改這一條的修改（可同時改譯文，例如套用）；有修改時自動標疑慮，修改都沒了再取消 */
   setVerify(edits: VEdit[], tgt?: string): void;
   saveTerm(d: TermDraft): void;
@@ -454,6 +460,7 @@ export const useStore = create<Store>((set, get) => {
     importOpen: false,
     importFile: null,
     pasteInsert: null,
+    srcUpdate: null,
     dictPasteOpen: false,
     manageProjectsOpen: false,
     toast: null,
@@ -584,6 +591,7 @@ export const useStore = create<Store>((set, get) => {
       const { sheet, sheetIdx, sel, entry } = cur();
       // 翻譯、驗證模式下按下一條，代表確認了這條
       if (entry?.pending && (s.mode === 'translate' || s.mode === 'verify')) patchEntry(sel, (e) => ({ ...e, pending: false }));
+      if (entry?.upd?.applied && (s.mode === 'translate' || s.mode === 'verify')) patchEntry(sel, (e) => { const { upd: _u, ...rest } = e; void _u; return rest; });
       if (sel < sheet.entries.length - 1) { get().select(s.file, sheetIdx, sel + 1); set({ moveSeq: get().moveSeq + 1, moveDir: 1 }); }
       else { leaveCurrent(); set({ stampOpen: false }); }
     },
@@ -603,7 +611,11 @@ export const useStore = create<Store>((set, get) => {
       }
       patchEntry(cur().sel, (e) => {
         const next = { ...e, ...patch };
-        if (patch.tgt !== undefined && patch.tgt !== e.tgt) next.pending = false;
+        if (patch.tgt !== undefined && patch.tgt !== e.tgt) {
+          next.pending = false;
+          // 套用新原文之後改了譯文：原文更新算處理完了
+          if (e.upd?.applied) delete next.upd;
+        }
         return next;
       });
     },
@@ -670,6 +682,23 @@ export const useStore = create<Store>((set, get) => {
         }
         return next;
       });
+    },
+
+    applySrcUpdate(sheet, entries) {
+      const s = get();
+      if (!s.project) return;
+      pushUndo();
+      replaceSheet(s.file, sheet, entries);
+      const n = entries.length;
+      const k = selKey(s.file, sheet);
+      set({ srcUpdate: null, cellSel: null, selBy: { ...get().selBy, [k]: Math.min(get().selBy[k] ?? 0, Math.max(0, n - 1)) } });
+    },
+
+    applyNewSource() {
+      const { entry } = cur();
+      const src = entry?.upd?.src;
+      if (src === undefined) return;
+      get().updateEntry({ src, src0: src, upd: { applied: true } });
     },
 
     applySuggestion() {
@@ -1024,7 +1053,7 @@ function pendingRows(s: State): number[] {
   return visibleRows(s).filter((i) => {
     const e = sheet.entries[i];
     const m = effectiveMark(e);
-    return m === 'untranslated' || m === 'doubt' || visibleIssues(e, s.reported, s.checkSettings, fileDoc.lengthStd).length > 0;
+    return m === 'untranslated' || m === 'doubt' || m === 'srcupd' || visibleIssues(e, s.reported, s.checkSettings, fileDoc.lengthStd).length > 0;
   });
 }
 

@@ -10,6 +10,7 @@ import { Splitter } from './components/Splitter';
 import { MarkMenu } from './components/MarkMenu';
 import { TermDialog } from './components/TermDialog';
 import { SettingsDialog } from './components/SettingsDialog';
+import { SrcUpdateDialog } from './components/SrcUpdateDialog';
 import { PasteDialog } from './components/PasteDialog';
 import { ImportDialog } from './components/ImportDialog';
 import { DictPasteDialog } from './components/DictPasteDialog';
@@ -237,6 +238,7 @@ export default function App() {
       <TermDialog />
       <SettingsDialog />
       <PasteDialog />
+      <SrcUpdateDialog />
       <ImportDialog />
       <LongCellsNotice />
       <UnreadableNotice />

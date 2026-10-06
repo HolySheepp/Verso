@@ -47,6 +47,7 @@ export function FileNav({ tabW }: { tabW: number }) {
     if (k === 'rename') setRenaming({ i, name: fileDoc.sheets[i].name });
     if (k === 'clear' || k === 'delete') setAsk({ kind: k, i });
     if (k === 'insert') s.set({ pasteOpen: true, pasteInsert: { after: i } });
+    if (k === 'srcupd') { s.setSheet(i); s.set({ srcUpdate: i }); }
   };
   const drag = useRef<{ x: number; moved: boolean; id: number } | null>(null);
   const justDragged = useRef(false);
@@ -224,6 +225,7 @@ export function FileNav({ tabW }: { tabW: number }) {
             { key: 'clear', label: '清除' },
             { key: 'delete', label: '刪除', danger: true, disabled: fileDoc.sheets.length <= 1 },
             { key: 'insert', label: '插入' },
+            { key: 'srcupd', label: '更新原文（實驗性功能）' },
           ]}
           onPick={(k) => onTabMenu(k, tabMenu.i)} onClose={() => setTabMenu(null)} />
       )}

@@ -4,7 +4,7 @@ import type { VerifyData } from './verify';
 // 結構：專案 → 檔案 → 頁簽 → 條目
 
 /** 內建標記 id */
-export type BuiltinMarkId = 'untranslated' | 'translated' | 'verified' | 'doubt' | 'think' | 'ignore';
+export type BuiltinMarkId = 'untranslated' | 'translated' | 'verified' | 'doubt' | 'think' | 'ignore' | 'srcupd';
 
 /** 顯示用的標記 id：內建標記，或 `c:<自訂標記 id>` */
 export type MarkId = BuiltinMarkId | `c:${string}`;
@@ -49,7 +49,14 @@ export interface Entry {
   sugg: string;
   /** 驗證模式的修改（沒有修改時不設） */
   ver?: VerifyData;
+  /**
+   * 原文更新（系統標記，優先顯示）：src 是暫存的新原文；removed 是新版已移除；
+   * applied 是新原文已套用，等按下一條或改譯文才清掉。
+   */
+  upd?: SrcUpdate;
 }
+
+export interface SrcUpdate { src?: string; removed?: boolean; applied?: boolean }
 
 export interface Sheet {
   name: string;
