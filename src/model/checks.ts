@@ -97,8 +97,9 @@ export function runChecks(src: string, tgt: string): Issue[] {
   // 空白與重複標點
   if (/^\s|\s$/.test(tgt)) add('edgeSpace', '', '開頭或結尾有多餘空白');
   if (/ {2,}/.test(tgt)) add('doubleSpace', '', '有連續兩個空格');
-  // 句點、驚嘆號、問號可以重複（刪節號、!!!、??）
-  const rep = Array.from(new Set((tgt.match(/([,;:—\-])\1+/g) ?? [])));
+  // 驚嘆號、問號可以重複（!!!、??）。句點：整句只有句點時看刪節號的規則；
+  // 句子有其他內容時，句點只能是 1 個（句點）或 3 個（刪節號），其他數量都算重複標點
+  const rep = Array.from(new Set([...(tgt.match(/([,;:—\-])\1+/g) ?? []), ...(dots ? [] : badDots(tgt).map((m) => m.text))]));
   if (rep.length) add('repeatPunct', rep.join(''), '重複標點 ' + rep.join(' '));
 
   // 中文引號：譯文引號只能用 " 和 '
@@ -140,6 +141,11 @@ export function enabledIssues(src: string, tgt: string, settings: CheckSettings,
   return out;
 }
 
+/** 句子有句點以外的內容時，數量不是 1 或 3 的連續句點 */
+function badDots(tgt: string): { text: string; index: number }[] {
+  return [...tgt.matchAll(/\.{2,}/g)].filter((m) => m[0].length !== 3).map((m) => ({ text: m[0], index: m.index! }));
+}
+
 /**
  * 問題在譯文裡的位置（給譯文框標色用）。
  * 缺數字、缺標籤、句尾缺標點、成對符號、超框這類沒有具體位置的問題不標。
@@ -150,7 +156,10 @@ export function locateIssues(tgt: string, checks: Set<CheckId>): { start: number
   if (checks.has('fullwidth')) all(/[　-〿＀-￯]/g);
   if (checks.has('doubleSpace')) all(/ {2,}/g);
   if (checks.has('edgeSpace')) all(/^\s+|\s+$/g);
-  if (checks.has('repeatPunct')) all(/([,;:—-])\1+/g);
+  if (checks.has('repeatPunct')) {
+    all(/([,;:—-])\1+/g);
+    if (!/^"?\.+"?$/.test(tgt.trim())) for (const m of badDots(tgt)) out.push({ start: m.index, end: m.index + m.text.length });
+  }
   if (checks.has('curlyQuotes')) all(/[“”‘’]/g);
   if (checks.has('cjk')) all(/[㐀-䶿一-鿿]+/g);
   if (checks.has('ellipsis')) { const m = tgt.match(/\.+/); if (m && /^"?\.+"?$/.test(tgt.trim())) out.push({ start: m.index!, end: m.index! + m[0].length }); }

@@ -49,6 +49,13 @@ describe('標點檢測', () => {
     expect(ids('', 'No!!!')).toEqual([]);
     expect(ids('', 'What?!?')).toEqual([]);
     expect(ids('', 'Wait,, go.')).toEqual(['repeatPunct']);
+    // 句點：有其他內容時只能 1 個或 3 個
+    expect(ids('', 'Hello...')).toEqual([]);
+    expect(ids('', 'Hello..')).toEqual(['repeatPunct']);
+    expect(ids('', 'Hello....')).toEqual(['repeatPunct']);
+    expect(ids('', 'Hello......')).toEqual(['repeatPunct']);
+    expect(ids('', '......')).toEqual([]);
+    expect(ids('', '"......"')).toEqual([]);
     expect(ids('', 'Wait—— go.')).toEqual(['repeatPunct']);
     expect(ids('', 'Well... Go.')).toEqual([]);
   });
