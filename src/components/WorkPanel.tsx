@@ -113,18 +113,16 @@ function WorkPanelInner({ height, maxH }: { height: number; maxH: number }) {
   const [vMenu, setVMenu] = useState<{ x: number; y: number; i: number } | null>(null);
   const dirty = useRef(false);
 
-  // 原文更新：可以切換看新原文（改過的地方畫底線），按「套用新原文」才換掉
+  // 原文更新：平常顯示新原文（改過的地方畫底線），按住按鈕或 Ctrl+D 才看舊原文；按「套用新原文」才真的換掉
   const newSrc = cur.upd?.src;
-  const [srcView, setSrcView] = useState(false);
   const [srcPeek, setSrcPeek] = useState(false);
-  const srcPress = useRef<{ t: number } | null>(null);
-  useEffect(() => { setSrcView(false); setSrcPeek(false); }, [cur.uid]);
-  const showNewSrc = newSrc !== undefined && (srcView || srcPeek);
+  useEffect(() => { setSrcPeek(false); }, [cur.uid]);
+  const showNewSrc = newSrc !== undefined && !srcPeek;
   const srcDiffRanges = useMemo<MarkRange[]>(
     () => (showNewSrc ? srcDiff(cur.src, newSrc!).map((r) => ({ ...r, kind: 'edit' as const })) : []),
     [showNewSrc, cur.src, newSrc],
   );
-  // 在原文框裡按住 Ctrl+D 預覽新原文
+  // 在原文框裡按住 Ctrl+D 看舊原文
   const onSrcKey = (ev: React.KeyboardEvent) => {
     if (newSrc === undefined || !(ev.ctrlKey || ev.metaKey) || ev.code !== 'KeyD') return;
     ev.preventDefault();
@@ -433,11 +431,11 @@ function WorkPanelInner({ height, maxH }: { height: number; maxH: number }) {
               {cur.src !== cur.src0 && <span style={{ fontSize: fz(11), color: 'var(--text2)' }}>已修改，原始版本會保留</span>}
               {cur.upd && (
                 <span style={{ fontSize: fz(11), color: 'var(--accent2)', padding: '1px 7px', borderRadius: 9, background: 'var(--acc-soft)' }}>
-                  {cur.upd.removed ? '新版已移除' : cur.upd.applied ? '已套用新原文' : showNewSrc ? '新原文（改過的地方有底線）' : '原文已更新'}
+                  {cur.upd.removed ? '新版已移除' : cur.upd.applied ? '已套用新原文' : showNewSrc ? '原文已更新' : '舊原文'}
                 </span>
               )}
             </span>
-            <span style={meta}>{cur.id && <span className="mono">#{cur.id}</span>}<span>{cur.speaker}</span><span>{cur.src.length} 字</span></span>
+            <span style={meta}>{cur.id && <span className="mono">#{cur.id}</span>}<span>{cur.speaker}</span><span>{(showNewSrc ? newSrc! : cur.src).length} 字</span></span>
           </div>
           <div style={boxStyle('src')}>
           <textarea id="verso-source" ref={setSrcEl} value={showNewSrc ? newSrc : cur.src} readOnly={!srcEditable || showNewSrc} onFocus={editFocus} onBlur={editBlur}
@@ -454,28 +452,19 @@ function WorkPanelInner({ height, maxH }: { height: number; maxH: number }) {
             <TextMarks target={srcEl} text={showNewSrc ? newSrc! : cur.src} ranges={showNewSrc ? srcDiffRanges : hitRanges} />
             {newSrc !== undefined && (
               <div role="toolbar" aria-label="原文更新" aria-orientation="vertical" style={{ position: 'absolute', right: 6, top: 6, display: 'flex', flexDirection: 'column', gap: 2 }}>
-                <button type="button" className="hb tip" data-tip={showNewSrc ? '返回目前原文' : '查看新原文（按住預覽）'} aria-label="查看新原文" aria-pressed={srcView}
-                  style={{ color: showNewSrc ? 'var(--accent2)' : 'var(--mute)', background: showNewSrc ? 'var(--acc-soft)' : 'transparent' }}
+                <button type="button" className="hb tip" data-tip="按住看舊原文" aria-label="按住看舊原文" aria-pressed={srcPeek}
+                  style={{ color: srcPeek ? 'var(--accent2)' : 'var(--mute)', background: srcPeek ? 'var(--acc-soft)' : 'transparent' }}
                   onPointerDown={(ev) => {
                     try { ev.currentTarget.setPointerCapture(ev.pointerId); } catch { /* 無法捕捉時照常運作 */ }
-                    srcPress.current = { t: Date.now() };
                     setSrcPeek(true);
                   }}
-                  onPointerUp={() => {
-                    if (!srcPress.current) return;
-                    const long = Date.now() - srcPress.current.t >= 300;
-                    srcPress.current = null;
-                    // 短按切換，長按放開就回到目前原文
-                    setSrcPeek(false);
-                    if (!long) setSrcView((v) => !v);
-                  }}
-                  onPointerLeave={() => { if (srcPress.current) { srcPress.current = null; setSrcPeek(false); } }}
-                  onClick={(ev) => { if (ev.detail === 0) setSrcView((v) => !v); }}>
+                  onPointerUp={() => setSrcPeek(false)}
+                  onPointerCancel={() => setSrcPeek(false)}>
                   <IconEye size={14} sw={2.2} />
                 </button>
                 {mode !== 'view' && (
                   <button type="button" className="hb tip" data-tip="套用新原文" aria-label="套用新原文" style={{ color: 'var(--accent2)' }}
-                    onClick={() => { s.applyNewSource(); setSrcView(false); setSrcPeek(false); }}>
+                    onClick={() => { s.applyNewSource(); setSrcPeek(false); }}>
                     <IconUse size={14} sw={2.2} />
                   </button>
                 )}

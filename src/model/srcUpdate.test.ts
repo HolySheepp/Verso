@@ -89,8 +89,12 @@ describe('原文更新：手動調整', () => {
   it('拖動、插入、刪除空格', async () => {
     const { moveCells, insertBlank, deleteBlank } = await import('./srcUpdate');
     const rows = [{ old: 0, new: 0 }, { old: 1, new: 1 }, { old: 2, new: 2 }];
-    // 把新版第 3 列拖到最前面：原位置留空格，其他往下推
+    // 把新版第 3 列拖到最前面：其他往下補，總數不變
     expect(moveCells(rows, 'new', 2, 2, 0)).toEqual([{ old: 0, new: 2 }, { old: 1, new: 0 }, { old: 2, new: 1 }]);
+    // 把後兩列拖到第一列上面
+    expect(moveCells(rows, 'old', 1, 2, 0)).toEqual([{ old: 1, new: 0 }, { old: 2, new: 1 }, { old: 0, new: 2 }]);
+    // 往下拖
+    expect(moveCells(rows, 'old', 0, 0, 3)).toEqual([{ old: 1, new: 0 }, { old: 2, new: 1 }, { old: 0, new: 2 }]);
     expect(insertBlank(rows, 'old', 1)).toEqual([{ old: 0, new: 0 }, { old: null, new: 1 }, { old: 1, new: 2 }, { old: 2, new: null }]);
     expect(deleteBlank(insertBlank(rows, 'old', 1), 'old', 1)).toEqual(rows);
     expect(deleteBlank(rows, 'old', 0)).toBe(rows);

@@ -326,14 +326,15 @@ function rebuild(side: Side, col: (number | null)[], rest: (number | null)[]): A
 }
 
 /**
- * 把一邊第 a～b 列的格子拖到 drop（插在第 drop 列前面）：原本的格子往下推，拖走的地方留空格。
+ * 把一邊第 a～b 列的格子拖到 drop（插在第 drop 列前面）：其他格子補上空出來的位置，總數不變，不會多出空格。
  */
 export function moveCells(rows: AlignRow[], side: Side, a: number, b: number, drop: number): AlignRow[] {
   const col = rows.map((r) => r[side]);
   const rest = rows.map((r) => r[other(side)]);
   const cells = col.slice(a, b + 1);
-  const left = col.map((v, i) => (i >= a && i <= b ? null : v));
-  const moved = [...left.slice(0, drop), ...cells, ...left.slice(drop)];
+  const left = [...col.slice(0, a), ...col.slice(b + 1)];
+  const at = drop > b ? drop - cells.length : drop;
+  const moved = [...left.slice(0, at), ...cells, ...left.slice(at)];
   return rebuild(side, moved, rest);
 }
 

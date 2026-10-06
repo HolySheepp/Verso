@@ -54,10 +54,12 @@ function SrcUpdate({ sheetIdx }: { sheetIdx: number }) {
 
   if (!sheet) return null;
 
-  const toAlign = () => { setHist({ rows: sequentialRows(entries.length, next.length), past: [], future: [] }); setStep('align'); };
-  const analyse = () => {
+  // 下一步：先照順序對應，接著自動比對（在視窗裡按 Ctrl+Z 可以回到照順序對應）
+  const toAlign = () => {
+    setHist({ rows: sequentialRows(entries.length, next.length), past: [], future: [] });
+    setStep('align');
     setBusy(true);
-    // 先讓畫面顯示「解析中」，再開始算
+    // 先讓畫面顯示「比對中」，再開始算
     setTimeout(() => {
       commit(autoAlign(entries.map((e) => ({ id: e.id, src: e.src })), next));
       setBusy(false);
@@ -106,7 +108,7 @@ function SrcUpdate({ sheetIdx }: { sheetIdx: number }) {
           <span role="alert" style={{ fontSize: fz(12.5), color: step === 'paste' && cols.src && !check.ok ? 'var(--errtx)' : 'var(--mute)' }}>
             {step === 'paste'
               ? (cols.src && !check.ok ? check.msg : `新版 ${next.length} 條，目前 ${entries.length} 條`)
-              : `沒變 ${summary.same}、改了 ${summary.changed}、新增 ${summary.added}、移除 ${summary.removed}`}
+              : busy ? '比對中…' : `沒變 ${summary.same}、改了 ${summary.changed}、新增 ${summary.added}、移除 ${summary.removed}`}
           </span>
           <div style={{ display: 'flex', gap: 8 }}>
             {step === 'paste' ? (
@@ -117,7 +119,6 @@ function SrcUpdate({ sheetIdx }: { sheetIdx: number }) {
             ) : (
               <>
                 <button type="button" className="btn btn-ghost" onClick={() => setStep('paste')} style={btn}>上一步</button>
-                <button type="button" className="btn btn-ghost" disabled={busy} onClick={analyse} style={btn}>{busy ? '解析中…' : '解析差異'}</button>
                 <button type="button" className="btn btn-primary" disabled={busy} onClick={() => setConfirm(true)} style={primary}>確定</button>
               </>
             )}
@@ -199,7 +200,8 @@ function AlignGrid({ rows, entries, next, infos, onChange }: {
     if (drop >= sel.a && drop <= sel.b + 1) return;
     const len = sel.b - sel.a + 1;
     onChange(moveCells(rows, sel.side, sel.a, sel.b, drop));
-    setSel({ side: sel.side, anchor: drop, a: drop, b: drop + len - 1 });
+    const at = drop > sel.b ? drop - len : drop;
+    setSel({ side: sel.side, anchor: at, a: at, b: at + len - 1 });
   };
 
   const onMenu = (ev: React.MouseEvent) => {

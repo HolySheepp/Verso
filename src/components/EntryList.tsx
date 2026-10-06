@@ -134,7 +134,8 @@ const EntryRow = memo(function EntryRow({ e, i, m, issues, on, hit, selCols, edi
           {editor(1) ?? <CellText mode={ovfSpk} fontSize="var(--fs-spk)" fit={{ width: fitSpk, font: fontSpk, text: e.speaker }}>{e.speaker}</CellText>}
         </span>
         <span {...cellProps(2)} style={{ display: 'flex', alignItems: 'center', minWidth: 0, padding: '9px 16px 9px 0', lineHeight: 1.45, color: ver ? 'var(--mute2)' : 'var(--text)', fontSize: SRC_FS, fontFamily: 'var(--font-src)' }}>
-          {editor(2) ?? <CellText mode={ovfSrc} fontSize={SRC_FS} fit={{ width: fitSrc, font: fontSrc, text: e.src }}>{e.src}</CellText>}
+          {/* 原文更新：顯示新原文 */}
+          {editor(2) ?? <CellText mode={ovfSrc} fontSize={SRC_FS} fit={{ width: fitSrc, font: fontSrc, text: e.upd?.src ?? e.src }}>{e.upd?.src ?? e.src}</CellText>}
         </span>
         <span {...cellProps(3)} style={{
           fontSize: TGT_FS, fontFamily: 'var(--font-tgt)',
