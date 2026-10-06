@@ -73,3 +73,14 @@ describe('原文更新：差異', () => {
     expect(srcDiff('a b c', 'a c')).toEqual([{ start: 2, end: 2 }]);
   });
 });
+
+describe('原文更新：每列資訊', () => {
+  it('相似度與別處高相似', async () => {
+    const { rowInfos } = await import('./srcUpdate');
+    const infos = rowInfos(['Bring me the sword', 'We sail at dawn'], ['We sail at dawn', 'Bring me the sword'], [{ old: 0, new: 0 }, { old: 1, new: 1 }]);
+    expect(infos[0].arrow).toBe('red');
+    expect(infos[0].elsewhere).toBe(2);
+    expect(infos[1].elsewhere).toBe(1);
+    expect(rowInfos(['a'], [], [{ old: 0, new: null }])[0].sim).toBeNull();
+  });
+});

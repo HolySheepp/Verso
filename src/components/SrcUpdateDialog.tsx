@@ -1,7 +1,7 @@
 import { useMemo, useState } from 'react';
 import { currentOf, useStore } from '../state/store';
 import { checkColumns, emptyColumns, pasteColumns, type ColKey, type Columns } from '../model/paste';
-import { applyUpdate, arrowOf, autoAlign, sequentialRows, summarize, type AlignRow, type NewRow } from '../model/srcUpdate';
+import { applyUpdate, autoAlign, rowInfos, sequentialRows, summarize, type AlignRow, type NewRow } from '../model/srcUpdate';
 import { PasteBox, type BoxSel } from './PasteBox';
 import { ConfirmDialog } from './ConfirmDialog';
 import { IconWinClose } from './icons';
@@ -16,6 +16,11 @@ export function SrcUpdateDialog() {
   const sheet = useStore((s) => s.srcUpdate);
   return sheet === null ? null : <SrcUpdate sheetIdx={sheet} />;
 }
+
+/** 對齊視窗的欄：順序、舊原文、箭頭、新原文、相似度 */
+const GRID = '36px minmax(0, 1fr) 40px minmax(0, 1fr) 96px';
+const RED = '#ff4d4f';
+const YELLOW = '#e8b93a';
 
 const btn: React.CSSProperties = { height: 36, padding: '0 16px', background: 'var(--btn)', border: '1px solid var(--line4)', borderRadius: 8, fontSize: fz(13) };
 const primary: React.CSSProperties = { height: 36, padding: '0 18px', background: 'var(--primary)', border: 0, borderRadius: 8, color: '#ffffff', fontSize: fz(13), fontWeight: 600 };
@@ -34,7 +39,7 @@ function SrcUpdate({ sheetIdx }: { sheetIdx: number }) {
   const check = checkColumns(cols);
   const next: NewRow[] = useMemo(() => (cols.src?.rows ?? []).map((src, i) => ({ id: cols.id?.rows[i] ?? '', speaker: cols.speaker?.rows[i] ?? '', src })), [cols]);
   const entries = sheet?.entries ?? [];
-  const arrows = useMemo(() => rows.map((r) => arrowOf(r.old === null ? null : entries[r.old].src, r.new === null ? null : next[r.new].src)), [rows, entries, next]);
+  const infos = useMemo(() => rowInfos(entries.map((e) => e.src), next.map((n) => n.src), rows), [rows, entries, next]);
   const summary = useMemo(() => summarize(entries, next, rows), [entries, next, rows]);
 
   if (!sheet) return null;
@@ -84,24 +89,30 @@ function SrcUpdate({ sheetIdx }: { sheetIdx: number }) {
           </div>
         ) : (
           <div style={{ flexGrow: 1, minHeight: 0, display: 'flex', flexDirection: 'column', padding: '12px 20px 0' }}>
-            <div style={{ display: 'grid', gridTemplateColumns: 'minmax(0, 1fr) 36px minmax(0, 1fr)', gap: 8, padding: '0 4px 8px', fontSize: fz(12), color: 'var(--text2)' }}>
-              <span>目前的原文</span><span /><span>新版原文</span>
+            <div style={{ display: 'grid', gridTemplateColumns: GRID, gap: 8, padding: '0 4px 8px', fontSize: fz(12), color: 'var(--text2)' }}>
+              <span /><span>目前的原文</span><span /><span>新版原文</span><span>相似度</span>
             </div>
-            <div style={{ flexGrow: 1, minHeight: 0, overflowY: 'auto', display: 'grid', gridTemplateColumns: 'minmax(0, 1fr) 36px minmax(0, 1fr)', gap: '6px 8px', alignContent: 'start', padding: '0 4px 12px' }}>
+            <div style={{ flexGrow: 1, minHeight: 0, overflowY: 'auto', display: 'grid', gridTemplateColumns: GRID, gap: '6px 8px', alignContent: 'start', padding: '0 4px 12px' }}>
               {rows.map((r, k) => {
-                const a = arrows[k];
+                const info = infos[k];
+                const a = info.arrow;
                 const o = r.old === null ? null : entries[r.old];
                 const n = r.new === null ? null : next[r.new];
                 return [
+                  <div key={k + 'k'} className="mono" style={{ paddingTop: 7, textAlign: 'right', fontSize: fz(11.5), color: 'var(--mute)' }}>{k + 1}</div>,
                   <div key={k + 'o'}>{cell(o ? o.src : null, o?.id ?? '')}</div>,
                   <div key={k + 'a'} style={{ display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
                     {a !== 'same' && (
-                      <svg width="22" height="14" viewBox="0 0 22 14" aria-label={a === 'yellow' ? '有改' : '差很多或對面是空格'}>
-                        <path d="M2 7h16M13 2l5 5-5 5" fill="none" stroke={a === 'yellow' ? '#e8b93a' : 'var(--errtx)'} strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
+                      <svg width="26" height="16" viewBox="0 0 26 16" aria-label={a === 'yellow' ? '有改' : '差很多或對面是空格'}>
+                        <path d="M2 8h20M16 2.5l6 5.5-6 5.5" fill="none" stroke={a === 'yellow' ? YELLOW : RED} strokeWidth={a === 'yellow' ? 2.2 : 2.8} strokeLinecap="round" strokeLinejoin="round" />
                       </svg>
                     )}
                   </div>,
                   <div key={k + 'n'}>{cell(n ? n.src : null, n?.id ?? '')}</div>,
+                  <div key={k + 'p'} style={{ paddingTop: 6, fontSize: fz(12), lineHeight: 1.4, color: a === 'same' ? 'var(--mute)' : a === 'yellow' ? YELLOW : RED }}>
+                    {info.sim === null ? '—' : Math.round(info.sim * 100) + '%'}
+                    {info.elsewhere !== null && <div style={{ color: 'var(--accent2)' }}>高相似：第 {info.elsewhere} 條</div>}
+                  </div>,
                 ];
               })}
             </div>

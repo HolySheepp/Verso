@@ -275,3 +275,39 @@ export function srcDiff(oldS: string, newS: string): { start: number; end: numbe
   // 只是空白的改動不畫
   return out.filter((r) => r.start === r.end || newS.slice(r.start, r.end).trim() !== '');
 }
+
+// ---- 對齊視窗每一列的資訊 ----
+
+/** 跟別處的句子這麼像，就提示可能是順序換了 */
+const ELSEWHERE = 0.8;
+
+export interface RowInfo {
+  arrow: Arrow;
+  /** 兩邊的相似度 0～1；有一邊是空格時是 null */
+  sim: number | null;
+  /** 跟這列不像，但在別列有高相似的句子：那一列是第幾列（從 1 開始） */
+  elsewhere: number | null;
+}
+
+export function rowInfos(oldSrc: string[], newSrc: string[], rows: AlignRow[]): RowInfo[] {
+  const ko = oldSrc.map(matchKey), kn = newSrc.map(matchKey);
+  const rowOfOld = new Map<number, number>(), rowOfNew = new Map<number, number>();
+  rows.forEach((r, k) => { if (r.old !== null) rowOfOld.set(r.old, k); if (r.new !== null) rowOfNew.set(r.new, k); });
+  return rows.map((r, k) => {
+    const o = r.old === null ? null : oldSrc[r.old];
+    const n = r.new === null ? null : newSrc[r.new];
+    const arrow = arrowOf(o, n);
+    const sim = r.old !== null && r.new !== null ? ratio(ko[r.old], kn[r.new]) : null;
+    let elsewhere: number | null = null;
+    if (arrow === 'red') {
+      // 拿這列有的那一邊，去另一邊的其他列找最像的
+      let best = ELSEWHERE;
+      if (r.old !== null) {
+        kn.forEach((key, j) => { const rk = rowOfNew.get(j); if (rk === undefined || rk === k) return; const v = ratio(ko[r.old!], key); if (v >= best) { best = v; elsewhere = rk + 1; } });
+      } else if (r.new !== null) {
+        ko.forEach((key, i) => { const rk = rowOfOld.get(i); if (rk === undefined || rk === k) return; const v = ratio(key, kn[r.new!]); if (v >= best) { best = v; elsewhere = rk + 1; } });
+      }
+    }
+    return { arrow, sim, elsewhere };
+  });
+}
