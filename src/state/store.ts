@@ -963,9 +963,8 @@ export const useStore = create<Store>((set, get) => {
     stepPending(delta) {
       const s = get();
       const { sel, sheetIdx } = cur();
-      const pending = pendingRows(s);
-      const target = delta > 0 ? pending.find((i) => i > sel) : [...pending].reverse().find((i) => i < sel);
-      if (target !== undefined) { s.select(s.file, sheetIdx, target); set({ moveSeq: get().moveSeq + 1, moveDir: delta }); }
+      const target = pendingTarget(s, sel, delta);
+      if (target !== undefined && target !== sel) { s.select(s.file, sheetIdx, target); set({ moveSeq: get().moveSeq + 1, moveDir: delta }); }
     },
 
     navCell(dir, extend, jump) {
@@ -983,9 +982,8 @@ export const useStore = create<Store>((set, get) => {
       } else {
         const d = dir === 'up' ? -1 : 1;
         if (jump) {
-          const pending = pendingRows(s);
-          const t = d > 0 ? pending.find((x) => x > i) : [...pending].reverse().find((x) => x < i);
-          if (t === undefined) return;
+          const t = pendingTarget(s, i, d);
+          if (t === undefined || t === i) return;
           i = t;
         } else {
           const p = pos < 0 ? (d > 0 ? visible.findIndex((x) => x > i) : visible.length - 1) : pos + d;
@@ -1028,6 +1026,15 @@ function pendingRows(s: State): number[] {
     const m = effectiveMark(e);
     return m === 'untranslated' || m === 'doubt' || visibleIssues(e, s.reported, s.checkSettings, fileDoc.lengthStd).length > 0;
   });
+}
+
+/** 從 from 往上／下找下一個待處理條目；沒有的話就到最上／最下面那條 */
+function pendingTarget(s: State, from: number, delta: number): number | undefined {
+  const pending = pendingRows(s);
+  const t = delta > 0 ? pending.find((i) => i > from) : [...pending].reverse().find((i) => i < from);
+  if (t !== undefined) return t;
+  const visible = visibleRows(s);
+  return delta > 0 ? visible[visible.length - 1] : visible[0];
 }
 
 /** 目前篩選下，條目列表裡看得到的條目 */
