@@ -168,9 +168,12 @@ function WorkPanelInner({ height, maxH }: { height: number; maxH: number }) {
   }, []);
   // 內容少時多出來的空間給哪個框：驗證模式給修改框，原文修正模式給原文框，其他給譯文框
   const growKey: keyof typeof boxH = mode === 'verify' ? 'mod' : mode === 'source' ? 'src' : 'tgt';
-  const boxStyle = (k: keyof typeof boxH): React.CSSProperties => ({
-    position: 'relative', display: 'flex', flex: `${growKey === k ? 1 : 0} 1 ${boxH[k]}px`, minHeight: Math.min(boxH[k], 42),
-  });
+  // 原文框右邊有原文更新的兩個按鈕時，框至少要放得下它們
+  const srcToolH = cur.upd?.src !== undefined ? (mode === 'view' ? 40 : 66) : 0;
+  const boxStyle = (k: keyof typeof boxH): React.CSSProperties => {
+    const h = k === 'src' ? Math.max(boxH.src, srcToolH) : boxH[k];
+    return { position: 'relative', display: 'flex', flex: `${growKey === k ? 1 : 0} 1 ${h}px`, minHeight: Math.min(h, k === 'src' && srcToolH ? srcToolH : 42) };
+  };
   // 修改框出現時加在上面，工作欄跟著變高；離開有修改的條目就回到使用者拉的高度。
   // 翻譯模式在有修改的條目上拉的高度只是暫時的。
   const modBlock = showEdits ? 36 + boxH.mod : 0;

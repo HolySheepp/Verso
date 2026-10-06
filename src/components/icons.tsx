@@ -60,5 +60,7 @@ export const IconWinClose = win(<path d="M1.5 1.5l9 9M10.5 1.5l-9 9" />);
 export const IconSheet = make(<><rect x="3" y="4" width="18" height="16" rx="2" /><path d="M3 10h18M9 10v10" /></>);
 export const IconPaste = make(<><rect x="8" y="3" width="8" height="4" rx="1" /><path d="M16 5h2a2 2 0 0 1 2 2v12a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2V7a2 2 0 0 1 2-2h2" /></>);
 export const IconWarn = make(<><path d="M12 3.5L2.5 20h19z" /><path d="M12 10v4.5" /><circle cx="12" cy="17.3" r="0.4" fill="currentColor" /></>);
+/** 套用全部新原文：原文更新的循環箭頭中間加一個勾 */
+export const IconSrcApplyAll = make(<><path d="M19 8.5A7.5 7.5 0 0 0 5.6 7.2" /><path d="M5 4.5v3.2h3.2" /><path d="M5 15.5a7.5 7.5 0 0 0 13.4 1.3" /><path d="M19 19.5v-3.2h-3.2" /><path d="M9 12.2l2 2 4-4" /></>);
 export const IconScan = make(<><path d="M9 6h11M9 12h11M9 18h11" /><path d="M3.5 6l1.2 1.2L7 4.8M3.5 12l1.2 1.2L7 10.8M3.5 18l1.2 1.2L7 16.8" /></>);
 export const IconCopyPair = make(<><rect x="9" y="9" width="12" height="12" rx="2" /><path d="M5 15H4a1 1 0 0 1-1-1V4a1 1 0 0 1 1-1h10a1 1 0 0 1 1 1v1" /><path d="M12 13.5h6M12 16.5h6" /></>);

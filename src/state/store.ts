@@ -190,7 +190,10 @@ interface Actions {
   next(): void;
   prev(): void;
   updateEntry(patch: Partial<Entry>): void;
-  setEntryMark(index: number, id: MarkId): void;
+  /** keepUpd：按「下一條」這類自動留下的標記，不影響「原文更新」標記 */
+  setEntryMark(index: number, id: MarkId, keepUpd?: boolean): void;
+  /** 套用目前頁簽所有暫存的新原文（條目欄復原時算一步） */
+  applyAllNewSources(): void;
   /** 一次改好幾條的標記（復原時算一步） */
   setEntryMarks(indices: number[], id: MarkId): void;
   /** 開始在工作欄輸入框編輯：這段編輯結束時算條目欄復原的一步 */
@@ -266,11 +269,23 @@ interface Actions {
 export type Store = State & Actions;
 
 /** 設標記；手動選「已翻譯」時，剛貼入待確認的條目也一起確認 */
-const withMark = (e: Entry, id: MarkId): Entry => ({
+const withMark = (e: Entry, id: MarkId, keepUpd = false): Entry => ({
   ...e, mark: toStoredMark(id), keptMark: undefined, ...(id === 'translated' ? { pending: false } : {}),
   // 手動改了標記，之後修改清空時就不自動改回去
   ...(e.ver?.prev !== undefined ? { ver: { base: e.ver.base, edits: e.ver.edits } } : {}),
+  // 手動選了標記：「原文更新」標記不再顯示，新原文留著（套用過的就直接清掉）
+  ...(e.upd && !keepUpd && id !== 'srcupd' ? (e.upd.applied ? { upd: undefined } : { upd: { ...e.upd, hidden: true } }) : {}),
 });
+
+/**
+ * 套用暫存的新原文：原文換成新的，舊原文清掉。
+ * 標記還在的，等按下一條或改譯文才清掉；使用者已經改過標記的，直接清掉。
+ */
+function withNewSource(e: Entry): Entry {
+  const src = e.upd!.src!;
+  if (e.upd!.hidden) { const { upd: _u, ...rest } = e; void _u; return { ...rest, src, src0: src }; }
+  return { ...e, src, src0: src, upd: { applied: true } };
+}
 
 const noPopups = { fileMenuOpen: false, rowMenu: null, stampOpen: false } as const;
 const noView = { viewOn: false, peek: false } as const;
@@ -620,10 +635,18 @@ export const useStore = create<Store>((set, get) => {
       });
     },
 
-    setEntryMark(index, id) {
+    setEntryMark(index, id, keepUpd) {
       // 改標記也算一步
       pushUndo();
-      patchEntry(index, (e) => withMark(e, id));
+      patchEntry(index, (e) => withMark(e, id, keepUpd));
+    },
+
+    applyAllNewSources() {
+      const s = get();
+      const { sheet, sheetIdx } = cur();
+      if (!s.project || !sheet.entries.some((e) => e.upd?.src !== undefined)) return;
+      pushUndo();
+      replaceSheet(s.file, sheetIdx, sheet.entries.map((e) => (e.upd?.src === undefined ? e : withNewSource(e))));
     },
 
     setEntryMarks(indices, id) {
@@ -695,10 +718,10 @@ export const useStore = create<Store>((set, get) => {
     },
 
     applyNewSource() {
-      const { entry } = cur();
-      const src = entry?.upd?.src;
-      if (src === undefined) return;
-      get().updateEntry({ src, src0: src, upd: { applied: true } });
+      const { entry, sel } = cur();
+      if (entry?.upd?.src === undefined) return;
+      pushUndo();
+      patchEntry(sel, withNewSource);
     },
 
     applySuggestion() {
@@ -965,8 +988,8 @@ export const useStore = create<Store>((set, get) => {
       if (s.mode === 'verify') {
         const e = cur().entry;
         // 有修改或建議翻譯：疑慮並下一條（已經是疑慮就不動，修改清空時才能自動取消）
-        if (e && (editsOf(e).length || e.sugg.trim())) { if (e.mark !== 'doubt') s.setEntryMark(cur().sel, 'doubt'); }
-        else s.setEntryMark(cur().sel, 'verified');
+        if (e && (editsOf(e).length || e.sugg.trim())) { if (e.mark !== 'doubt') s.setEntryMark(cur().sel, 'doubt', true); }
+        else s.setEntryMark(cur().sel, 'verified', true);
       }
       get().next();
     },
@@ -974,7 +997,7 @@ export const useStore = create<Store>((set, get) => {
     stampNext() {
       const s = get();
       if (s.mode === 'view') return;
-      s.setEntryMark(cur().sel, currentStamp(s));
+      s.setEntryMark(cur().sel, currentStamp(s), true);
       get().next();
     },
 

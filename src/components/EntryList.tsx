@@ -11,7 +11,7 @@ import { focusOnMount } from './windowDrag';
 import { MarkIcon } from './MarkIcon';
 import { rowMenuPos } from './rowMenu';
 import { CopyConfirm } from './CopyConfirm';
-import { IconCheck, IconCopy, IconNote, IconRuler, IconScan, IconWarn } from './icons';
+import { IconCheck, IconCopy, IconNote, IconRuler, IconScan, IconSrcApplyAll, IconWarn } from './icons';
 import { stdLabel } from '../model/length';
 import { cellFontCss, fz, overflowOf, type Overflow } from '../model/fonts';
 import type { CustomMark, Entry, MarkId } from '../model/types';
@@ -161,7 +161,7 @@ const EntryRow = memo(function EntryRow({ e, i, m, issues, on, hit, selCols, edi
 
 export function EntryList() {
   // 只訂閱這個區塊用到的資料（包含 currentOf 等輔助函式間接用到的）
-  const s = useStorePick('project', 'file', 'sheetBy', 'selBy', 'searchQuery', 'side', 'hideSide', 'mode', 'fonts', 'colWidths', 'cellSel', 'filter', 'reported', 'checkSettings', 'moveDir', 'moveSeq', 'set', 'select', 'selectCells', 'editSheet', 'undoSheet', 'redoSheet', 'checkAll');
+  const s = useStorePick('project', 'file', 'sheetBy', 'selBy', 'searchQuery', 'side', 'hideSide', 'mode', 'fonts', 'colWidths', 'cellSel', 'filter', 'reported', 'checkSettings', 'moveDir', 'moveSeq', 'set', 'select', 'selectCells', 'editSheet', 'undoSheet', 'redoSheet', 'checkAll', 'applyAllNewSources');
   const project = s.project!;
   const { sheet, sheetIdx, sel } = currentOf(s);
   const filter = s.filter;
@@ -537,6 +537,12 @@ export function EntryList() {
           style={{ width: 34, height: 34, display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 0, background: 'var(--btn)', border: '1px solid var(--line3)', borderRadius: 8, color: 'var(--text2)' }}>
           <IconRuler size={16} />
         </button>
+        {sheet.entries.some((e) => e.upd?.src !== undefined) && (
+          <button type="button" className="ib" aria-label="套用全部新原文" title="套用全部新原文" onClick={() => s.applyAllNewSources()}
+            style={{ width: 34, height: 34, display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 0, background: 'var(--btn)', border: '1px solid var(--line3)', borderRadius: 8, color: 'var(--accent2)' }}>
+            <IconSrcApplyAll size={16} />
+          </button>
+        )}
         <button type="button" className="ib" aria-label="全部檢查" title="全部檢查" onClick={() => s.checkAll()}
           style={{ width: 34, height: 34, display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 0, background: 'var(--btn)', border: '1px solid var(--line3)', borderRadius: 8, color: 'var(--text2)' }}>
           <IconScan size={15} />

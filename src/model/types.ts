@@ -56,7 +56,8 @@ export interface Entry {
   upd?: SrcUpdate;
 }
 
-export interface SrcUpdate { src?: string; removed?: boolean; applied?: boolean }
+/** hidden：使用者改了標記，「原文更新」標記不再顯示（新原文還在，仍可查看、套用） */
+export interface SrcUpdate { src?: string; removed?: boolean; applied?: boolean; hidden?: boolean }
 
 export interface Sheet {
   name: string;

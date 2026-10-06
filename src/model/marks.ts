@@ -44,7 +44,7 @@ export function isTranslated(e: MarkFields): boolean {
 /** 條目實際顯示的標記：刻意標記優先，否則看是否已翻譯 */
 export function effectiveMark(e: MarkFields): MarkId {
   // 原文更新優先顯示，清掉後原本的標記才出現
-  if (e.upd) return 'srcupd';
+  if (e.upd && !e.upd.hidden) return 'srcupd';
   return e.mark || (isTranslated(e) ? 'translated' : 'untranslated');
 }
 

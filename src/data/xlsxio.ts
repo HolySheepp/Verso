@@ -91,8 +91,9 @@ function readUpd(text: string): SrcUpdate | undefined {
   if (!text) return undefined;
   try {
     const o = JSON.parse(text) as SrcUpdate;
-    if (typeof o.src === 'string') return { src: o.src };
-    if (o.removed) return { removed: true };
+    const hidden = o.hidden ? { hidden: true } : {};
+    if (typeof o.src === 'string') return { src: o.src, ...hidden };
+    if (o.removed) return { removed: true, ...hidden };
     if (o.applied) return { applied: true };
   } catch { /* 看不懂就當沒有 */ }
   return undefined;
