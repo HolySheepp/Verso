@@ -147,7 +147,10 @@ export function Shortcuts() {
       const inWork = isWorkInput(el, s.mode);
       // 在備註、搜尋框之類的地方，只有存檔快捷鍵有效
       if (!inWork && isOtherInput(el)) {
-        if (actionFor(s.shortcuts, 'list', combo) !== 'save') return false;
+        // 存檔和套用新原文在哪裡都能按
+        const a = actionFor(s.shortcuts, 'list', combo);
+        if (a === 'applySrc') { s.applyNewSource(); return true; }
+        if (a !== 'save') return false;
         void manualSave();
         return true;
       }
@@ -227,6 +230,7 @@ export function Shortcuts() {
         case 'nextSheet': s.setSheet(currentOf(s).sheetIdx + 1); break;
         case 'close': s.closePopups(); break;
         case 'save': void manualSave(); break;
+        case 'applySrc': s.applyNewSource(); break;
         case 'peek': {
           const h = entry && s.history.byEntry[entry.uid];
           if (h?.texts.length) s.set({ peek: true });

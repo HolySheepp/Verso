@@ -328,8 +328,9 @@ function WorkPanelInner({ height, maxH }: { height: number; maxH: number }) {
 
   // 問題的位置：只標畫面上正在顯示的問題
   const issueRanges = useMemo<MarkRange[]>(
-    () => (issues.length ? locateIssues(cur.tgt, new Set(issues.map((x) => x.check))).map((r) => ({ ...r, kind: 'issue' as const })) : []),
-    [issues, cur.tgt],
+    // 有修改框時檢查的是修改框的內容，問題也標在修改框
+    () => (issues.length ? locateIssues(showEdits ? modText : cur.tgt, new Set(issues.map((x) => x.check))).map((r) => ({ ...r, kind: 'issue' as const })) : []),
+    [issues, cur.tgt, modText, showEdits],
   );
 
   /**
@@ -512,7 +513,7 @@ function WorkPanelInner({ height, maxH }: { height: number; maxH: number }) {
                 borderRadius: 8, color: tgtEditable ? 'var(--texthi)' : 'var(--textsoft)', fontSize: 'var(--fs-tgt)', fontFamily: 'var(--font-tgt)', lineHeight: 1.6,
               }} />
             {/* QA 問題的位置標色 */}
-            {!showHist && <TextMarks target={tgtEl} text={cur.tgt} ranges={showEdits ? [...tgtEditRanges, ...issueRanges] : issueRanges} />}
+            {!showHist && <TextMarks target={tgtEl} text={cur.tgt} ranges={showEdits ? tgtEditRanges : issueRanges} />}
             {s.finishLine && !showHist && <FinishLine target={tgtEl} text={cur.tgt} std={effectiveStd(cur.lengthStd, currentOf(s).fileDoc.lengthStd)} />}
 
             <div role="toolbar" aria-label="譯文記錄" aria-orientation="vertical" style={{ position: 'absolute', right: 6, top: 6, display: 'flex', flexDirection: 'column', gap: 2 }}>
@@ -590,7 +591,7 @@ function WorkPanelInner({ height, maxH }: { height: number; maxH: number }) {
                     color: verify ? 'var(--texthi)' : 'var(--textsoft)',
                     fontSize: 'var(--fs-tgt)', fontFamily: 'var(--font-tgt)', lineHeight: 1.6,
                   }} />
-                <TextMarks target={modEl} text={modText} ranges={modRanges} />
+                <TextMarks target={modEl} text={modText} ranges={[...modRanges, ...issueRanges]} />
                 {s.finishLine && <FinishLine target={modEl} text={modText} std={effectiveStd(cur.lengthStd, currentOf(s).fileDoc.lengthStd)} />}
               </div>
               {vMenu && spans[vMenu.i] && (

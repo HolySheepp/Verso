@@ -10,7 +10,7 @@ import { defaultCheckSettings, enabledIssues, type CheckId, type CheckSettings, 
 import { SHARED, dictKey, newFileId, type CustomMark, type DictInfo, type Entry, type FileDoc, type GlossaryTerm, type MarkId, type Mode, type ProjectData, type Sheet } from '../model/types';
 import { sortProjects, type RootConflict } from '../data/persist';
 import { DICT_DIR, safeName, sameName, sheetNameError } from '../model/names';
-import { editsOf, type VEdit } from '../model/verify';
+import { compose, editsOf, type VEdit } from '../model/verify';
 
 export type Filter = 'all' | 'untranslated' | 'doubt' | 'think' | 'issues' | 'srcupd';
 export type SideTab = 'dict' | 'search' | 'web' | 'ref';
@@ -51,6 +51,12 @@ const selKey = (f: number, sh: number) => f + ':' + sh;
 /** 需要檢查的條目：有譯文、沒標忽略、沒按略過 */
 const checkable = (e: Entry) => !!e.tgt && e.mark !== 'ignore' && !e.skipCheck;
 
+/** 檢查用的譯文：有驗證修改時檢查修改框的內容 */
+export function checkText(e: Entry): string {
+  const ed = editsOf(e);
+  return ed.length ? compose(e.tgt, ed) : e.tgt;
+}
+
 /**
  * 要顯示的問題：只顯示檢查當下報過、而且現在還存在的問題。
  * 所以改對了警示馬上消失，但打字途中新出現的問題要等離開這條時才報。
@@ -64,7 +70,7 @@ export function visibleIssues(e: Entry, reported: Record<string, string[]>, sett
   if (!keys || !checkable(e)) return NO_ISSUES;
   const hit = issueCache.get(e);
   if (hit && hit.keys === keys && hit.settings === settings && hit.fileStd === fileStd) return hit.out;
-  const found = enabledIssues(e.src, e.tgt, settings, effectiveStd(e.lengthStd, fileStd)).filter((i) => keys.includes(i.key));
+  const found = enabledIssues(e.src, checkText(e), settings, effectiveStd(e.lengthStd, fileStd)).filter((i) => keys.includes(i.key));
   // 沒有問題時回傳同一個空陣列，條目欄的行元件才不會因為「新的空陣列」重畫
   const out = found.length ? found : NO_ISSUES;
   issueCache.set(e, { keys, settings, fileStd, out });
@@ -192,8 +198,8 @@ interface Actions {
   updateEntry(patch: Partial<Entry>): void;
   /** keepUpd：按「下一條」這類自動留下的標記，不影響「原文更新」標記 */
   setEntryMark(index: number, id: MarkId, keepUpd?: boolean): void;
-  /** 套用目前頁簽所有暫存的新原文（條目欄復原時算一步） */
-  applyAllNewSources(): void;
+  /** 套用目前頁簽暫存的新原文：沒給 indices 時套用全部（條目欄復原時算一步） */
+  applyAllNewSources(indices?: number[]): void;
   /** 一次改好幾條的標記（復原時算一步） */
   setEntryMarks(indices: number[], id: MarkId): void;
   /** 開始在工作欄輸入框編輯：這段編輯結束時算條目欄復原的一步 */
@@ -426,7 +432,7 @@ export const useStore = create<Store>((set, get) => {
     const s = get();
     const reported = { ...s.reported };
     entries.forEach((e) => {
-      const issues = checkable(e) ? enabledIssues(e.src, e.tgt, s.checkSettings, effectiveStd(e.lengthStd, fileStd)) : [];
+      const issues = checkable(e) ? enabledIssues(e.src, checkText(e), s.checkSettings, effectiveStd(e.lengthStd, fileStd)) : [];
       if (issues.length) reported[e.uid] = issues.map((i) => i.key);
       else delete reported[e.uid];
     });
@@ -606,7 +612,10 @@ export const useStore = create<Store>((set, get) => {
       const { sheet, sheetIdx, sel, entry } = cur();
       // 翻譯、驗證模式下按下一條，代表確認了這條
       if (entry?.pending && (s.mode === 'translate' || s.mode === 'verify')) patchEntry(sel, (e) => ({ ...e, pending: false }));
-      if (entry?.upd?.applied && (s.mode === 'translate' || s.mode === 'verify')) patchEntry(sel, (e) => { const { upd: _u, ...rest } = e; void _u; return rest; });
+      // 按下一條：「原文更新」標記清掉（還沒套用的新原文留著，不會幫忙套用）
+      if (entry?.upd && !entry.upd.hidden && (s.mode === 'translate' || s.mode === 'verify')) {
+        patchEntry(sel, (e) => { if (e.upd?.applied) { const { upd: _u, ...rest } = e; void _u; return rest; } return { ...e, upd: { ...e.upd!, hidden: true } }; });
+      }
       if (sel < sheet.entries.length - 1) { get().select(s.file, sheetIdx, sel + 1); set({ moveSeq: get().moveSeq + 1, moveDir: 1 }); }
       else { leaveCurrent(); set({ stampOpen: false }); }
     },
@@ -641,12 +650,14 @@ export const useStore = create<Store>((set, get) => {
       patchEntry(index, (e) => withMark(e, id, keepUpd));
     },
 
-    applyAllNewSources() {
+    applyAllNewSources(indices) {
       const s = get();
       const { sheet, sheetIdx } = cur();
-      if (!s.project || !sheet.entries.some((e) => e.upd?.src !== undefined)) return;
+      const pick = indices ? new Set(indices) : null;
+      const hit = (e: Entry, i: number) => e.upd?.src !== undefined && (!pick || pick.has(i));
+      if (!s.project || s.mode === 'view' || !sheet.entries.some(hit)) return;
       pushUndo();
-      replaceSheet(s.file, sheetIdx, sheet.entries.map((e) => (e.upd?.src === undefined ? e : withNewSource(e))));
+      replaceSheet(s.file, sheetIdx, sheet.entries.map((e, i) => (hit(e, i) ? withNewSource(e) : e)));
     },
 
     setEntryMarks(indices, id) {
@@ -719,7 +730,8 @@ export const useStore = create<Store>((set, get) => {
 
     applyNewSource() {
       const { entry, sel } = cur();
-      if (entry?.upd?.src === undefined) return;
+      // 檢視模式不能改
+      if (entry?.upd?.src === undefined || get().mode === 'view') return;
       pushUndo();
       patchEntry(sel, withNewSource);
     },

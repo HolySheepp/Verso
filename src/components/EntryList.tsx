@@ -439,6 +439,7 @@ export function EntryList() {
     setMenu(null);
     sink.current?.focus({ preventScroll: true });
     if (readOnly) return;
+    if (k === 'applySrc') { s.applyAllNewSources(selRows); return; }
     const first = parseKey([...keys].sort(order)[0]);
     // 標記選單出現在滑鼠位置（相對於整個畫面），太靠下時往上移
     const menuAt = (x: number, y: number) => {
@@ -632,6 +633,7 @@ export function EntryList() {
             { key: 'clear', label: '清除整欄', disabled: readOnly },
           ] : menu.kind === 'row' ? [
             { key: 'mark', label: '標記', disabled: readOnly },
+            ...(selRows.some((i) => sheet.entries[i]?.upd?.src !== undefined) ? [{ key: 'applySrc', label: '套用新原文', disabled: readOnly }] : []),
             { key: 'clear', label: '清除', disabled: readOnly },
             { key: 'delete', label: `刪除 ${selRows.length} 列`, danger: true, disabled: readOnly },
             { key: 'insert', label: '在下方插入', disabled: readOnly, stepper: { value: insertCount, min: 1, max: 100, onChange: setInsertCount } },
@@ -641,6 +643,7 @@ export function EntryList() {
             { key: 'edit', label: '編輯', disabled: readOnly || !canEdit(parseKey([...keys].sort(order)[0]).c) },
             { key: 'clear', label: '清除', disabled: readOnly },
             { key: 'mark', label: '標記', disabled: readOnly },
+            ...(selRows.some((i) => sheet.entries[i]?.upd?.src !== undefined) ? [{ key: 'applySrc', label: '套用新原文', disabled: readOnly }] : []),
             { key: 'up', label: '上移', disabled: readOnly },
             { key: 'down', label: '下移', disabled: readOnly },
           ]}
