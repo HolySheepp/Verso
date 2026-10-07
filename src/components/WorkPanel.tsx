@@ -160,7 +160,8 @@ function WorkPanelInner({ height, maxH }: { height: number; maxH: number }) {
   // 內容少時多出來的空間給哪個框：驗證模式給修改框，原文修正模式給原文框，其他給譯文框
   const growKey: keyof typeof boxH = mode === 'verify' ? 'mod' : mode === 'source' ? 'src' : 'tgt';
   // 原文框右邊有原文更新的兩個按鈕時，框至少要放得下它們
-  const srcToolH = cur.upd?.src !== undefined ? (mode === 'view' ? 40 : 66) : 0;
+  const srcButtons = (cur.upd?.src !== undefined ? 1 : 0) + (cur.upd?.removed || cur.upd?.src !== undefined ? (mode === 'view' ? 0 : 1) : 0);
+  const srcToolH = srcButtons ? 14 + srcButtons * 26 : 0;
   const boxStyle = (k: keyof typeof boxH): React.CSSProperties => {
     const h = k === 'src' ? Math.max(boxH.src, srcToolH) : boxH[k];
     return { position: 'relative', display: 'flex', flex: `${growKey === k ? 1 : 0} 1 ${h}px`, minHeight: Math.min(h, k === 'src' && srcToolH ? srcToolH : 42) };
@@ -508,7 +509,7 @@ function WorkPanelInner({ height, maxH }: { height: number; maxH: number }) {
             onMouseMove={onSrcMove} onMouseLeave={() => { cancelAnimationFrame(moveFrame.current); moveFrame.current = 0; setHover(null); }} onMouseDown={onSrcDown}
             onChange={(ev) => srcEditable && s.updateEntry({ src: ev.target.value })}
             style={{
-              flexGrow: 1, minHeight: 0, resize: 'none', boxSizing: 'border-box', padding: newSrc !== undefined ? '10px 44px 10px 12px' : '10px 12px',
+              flexGrow: 1, minHeight: 0, resize: 'none', boxSizing: 'border-box', padding: srcButtons > 0 ? '10px 44px 10px 12px' : '10px 12px',
               cursor: hover && canInsert ? 'pointer' : undefined,
               background: srcEditable ? 'var(--bg0)' : 'var(--bgdeep)',
               border: `1px ${showNewSrc ? 'dashed' : 'solid'} ${showNewSrc ? 'var(--accent)' : srcEditable ? 'rgba(240,165,74,0.55)' : 'var(--line)'}`,
@@ -516,9 +517,9 @@ function WorkPanelInner({ height, maxH }: { height: number; maxH: number }) {
             }} />
             {/* 命中字典的詞標色 */}
             <TextMarks target={srcEl} text={showNewSrc ? newSrc! : cur.src} ranges={showNewSrc ? srcDiffRanges : hitRanges} />
-            {newSrc !== undefined && (
+            {srcButtons > 0 && (
               <div role="toolbar" aria-label="原文更新" aria-orientation="vertical" style={{ position: 'absolute', right: 6, top: 6, display: 'flex', flexDirection: 'column', gap: 2 }}>
-                <button type="button" className="hb tip" data-tip="按住看舊原文" aria-label="按住看舊原文" aria-pressed={srcPeek}
+                {newSrc !== undefined && <button type="button" className="hb tip" data-tip="按住看舊原文" aria-label="按住看舊原文" aria-pressed={srcPeek}
                   style={{ color: srcPeek ? 'var(--accent2)' : 'var(--mute)', background: srcPeek ? 'var(--acc-soft)' : 'transparent' }}
                   onPointerDown={(ev) => {
                     try { ev.currentTarget.setPointerCapture(ev.pointerId); } catch { /* 無法捕捉時照常運作 */ }
@@ -527,9 +528,9 @@ function WorkPanelInner({ height, maxH }: { height: number; maxH: number }) {
                   onPointerUp={() => setSrcPeek(false)}
                   onPointerCancel={() => setSrcPeek(false)}>
                   <IconEye size={14} sw={2.2} />
-                </button>
+                </button>}
                 {mode !== 'view' && (
-                  <button type="button" className="hb tip" data-tip="套用新原文" aria-label="套用新原文" style={{ color: 'var(--accent2)' }}
+                  <button type="button" className="hb tip" data-tip={cur.upd?.removed ? '套用（刪除這條）' : '套用新原文'} aria-label="套用新原文" style={{ color: 'var(--accent2)' }}
                     onClick={() => { s.applyNewSource(); setSrcPeek(false); }}>
                     <IconUse size={14} sw={2.2} />
                   </button>

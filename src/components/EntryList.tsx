@@ -1,5 +1,5 @@
 import { memo, useEffect, useRef, useState } from 'react';
-import { currentOf, searchHit, useStorePick, visibleIssues, type Filter } from '../state/store';
+import { currentOf, hasPendingUpdate, searchHit, useStorePick, visibleIssues, type Filter } from '../state/store';
 import { effectiveMark, markName, markVisual } from '../model/marks';
 import { columnToClipboard, parseHtmlTable, parseTsv, writeColumn } from '../model/clipboard';
 import {
@@ -135,7 +135,9 @@ const EntryRow = memo(function EntryRow({ e, i, m, issues, on, hit, selCols, edi
         </span>
         <span {...cellProps(2)} style={{ display: 'flex', alignItems: 'center', minWidth: 0, padding: '9px 16px 9px 0', lineHeight: 1.45, color: ver ? 'var(--mute2)' : 'var(--text)', fontSize: SRC_FS, fontFamily: 'var(--font-src)' }}>
           {/* 原文更新：顯示新原文 */}
-          {editor(2) ?? <CellText mode={ovfSrc} fontSize={SRC_FS} fit={{ width: fitSrc, font: fontSrc, text: e.upd?.src ?? e.src }}>{e.upd?.src ?? e.src}</CellText>}
+          {editor(2) ?? (e.upd?.removed
+            ? <span style={{ fontSize: SRC_FS, color: 'var(--mute3)' }}>(新原文已移除)</span>
+            : <CellText mode={ovfSrc} fontSize={SRC_FS} fit={{ width: fitSrc, font: fontSrc, text: e.upd?.src ?? e.src }}>{e.upd?.src ?? e.src}</CellText>)}
         </span>
         <span {...cellProps(3)} style={{
           fontSize: TGT_FS, fontFamily: 'var(--font-tgt)',
@@ -540,7 +542,7 @@ export function EntryList() {
           style={{ width: 34, height: 34, display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 0, background: 'var(--btn)', border: '1px solid var(--line3)', borderRadius: 8, color: 'var(--text2)' }}>
           <IconRuler size={16} />
         </button>
-        {sheet.entries.some((e) => e.upd?.src !== undefined) && (
+        {sheet.entries.some(hasPendingUpdate) && (
           <button type="button" className="ib" aria-label="套用全部新原文" title="套用全部新原文" onClick={() => s.applyAllNewSources()}
             style={{ width: 34, height: 34, display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 0, background: 'var(--btn)', border: '1px solid var(--line3)', borderRadius: 8, color: 'var(--accent2)' }}>
             <IconSrcApplyAll size={16} />
@@ -635,7 +637,7 @@ export function EntryList() {
             { key: 'clear', label: '清除整欄', disabled: readOnly },
           ] : menu.kind === 'row' ? [
             { key: 'mark', label: '標記', disabled: readOnly },
-            ...(selRows.some((i) => sheet.entries[i]?.upd?.src !== undefined) ? [{ key: 'applySrc', label: '套用新原文', disabled: readOnly }] : []),
+            ...(selRows.some((i) => sheet.entries[i] && hasPendingUpdate(sheet.entries[i])) ? [{ key: 'applySrc', label: '套用新原文', disabled: readOnly }] : []),
             { key: 'clear', label: '清除', disabled: readOnly },
             { key: 'delete', label: `刪除 ${selRows.length} 列`, danger: true, disabled: readOnly },
             { key: 'insert', label: '在下方插入', disabled: readOnly, stepper: { value: insertCount, min: 1, max: 100, onChange: setInsertCount } },
@@ -645,7 +647,7 @@ export function EntryList() {
             { key: 'edit', label: '編輯', disabled: readOnly || !canEdit(parseKey([...keys].sort(order)[0]).c) },
             { key: 'clear', label: '清除', disabled: readOnly },
             { key: 'mark', label: '標記', disabled: readOnly },
-            ...(selRows.some((i) => sheet.entries[i]?.upd?.src !== undefined) ? [{ key: 'applySrc', label: '套用新原文', disabled: readOnly }] : []),
+            ...(selRows.some((i) => sheet.entries[i] && hasPendingUpdate(sheet.entries[i])) ? [{ key: 'applySrc', label: '套用新原文', disabled: readOnly }] : []),
             { key: 'up', label: '上移', disabled: readOnly },
             { key: 'down', label: '下移', disabled: readOnly },
           ]}

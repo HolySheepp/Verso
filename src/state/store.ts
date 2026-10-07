@@ -289,6 +289,9 @@ const withMark = (e: Entry, id: MarkId, keepUpd = false): Entry => ({
   ...(e.upd && !keepUpd && id !== 'srcupd' ? (e.upd.applied ? { upd: undefined } : { upd: { ...e.upd, hidden: true } }) : {}),
 });
 
+/** 有還沒套用的原文更新：暫存的新原文，或新版已移除 */
+export const hasPendingUpdate = (e: Entry) => e.upd?.src !== undefined || !!e.upd?.removed;
+
 /**
  * 套用暫存的新原文：原文換成新的，舊原文清掉。
  * 標記還在的，等按下一條或改譯文才清掉；使用者已經改過標記的，直接清掉。
@@ -660,12 +663,17 @@ export const useStore = create<Store>((set, get) => {
 
     applyAllNewSources(indices) {
       const s = get();
-      const { sheet, sheetIdx } = cur();
+      const { sheet, sheetIdx, sel } = cur();
       const pick = indices ? new Set(indices) : null;
-      const hit = (e: Entry, i: number) => e.upd?.src !== undefined && (!pick || pick.has(i));
+      const hit = (e: Entry, i: number) => hasPendingUpdate(e) && (!pick || pick.has(i));
       if (!s.project || s.mode === 'view' || !sheet.entries.some(hit)) return;
       pushUndo();
-      replaceSheet(s.file, sheetIdx, sheet.entries.map((e, i) => (hit(e, i) ? withNewSource(e) : e)));
+      // 新版已移除的條目：套用就是把整條刪掉
+      const next = sheet.entries.flatMap((e, i) => (!hit(e, i) ? [e] : e.upd!.removed ? [] : [withNewSource(e)]));
+      replaceSheet(s.file, sheetIdx, next);
+      if (next.length !== sheet.entries.length) {
+        set({ cellSel: null, selBy: { ...get().selBy, [selKey(s.file, sheetIdx)]: Math.max(0, Math.min(sel, next.length - 1)) } });
+      }
     },
 
     setEntryMarks(indices, id) {
@@ -738,10 +746,17 @@ export const useStore = create<Store>((set, get) => {
     },
 
     applyNewSource() {
-      const { entry, sel } = cur();
+      const { entry, sel, sheet, sheetIdx } = cur();
       // 檢視模式不能改
-      if (entry?.upd?.src === undefined || get().mode === 'view') return;
+      if (!entry || !hasPendingUpdate(entry) || get().mode === 'view') return;
       pushUndo();
+      if (entry.upd!.removed) {
+        // 新版已移除：套用就是把這條刪掉
+        const next = sheet.entries.filter((_, i) => i !== sel);
+        replaceSheet(get().file, sheetIdx, next);
+        set({ cellSel: null, selBy: { ...get().selBy, [selKey(get().file, sheetIdx)]: Math.max(0, Math.min(sel, next.length - 1)) } });
+        return;
+      }
       patchEntry(sel, withNewSource);
     },
 
