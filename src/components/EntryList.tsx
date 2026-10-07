@@ -243,7 +243,9 @@ export function EntryList() {
   const askCopy = () => {
     const open = sheet.entries.filter((e) => e.mark !== 'ignore');
     const untranslated = open.filter((e) => !e.tgt).length;
-    const pending = open.filter((e) => e.tgt && e.pending).length;
+    // 已經標了驗證（驗證模式下還有疑慮）的條目算處理過了，不管待確認
+    const handled = (e: Entry) => e.mark === 'verified' || (s.mode === 'verify' && e.mark === 'doubt');
+    const pending = open.filter((e) => e.tgt && e.pending && !handled(e)).length;
     if (untranslated || pending) setConfirm({ untranslated, pending });
     else void doCopy();
   };
