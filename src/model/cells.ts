@@ -11,9 +11,12 @@ export interface Cell { i: number; c: CellCol }
 export const cellKey = (i: number, c: number) => i + ':' + c;
 export const parseKey = (k: string): Cell => { const [i, c] = k.split(':').map(Number); return { i, c: c as CellCol }; };
 
-export const getCell = (e: Entry, c: number) => e[CELL_COLS[c]];
+/** 格子的內容：原文有暫存的新原文時，用畫面上顯示的新原文 */
+export const getCell = (e: Entry, c: number) => (c === 2 && e.upd?.src !== undefined ? e.upd.src : e[CELL_COLS[c]]);
 
 export function setCell(e: Entry, c: number, v: string): Entry {
+  // 改的是畫面上顯示的新原文
+  if (c === 2 && e.upd?.src !== undefined) return { ...e, upd: { ...e.upd, src: v } };
   return { ...e, [CELL_COLS[c]]: v };
 }
 

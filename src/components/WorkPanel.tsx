@@ -643,7 +643,7 @@ function WorkPanelInner({ height, maxH }: { height: number; maxH: number }) {
         {/* 右側按鈕目前是示範用的暫代功能，之後再決定 */}
         <div role="toolbar" aria-label="條目功能" aria-orientation="vertical" style={{ width: 36, flexShrink: 0, display: 'flex', flexDirection: 'column', gap: 6, paddingTop: 24 }}>
           <button type="button" className="ib btn-side" aria-label="複製原文和譯文" title="複製原文和譯文"
-            onClick={() => { void navigator.clipboard?.writeText(cur.src + '\n' + cur.tgt); }}>
+            onClick={() => { void navigator.clipboard?.writeText((cur.upd?.src ?? cur.src) + '\n' + cur.tgt); }}>
             <IconCopyPair size={15} />
           </button>
           {mode === 'translate' && (
