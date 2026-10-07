@@ -47,6 +47,8 @@ export interface Entry {
   note: string;
   /** 建議翻譯 */
   sugg: string;
+  /** 建議翻譯的檢查誤報時按「略過」，之後不再檢查建議翻譯 */
+  skipSugg?: boolean;
   /** 驗證模式的修改（沒有修改時不設） */
   ver?: VerifyData;
   /**

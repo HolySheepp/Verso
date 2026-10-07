@@ -3,12 +3,14 @@ import { useShallow } from 'zustand/react/shallow';
 import { currentOf, currentProjectOf, dictEnabledIn, overrideKey, searchHit, useStore, useStorePick, type SideTab } from '../state/store';
 import { SHARED, dictKey, type DictInfo, type FileDoc, type GlossaryTerm } from '../model/types';
 import { fz } from '../model/fonts';
+import { enabledIssues } from '../model/checks';
+import { effectiveStd } from '../model/length';
 import { findHits } from '../state/dictHits';
 import { leaveFile } from '../state/saver';
 import { ContextMenu } from './ContextMenu';
 import { sideFieldKey } from './Shortcuts';
 import {
-  IconBook, IconBookmark, IconCheck, IconChevD, IconCopy, IconChevL, IconChevR, IconFile, IconGlobe, IconHideRight, IconList, IconPaste, IconPenEdit, IconPlus, IconRefresh, IconSearch, IconUse,
+  IconBook, IconBookmark, IconCheck, IconChevD, IconCopy, IconChevL, IconChevR, IconFile, IconGlobe, IconHideRight, IconList, IconPaste, IconPenEdit, IconPlus, IconRefresh, IconSearch, IconUse, IconWarn,
 } from './icons';
 
 const TABS: { id: SideTab; label: string; Icon: typeof IconBook }[] = [
@@ -314,8 +316,16 @@ function NotesSection() {
 
 function NotesSectionInner() {
   // 只訂閱這個區塊用到的資料（包含 currentOf 等輔助函式間接用到的）
-  const s = useStorePick('project', 'file', 'sheetBy', 'selBy', 'mode', 'suggClosed', 'noteClosed', 'set', 'updateEntry', 'applySuggestion');
+  const s = useStorePick('project', 'file', 'sheetBy', 'selBy', 'mode', 'suggClosed', 'noteClosed', 'set', 'updateEntry', 'applySuggestion', 'checkSettings');
   const cur = currentOf(s).entry!;
+  const fileStd = currentOf(s).fileDoc.lengthStd;
+  // 建議翻譯也檢查（跟譯文一樣的規則）；打字中不提示，離開輸入框才顯示
+  const [suggFocus, setSuggFocus] = useState(false);
+  const suggIssues = useMemo(
+    () => (cur.sugg && !cur.skipSugg && !suggFocus ? enabledIssues(cur.upd?.src ?? cur.src, cur.sugg, s.checkSettings, effectiveStd(cur.lengthStd, fileStd)) : []),
+    [cur.sugg, cur.skipSugg, cur.src, cur.upd?.src, cur.lengthStd, fileStd, s.checkSettings, suggFocus],
+  );
+  const suggIssueText = suggIssues.map((i) => i.msg).join('、');
   const mode = s.mode;
   const suggVisible = mode === 'verify' || !!cur.sugg;
   const suggOpen = !s.suggClosed, noteOpen = !s.noteClosed;
@@ -334,6 +344,15 @@ function NotesSectionInner() {
               <IconChevD size={12} sw={2.4} style={{ transform: `rotate(${suggOpen ? 0 : -90}deg)`, transition: 'transform 160ms' }} />
               建議翻譯
             </button>
+            {suggIssues.length > 0 && (
+              <span role="status" style={{ display: 'flex', alignItems: 'center', gap: 6, minWidth: 0, flexGrow: 1, fontSize: fz(11.5), color: 'var(--warntx)' }}>
+                <IconWarn size={12} sw={2.2} style={{ flexShrink: 0 }} />
+                <span title={suggIssueText} style={{ minWidth: 0, overflow: 'hidden', whiteSpace: 'nowrap', textOverflow: 'ellipsis' }}>{suggIssueText}</span>
+                <button type="button" className="ib" onClick={() => s.updateEntry({ skipSugg: true })}
+                  style={{ flexShrink: 0, height: 20, padding: '0 8px', background: 'transparent', border: '1px solid var(--line4)', borderRadius: 5, color: 'var(--text2)', fontSize: fz(11) }}>略過</button>
+              </span>
+            )}
+            {cur.sugg && <span style={{ flexShrink: 0, flexGrow: suggIssues.length ? 0 : 1, textAlign: 'right', fontSize: fz(11.5), color: 'var(--mute)' }}>{cur.sugg.length} 字元</span>}
             {mode === 'translate' && cur.sugg && (
               <span style={{ display: 'flex', gap: 6 }}>
                 <button type="button" className="btn btn-ghost" title="刪除建議翻譯" onClick={() => s.updateEntry({ sugg: '' })}
@@ -351,9 +370,12 @@ function NotesSectionInner() {
             <>
               <label htmlFor="verso-sugg" className="sr-only">建議翻譯</label>
               <textarea id="verso-sugg" value={cur.sugg} readOnly={!verify} onKeyDown={(ev) => sideFieldKey(ev, mode)}
+                onFocus={() => setSuggFocus(true)} onBlur={() => setSuggFocus(false)}
                 onChange={(ev) => verify && s.updateEntry({ sugg: ev.target.value })}
                 style={{
                   ...area, flex: noteOpen ? '0 0 84px' : '1 1 auto',
+                  // 跟譯文一樣用使用者設定的譯文字體
+                  fontFamily: 'var(--font-tgt)', fontSize: 'var(--fs-tgt)',
                   background: verify ? 'var(--bg0)' : 'var(--bar)', border: `1px solid ${verify ? 'var(--line4)' : 'var(--line)'}`,
                 }} />
             </>
