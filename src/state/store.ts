@@ -681,7 +681,8 @@ export const useStore = create<Store>((set, get) => {
     record(text) {
       const { entry } = cur();
       if (!entry) return;
-      const t = text ?? entry.tgt;
+      // 驗證模式記錄的是修改框的內容
+      const t = text ?? (get().mode === 'verify' ? checkText(entry) : entry.tgt);
       if (!t) return;
       set({ history: recordText(get().history, entry.uid, t) });
     },

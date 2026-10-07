@@ -150,6 +150,13 @@ export function Shortcuts() {
         // 存檔和套用新原文在哪裡都能按
         const a = actionFor(s.shortcuts, 'list', combo);
         if (a === 'applySrc') { s.applyNewSource(); return true; }
+        // 按住查看譯文／修改框的記錄
+        if (a === 'peek') {
+          const parts = combo.split('+');
+          holding = { key: parts[parts.length - 1], mods: parts.slice(0, -1) };
+          run('peek', el as HTMLElement | null);
+          return true;
+        }
         if (a !== 'save') return false;
         void manualSave();
         return true;

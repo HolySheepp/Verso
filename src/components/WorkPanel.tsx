@@ -99,7 +99,10 @@ function WorkPanelInner({ height, maxH }: { height: number; maxH: number }) {
   // 驗證模式不直接改譯文框，在下面的修改框改
   const tgtEditable = mode === 'translate';
   // 能不能放進字典詞：翻譯模式放進譯文框，驗證模式放進修改框
-  const canInsert = verify || (tgtEditable && !showHist);
+  const canInsert = (verify || tgtEditable) && !showHist;
+  // 記錄與查看修改：翻譯模式在譯文框，驗證模式在修改框
+  const tgtHist = showHist && !verify;
+  const modHist = showHist && verify;
 
   // 驗證修改：每組修改在譯文框和修改框的位置。翻譯模式打開驗證過的條目時也顯示，讓譯者處理
   const edits = verify || mode === 'translate' ? editsOf(cur) : NO_EDITS;
@@ -122,12 +125,18 @@ function WorkPanelInner({ height, maxH }: { height: number; maxH: number }) {
     () => (showNewSrc ? srcDiff(cur.src, newSrc!).map((r) => ({ ...r, kind: 'edit' as const })) : []),
     [showNewSrc, cur.src, newSrc],
   );
-  // 在原文框裡按住 Ctrl+D 看舊原文
-  const onSrcKey = (ev: React.KeyboardEvent) => {
-    if (newSrc === undefined || !(ev.ctrlKey || ev.metaKey) || ev.code !== 'KeyD') return;
-    ev.preventDefault();
-    if (!ev.repeat) setSrcPeek(true);
-  };
+  // 在哪裡都可以按住 Ctrl+Shift+D 看舊原文（Ctrl+D 是看譯文／修改框的記錄）
+  const hasNewSrc = newSrc !== undefined;
+  useEffect(() => {
+    if (!hasNewSrc) return;
+    const down = (ev: KeyboardEvent) => {
+      if (!(ev.ctrlKey || ev.metaKey) || !ev.shiftKey || ev.altKey || ev.code !== 'KeyD') return;
+      ev.preventDefault();
+      if (!ev.repeat) setSrcPeek(true);
+    };
+    window.addEventListener('keydown', down, true);
+    return () => window.removeEventListener('keydown', down, true);
+  }, [hasNewSrc]);
   useEffect(() => {
     if (!srcPeek) return;
     const up = (ev: KeyboardEvent) => { if (ev.code === 'KeyD' || ev.key === 'Control' || ev.key === 'Meta') setSrcPeek(false); };
@@ -277,6 +286,13 @@ function WorkPanelInner({ height, maxH }: { height: number; maxH: number }) {
     if (!sp) return;
     asStep(() => { const r = applyOne(cur.tgt, edits, sp.s); s.setVerify(r.edits, r.tgt); });
   };
+  /** 驗證模式「使用此內容」：把記錄的內容當成修改套進修改框 */
+  const useSlotAsEdit = () => {
+    const t = texts[slot];
+    if (t === undefined) return;
+    asStep(() => { const r = applyChange(cur.tgt, edits, modText, t); s.setVerify(r.edits); });
+    s.set({ viewOn: false, peek: false });
+  };
   const removeGroup = (i: number) => { const sp = spans[i]; if (sp) asStep(() => s.setVerify(removeOne(edits, sp.s))); };
 
   // 滑鼠移到任一框的修改上：兩邊對應的部分一起高亮
@@ -423,6 +439,63 @@ function WorkPanelInner({ height, maxH }: { height: number; maxH: number }) {
 
   const viewTip = viewOn ? '返回目前譯文' : texts.length ? '查看修改（按住預覽）' : '查看修改（尚無記錄）';
 
+  /** 記錄、查看修改的按鈕與記錄槽位：翻譯模式放在譯文框，驗證模式放在修改框 */
+  const histUI = (
+    <>
+            <div role="toolbar" aria-label="譯文記錄" aria-orientation="vertical" style={{ position: 'absolute', right: 6, top: 6, display: 'flex', flexDirection: 'column', gap: 2 }}>
+              <button type="button" className="hb tip" data-tip={['記錄', keyTip('record')].filter(Boolean).join('  ')} aria-label="記錄" disabled={!(tgtEditable || verify) || showHist}
+                onClick={() => s.record(verify ? modText : undefined)}>
+                <IconFeather size={14} />
+              </button>
+              <button type="button" className="hb tip" data-tip={viewTip} aria-label="查看修改" aria-pressed={viewOn} disabled={!texts.length}
+                style={{ color: viewOn ? 'var(--accent2)' : 'var(--mute)', background: viewOn ? 'var(--acc-soft)' : 'transparent' }}
+                onPointerDown={(ev) => {
+                  if (!texts.length) return;
+                  try { ev.currentTarget.setPointerCapture(ev.pointerId); } catch { /* 無法捕捉時照常運作 */ }
+                  press.current = { t: Date.now() };
+                  s.set({ peek: true });
+                }}
+                onPointerUp={() => {
+                  if (!press.current) return;
+                  const long = Date.now() - press.current.t >= 300;
+                  press.current = null;
+                  // 短按切換查看狀態，長按放開就回到目前譯文
+                  s.set(long ? { peek: false } : { peek: false, viewOn: !viewOn });
+                }}
+                onPointerLeave={() => { if (press.current) { press.current = null; s.set({ peek: false }); } }}
+                onClick={(ev) => { if (ev.detail === 0 && texts.length) s.set({ viewOn: !viewOn }); }}>
+                <IconEye size={14} sw={2.2} />
+              </button>
+              {viewOn && (tgtEditable || verify) && (
+                <button type="button" className="hb tip" data-tip="使用此內容" aria-label="使用此內容" style={{ color: 'var(--accent2)' }}
+                  onClick={() => (verify ? useSlotAsEdit() : s.useShownSlot())}>
+                  <IconUse size={14} sw={2.2} />
+                </button>
+              )}
+            </div>
+
+            {showHist && (
+              <div style={{ position: 'absolute', left: 8, bottom: 7, display: 'flex', alignItems: 'center', gap: 6, padding: '3px 4px 3px 8px', background: 'var(--pop)', border: '1px solid var(--line4)', borderRadius: 7 }}>
+                <span style={{ fontSize: fz(11), color: 'var(--text2)' }}>記錄</span>
+                <div role="radiogroup" aria-label="選擇記錄槽位" style={{ display: 'flex', gap: 3 }}>
+                  {texts.map((_, i) => {
+                    const on = i === slot;
+                    return (
+                      <button key={i} type="button" className="slot mono" role="radio" aria-checked={on} aria-label={'記錄 ' + (i + 1)}
+                        onClick={() => s.pickSlot(i)}
+                        style={{
+                          width: 22, height: 22, padding: 0, display: 'flex', alignItems: 'center', justifyContent: 'center', borderRadius: 5,
+                          fontSize: fz(11), fontWeight: 500, background: on ? 'var(--primary)' : 'var(--chip)', color: on ? '#ffffff' : 'var(--text2)',
+                          border: `1px solid ${on ? 'var(--primary)' : 'var(--line4)'}`,
+                        }}>{i + 1}</button>
+                    );
+                  })}
+                </div>
+              </div>
+            )}
+    </>
+  );
+
   return (
     <>
     <Splitter dir="h" label="調整工作欄高度" value={actualH} min={WORK_MIN} max={maxH} onChange={onDrag} />
@@ -451,7 +524,7 @@ function WorkPanelInner({ height, maxH }: { height: number; maxH: number }) {
           </div>
           <div style={boxStyle('src')}>
           <textarea id="verso-source" ref={setSrcEl} value={showNewSrc ? newSrc : cur.src} readOnly={!srcEditable || showNewSrc} onFocus={editFocus} onBlur={editBlur}
-            onKeyDown={onSrcKey} onMouseMove={onSrcMove} onMouseLeave={() => { cancelAnimationFrame(moveFrame.current); moveFrame.current = 0; setHover(null); }} onMouseDown={onSrcDown}
+            onMouseMove={onSrcMove} onMouseLeave={() => { cancelAnimationFrame(moveFrame.current); moveFrame.current = 0; setHover(null); }} onMouseDown={onSrcDown}
             onChange={(ev) => srcEditable && s.updateEntry({ src: ev.target.value })}
             style={{
               flexGrow: 1, minHeight: 0, resize: 'none', boxSizing: 'border-box', padding: newSrc !== undefined ? '10px 44px 10px 12px' : '10px 12px',
@@ -498,77 +571,26 @@ function WorkPanelInner({ height, maxH }: { height: number; maxH: number }) {
               {!showEdits && issueNote}
             </span>
             <span style={{ ...meta, flexShrink: 0 }}>
-              <span>{texts.length ? `已記錄 ${texts.length} / 3` : ''}</span>
+              <span>{!verify && texts.length ? `已記錄 ${texts.length} / 3` : ''}</span>
               <span>{cur.tgt.length} 字元</span>
             </span>
           </div>
           <div style={boxStyle('tgt')}>
-            <textarea id="verso-target" ref={setTgtEl} onFocus={editFocus} onBlur={editBlur} data-hist={showHist ? '1' : '0'} value={showHist ? texts[slot] : cur.tgt}
-              readOnly={!tgtEditable || showHist}
+            <textarea id="verso-target" ref={setTgtEl} onFocus={editFocus} onBlur={editBlur} data-hist={tgtHist ? '1' : '0'} value={tgtHist ? texts[slot] : cur.tgt}
+              readOnly={!tgtEditable || tgtHist}
               onChange={(ev) => onTarget(ev.target.value)} onPaste={onPaste}
               onMouseMove={showEdits ? onVMove : undefined} onMouseLeave={showEdits ? onVLeave : undefined} onMouseDown={onTgtDown} onContextMenu={onVMenu}
               style={{
                 cursor: showEdits && vHover !== null ? 'pointer' : undefined,
-                flexGrow: 1, minHeight: 0, resize: 'none', boxSizing: 'border-box', padding: '10px 44px 10px 12px',
+                flexGrow: 1, minHeight: 0, resize: 'none', boxSizing: 'border-box', padding: verify ? '10px 12px' : '10px 44px 10px 12px',
                 background: tgtEditable ? 'var(--bg0)' : 'var(--bgdeep)',
-                border: `1px ${showHist ? 'dashed' : 'solid'} ${showHist ? 'var(--accent)' : tgtEditable ? 'var(--line4)' : 'var(--line)'}`,
+                border: `1px ${tgtHist ? 'dashed' : 'solid'} ${tgtHist ? 'var(--accent)' : tgtEditable ? 'var(--line4)' : 'var(--line)'}`,
                 borderRadius: 8, color: tgtEditable ? 'var(--texthi)' : 'var(--textsoft)', fontSize: 'var(--fs-tgt)', fontFamily: 'var(--font-tgt)', lineHeight: 1.6,
               }} />
             {/* QA 問題的位置標色 */}
-            {!showHist && <TextMarks target={tgtEl} text={cur.tgt} ranges={showEdits ? tgtEditRanges : issueRanges} />}
-            {s.finishLine && !showHist && <FinishLine target={tgtEl} text={cur.tgt} std={effectiveStd(cur.lengthStd, currentOf(s).fileDoc.lengthStd)} />}
-
-            <div role="toolbar" aria-label="譯文記錄" aria-orientation="vertical" style={{ position: 'absolute', right: 6, top: 6, display: 'flex', flexDirection: 'column', gap: 2 }}>
-              <button type="button" className="hb tip" data-tip={['記錄', keyTip('record')].filter(Boolean).join('  ')} aria-label="記錄" disabled={!tgtEditable || showHist}
-                onClick={() => s.record()}>
-                <IconFeather size={14} />
-              </button>
-              <button type="button" className="hb tip" data-tip={viewTip} aria-label="查看修改" aria-pressed={viewOn} disabled={!texts.length}
-                style={{ color: viewOn ? 'var(--accent2)' : 'var(--mute)', background: viewOn ? 'var(--acc-soft)' : 'transparent' }}
-                onPointerDown={(ev) => {
-                  if (!texts.length) return;
-                  try { ev.currentTarget.setPointerCapture(ev.pointerId); } catch { /* 無法捕捉時照常運作 */ }
-                  press.current = { t: Date.now() };
-                  s.set({ peek: true });
-                }}
-                onPointerUp={() => {
-                  if (!press.current) return;
-                  const long = Date.now() - press.current.t >= 300;
-                  press.current = null;
-                  // 短按切換查看狀態，長按放開就回到目前譯文
-                  s.set(long ? { peek: false } : { peek: false, viewOn: !viewOn });
-                }}
-                onPointerLeave={() => { if (press.current) { press.current = null; s.set({ peek: false }); } }}
-                onClick={(ev) => { if (ev.detail === 0 && texts.length) s.set({ viewOn: !viewOn }); }}>
-                <IconEye size={14} sw={2.2} />
-              </button>
-              {viewOn && tgtEditable && (
-                <button type="button" className="hb tip" data-tip="使用此內容" aria-label="使用此內容" style={{ color: 'var(--accent2)' }}
-                  onClick={() => s.useShownSlot()}>
-                  <IconUse size={14} sw={2.2} />
-                </button>
-              )}
-            </div>
-
-            {showHist && (
-              <div style={{ position: 'absolute', left: 8, bottom: 7, display: 'flex', alignItems: 'center', gap: 6, padding: '3px 4px 3px 8px', background: 'var(--pop)', border: '1px solid var(--line4)', borderRadius: 7 }}>
-                <span style={{ fontSize: fz(11), color: 'var(--text2)' }}>記錄</span>
-                <div role="radiogroup" aria-label="選擇記錄槽位" style={{ display: 'flex', gap: 3 }}>
-                  {texts.map((_, i) => {
-                    const on = i === slot;
-                    return (
-                      <button key={i} type="button" className="slot mono" role="radio" aria-checked={on} aria-label={'記錄 ' + (i + 1)}
-                        onClick={() => s.pickSlot(i)}
-                        style={{
-                          width: 22, height: 22, padding: 0, display: 'flex', alignItems: 'center', justifyContent: 'center', borderRadius: 5,
-                          fontSize: fz(11), fontWeight: 500, background: on ? 'var(--primary)' : 'var(--chip)', color: on ? '#ffffff' : 'var(--text2)',
-                          border: `1px solid ${on ? 'var(--primary)' : 'var(--line4)'}`,
-                        }}>{i + 1}</button>
-                    );
-                  })}
-                </div>
-              </div>
-            )}
+            {!tgtHist && <TextMarks target={tgtEl} text={cur.tgt} ranges={showEdits ? tgtEditRanges : issueRanges} />}
+            {s.finishLine && !tgtHist && <FinishLine target={tgtEl} text={cur.tgt} std={effectiveStd(cur.lengthStd, currentOf(s).fileDoc.lengthStd)} />}
+            {!verify && histUI}
           </div>
 
           {showEdits && (
@@ -582,23 +604,25 @@ function WorkPanelInner({ height, maxH }: { height: number; maxH: number }) {
                 <span style={{ ...meta, flexShrink: 0, alignItems: 'center' }}>
                   <button type="button" className="ib" disabled={!edits.length} onClick={() => asStep(() => s.setVerify([], modText))} title="用修改後的內容取代譯文"
                     style={{ ...smallBtn, opacity: edits.length ? 1 : 0.5 }}>全部套用</button>
+                  {verify && texts.length > 0 && <span>已記錄 {texts.length} / 3</span>}
                   <span>{modText.length} 字元</span>
                 </span>
               </div>
               <div style={boxStyle('mod')}>
                 {/* 翻譯模式：修改框只給譯者看，不能改 */}
-                <textarea id="verso-edit" ref={setModEl} value={modText} readOnly={!verify} onFocus={verify ? editFocus : undefined} onBlur={verify ? modBlur : undefined}
+                <textarea id="verso-edit" ref={setModEl} value={modHist ? texts[slot] : modText} readOnly={!verify || modHist} onFocus={verify ? editFocus : undefined} onBlur={verify ? modBlur : undefined}
                   onChange={(ev) => verify && onModValue(ev.target.value, ev.target.selectionEnd)}
                   onMouseMove={onVMove} onMouseLeave={onVLeave} onMouseDown={onModDown} onContextMenu={onVMenu}
                   style={{
-                    flexGrow: 1, minHeight: 0, resize: 'none', boxSizing: 'border-box', padding: '10px 12px',
+                    flexGrow: 1, minHeight: 0, resize: 'none', boxSizing: 'border-box', padding: verify ? '10px 44px 10px 12px' : '10px 12px',
                     cursor: !verify && vHover !== null ? 'pointer' : undefined,
-                    background: verify ? 'var(--bg0)' : 'var(--bgdeep)', border: `1px solid ${verify ? 'var(--line4)' : 'var(--line)'}`, borderRadius: 8,
+                    background: verify ? 'var(--bg0)' : 'var(--bgdeep)', border: `1px ${modHist ? 'dashed' : 'solid'} ${modHist ? 'var(--accent)' : verify ? 'var(--line4)' : 'var(--line)'}`, borderRadius: 8,
                     color: verify ? 'var(--texthi)' : 'var(--textsoft)',
                     fontSize: 'var(--fs-tgt)', fontFamily: 'var(--font-tgt)', lineHeight: 1.6,
                   }} />
-                <TextMarks target={modEl} text={modText} ranges={[...modRanges, ...issueRanges]} />
-                {s.finishLine && <FinishLine target={modEl} text={modText} std={effectiveStd(cur.lengthStd, currentOf(s).fileDoc.lengthStd)} />}
+                {!modHist && <TextMarks target={modEl} text={modText} ranges={[...modRanges, ...issueRanges]} />}
+                {s.finishLine && !modHist && <FinishLine target={modEl} text={modText} std={effectiveStd(cur.lengthStd, currentOf(s).fileDoc.lengthStd)} />}
+                {verify && histUI}
               </div>
               {vMenu && spans[vMenu.i] && (
                 <ContextMenu x={vMenu.x} y={vMenu.y} label="修改" onClose={() => setVMenu(null)}
