@@ -33,6 +33,7 @@ describe('標點檢測', () => {
     expect(msgs('', 'Hello，world。')).toEqual(['句尾缺少標點', '有全形符號 ， 。']);
     expect(ids('', 'Hi 旅人.')).toEqual(['cjk']);
     expect(msgs('', 'Hi　there.')).toEqual(['有全形符號 全形空格']);
+    expect(msgs('', 'Wait… go.')).toEqual(['有全形符號 …']);
   });
 
   it('成對符號', () => {

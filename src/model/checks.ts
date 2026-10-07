@@ -85,7 +85,7 @@ export function runChecks(src: string, tgt: string): Issue[] {
   if (end && !endsWell(end)) add('ending', '', '句尾缺少標點');
 
   // 全形符號
-  const fw = Array.from(new Set(tgt.match(/[　-〿＀-￯]/g) ?? []));
+  const fw = Array.from(new Set(tgt.match(/[　-〿＀-￯…‥]/g) ?? []));
   if (fw.length) add('fullwidth', fw.join(''), '有全形符號 ' + fw.map((c) => (c === '　' ? '全形空格' : c)).join(' '));
 
   // 成對符號
@@ -153,7 +153,7 @@ function badDots(tgt: string): { text: string; index: number }[] {
 export function locateIssues(tgt: string, checks: Set<CheckId>): { start: number; end: number }[] {
   const out: { start: number; end: number }[] = [];
   const all = (re: RegExp) => { for (const m of tgt.matchAll(re)) out.push({ start: m.index!, end: m.index! + m[0].length }); };
-  if (checks.has('fullwidth')) all(/[　-〿＀-￯]/g);
+  if (checks.has('fullwidth')) all(/[　-〿＀-￯…‥]/g);
   if (checks.has('doubleSpace')) all(/ {2,}/g);
   if (checks.has('edgeSpace')) all(/^\s+|\s+$/g);
   if (checks.has('repeatPunct')) {
