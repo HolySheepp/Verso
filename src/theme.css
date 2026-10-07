@@ -124,9 +124,9 @@ textarea[data-hist="1"]:focus{border-color:var(--accent) !important}
 .rw{content-visibility:auto;contain-intrinsic-size:auto 40px}
 /* 輸入框上的標色：QA 問題的位置、命中字典的詞 */
 mark.tm-issue{color:transparent;background:color-mix(in srgb,#e8b93a 32%,transparent);border-radius:2px;box-shadow:inset 0 -2px 0 #e8b93a}
-mark.tm-hit{color:transparent;background:transparent;border-radius:2px;box-shadow:inset 0 -2px 0 var(--accent)}
+mark.tm-hit{color:transparent;background:transparent;border-radius:2px;text-decoration:underline 1.5px var(--accent);text-underline-offset:4px;text-decoration-skip-ink:none}
 mark.tm-hit[data-on]{background:var(--acc-soft2)}
-mark.tm-edit{color:transparent;background:transparent;border-radius:2px;box-shadow:inset 0 -2px 0 var(--accent)}
+mark.tm-edit{color:transparent;background:transparent;border-radius:2px;text-decoration:underline 1.5px var(--accent);text-underline-offset:4px;text-decoration-skip-ink:none}
 mark.tm-edit[data-on]{background:var(--acc-soft2)}
 mark.tm-gap{display:inline-block;width:0;height:1.25em;vertical-align:text-bottom;position:relative;background:none;color:transparent}
 mark.tm-gap::before{content:'';position:absolute;left:-0.5px;bottom:0;width:1px;height:100%;background:var(--accent);opacity:.6}

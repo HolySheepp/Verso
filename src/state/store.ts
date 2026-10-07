@@ -134,6 +134,8 @@ interface State {
   srcUpdate: number | null;
   /** 開啟時發現上次留下的暫存復原：問要恢復還是捨棄 */
   recoveryAsk: boolean;
+  /** 按住快捷鍵查看舊原文 */
+  srcPeek: boolean;
   dictPasteOpen: boolean;
   manageProjectsOpen: boolean;
   /** 畫面中間短暫出現的提示 */
@@ -212,6 +214,8 @@ interface Actions {
   pickSlot(slot: number): void;
   useShownSlot(): void;
   applySuggestion(): void;
+  /** 套用這條的全部驗證修改（自己算一步） */
+  applyAllEdits(): void;
   /** 更新原文：把對齊好的結果套用到頁簽（條目欄復原時算一步） */
   applySrcUpdate(sheet: number, entries: Entry[]): void;
   /** 套用暫存的新原文：原文換成新的，舊原文清掉 */
@@ -485,6 +489,7 @@ export const useStore = create<Store>((set, get) => {
     pasteInsert: null,
     srcUpdate: null,
     recoveryAsk: false,
+    srcPeek: false,
     dictPasteOpen: false,
     manageProjectsOpen: false,
     toast: null,
@@ -738,6 +743,18 @@ export const useStore = create<Store>((set, get) => {
       if (entry?.upd?.src === undefined || get().mode === 'view') return;
       pushUndo();
       patchEntry(sel, withNewSource);
+    },
+
+    applyAllEdits() {
+      const { entry } = cur();
+      if (!entry || get().mode === 'view') return;
+      const ed = editsOf(entry);
+      if (!ed.length) return;
+      // 正在輸入框裡編輯：先結束那段編輯，套用自己算一步
+      const editing = !!editSnap;
+      if (editing) get().endEdit();
+      get().setVerify([], compose(entry.tgt, ed));
+      if (editing) get().beginEdit();
     },
 
     applySuggestion() {

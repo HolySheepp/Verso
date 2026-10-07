@@ -83,7 +83,7 @@ export function Shortcuts() {
     const stopHold = () => {
       if (!holding) return;
       holding = null;
-      useStore.getState().set({ peek: false });
+      useStore.getState().set({ peek: false, srcPeek: false });
     };
 
     const onKey = (ev: KeyboardEvent) => {
@@ -150,11 +150,11 @@ export function Shortcuts() {
         // 存檔和套用新原文在哪裡都能按
         const a = actionFor(s.shortcuts, 'list', combo);
         if (a === 'applySrc') { s.applyNewSource(); return true; }
-        // 按住查看譯文／修改框的記錄
-        if (a === 'peek') {
+        // 按住查看譯文／修改框的記錄、舊原文
+        if (a === 'peek' || a === 'peekSrc') {
           const parts = combo.split('+');
           holding = { key: parts[parts.length - 1], mods: parts.slice(0, -1) };
-          run('peek', el as HTMLElement | null);
+          run(a, el as HTMLElement | null);
           return true;
         }
         if (a !== 'save') return false;
@@ -238,6 +238,8 @@ export function Shortcuts() {
         case 'close': s.closePopups(); break;
         case 'save': void manualSave(); break;
         case 'applySrc': s.applyNewSource(); break;
+        case 'peekSrc': if (entry?.upd?.src !== undefined) s.set({ srcPeek: true }); break;
+        case 'applyEdits': verifySession.commit(); s.applyAllEdits(); break;
         case 'peek': {
           const h = entry && s.history.byEntry[entry.uid];
           if (h?.texts.length) s.set({ peek: true });

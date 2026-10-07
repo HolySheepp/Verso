@@ -9,7 +9,7 @@ export const CONTEXTS: { id: ShortcutContext; label: string }[] = [
 
 export type ActionId =
   | 'main' | 'newline' | 'stampNext' | 'prevEntry' | 'nextEntry' | 'markMenu' | 'record' | 'leaveInput'
-  | 'editEntry' | 'clearTgt' | 'deleteCells' | 'prevSheet' | 'nextSheet' | 'close' | 'peek' | 'prevPending' | 'nextPending' | 'save' | 'applySrc';
+  | 'editEntry' | 'clearTgt' | 'deleteCells' | 'prevSheet' | 'nextSheet' | 'close' | 'peek' | 'prevPending' | 'nextPending' | 'save' | 'applySrc' | 'peekSrc' | 'applyEdits';
 
 export const ACTION_LABELS: Record<ActionId, string> = {
   main: '下一條／驗證並下一條',
@@ -31,15 +31,17 @@ export const ACTION_LABELS: Record<ActionId, string> = {
   nextPending: '下一個待處理條目',
   save: '存檔',
   applySrc: '套用這條的新原文',
+  peekSrc: '按住查看舊原文',
+  applyEdits: '套用這條的全部修改',
 };
 
 /** 這些操作要按住才有效，放開就結束 */
-export const HOLD_ACTIONS: ActionId[] = ['peek'];
+export const HOLD_ACTIONS: ActionId[] = ['peek', 'peekSrc'];
 
 /** 各情境有哪些操作（依設定頁的顯示順序） */
 export const CONTEXT_ACTIONS: Record<ShortcutContext, ActionId[]> = {
-  input: ['main', 'newline', 'stampNext', 'prevEntry', 'nextEntry', 'prevPending', 'nextPending', 'markMenu', 'record', 'peek', 'save', 'applySrc', 'leaveInput', 'prevSheet', 'nextSheet'],
-  list: ['prevEntry', 'nextEntry', 'prevPending', 'nextPending', 'editEntry', 'clearTgt', 'deleteCells', 'markMenu', 'record', 'peek', 'save', 'applySrc', 'prevSheet', 'nextSheet', 'close'],
+  input: ['main', 'newline', 'stampNext', 'prevEntry', 'nextEntry', 'prevPending', 'nextPending', 'markMenu', 'record', 'peek', 'peekSrc', 'save', 'applySrc', 'applyEdits', 'leaveInput', 'prevSheet', 'nextSheet'],
+  list: ['prevEntry', 'nextEntry', 'prevPending', 'nextPending', 'editEntry', 'clearTgt', 'deleteCells', 'markMenu', 'record', 'peek', 'peekSrc', 'save', 'applySrc', 'applyEdits', 'prevSheet', 'nextSheet', 'close'],
 };
 
 export type Bindings = Record<ShortcutContext, Partial<Record<ActionId, string[]>>>;
@@ -58,6 +60,8 @@ export const defaultBindings = (): Bindings => ({
     peek: ['Ctrl+D'],
     save: ['Ctrl+S'],
     applySrc: ['Ctrl+U'],
+    peekSrc: ['Ctrl+Shift+D'],
+    applyEdits: ['Ctrl+Shift+A'],
     leaveInput: ['Esc'],
     prevSheet: ['Alt+←'],
     nextSheet: ['Alt+→'],
@@ -75,6 +79,8 @@ export const defaultBindings = (): Bindings => ({
     peek: ['Ctrl+D'],
     save: ['Ctrl+S'],
     applySrc: ['Ctrl+U'],
+    peekSrc: ['Ctrl+Shift+D'],
+    applyEdits: ['Ctrl+Shift+A'],
     prevSheet: ['Alt+←'],
     nextSheet: ['Alt+→'],
     close: ['Esc'],

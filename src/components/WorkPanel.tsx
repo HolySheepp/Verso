@@ -116,35 +116,17 @@ function WorkPanelInner({ height, maxH }: { height: number; maxH: number }) {
   const [vMenu, setVMenu] = useState<{ x: number; y: number; i: number } | null>(null);
   const dirty = useRef(false);
 
-  // 原文更新：平常顯示新原文（改過的地方畫底線），按住按鈕或 Ctrl+D 才看舊原文；按「套用新原文」才真的換掉
+  // 原文更新：平常顯示新原文（改過的地方畫底線），按住按鈕或快捷鍵（預設 Ctrl+Shift+D）才看舊原文；按「套用新原文」才真的換掉
   const newSrc = cur.upd?.src;
-  const [srcPeek, setSrcPeek] = useState(false);
+  const [btnPeek, setSrcPeek] = useState(false);
+  const keyPeek = useStore((st) => st.srcPeek);
+  const srcPeek = btnPeek || keyPeek;
   useEffect(() => { setSrcPeek(false); }, [cur.uid]);
   const showNewSrc = newSrc !== undefined && !srcPeek;
   const srcDiffRanges = useMemo<MarkRange[]>(
     () => (showNewSrc ? srcDiff(cur.src, newSrc!).map((r) => ({ ...r, kind: 'edit' as const })) : []),
     [showNewSrc, cur.src, newSrc],
   );
-  // 在哪裡都可以按住 Ctrl+Shift+D 看舊原文（Ctrl+D 是看譯文／修改框的記錄）
-  const hasNewSrc = newSrc !== undefined;
-  useEffect(() => {
-    if (!hasNewSrc) return;
-    const down = (ev: KeyboardEvent) => {
-      if (!(ev.ctrlKey || ev.metaKey) || !ev.shiftKey || ev.altKey || ev.code !== 'KeyD') return;
-      ev.preventDefault();
-      if (!ev.repeat) setSrcPeek(true);
-    };
-    window.addEventListener('keydown', down, true);
-    return () => window.removeEventListener('keydown', down, true);
-  }, [hasNewSrc]);
-  useEffect(() => {
-    if (!srcPeek) return;
-    const up = (ev: KeyboardEvent) => { if (ev.code === 'KeyD' || ev.key === 'Control' || ev.key === 'Meta') setSrcPeek(false); };
-    const off = () => setSrcPeek(false);
-    window.addEventListener('keyup', up);
-    window.addEventListener('blur', off);
-    return () => { window.removeEventListener('keyup', up); window.removeEventListener('blur', off); };
-  }, [srcPeek]);
 
   // 框的高度跟內容走：量出每個框放下全部內容要多高
   const sectionRef = useRef<HTMLElement>(null);
