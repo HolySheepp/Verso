@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react';
 import { useStore, type MoveTarget } from '../state/store';
-import { saveNow } from '../state/saver';
+import { requestAutosave } from '../state/saver';
 import { SHARED, type Entry, type FileDoc, type Sheet } from '../model/types';
 import { COLS, COLS_GRID, appendNote, checkColumns, fitsRows, newUid, pasteColumns, type Col, type Columns } from '../model/paste';
 import { fz } from '../model/fonts';
@@ -27,8 +27,8 @@ const actBtn: React.CSSProperties = {
   width: 26, height: 26, display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 0, background: 'transparent', border: 0, borderRadius: 6, color: 'var(--mute)',
 };
 
-/** 結構的變動（新增、刪除、搬移）馬上存檔，硬碟上的檔案跟著變 */
-const commit = () => { void saveNow(); };
+/** 結構的變動（新增、刪除、搬移）：字典照舊馬上存；檔案、專案的變動等手動儲存，先存進暫存復原 */
+const commit = () => { requestAutosave(); };
 
 function Header({ id, title, onClose }: { id: string; title: string; onClose(): void }) {
   return (

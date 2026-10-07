@@ -154,7 +154,7 @@ export async function loadWorkspace(root: string, onProgress?: (p: number, text:
   try { await migrateDicts(root); } catch { /* 搬不動就照舊讀 */ }
 
   const projectNames = (await io.exists(root))
-    ? (await io.list(root)).filter((e) => e.dir && e.name !== DICT_DIR).map((e) => e.name)
+    ? (await io.list(root)).filter((e) => e.dir && e.name !== DICT_DIR && !e.name.startsWith('.')).map((e) => e.name)
     : [];
 
   // 自訂標記不分專案：舊版各專案各有一組，合併時同名的視為同一個，其他重新編號
@@ -253,7 +253,8 @@ export async function scanFolder(root: string): Promise<{ projects: string[]; fi
   const out = { projects: [] as string[], files: [] as { project: string; name: string }[], dicts: [] as { project: string; name: string }[] };
   if (!(await io.exists(root))) return out;
   for (const e of await io.list(root)) {
-    if (!e.dir) continue;
+    // 「.」開頭的是軟體自己用的資料夾（例如暫存復原），不是專案
+    if (!e.dir || e.name.startsWith('.')) continue;
     if (e.name === DICT_DIR) {
       for (const p of (await io.list(io.join(root, DICT_DIR))).filter((x) => x.dir)) {
         out.projects.push(p.name);
@@ -320,4 +321,62 @@ export async function writeDict(root: string, project: string, dict: string, ter
   const dir = io.join(root, DICT_DIR, project);
   await io.mkdir(dir);
   await io.writeBinary(io.join(dir, safeName(dict) + '.xlsx'), await dictToXlsxAsync(terms, did));
+}
+
+// ---- 暫存復原：自動存檔寫在這裡，正式檔只在手動儲存時才寫 ----
+
+/** 存檔資料夾裡的隱藏資料夾 */
+export const RECOVERY_DIR = '.暫存復原';
+const RECOVERY_STATE = 'state.json';
+
+/** 暫存復原的清單：目前有哪些檔案（有改過的另外存一份內容）、專案、自訂標記 */
+export interface RecoveryState {
+  files: { key: string; project: string; name: string; fid?: string; data?: string }[];
+  projects: string[];
+  customMarks: CustomMark[];
+  nextMarkId?: number;
+}
+
+/** 讀文字檔；安全存檔中途當機時，原檔可能還在 .bak */
+async function readTextSafe(path: string): Promise<string> {
+  try { return await io.readText(path); } catch { return await io.readText(path + '.bak'); }
+}
+
+/** 寫暫存復原：先寫有改過的檔案內容，再寫清單，最後刪掉用不到的舊內容 */
+export async function writeRecovery(root: string, state: RecoveryState, changed: { data: string; file: FileDoc }[]) {
+  const dir = io.join(root, RECOVERY_DIR);
+  const fresh = !(await io.exists(dir));
+  await io.mkdir(dir);
+  if (fresh) {
+    try { const { invoke, isTauri } = await import('@tauri-apps/api/core'); if (isTauri()) await invoke('hide_path', { path: dir }); } catch { /* 設不了隱藏也能用 */ }
+  }
+  for (const c of changed) await io.writeText(io.join(dir, c.data), JSON.stringify(c.file));
+  await io.writeText(io.join(dir, RECOVERY_STATE), JSON.stringify(state));
+  const used = new Set(state.files.map((f) => f.data).filter(Boolean));
+  for (const e of await io.list(dir)) {
+    if (e.dir || e.name === RECOVERY_STATE || used.has(e.name)) continue;
+    await io.remove(io.join(dir, e.name)).catch(() => undefined);
+  }
+}
+
+/** 讀暫存復原；沒有或讀不懂時回傳 null */
+export async function readRecovery(root: string): Promise<{ state: RecoveryState; files: Map<string, FileDoc> } | null> {
+  const dir = io.join(root, RECOVERY_DIR);
+  if (!(await io.exists(dir))) return null;
+  try {
+    const state = JSON.parse(await readTextSafe(io.join(dir, RECOVERY_STATE))) as RecoveryState;
+    if (!Array.isArray(state.files) || !Array.isArray(state.projects)) return null;
+    const files = new Map<string, FileDoc>();
+    for (const f of state.files) {
+      if (!f.data) continue;
+      try { files.set(f.key, JSON.parse(await readTextSafe(io.join(dir, f.data))) as FileDoc); } catch { /* 這個檔案讀不到就用正式檔 */ }
+    }
+    return { state, files };
+  } catch { return null; }
+}
+
+/** 刪掉暫存復原（手動儲存後、選「不儲存」或「捨棄」時） */
+export async function clearRecovery(root: string) {
+  const dir = io.join(root, RECOVERY_DIR);
+  if (await io.exists(dir)) await io.remove(dir);
 }

@@ -41,6 +41,27 @@ fn open_url(url: String) -> Result<(), String> {
         .map_err(|e| e.to_string())
 }
 
+/// 把資料夾設成隱藏（暫存復原資料夾用）
+#[tauri::command]
+fn hide_path(path: String) -> Result<(), String> {
+    #[cfg(windows)]
+    {
+        use std::os::windows::process::CommandExt;
+        const CREATE_NO_WINDOW: u32 = 0x0800_0000;
+        std::process::Command::new("attrib")
+            .args(["+h", &path])
+            .creation_flags(CREATE_NO_WINDOW)
+            .status()
+            .map(|_| ())
+            .map_err(|e| e.to_string())
+    }
+    #[cfg(not(windows))]
+    {
+        let _ = path;
+        Ok(())
+    }
+}
+
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
 pub fn run() {
     tauri::Builder::default()
@@ -56,7 +77,7 @@ pub fn run() {
         .plugin(tauri_plugin_process::init())
         .plugin(tauri_plugin_fs::init())
         .plugin(tauri_plugin_dialog::init())
-        .invoke_handler(tauri::generate_handler![list_fonts, move_to_trash, install_kind, open_url])
+        .invoke_handler(tauri::generate_handler![list_fonts, move_to_trash, install_kind, open_url, hide_path])
         .run(tauri::generate_context!())
         .expect("error while running tauri application");
 }

@@ -99,8 +99,9 @@ export async function onUpdateIcon() {
   useStore.setState({ updatePrompt: null });
   if (!yes) return;
   // 更新前先存檔，畫面換成啟動畫面顯示進度
-  const { saveNow } = await import('./saver');
-  await saveNow();
+  // 先存進暫存復原，更新後重開會問要不要恢復，不會直接蓋掉正式檔
+  const { autosaveNow } = await import('./saver');
+  await autosaveNow();
   useStore.setState({ loading: { p: 0, text: '準備更新' } });
   const ok = await install();
   if (!ok) useStore.setState({ loading: null });

@@ -132,6 +132,8 @@ interface State {
   pasteInsert: { after: number } | null;
   /** 更新原文（實驗性功能）：正在更新哪個頁簽 */
   srcUpdate: number | null;
+  /** 開啟時發現上次留下的暫存復原：問要恢復還是捨棄 */
+  recoveryAsk: boolean;
   dictPasteOpen: boolean;
   manageProjectsOpen: boolean;
   /** 畫面中間短暫出現的提示 */
@@ -482,6 +484,7 @@ export const useStore = create<Store>((set, get) => {
     importFile: null,
     pasteInsert: null,
     srcUpdate: null,
+    recoveryAsk: false,
     dictPasteOpen: false,
     manageProjectsOpen: false,
     toast: null,

@@ -95,7 +95,7 @@ export function Shortcuts() {
       if (ev.key === 'F5' || ((ev.ctrlKey || ev.metaKey) && ev.code === 'KeyR')) ev.preventDefault();
 
       // 對話框開著時只處理 Esc 關閉設定與詞條視窗；貼入視窗怕內容遺失，不用 Esc 關
-      if (s.settingsOpen || s.termDraft || s.pasteOpen || s.srcUpdate !== null || s.importOpen || s.dictPasteOpen || s.manageProjectsOpen || s.manageDictsOpen || s.moveTarget || s.lengthDialog) {
+      if (s.settingsOpen || s.termDraft || s.pasteOpen || s.srcUpdate !== null || s.recoveryAsk || s.importOpen || s.dictPasteOpen || s.manageProjectsOpen || s.manageDictsOpen || s.moveTarget || s.lengthDialog) {
         if (ev.key === 'Escape' && s.moveTarget) { ev.preventDefault(); s.set({ moveTarget: null }); return; }
         if (ev.key === 'Escape' && s.lengthDialog) { ev.preventDefault(); s.set({ lengthDialog: null }); return; }
         // 管理專案、管理字典裡可能有還沒存的修改，不用 Esc 關
@@ -142,7 +142,7 @@ export function Shortcuts() {
     /** 依目前焦點的情境執行快捷鍵，有執行就回傳 true */
     const handle = (combo: string) => {
       const s = useStore.getState();
-      if (!s.project || s.settingsOpen || s.termDraft || s.pasteOpen || s.srcUpdate !== null || s.importOpen || s.dictPasteOpen || s.lengthDialog) return false;
+      if (!s.project || s.settingsOpen || s.termDraft || s.pasteOpen || s.srcUpdate !== null || s.recoveryAsk || s.importOpen || s.dictPasteOpen || s.lengthDialog) return false;
       const el = document.activeElement;
       const inWork = isWorkInput(el, s.mode);
       // 在備註、搜尋框之類的地方，只有存檔快捷鍵有效

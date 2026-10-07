@@ -1,4 +1,6 @@
-// 存檔控制：啟動時載入、偵測修改、自動存檔、Ctrl+S、關閉或切換檔案時詢問
+// 存檔控制：啟動時載入、偵測修改、自動存檔、Ctrl+S、關閉或切換檔案時詢問。
+// 自動存檔只寫「暫存復原」（存檔資料夾裡的隱藏資料夾），正式的 xlsx 只在手動儲存時才寫；
+// 選「不儲存」就退回上次手動儲存的內容。字典不受影響，改了就馬上存。
 import { isTauri } from '@tauri-apps/api/core';
 import { getCurrentWindow } from '@tauri-apps/api/window';
 import { io } from '../data/fsio';
@@ -6,8 +8,8 @@ import { withFontDefaults } from '../model/fonts';
 import { MAX_CELL_CHARS, nameKey } from '../model/names';
 import { migrateList, migrateSheets } from '../model/shortcuts';
 import {
-  findRootConflicts, scanFolder, loadConfig, loadWorkspace, readDict, readDictFull, reloadFile, saveConfig, sortProjects, trashDict, trashFile, trashProject, writeDict, writeFile, writeMeta,
-  type AppConfig, type LastPosition,
+  clearRecovery, findRootConflicts, scanFolder, loadConfig, loadWorkspace, readDict, readDictFull, readRecovery, reloadFile, saveConfig, sortProjects, trashDict, trashFile, trashProject, writeDict, writeFile, writeMeta, writeRecovery,
+  type AppConfig, type LastPosition, type RecoveryState,
 } from '../data/persist';
 import { emptyHistory } from '../model/history';
 import { dictKey, newFileId, type CustomMark, type DictInfo, type FileDoc, type GlossaryTerm, type ProjectData } from '../model/types';
@@ -25,9 +27,58 @@ let saved = {
   dicts: new Map<string, string>(),
   projects: [] as string[],
 };
-let dirtySince = 0;
 let lastAttempt = 0;
 let closing = false;
+
+// 暫存復原：已經寫進去的檔案內容（依檔案 key）與清單；recPending 代表有新的變動還沒暫存
+let rec = { files: new Map<string, FileDoc>(), state: '' };
+let recPending = false;
+let recSince = 0;
+const resetRec = () => { rec = { files: new Map(), state: '' }; recPending = false; };
+/** 暫存復原裡每個檔案內容的檔名 */
+const recName = (f: FileDoc) => (f.fid ?? fileKey(f)).replace(/[\\/:*?"<>|]/g, '_') + '.json';
+
+/** 自動存檔：把跟上次手動儲存不同的內容寫進暫存復原（只寫有改過的檔案） */
+async function autosave() {
+  const s = useStore.getState();
+  const p = s.project;
+  if (!p || !s.saveRoot) return;
+  recPending = false;
+  if (!isDirty()) {
+    // 改回跟正式檔一樣了：暫存復原用不到
+    if (rec.state) { await clearRecovery(s.saveRoot).catch(() => undefined); resetRec(); }
+    return;
+  }
+  const files: RecoveryState['files'] = [];
+  const changed: { data: string; file: FileDoc }[] = [];
+  const keep = new Map<string, FileDoc>();
+  for (const f of p.files) {
+    const k = fileKey(f);
+    const same = saved.files.get(k) === f;
+    const data = same ? undefined : recName(f);
+    files.push({ key: k, project: f.project, name: f.name, ...(f.fid ? { fid: f.fid } : {}), ...(data ? { data } : {}) });
+    if (!data) continue;
+    keep.set(k, f);
+    if (rec.files.get(k) !== f) changed.push({ data, file: f });
+  }
+  const state: RecoveryState = { files, projects: p.projects, customMarks: p.customMarks, nextMarkId: p.nextMarkId };
+  const sig = JSON.stringify(state);
+  if (!changed.length && sig === rec.state) return;
+  try {
+    await writeRecovery(s.saveRoot, state, changed);
+    rec = { files: keep, state: sig };
+  } catch { recPending = true; /* 下次再試 */ }
+}
+
+/** 馬上寫一次暫存復原（例如更新前） */
+export function autosaveNow(): Promise<void> {
+  return serial(autosave);
+}
+
+/** 有變動：稍後自動存檔（管理專案之類的操作用） */
+export function requestAutosave() {
+  recPending = true; recSince = 0;
+}
 
 const dictSignature = (terms: GlossaryTerm[], did = '') => JSON.stringify([did, ...terms.map((t) => [t.term, t.en, t.note])]);
 /** 各本字典的 ID（依「專案/字典」） */
@@ -113,7 +164,18 @@ function lastPosition(): LastPosition | undefined {
 
 /** 存檔。成功回傳 true；檔案被 Excel 開著之類的失敗會標成「未存檔」，之後自動重試 */
 export function saveNow(): Promise<boolean> {
-  return serial(saveAll);
+  return serial(async () => {
+    const before = useStore.getState().project;
+    const ok = await saveAll();
+    const s = useStore.getState();
+    if (ok && s.project === before && !isDirty()) {
+      // 正式檔已經是最新的：記下這個版本（含檔案順序），刪掉暫存復原
+      if (before) markSaved(before);
+      await clearRecovery(s.saveRoot).catch(() => undefined);
+      resetRec();
+    }
+    return ok;
+  });
 }
 
 /** 字典改了就馬上存（新增詞條、新字典、修改字典），不等自動存檔 */
@@ -283,7 +345,8 @@ export async function startApp() {
   markSaved(project);
   useStore.setState({ project, file: 0, sheetBy: {}, selBy: {}, history: emptyHistory(), saveStatus: 'saved' });
   // 舊版的自訂標記合併後要重寫一次（檔案裡的標記編號、工作區設定檔）
-  if (migrated) { saved = { ...saved, files: new Map(), customs: null }; useStore.setState({ saveStatus: 'dirty' }); dirtySince = 0; }
+  // 格式轉換，不是使用者的修改：直接寫回正式檔
+  if (migrated) { saved = { ...saved, files: new Map(), customs: null }; useStore.setState({ saveStatus: 'dirty' }); setTimeout(() => { void saveNow(); }, 0); }
   // 舊檔案剛配了 ID：記成未存，馬上存一次把 ID 寫進去
   if (newIds.length) {
     const ids = new Set(newIds);
@@ -292,6 +355,11 @@ export async function startApp() {
     setTimeout(() => { void saveNow(); }, 0);
   }
   restorePosition(project, last);
+  // 上次沒有正常關閉，留下了暫存復原：進主畫面後問要不要恢復
+  try {
+    const r = await readRecovery(saveRoot);
+    if (r) { pendingRecovery = r; useStore.setState({ recoveryAsk: true }); }
+  } catch { /* 讀不到就當沒有 */ }
   step(1, '完成');
   startFolderWatch();
   // 讓進度條停在填滿的樣子一下再進主畫面
@@ -312,10 +380,13 @@ function watch() {
       clearTimeout(dictTimer);
       dictTimer = setTimeout(() => { void saveDicts(); }, 300);
     }
-    if (s.project !== prev.project && s.saveStatus !== 'saving') {
-      const dirty = isDirty();
-      if (dirty && s.saveStatus === 'saved') { dirtySince = Date.now(); useStore.setState({ saveStatus: 'dirty' }); }
-      if (!dirty && s.saveStatus === 'dirty') useStore.setState({ saveStatus: 'saved' });
+    if (s.project !== prev.project) {
+      if (!recPending) { recPending = true; recSince = Date.now(); }
+      if (s.saveStatus !== 'saving') {
+        const dirty = isDirty();
+        if (dirty && s.saveStatus === 'saved') useStore.setState({ saveStatus: 'dirty' });
+        if (!dirty && s.saveStatus === 'dirty') useStore.setState({ saveStatus: 'saved' });
+      }
     }
     // 設定改了就存到設定檔
     if (s.theme !== prev.theme || s.accent !== prev.accent || s.customAccents !== prev.customAccents || s.rainbowUnlocked !== prev.rainbowUnlocked || s.fonts !== prev.fonts || s.recentFonts !== prev.recentFonts || s.shortcuts !== prev.shortcuts || s.checkSettings !== prev.checkSettings
@@ -323,16 +394,14 @@ function watch() {
       clearTimeout(configTimer);
       configTimer = setTimeout(() => void persistConfig(), 400);
     }
-    // 建立第一個檔案時馬上存，讓專案資料夾出現
-    if (prev.project && s.project && !prev.project.files.length && s.project.files.length) void saveNow();
   });
 
-  // 定時檢查：到了間隔就自動存；存檔失敗的話每 10 秒重試
+  // 定時檢查：到了間隔就自動存到暫存復原；手動儲存失敗的話每 10 秒重試
   setInterval(() => {
     const s = useStore.getState();
-    if (s.saveStatus === 'saving') return;
-    if (s.saveStatus === 'error') { if (Date.now() - lastAttempt >= 10_000) void saveNow(); return; }
-    if (s.saveStatus === 'dirty' && Date.now() - dirtySince >= s.autosaveMin * 60_000) void saveNow();
+    if (s.saveStatus === 'saving' || s.recoveryAsk) return;
+    if (s.saveStatus === 'error' && Date.now() - lastAttempt >= 10_000) { void saveNow(); return; }
+    if (recPending && Date.now() - recSince >= s.autosaveMin * 60_000) void serial(autosave);
   }, 5_000);
 
   // 關閉視窗時，有未存的修改就先問
@@ -384,26 +453,47 @@ export function requestFile(i: number) {
   leaveFile(target, (idx) => { if (idx >= 0) useStore.getState().setFile(idx); });
 }
 
-/** 放棄未存的修改：改過的檔案重新從硬碟讀回來，從沒存過的檔案拿掉 */
+/**
+ * 不儲存：整個退回上次手動儲存的內容（檔案內容、新增刪除改名的檔案、專案、自訂標記），並刪掉暫存復原。
+ * 上次儲存的內容一直記在記憶體裡，不用重讀硬碟。字典不受影響。
+ */
 async function discardChanges(target: string | null) {
   const s = useStore.getState();
   const p = s.project;
   if (!p) return;
-  const files: FileDoc[] = [];
-  for (const f of p.files) {
-    const old = saved.files.get(fileKey(f));
-    if (old === f) { files.push(f); continue; }
-    // 從沒存過的檔案拿掉；改過的從上次存的位置讀回來
-    if (!old) continue;
-    const back = await reloadFile(s.saveRoot, old.project, old.name, p.customMarks).catch(() => null);
-    if (back) files.push({ ...back, fid: f.fid });
-  }
-  const customMarks = saved.customs ?? p.customMarks;
-  const next = { ...p, files, customMarks };
+  const files = [...saved.files.values()];
+  const next: ProjectData = { ...p, files, customMarks: saved.customs ?? p.customMarks, projects: saved.projects.length ? saved.projects : p.projects };
   const idx = Math.max(0, files.findIndex((f) => fileKey(f) === target));
   // 檔案可能少了，位置一律重設，避免指到不存在的檔案
-  useStore.setState({ project: next, file: idx, sheetBy: {}, selBy: {}, reported: {}, viewOn: false, peek: false, saveStatus: 'saved' });
+  useStore.setState({ project: next, file: idx, sheetBy: {}, selBy: {}, cellSel: null, reported: {}, viewOn: false, peek: false, saveStatus: 'saved' });
   markSaved(next);
+  await clearRecovery(s.saveRoot).catch(() => undefined);
+  resetRec();
+}
+
+// ---- 開啟時的暫存復原 ----
+
+let pendingRecovery: Awaited<ReturnType<typeof readRecovery>> = null;
+
+/** 上次沒有正常關閉：恢復暫存的內容（之後要手動儲存才會寫進正式檔），或捨棄 */
+export async function resolveRecovery(choice: 'restore' | 'discard') {
+  const r = pendingRecovery;
+  pendingRecovery = null;
+  useStore.setState({ recoveryAsk: false });
+  const s = useStore.getState();
+  if (!r || !s.project) return;
+  if (choice === 'discard') { await clearRecovery(s.saveRoot).catch(() => undefined); resetRec(); return; }
+  const official = new Map(s.project.files.map((f) => [fileKey(f), f]));
+  const files = r.state.files.map((x) => r.files.get(x.key) ?? official.get(x.key)).filter((f): f is FileDoc => !!f);
+  const next: ProjectData = {
+    ...s.project, files,
+    projects: sortProjects(r.state.projects),
+    customMarks: Array.isArray(r.state.customMarks) ? r.state.customMarks : s.project.customMarks,
+    nextMarkId: r.state.nextMarkId ?? s.project.nextMarkId,
+  };
+  useStore.setState({ project: next, file: 0, sheetBy: {}, selBy: {}, cellSel: null, reported: {} });
+  // 暫存復原裡已經是這些內容，不必馬上重寫
+  rec = { files: new Map([...r.files].filter(([k]) => files.some((f) => fileKey(f) === k))), state: '' };
 }
 
 /** 詢問對話框的選擇 */
@@ -415,11 +505,11 @@ export async function resolveAskSave(choice: 'save' | 'discard' | 'cancel') {
     const ok = await saveNow();
     if (!ok) return; // 存不進去就不關、不切換，標題列會顯示「未存檔」
   }
+  if (choice === 'discard') await discardChanges(ask.kind === 'leave' ? ask.target : null);
   if (ask.kind === 'close') {
     await finishAndClose();
     return;
   }
-  if (choice === 'discard') await discardChanges(ask.target);
   ask.go(indexOf(ask.target));
 }
 

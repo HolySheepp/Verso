@@ -20,7 +20,7 @@ import { RootConflictDialog } from './components/RootConflictDialog';
 import { ManageDictsDialog, ManageProjectsDialog, MoveProjectDialog } from './components/ManageDialogs';
 import { Shortcuts } from './components/Shortcuts';
 import { ConfirmDialog } from './components/ConfirmDialog';
-import { resolveAskSave, startApp } from './state/saver';
+import { resolveAskSave, resolveRecovery, startApp } from './state/saver';
 import { useEffectiveTheme } from './components/useTheme';
 import { IconCheck, IconChevD, IconChevL } from './components/icons';
 import { fontVars, fz } from './model/fonts';
@@ -94,6 +94,19 @@ function GoneNotice() {
 }
 
 /** 按了標題列的更新圖示：問要不要更新 */
+/** 上次沒有正常關閉，留下了自動暫存的內容：問要恢復還是捨棄 */
+function RecoveryDialog() {
+  const ask = useStore((st) => st.recoveryAsk);
+  if (!ask) return null;
+  return (
+    <ConfirmDialog zIndex={70} title="上次沒有正常關閉" body="有自動暫存但還沒儲存的內容。恢復後要按儲存才會寫進檔案。"
+      choices={[
+        { label: '捨棄', onClick: () => void resolveRecovery('discard') },
+        { label: '恢復', primary: true, onClick: () => void resolveRecovery('restore') },
+      ]} />
+  );
+}
+
 function UpdatePromptDialog() {
   const prompt = useStore((st) => st.updatePrompt);
   if (!prompt) return null;
@@ -244,6 +257,7 @@ export default function App() {
       <UnreadableNotice />
       <GoneNotice />
       <UpdatePromptDialog />
+      <RecoveryDialog />
       <RootConflictDialog />
       {s.askSave && (
         <ConfirmDialog zIndex={60} title="有未儲存的修改"
