@@ -56,12 +56,10 @@ describe('原文更新：套用', () => {
     expect(out[2].upd).toEqual({ removed: true });
     expect(out[3]).toMatchObject({ src: 'New one', pending: true, tgt: '' });
   });
-  it('原文修正過、新版沒動就保留修正', () => {
+  it('一律跟目前的原文比', () => {
     const e = E('1', 'Helo', 'x', { src: 'Hello' });
-    e.src0 = 'Helo';
     const out = applyUpdate([e], [R('Helo')], [{ old: 0, new: 0 }], { id: false, speaker: false });
-    expect(out[0].src).toBe('Hello');
-    expect(out[0].upd).toBeUndefined();
+    expect(out[0].upd).toEqual({ src: 'Helo' });
   });
 });
 

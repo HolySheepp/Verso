@@ -18,7 +18,7 @@ import { srcDiff } from '../model/srcUpdate';
 import { fz } from '../model/fonts';
 import {
   IconWarn, IconCopyPair, IconRuler,
-  IconBraces, IconCheck, IconChevL, IconChevR, IconCopy, IconEraser, IconEye, IconFeather, IconLock, IconPen, IconUndo, IconUse,
+  IconBraces, IconCheck, IconChevL, IconChevR, IconCopy, IconEraser, IconEye, IconFeather, IconLock, IconPen, IconUse,
 } from './icons';
 
 const MODE_HINTS: Record<Mode, string> = {
@@ -513,7 +513,6 @@ function WorkPanelInner({ height, maxH }: { height: number; maxH: number }) {
                   <IconPen size={10} sw={2.6} />可編輯
                 </span>
               )}
-              {cur.src !== cur.src0 && <span style={{ fontSize: fz(11), color: 'var(--text2)' }}>已修改，原始版本會保留</span>}
               {cur.upd && (
                 <span style={{ fontSize: fz(11), color: 'var(--accent2)', padding: '1px 7px', borderRadius: 9, background: 'var(--acc-soft)' }}>
                   {cur.upd.removed ? '新版已移除' : cur.upd.applied ? '已套用新原文' : showNewSrc ? '原文已更新' : '舊原文'}
@@ -656,11 +655,6 @@ function WorkPanelInner({ height, maxH }: { height: number; maxH: number }) {
             <button type="button" className="ib btn-side" aria-label="全部清除" title="清除這一條的所有修改" disabled={!edits.length} onClick={() => asStep(() => s.setVerify([]))}
               style={{ opacity: edits.length ? 1 : 0.5 }}>
               <IconEraser size={15} />
-            </button>
-          )}
-          {mode === 'source' && (
-            <button type="button" className="ib btn-side" aria-label="還原原文" title="還原為原始原文" onClick={() => s.updateEntry({ src: cur.src0 })}>
-              <IconUndo size={15} />
             </button>
           )}
           {mode !== 'view' && (

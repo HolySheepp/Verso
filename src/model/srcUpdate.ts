@@ -174,9 +174,8 @@ export function orderRows(rows: AlignRow[]): AlignRow[] {
 
 export interface Summary { same: number; changed: number; added: number; removed: number }
 
-/** 這條原文要不要標「原文更新」：原文修正模式改過的，拿新版和匯入時的原文比 */
+/** 這條原文要不要標「原文更新」：跟目前的原文比（只忽略前後空白） */
 function srcChanged(e: Entry, src: string): boolean {
-  if (e.src !== e.src0 && src.trim() === e.src0.trim()) return false;
   return src.trim() !== e.src.trim();
 }
 
