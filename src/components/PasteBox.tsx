@@ -1,10 +1,10 @@
-import { useEffect, useRef, useState } from 'react';
+import { memo, useEffect, useMemo, useRef, useState } from 'react';
 import { readColumns } from '../model/clipboard';
 import { clearRows, deleteRows, insertRow, setRow, type Col } from '../model/paste';
 import { IconWinClose } from './icons';
 import { ContextMenu } from './ContextMenu';
 import { focusOnMount } from './windowDrag';
-import { fz, overflowOf } from '../model/fonts';
+import { cellFontCss, fz, overflowOf } from '../model/fonts';
 import { useStore } from '../state/store';
 import { CellText } from './CellText';
 
@@ -39,8 +39,28 @@ const toTsv = (rows: string[]) => rows.map((r) => (/[\n\t"]/.test(r) ? `"${r.rep
  * 點標題選整欄；點、Shift、Ctrl、拖動可以選多行。
  * Backspace 清除、Delete 刪除；選了行時 Ctrl+V 從那一行往下覆蓋，選整欄（或沒選）時整欄換掉。
  */
-export function PasteBox({ label, col, onPaste, onChange, selected, onSelect, fontSlot, required }: Props) {
+/**
+ * 外層重畫（例如在檔名欄打字）時，方框的內容沒變就不重畫：貼了幾千行時才不會每打一個字都卡。
+ * 傳進來的函式每次都是新的，所以不比較它們（它們用的都是會拿最新狀態的寫法）。
+ */
+export const PasteBox = memo(PasteBoxImpl, (a, b) =>
+  a.label === b.label && a.col === b.col && a.selected === b.selected && a.fontSlot === b.fontSlot && a.required === b.required);
+
+function PasteBoxImpl({ label, col, onPaste, onChange, selected, onSelect, fontSlot, required }: Props) {
   const ovf = useStore((s) => (fontSlot ? overflowOf(s.fonts, fontSlot) : 'ellipsis'));
+  // 「縮小字級」用量字寬的方式算，不必每一行都去量畫面（幾千行時量畫面會非常慢）
+  const fitFont = useStore((s) => (fontSlot ? cellFontCss(s.fonts, fontSlot) : ''));
+  const boxRef = useRef<HTMLDivElement>(null);
+  const [boxW, setBoxW] = useState(0);
+  useEffect(() => {
+    const el = boxRef.current;
+    if (!el || ovf !== 'shrink') return;
+    const ro = new ResizeObserver(() => setBoxW(el.clientWidth));
+    ro.observe(el);
+    return () => ro.disconnect();
+  }, [ovf]);
+  // 方框寬度扣掉行號欄、間距和內距
+  const fitW = Math.max(0, boxW - 50);
   const font = fontSlot === 'id' ? { family: 'var(--font-id)', size: 'var(--fs-id)' } : fontSlot === 'speaker' ? { family: 'var(--font-spk)', size: 'var(--fs-spk)' } : null;
   // 用一個看不見的文字框接收貼上，這樣不管點在方框哪裡、按 Ctrl+V 都一定會觸發貼上
   const input = useRef<HTMLTextAreaElement>(null);
@@ -49,6 +69,7 @@ export function PasteBox({ label, col, onPaste, onChange, selected, onSelect, fo
   const dragFrom = useRef<number | null>(null);
   const rows = col?.rows ?? null;
   const selRows = selected && selected !== 'col' ? selected.rows.filter((i) => rows && i < rows.length) : [];
+  const selSet = useMemo(() => new Set(selRows), [selected, rows]); // eslint-disable-line react-hooks/exhaustive-deps
   const colSel = selected === 'col';
 
   // 換了內容（例如重新貼上）就結束編輯
@@ -151,7 +172,7 @@ export function PasteBox({ label, col, onPaste, onChange, selected, onSelect, fo
             </button></>}
         </span>
       </div>
-      <div className="paste-box" data-colsel={colSel ? '1' : undefined}
+      <div ref={boxRef} className="paste-box" data-colsel={colSel ? '1' : undefined}
         onMouseDown={(ev) => {
           // 編輯中的文字框自己處理滑鼠；點到捲軸以外的地方都把焦點交給接收貼上的文字框
           if ((ev.target as HTMLElement).closest('.pb-edit')) return;
@@ -177,16 +198,17 @@ export function PasteBox({ label, col, onPaste, onChange, selected, onSelect, fo
           }}
           style={{ position: 'absolute', left: 0, top: 0, width: 1, height: 1, padding: 0, border: 0, opacity: 0, resize: 'none', pointerEvents: 'none' }} />
         {rows ? rows.map((r, i) => (
-          <div key={i} className="pb-row" data-editing={editing?.i === i ? '1' : undefined} data-selected={selRows.includes(i) ? '1' : undefined}
+          <div key={i} className="pb-row" data-editing={editing?.i === i ? '1' : undefined} data-selected={selSet.has(i) ? '1' : undefined}
             onMouseDown={(ev) => rowDown(ev, i)} onMouseEnter={(ev) => rowEnter(ev, i)}
             onDoubleClick={() => setEditing({ i, text: r })}
             onContextMenu={(ev) => {
               ev.preventDefault();
               commit();
-              if (!selRows.includes(i)) onSelect({ rows: [i], anchor: i });
+              if (!selSet.has(i)) onSelect({ rows: [i], anchor: i });
               setMenu({ x: ev.clientX, y: ev.clientY });
             }}
-            style={{ display: 'flex', alignItems: 'center', gap: 6, padding: '2px 8px 2px 4px', fontSize: fz(12.5), lineHeight: 1.5 }}>
+            // 畫面外的行不排版、不繪製，幾千行時捲動才順
+            style={{ display: 'flex', alignItems: 'center', gap: 6, padding: '2px 8px 2px 4px', fontSize: fz(12.5), lineHeight: 1.5, contentVisibility: 'auto', containIntrinsicSize: 'auto 23px' }}>
             {/* 行號欄剛好放得下 4 位數 */}
             <span className="mono" style={{ width: '4ch', flexShrink: 0, textAlign: 'right', fontSize: fz(10.5), color: 'var(--mute3)', lineHeight: '19px' }}>{i + 1}</span>
             {editing?.i === i ? (
@@ -203,7 +225,7 @@ export function PasteBox({ label, col, onPaste, onChange, selected, onSelect, fo
                   background: 'var(--panel)', border: '1px solid var(--accent)', borderRadius: 4, color: 'var(--text)', fontSize: fz(12.5), lineHeight: 1.5,
                 }} />
             ) : font && r ? (
-              <CellText mode={ovf} fontSize={font.size} style={{ fontFamily: font.family, color: 'var(--text)', lineHeight: 1.5 }}>{r.replace(/\n/g, ' ↵ ')}</CellText>
+              <CellText mode={ovf === 'shrink' && !boxW ? 'ellipsis' : ovf} fontSize={font.size} fit={boxW ? { width: fitW, font: fitFont, text: r.replace(/\n/g, ' ↵ ') } : undefined} style={{ fontFamily: font.family, color: 'var(--text)', lineHeight: 1.5 }}>{r.replace(/\n/g, ' ↵ ')}</CellText>
             ) : (
               <span style={{ minWidth: 0, overflow: 'hidden', whiteSpace: 'nowrap', textOverflow: 'ellipsis', color: r ? 'var(--text)' : 'var(--mute3)' }}>
                 {r ? r.replace(/\n/g, ' ↵ ') : '—'}
