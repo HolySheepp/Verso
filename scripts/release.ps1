@@ -22,7 +22,8 @@ $extra = Join-Path $env:CARGO_TARGET_DIR 'release-config.json'
 New-Item -ItemType Directory -Force $env:CARGO_TARGET_DIR | Out-Null
 if (-not $SkipBuild) {
   [IO.File]::WriteAllText($extra, '{"bundle":{"createUpdaterArtifacts":true}}')
-  npx tauri build --config $extra
+  # 私鑰沒有密碼：送一個空白行給它，打包時就不會停在 password: 等人按 Enter
+  '' | npx tauri build --config $extra
   if ($LASTEXITCODE -ne 0) { throw '打包失敗' }
 }
 $nsis = Join-Path $env:CARGO_TARGET_DIR 'release\bundle\nsis'

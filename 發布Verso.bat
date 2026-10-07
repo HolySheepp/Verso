@@ -26,6 +26,9 @@ for /f "delims=" %%t in ('git tag --points-at HEAD') do if "%%t"=="v%VER%" set "
 if not defined TAGGED ( echo HEAD has no tag v%VER%. Ask the main developer to tag it. & goto fail )
 
 echo [3/5] Checking GitHub for an existing release...
+rem Check the GitHub login before building, so a long build is not wasted
+gh auth status >nul 2>&1
+if errorlevel 1 ( echo GitHub CLI ^(gh^) is not installed or not logged in. Run "gh auth login" first. & goto fail )
 gh release view v%VER% --repo HolySheepp/Verso >nul 2>&1
 if not errorlevel 1 ( echo v%VER% is already published. Nothing to do. & goto done )
 
