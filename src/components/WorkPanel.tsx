@@ -413,6 +413,14 @@ function WorkPanelInner({ height, maxH }: { height: number; maxH: number }) {
     if (whole && txt && cur.tgt && txt !== cur.tgt) s.record(cur.tgt);
   };
 
+  const issueNote = issues.length > 0 && (
+    <span role="status" style={{ display: 'flex', alignItems: 'center', gap: 6, minWidth: 0, fontSize: fz(11.5), color: 'var(--warntx)' }}>
+      <IconWarn size={12} sw={2.2} style={{ flexShrink: 0 }} />
+      <span title={issueText} style={{ minWidth: 0, overflow: 'hidden', whiteSpace: 'nowrap', textOverflow: 'ellipsis' }}>{issueText}</span>
+      <button type="button" className="ib" onClick={() => s.skipCheck()} style={smallBtn}>略過</button>
+    </span>
+  );
+
   const viewTip = viewOn ? '返回目前譯文' : texts.length ? '查看修改（按住預覽）' : '查看修改（尚無記錄）';
 
   return (
@@ -487,13 +495,7 @@ function WorkPanelInner({ height, maxH }: { height: number; maxH: number }) {
                   <IconLock size={10} sw={2.6} />唯讀
                 </span>
               )}
-              {issues.length > 0 && (
-                <span role="status" style={{ display: 'flex', alignItems: 'center', gap: 6, minWidth: 0, fontSize: fz(11.5), color: 'var(--warntx)' }}>
-                  <IconWarn size={12} sw={2.2} style={{ flexShrink: 0 }} />
-                  <span title={issueText} style={{ minWidth: 0, overflow: 'hidden', whiteSpace: 'nowrap', textOverflow: 'ellipsis' }}>{issueText}</span>
-                  <button type="button" className="ib" onClick={() => s.skipCheck()} style={smallBtn}>略過</button>
-                </span>
-              )}
+              {!showEdits && issueNote}
             </span>
             <span style={{ ...meta, flexShrink: 0 }}>
               <span>{texts.length ? `已記錄 ${texts.length} / 3` : ''}</span>
@@ -572,7 +574,11 @@ function WorkPanelInner({ height, maxH }: { height: number; maxH: number }) {
           {showEdits && (
             <>
               <div style={{ ...labelRow, marginTop: 6, gap: 12 }}>
-                <label htmlFor="verso-edit" className="sec-label">修改</label>
+                {/* 有修改框時檢查的是修改框，問題提示也放在這裡 */}
+                <span style={{ display: 'flex', alignItems: 'center', gap: 8, minWidth: 0 }}>
+                  <label htmlFor="verso-edit" className="sec-label">修改</label>
+                  {issueNote}
+                </span>
                 <span style={{ ...meta, flexShrink: 0, alignItems: 'center' }}>
                   <button type="button" className="ib" disabled={!edits.length} onClick={() => asStep(() => s.setVerify([], modText))} title="用修改後的內容取代譯文"
                     style={{ ...smallBtn, opacity: edits.length ? 1 : 0.5 }}>全部套用</button>
