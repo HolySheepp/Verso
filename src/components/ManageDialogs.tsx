@@ -474,6 +474,18 @@ function ManageDicts() {
   };
   const spread = (from: keyof EditCols, values: string[][], start?: number) =>
     cols.commit({ ...cols.current.current, ...pasteColumns(EDIT_KEYS, from, values, cols.current.current, start) });
+  // 一鍵清除重複詞條：正在編輯的字典有未存的修改時先問；清完重新載入右邊的內容
+  const dedupe = () => guard(() => {
+    const n = useStore.getState().dedupeTerms();
+    useStore.setState((st) => ({ toast: { text: n ? `已清除 ${n} 筆重複詞條` : '沒有重複的詞條', k: (st.toast?.k ?? 0) + 1 } }));
+    if (n && cur) {
+      const p = useStore.getState().project!;
+      const terms = p.glossary.filter((g) => g.proj === cur.project && g.dict === cur.name);
+      const col = (f: (t: (typeof terms)[number]) => string): Col | null => (terms.length ? { rows: terms.map(f), extra: 0 } : null);
+      const v = { term: col((t) => t.term), en: col((t) => t.en), note: col((t) => t.note) };
+      setBase(v); cols.reset(v); setSelRow(null);
+    }
+  });
 
   return (
     <div className="scrim" style={{ zIndex: 45 }} onMouseDown={dragWindow}
@@ -529,6 +541,10 @@ function ManageDicts() {
                   </div>
                 );
               })}
+            </div>
+            <div style={{ flexShrink: 0, padding: '10px 12px', borderTop: '1px solid var(--line)' }}>
+              <button type="button" className="btn btn-ghost" onClick={dedupe} title="清除原文、譯文、備註、專案都一樣的詞條，留第一筆"
+                style={{ ...ghostBtn, width: '100%', height: 32, fontSize: fz(12.5) }}>清除重複詞條</button>
             </div>
           </div>
 

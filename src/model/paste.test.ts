@@ -91,3 +91,12 @@ describe('備註欄', () => {
     expect(appendNote('', '新')).toBe('新');
   });
 });
+
+describe('字典重複詞條', () => {
+  it('原文、譯文、備註、專案都一樣才算重複，留第一筆', async () => {
+    const { dedupeGlossary } = await import('../state/store');
+    const t = (id: string, term: string, en: string, note = '', proj = 'A', dict = 'd') => ({ id, term, en, note, proj, dict });
+    const g = [t('1', '蘋果', 'apple'), t('2', '蘋果', 'apple '), t('3', '蘋果', 'apple', '水果'), t('4', '蘋果', 'apple', '', 'B'), t('5', '蘋果', 'apple', '', 'A', 'e')];
+    expect(dedupeGlossary(g).map((x) => x.id)).toEqual(['1', '3', '4']);
+  });
+});

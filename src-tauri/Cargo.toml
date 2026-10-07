@@ -1,6 +1,6 @@
 [package]
 name = "verso"
-version = "0.55.11"
+version = "0.56.0"
 description = "Verso 翻譯工作台"
 edition = "2021"
 

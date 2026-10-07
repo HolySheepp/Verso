@@ -229,6 +229,8 @@ interface Actions {
   deleteCustomMark(id: string, clear: boolean): void;
   addFile(f: FileDoc): void;
   addTerms(project: string, dict: string, pairs: [string, string][]): void;
+  /** 清除完全一樣的詞條（原文、譯文、備註、專案都一樣），留第一筆；回傳清掉幾筆 */
+  dedupeTerms(): number;
   /** 設定目前檔案的長度標準；undefined 是清掉 */
   setFileStd(std: StdValue | undefined): void;
   /** 設定目前條目的特殊標準；undefined 是改回檔案標準 */
@@ -288,6 +290,18 @@ const withMark = (e: Entry, id: MarkId, keepUpd = false): Entry => ({
   // 手動選了標記：「原文更新」標記不再顯示，新原文留著（套用過的就直接清掉）
   ...(e.upd && !keepUpd && id !== 'srcupd' ? (e.upd.applied ? { upd: undefined } : { upd: { ...e.upd, hidden: true } }) : {}),
 });
+
+/** 拿掉完全一樣的詞條（原文、譯文、備註、專案都一樣，前後空白不算），留第一筆 */
+export function dedupeGlossary(glossary: GlossaryTerm[]): GlossaryTerm[] {
+  const seen = new Set<string>();
+  const out = glossary.filter((g) => {
+    const k = JSON.stringify([g.proj, g.term.trim(), g.en.trim(), g.note.trim()]);
+    if (seen.has(k)) return false;
+    seen.add(k);
+    return true;
+  });
+  return out.length === glossary.length ? glossary : out;
+}
 
 /** 有還沒套用的原文更新：暫存的新原文，或新版已移除 */
 export const hasPendingUpdate = (e: Entry) => e.upd?.src !== undefined || !!e.upd?.removed;
@@ -849,9 +863,18 @@ export const useStore = create<Store>((set, get) => {
         id: 'p' + base + i, term, en, note: '', dict, proj,
       }));
       set({
-        project: { ...withDict(project, proj, dict), glossary: [...project.glossary, ...terms] },
+        project: { ...withDict(project, proj, dict), glossary: dedupeGlossary([...project.glossary, ...terms]) },
         dictPasteOpen: false,
       });
+    },
+
+    dedupeTerms() {
+      const project = get().project;
+      if (!project) return 0;
+      const glossary = dedupeGlossary(project.glossary);
+      const n = project.glossary.length - glossary.length;
+      if (n) set({ project: { ...project, glossary } });
+      return n;
     },
 
     setFileStd(std) {
