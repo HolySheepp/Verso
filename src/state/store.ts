@@ -21,7 +21,7 @@ export type SaveStatus = 'saved' | 'dirty' | 'saving' | 'error';
  * 有未存修改時要先問使用者：關閉 App，或離開目前的檔案。
  * leave：target 是要去的檔案（專案/檔名），新建檔案時是 null；決定後呼叫 go，帶入那個檔案現在的位置（找不到是 -1）。
  */
-export type AskSave = { kind: 'close' } | { kind: 'leave'; target: string | null; go: (index: number) => void };
+export type AskSave = { kind: 'close' } | { kind: 'leave'; target: string | null; go: (index: number) => void } | { kind: 'update'; go: () => void };
 
 
 /** keys：用快捷鍵打開的選單，可以按數字選取 */

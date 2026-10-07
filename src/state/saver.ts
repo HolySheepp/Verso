@@ -444,6 +444,12 @@ export function leaveFile(target: FileDoc | null, go: (index: number) => void) {
 
 const indexOf = (key: string | null) => (key === null ? -1 : useStore.getState().project?.files.findIndex((f) => fileKey(f) === key) ?? -1);
 
+/** 會關掉目前內容的動作（例如更新）：有未儲存的修改就先問「儲存／不儲存／取消」，選好了才執行 */
+export function askSaveThen(go: () => void) {
+  if (!isDirty() && useStore.getState().saveStatus !== 'error') { go(); return; }
+  useStore.setState({ askSave: { kind: 'update', go }, fileMenuOpen: false });
+}
+
 /** 檔案選單切換檔案 */
 export function requestFile(i: number) {
   const s = useStore.getState();
@@ -510,6 +516,7 @@ export async function resolveAskSave(choice: 'save' | 'discard' | 'cancel') {
     await finishAndClose();
     return;
   }
+  if (ask.kind === 'update') { ask.go(); return; }
   ask.go(indexOf(ask.target));
 }
 

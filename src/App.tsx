@@ -111,7 +111,7 @@ function UpdatePromptDialog() {
   const prompt = useStore((st) => st.updatePrompt);
   if (!prompt) return null;
   return (
-    <ConfirmDialog zIndex={70} title={`檢測到新版本 ${prompt.version}`} body="要現在更新嗎？會先存檔，更新完自動重新開啟。"
+    <ConfirmDialog zIndex={70} title={`檢測到新版本 ${prompt.version}`} body="要現在更新嗎？更新完會自動重新開啟。"
       choices={[
         { label: '稍後', onClick: () => prompt.resolve(false) },
         { label: '更新', primary: true, onClick: () => prompt.resolve(true) },
@@ -261,7 +261,7 @@ export default function App() {
       <RootConflictDialog />
       {s.askSave && (
         <ConfirmDialog zIndex={60} title="有未儲存的修改"
-          body={s.askSave.kind === 'close' ? '關閉前要儲存嗎？' : '離開這個檔案前要儲存嗎？'}
+          body={s.askSave.kind === 'close' ? '關閉前要儲存嗎？' : s.askSave.kind === 'update' ? '更新前要儲存嗎？' : '離開這個檔案前要儲存嗎？'}
           choices={[
             { label: '取消', onClick: () => void resolveAskSave('cancel') },
             { label: '不儲存', danger: true, onClick: () => void resolveAskSave('discard') },
