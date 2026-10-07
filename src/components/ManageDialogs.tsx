@@ -474,18 +474,23 @@ function ManageDicts() {
   };
   const spread = (from: keyof EditCols, values: string[][], start?: number) =>
     cols.commit({ ...cols.current.current, ...pasteColumns(EDIT_KEYS, from, values, cols.current.current, start) });
-  // 一鍵清除重複詞條：正在編輯的字典有未存的修改時先問；清完重新載入右邊的內容
-  const dedupe = () => guard(() => {
-    const n = useStore.getState().dedupeTerms();
+  // 清除這本字典裡重複的詞條（原文、譯文、備註都一樣），留第一筆；跟其他修改一樣按儲存才生效，可以 Ctrl+Z
+  const dedupe = () => {
+    const c = cols.current.current;
+    const rows = c.term?.rows ?? [];
+    const seen = new Set<string>();
+    const keep: number[] = [];
+    rows.forEach((t, i) => {
+      const k = JSON.stringify([t.trim(), (c.en?.rows[i] ?? '').trim(), (c.note?.rows[i] ?? '').trim()]);
+      if (!seen.has(k)) { seen.add(k); keep.push(i); }
+    });
+    const n = rows.length - keep.length;
     useStore.setState((st) => ({ toast: { text: n ? `已清除 ${n} 筆重複詞條` : '沒有重複的詞條', k: (st.toast?.k ?? 0) + 1 } }));
-    if (n && cur) {
-      const p = useStore.getState().project!;
-      const terms = p.glossary.filter((g) => g.proj === cur.project && g.dict === cur.name);
-      const col = (f: (t: (typeof terms)[number]) => string): Col | null => (terms.length ? { rows: terms.map(f), extra: 0 } : null);
-      const v = { term: col((t) => t.term), en: col((t) => t.en), note: col((t) => t.note) };
-      setBase(v); cols.reset(v); setSelRow(null);
-    }
-  });
+    if (!n) return;
+    const pick = (col: Col | null): Col | null => (col ? { ...col, rows: keep.map((i) => col.rows[i] ?? ''), extra: 0 } : null);
+    cols.commit({ term: pick(c.term), en: pick(c.en), note: pick(c.note) });
+    setSelRow(null);
+  };
 
   return (
     <div className="scrim" style={{ zIndex: 45 }} onMouseDown={dragWindow}
@@ -542,10 +547,6 @@ function ManageDicts() {
                 );
               })}
             </div>
-            <div style={{ flexShrink: 0, padding: '10px 12px', borderTop: '1px solid var(--line)' }}>
-              <button type="button" className="btn btn-ghost" onClick={dedupe} title="清除原文、譯文、備註、專案都一樣的詞條，留第一筆"
-                style={{ ...ghostBtn, width: '100%', height: 32, fontSize: fz(12.5) }}>清除重複詞條</button>
-            </div>
           </div>
 
           <div style={{ flexGrow: 1, minWidth: 0, display: 'flex', flexDirection: 'column' }}>
@@ -561,7 +562,13 @@ function ManageDicts() {
                   ))}
                 </div>
                 <div style={{ flexShrink: 0, display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 12, padding: '12px 20px 16px', borderTop: '1px solid var(--line)' }}>
-                  <span role="alert" style={{ fontSize: fz(12.5), color: error ? 'var(--errtx)' : 'var(--mute)' }}>{error || `${n} 筆`}</span>
+                  <span style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+                    <span role="alert" style={{ fontSize: fz(12.5), color: error ? 'var(--errtx)' : 'var(--mute)' }}>{error || `${n} 筆`}</span>
+                    {n > 0 && (
+                      <button type="button" className="btn btn-ghost" onClick={dedupe} title="清除這本字典裡原文、譯文、備註都一樣的詞條，留第一筆"
+                        style={{ ...ghostBtn, height: 28, padding: '0 10px', fontSize: fz(12) }}>清除重複詞條</button>
+                    )}
+                  </span>
                   <div style={{ display: 'flex', gap: 8 }}>
                     <button type="button" className="btn btn-ghost" disabled={!dirty} onClick={() => { cols.reset(base); setSelRow(null); }}
                       style={{ ...ghostBtn, height: 36, padding: '0 16px', fontSize: fz(13), opacity: dirty ? 1 : 0.5 }}>還原</button>

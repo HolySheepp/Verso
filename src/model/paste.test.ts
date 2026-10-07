@@ -97,6 +97,7 @@ describe('字典重複詞條', () => {
     const { dedupeGlossary } = await import('../state/store');
     const t = (id: string, term: string, en: string, note = '', proj = 'A', dict = 'd') => ({ id, term, en, note, proj, dict });
     const g = [t('1', '蘋果', 'apple'), t('2', '蘋果', 'apple '), t('3', '蘋果', 'apple', '水果'), t('4', '蘋果', 'apple', '', 'B'), t('5', '蘋果', 'apple', '', 'A', 'e')];
-    expect(dedupeGlossary(g).map((x) => x.id)).toEqual(['1', '3', '4']);
+    // 不同專案、不同字典的不算重複
+    expect(dedupeGlossary(g).map((x) => x.id)).toEqual(['1', '3', '4', '5']);
   });
 });

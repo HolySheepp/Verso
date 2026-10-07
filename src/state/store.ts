@@ -229,8 +229,7 @@ interface Actions {
   deleteCustomMark(id: string, clear: boolean): void;
   addFile(f: FileDoc): void;
   addTerms(project: string, dict: string, pairs: [string, string][]): void;
-  /** 清除完全一樣的詞條（原文、譯文、備註、專案都一樣），留第一筆；回傳清掉幾筆 */
-  dedupeTerms(): number;
+
   /** 設定目前檔案的長度標準；undefined 是清掉 */
   setFileStd(std: StdValue | undefined): void;
   /** 設定目前條目的特殊標準；undefined 是改回檔案標準 */
@@ -291,11 +290,11 @@ const withMark = (e: Entry, id: MarkId, keepUpd = false): Entry => ({
   ...(e.upd && !keepUpd && id !== 'srcupd' ? (e.upd.applied ? { upd: undefined } : { upd: { ...e.upd, hidden: true } }) : {}),
 });
 
-/** 拿掉完全一樣的詞條（原文、譯文、備註、專案都一樣，前後空白不算），留第一筆 */
+/** 拿掉同一本字典裡完全一樣的詞條（原文、譯文、備註都一樣，前後空白不算），留第一筆；不同字典的不算重複 */
 export function dedupeGlossary(glossary: GlossaryTerm[]): GlossaryTerm[] {
   const seen = new Set<string>();
   const out = glossary.filter((g) => {
-    const k = JSON.stringify([g.proj, g.term.trim(), g.en.trim(), g.note.trim()]);
+    const k = JSON.stringify([g.proj, g.dict, g.term.trim(), g.en.trim(), g.note.trim()]);
     if (seen.has(k)) return false;
     seen.add(k);
     return true;
@@ -868,14 +867,6 @@ export const useStore = create<Store>((set, get) => {
       });
     },
 
-    dedupeTerms() {
-      const project = get().project;
-      if (!project) return 0;
-      const glossary = dedupeGlossary(project.glossary);
-      const n = project.glossary.length - glossary.length;
-      if (n) set({ project: { ...project, glossary } });
-      return n;
-    },
 
     setFileStd(std) {
       const s = get();
