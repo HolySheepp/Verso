@@ -99,10 +99,13 @@ export async function onUpdateIcon() {
   useStore.setState({ updatePrompt: null });
   if (!yes) return;
   // 有未儲存的修改：先問要不要儲存，選好了才更新（取消就不更新）
-  const { askSaveThen } = await import('./saver');
-  askSaveThen(() => {
+  const { askSaveThen, dropRecovery } = await import('./saver');
+  askSaveThen(() => void (async () => {
+    // 已經存好（或選了不儲存）：暫存復原用不到了，避免更新重開後又問要不要恢復
+    await dropRecovery();
     // 畫面換成啟動畫面顯示進度
     useStore.setState({ loading: { p: 0, text: '準備更新' } });
-    void install().then((ok) => { if (!ok) useStore.setState({ loading: null }); });
-  });
+    const ok = await install();
+    if (!ok) useStore.setState({ loading: null });
+  })());
 }

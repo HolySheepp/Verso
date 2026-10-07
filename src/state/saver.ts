@@ -165,14 +165,16 @@ function lastPosition(): LastPosition | undefined {
 /** 存檔。成功回傳 true；檔案被 Excel 開著之類的失敗會標成「未存檔」，之後自動重試 */
 export function saveNow(): Promise<boolean> {
   return serial(async () => {
-    const before = useStore.getState().project;
     const ok = await saveAll();
     const s = useStore.getState();
-    if (ok && s.project === before && !isDirty()) {
+    if (ok && !isDirty()) {
       // 正式檔已經是最新的：記下這個版本（含檔案順序），刪掉暫存復原
-      if (before) markSaved(before);
+      if (s.project) markSaved(s.project);
       await clearRecovery(s.saveRoot).catch(() => undefined);
       resetRec();
+    } else {
+      // 還有沒存進去的修改：暫存復原馬上改成只剩這些
+      requestAutosave();
     }
     return ok;
   });
@@ -358,7 +360,9 @@ export async function startApp() {
   // 上次沒有正常關閉，留下了暫存復原：進主畫面後問要不要恢復
   try {
     const r = await readRecovery(saveRoot);
-    if (r) { pendingRecovery = r; useStore.setState({ recoveryAsk: true }); }
+    // 暫存的內容跟正式檔一模一樣（例如存好之後沒來得及清掉）：不用問，直接清掉
+    if (r && sameAsOfficial(r, project)) await clearRecovery(saveRoot).catch(() => undefined);
+    else if (r) { pendingRecovery = r; useStore.setState({ recoveryAsk: true }); }
   } catch { /* 讀不到就當沒有 */ }
   step(1, '完成');
   startFolderWatch();
@@ -444,6 +448,12 @@ export function leaveFile(target: FileDoc | null, go: (index: number) => void) {
 
 const indexOf = (key: string | null) => (key === null ? -1 : useStore.getState().project?.files.findIndex((f) => fileKey(f) === key) ?? -1);
 
+/** 內容已經跟正式檔一樣時，刪掉暫存復原（更新前用） */
+export async function dropRecovery() {
+  if (isDirty()) return;
+  await serial(async () => { await clearRecovery(useStore.getState().saveRoot).catch(() => undefined); resetRec(); });
+}
+
 /** 會關掉目前內容的動作（例如更新）：有未儲存的修改就先問「儲存／不儲存／取消」，選好了才執行 */
 export function askSaveThen(go: () => void) {
   if (!isDirty() && useStore.getState().saveStatus !== 'error') { go(); return; }
@@ -479,6 +489,25 @@ async function discardChanges(target: string | null) {
 
 // ---- 開啟時的暫存復原 ----
 
+/** 檔案內容的指紋（不含軟體內部的條目編號）：用來比對暫存復原和正式檔是不是一樣 */
+const docSig = (f: FileDoc) => JSON.stringify([f.project, f.name, f.lengthStd ?? null, f.sheets.map((sh) => [sh.name, sh.entries.map((e) => [
+  e.id, e.speaker, e.src, e.tgt, e.mark, e.keptMark ?? '', e.note, e.sugg, e.pending, e.skipCheck, e.skipSugg ?? false, e.lengthStd ?? null, e.ver ?? null, e.upd ?? null,
+])])]);
+
+/** 暫存復原的內容跟剛讀進來的正式檔是不是完全一樣 */
+function sameAsOfficial(r: NonNullable<Awaited<ReturnType<typeof readRecovery>>>, official: ProjectData): boolean {
+  if (r.state.files.length !== official.files.length) return false;
+  if (JSON.stringify(sortProjects(r.state.projects)) !== JSON.stringify(official.projects)) return false;
+  if (JSON.stringify(r.state.customMarks ?? []) !== JSON.stringify(official.customMarks)) return false;
+  const byKey = new Map(official.files.map((f) => [fileKey(f), f]));
+  return r.state.files.every((x) => {
+    const off = byKey.get(x.key);
+    if (!off) return false;
+    const rec = r.files.get(x.key);
+    return !rec || docSig(rec) === docSig(off);
+  });
+}
+
 let pendingRecovery: Awaited<ReturnType<typeof readRecovery>> = null;
 
 /** 上次沒有正常關閉：恢復暫存的內容（之後要手動儲存才會寫進正式檔），或捨棄 */
@@ -497,7 +526,10 @@ export async function resolveRecovery(choice: 'restore' | 'discard') {
     customMarks: Array.isArray(r.state.customMarks) ? r.state.customMarks : s.project.customMarks,
     nextMarkId: r.state.nextMarkId ?? s.project.nextMarkId,
   };
-  useStore.setState({ project: next, file: 0, sheetBy: {}, selBy: {}, cellSel: null, reported: {} });
+  // 停在原本開著的檔案
+  const curKey = s.project.files[s.file] ? fileKey(s.project.files[s.file]) : null;
+  const idx = Math.max(0, files.findIndex((f) => fileKey(f) === curKey));
+  useStore.setState({ project: next, file: idx, cellSel: null, reported: {} });
   // 暫存復原裡已經是這些內容，不必馬上重寫
   rec = { files: new Map([...r.files].filter(([k]) => files.some((f) => fileKey(f) === k))), state: '' };
 }
