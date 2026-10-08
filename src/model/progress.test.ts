@@ -32,7 +32,8 @@ describe('進度算法', () => {
   });
   it('檔案打勾：所有頁簽都打勾', () => {
     const f = (sheets: Entry[][]) => ({ fid: 'f', name: 'f', project: 'P', sheets: sheets.map((entries, i) => ({ name: 'S' + i, entries })) }) as FileDoc;
-    expect(fileDone(f([[E({ tgt: 't' })], [E({ tgt: 't', mark: 'think' })]]))).toBe(true);
+    expect(fileDone(f([[E({ tgt: 't', mark: 'verified' })], [E({ tgt: 't', mark: 'c:1' })]]))).toBe(true);
+    expect(fileDone(f([[E({ tgt: 't' })]]))).toBe(false);
     expect(fileDone(f([[E({ tgt: 't' })], [E({})]]))).toBe(false);
   });
 });

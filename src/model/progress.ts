@@ -61,8 +61,8 @@ export function percentOf(p: Progress): number {
   return Math.min(99, Math.floor((p.done / p.total) * 100));
 }
 
-/** 頁簽打勾：每一條都達到翻譯模式的完成標準（空的或整頁都忽略的也打勾）；任何模式都照這個判斷 */
-export const sheetDone = (entries: Entry[]) => { const p = sheetProgress(entries, 'translate'); return p.done >= p.total; };
+/** 頁簽打勾：每一條都達到驗證模式的完成標準（已驗證或自訂標記；空的或整頁都忽略的也打勾）；任何模式都照這個判斷 */
+export const sheetDone = (entries: Entry[]) => { const p = sheetProgress(entries, 'verify'); return p.done >= p.total; };
 
 /** 檔案打勾：所有頁簽都打勾 */
 export const fileDone = (f: FileDoc) => f.sheets.every((sh) => sheetDone(sh.entries));
