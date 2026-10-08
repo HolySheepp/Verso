@@ -19,6 +19,8 @@ import type { CustomMark, Entry, MarkId } from '../model/types';
 import type { Issue } from '../model/checks';
 import { CellText } from './CellText';
 import { maxOf, minOf } from '../model/num';
+import { hasTooLongCell, MAX_CELL_CHARS, TOO_LONG_MSG } from '../model/names';
+import { showToast } from '../state/store';
 
 /** # 欄（對話 id）、發話者欄、原文、譯文：依比例分配寬度 */
 const colsOf = (w: number[]) => w.map((x) => `minmax(0, ${x}fr)`).join(' ');
@@ -117,7 +119,7 @@ const EntryRow = memo(function EntryRow({ e, i, k, m, issues, on, hit, selCols, 
     };
   };
   const editor = (c: CellCol) => (editing && editing.c === c ? (
-    <textarea className="cell-edit" ref={focusOnMount} value={editing.text} spellCheck={false}
+    <textarea className="cell-edit" ref={focusOnMount} value={editing.text} spellCheck={false} maxLength={MAX_CELL_CHARS}
       rows={Math.max(1, editing.text.split('\n').length)}
       onMouseDown={(ev) => ev.stopPropagation()}
       onChange={(ev) => h.current.editText(ev.target.value)}
@@ -600,6 +602,8 @@ export function EntryList() {
     const html = ev.clipboardData.getData('text/html');
     const matrix = (html && parseHtmlTable(html)) || parseTsv(ev.clipboardData.getData('text/plain'));
     if (!matrix.length) return;
+    // 有一格超過 Excel 的上限：整次不貼
+    if (hasTooLongCell(matrix)) { showToast(TOO_LONG_MSG); return; }
     const top = firstKey(keys);
     // 貼上的起點看不到（被篩掉了）就不貼
     if (sheet.entries.length && !visSet.has(top.i)) return;

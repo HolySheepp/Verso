@@ -1,3 +1,4 @@
+import { MAX_CELL_CHARS } from '../model/names';
 import { useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react';
 import { Splitter } from './Splitter';
 import { FinishLine } from './FinishLine';
@@ -515,7 +516,7 @@ function WorkPanelInner({ height, maxH }: { height: number; maxH: number }) {
             <span style={meta}>{cur.id && <span className="mono">#{cur.id}</span>}<span>{cur.speaker}</span><span>{(showNewSrc ? newSrc! : cur.src).length} 字</span></span>
           </div>
           <div style={boxStyle('src')}>
-          <textarea id="verso-source" ref={setSrcEl} value={showNewSrc ? newSrc : cur.src} readOnly={!srcEditable || showNewSrc} onFocus={editFocus} onBlur={editBlur}
+          <textarea maxLength={MAX_CELL_CHARS} id="verso-source" ref={setSrcEl} value={showNewSrc ? newSrc : cur.src} readOnly={!srcEditable || showNewSrc} onFocus={editFocus} onBlur={editBlur}
             onMouseMove={onSrcMove} onMouseLeave={() => { cancelAnimationFrame(moveFrame.current); moveFrame.current = 0; setHover(null); }} onMouseDown={onSrcDown}
             onChange={(ev) => srcEditable && s.updateEntry({ src: ev.target.value })}
             style={{
@@ -568,7 +569,7 @@ function WorkPanelInner({ height, maxH }: { height: number; maxH: number }) {
             </span>
           </div>
           <div style={boxStyle('tgt')}>
-            <textarea id="verso-target" ref={setTgtEl} onFocus={editFocus} onBlur={editBlur} data-hist={tgtHist ? '1' : '0'} value={tgtHist ? texts[slot] : cur.tgt}
+            <textarea maxLength={MAX_CELL_CHARS} id="verso-target" ref={setTgtEl} onFocus={editFocus} onBlur={editBlur} data-hist={tgtHist ? '1' : '0'} value={tgtHist ? texts[slot] : cur.tgt}
               readOnly={!tgtEditable || tgtHist}
               onChange={(ev) => onTarget(ev.target.value)} onPaste={onPaste}
               onMouseMove={showEdits ? onVMove : undefined} onMouseLeave={showEdits ? onVLeave : undefined} onMouseDown={onTgtDown} onContextMenu={onVMenu}
@@ -602,7 +603,7 @@ function WorkPanelInner({ height, maxH }: { height: number; maxH: number }) {
               </div>
               <div style={boxStyle('mod')}>
                 {/* 翻譯模式：修改框只給譯者看，不能改 */}
-                <textarea id="verso-edit" ref={setModEl} value={modHist ? texts[slot] : modText} readOnly={!verify || modHist} onFocus={verify ? editFocus : undefined} onBlur={verify ? modBlur : undefined}
+                <textarea maxLength={MAX_CELL_CHARS} id="verso-edit" ref={setModEl} value={modHist ? texts[slot] : modText} readOnly={!verify || modHist} onFocus={verify ? editFocus : undefined} onBlur={verify ? modBlur : undefined}
                   onChange={(ev) => verify && onModValue(ev.target.value, ev.target.selectionEnd)}
                   onMouseMove={onVMove} onMouseLeave={onVLeave} onMouseDown={onModDown} onContextMenu={onVMenu}
                   style={{

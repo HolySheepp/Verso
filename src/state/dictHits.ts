@@ -38,25 +38,44 @@ export function findHits(src: string, terms: GlossaryTerm[], current?: string): 
   // 同一份字典、同一段原文（工作欄和字典頁同時要）：直接用上次的結果
   const last = lastHits.get(words);
   if (last && last.src === src) return last.hits;
+  // 比對時不分大小寫、全形半形（長度不變，找到的位置就是原文裡的位置）
+  const text = foldText(src);
   const taken: boolean[] = new Array(src.length).fill(false);
   const hits: DictHit[] = [];
   // 長的詞優先：只用來排除被長詞蓋住的位置
   for (const { word, variants } of words) {
-    if (!src.includes(word)) continue;
+    if (!text.includes(word)) continue;
     const spans: { start: number; end: number }[] = [];
-    for (let at = src.indexOf(word); at >= 0;) {
+    for (let at = text.indexOf(word); at >= 0;) {
       const end = at + word.length;
       // 這個位置被長詞擋住：從下一個字繼續找
-      if (taken.slice(at, end).some(Boolean)) { at = src.indexOf(word, at + 1); continue; }
+      if (taken.slice(at, end).some(Boolean)) { at = text.indexOf(word, at + 1); continue; }
       for (let k = at; k < end; k++) taken[k] = true;
       spans.push({ start: at, end });
-      at = src.indexOf(word, end);
+      at = text.indexOf(word, end);
     }
     if (!spans.length) continue;
     hits.push({ term: variants[0], terms: variants, spans });
   }
   const out = hits.sort((a, b) => a.spans[0].start - b.spans[0].start);
   lastHits.set(words, { src, hits: out });
+  return out;
+}
+
+/**
+ * 比對用的文字：全形英數和符號換成半形、全形空白換成半形、英文字母換成小寫。
+ * 每個字元換成一個字元，長度不變。
+ */
+export function foldText(s: string): string {
+  let out = '';
+  for (let k = 0; k < s.length; k++) {
+    let c = s.charCodeAt(k);
+    if (c >= 0xff01 && c <= 0xff5e) c -= 0xfee0;
+    else if (c === 0x3000) c = 0x20;
+    const ch = String.fromCharCode(c);
+    const low = ch.toLowerCase();
+    out += low.length === 1 ? low : ch;
+  }
   return out;
 }
 
@@ -70,8 +89,10 @@ function prepared(terms: GlossaryTerm[], current?: string): Prepared[] {
   const groups = new Map<string, GlossaryTerm[]>();
   for (const g of terms) {
     if (!g.term) continue;
-    const list = groups.get(g.term);
-    if (list) list.push(g); else groups.set(g.term, [g]);
+    // 只差大小寫、全形半形的詞條算同一個詞
+    const w = foldText(g.term);
+    const list = groups.get(w);
+    if (list) list.push(g); else groups.set(w, [g]);
   }
   // 目前專案的字典排前面，再來是共用
   const rank = (g: GlossaryTerm) => (g.proj === current ? 0 : g.proj === SHARED ? 1 : 2);

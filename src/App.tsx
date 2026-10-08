@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react';
-import { currentOf, useStore, useStorePick } from './state/store';
-import { effectiveMark, isDone } from './model/marks';
+import { currentOf, showToast, useStore, useStorePick } from './state/store';
+import { effectiveMark } from './model/marks';
+import { fileProgress } from './model/progress';
 import { TitleBar, MODES } from './components/TitleBar';
 import { FileNav } from './components/FileNav';
 import { EntryList } from './components/EntryList';
@@ -40,9 +41,23 @@ function useWindowSize() {
 /** 畫面中間短暫出現、自己消失的提示（例如手動存檔後的「已儲存」） */
 function Toast() {
   const toast = useStore((s) => s.toast);
+  // 貼進有字數上限的輸入框（一格最多 32767 字）時，貼了會超過就整段不貼，並提示（瀏覽器預設會默默截掉）
+  useEffect(() => {
+    const onPaste = (ev: ClipboardEvent) => {
+      const el = ev.target as HTMLTextAreaElement | null;
+      if (!el || el.tagName !== 'TEXTAREA' || el.maxLength <= 0 || el.readOnly) return;
+      const add = ev.clipboardData?.getData('text/plain').replace(/\r\n?/g, '\n') ?? '';
+      if (el.value.length - (el.selectionEnd - el.selectionStart) + add.length <= el.maxLength) return;
+      ev.preventDefault();
+      ev.stopImmediatePropagation();
+      showToast('Excel 一格最多 32767 字，貼上後會超過，沒有貼上');
+    };
+    document.addEventListener('paste', onPaste, true);
+    return () => document.removeEventListener('paste', onPaste, true);
+  }, []);
   useEffect(() => {
     if (!toast) return;
-    const t = setTimeout(() => useStore.setState({ toast: null }), 1400);
+    const t = setTimeout(() => useStore.setState({ toast: null }), toast.text.length > 20 ? 3000 : 1400);
     return () => clearTimeout(t);
   }, [toast]);
   if (!toast) return null;
@@ -120,17 +135,17 @@ function UpdatePromptDialog() {
 }
 
 function StatusBar() {
-  const files = useStore((s) => s.project!.files);
+  // 目前這個檔案所有頁簽加起來的進度（每個頁簽的結果有快取，打字時只重算那個頁簽）
+  const file = useStore((s) => s.project!.files[s.file]);
   const mode = useStore((s) => s.mode);
-  let done = 0, total = 0;
-  files.forEach((f) => f.sheets.forEach((sh) => sh.entries.forEach((e) => { total++; if (isDone(e)) done++; })));
+  const { done, total } = fileProgress(file);
   return (
     <footer style={{
       height: 28, flexShrink: 0, display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '0 16px',
       background: 'var(--bar)', borderTop: '1px solid var(--line)', fontSize: fz(11.5), color: 'var(--mute)',
     }}>
       <div style={{ display: 'flex', gap: 18 }}>
-        <span>專案進度 {done} / {total} 條</span>
+        {file && <span>檔案進度 {done} / {total} 條</span>}
         <span>模式：{MODES.find((m) => m.id === mode)!.label}</span>
       </div>
     </footer>

@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react';
 import { useStore, type MoveTarget } from '../state/store';
-import { requestAutosave } from '../state/saver';
+import { requestAutosave, saveNow } from '../state/saver';
 import { SHARED, type Entry, type FileDoc, type Sheet } from '../model/types';
 import { COLS, COLS_GRID, appendNote, checkColumns, fitsRows, newUid, pasteColumns, type Col, type Columns } from '../model/paste';
 import { fz } from '../model/fonts';
@@ -29,6 +29,8 @@ const actBtn: React.CSSProperties = {
 
 /** 結構的變動（新增、刪除、搬移）：字典照舊馬上存；檔案、專案的變動等手動儲存，先存進暫存復原 */
 const commit = () => { requestAutosave(); };
+/** 專案改名、刪除：資料夾會跟著改名或丟進資源回收筒，馬上正式存檔，資料夾和畫面才不會對不上 */
+const commitNow = () => { void saveNow(); };
 
 function Header({ id, title, onClose }: { id: string; title: string; onClose(): void }) {
   return (
@@ -150,7 +152,7 @@ type Pending =
 function DeleteConfirm({ pending, onDone }: { pending: Pending; onDone(): void }) {
   const project = useStore((s) => s.project)!;
   const { deleteProject, deleteFile, deleteDict } = useStore.getState();
-  const run = (fn: () => void) => { fn(); commit(); onDone(); };
+  const run = (fn: () => void) => { fn(); if (pending.kind === 'project') commitNow(); else commit(); onDone(); };
   const cancel = { label: '取消', onClick: onDone };
   if (pending.kind === 'file') {
     const f = project.files[pending.index];
@@ -233,7 +235,7 @@ function ManageProjects() {
                   onRename={p === SHARED ? undefined : () => setRenaming({ kind: 'project', name: p })}
                   rename={renaming?.kind === 'project' && renaming.name === p ? {
                     error: (v) => nameError('專案', NEW, v, project.projects),
-                    onDone: (n) => { setRenaming(null); if (n && n !== p) { renameProject(p, n); setClosed(closed.map((x) => (x === p ? n : x))); commit(); } },
+                    onDone: (n) => { setRenaming(null); if (n && n !== p) { renameProject(p, n); setClosed(closed.map((x) => (x === p ? n : x))); commitNow(); } },
                   } : undefined}
                   icon={<IconFolder size={14} stroke="var(--mute)" />}
                   onMenu={p === SHARED ? undefined : (ev) => setMenu({ x: ev.clientX, y: ev.clientY, target: { kind: 'project', name: p } })}

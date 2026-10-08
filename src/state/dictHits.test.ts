@@ -21,3 +21,13 @@ describe('同一個原文有好幾個譯名', () => {
     expect(g.spans).toEqual([{ start: 5, end: 8 }]);
   });
 });
+
+describe('字典比對不分大小寫、全形半形', () => {
+  it('Sword 和 ｓｗｏｒｄ 都命中 sword，位置是原文裡的位置', async () => {
+    const { findHits } = await import('./dictHits');
+    const t = (term: string, en: string) => ({ id: term, term, en, note: '', dict: 'D', proj: 'P' });
+    const hits = findHits('A Sword and ｓｗｏｒｄ', [t('sword', '劍')]);
+    expect(hits.length).toBe(1);
+    expect(hits[0].spans).toEqual([{ start: 2, end: 7 }, { start: 12, end: 17 }]);
+  });
+});

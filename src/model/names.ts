@@ -27,3 +27,7 @@ export function sheetNameError(name: string, others: string[]): string {
 
 /** Excel 一格最多放這麼多字 */
 export const MAX_CELL_CHARS = 32767;
+
+/** 貼入的內容裡有沒有一格超過 Excel 的上限 */
+export const hasTooLongCell = (cells: string[][]) => cells.some((r) => r.some((v) => v.length > MAX_CELL_CHARS));
+export const TOO_LONG_MSG = 'Excel 一格最多 32767 字，有一格超過了，沒有貼上';

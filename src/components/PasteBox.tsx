@@ -1,5 +1,7 @@
 import { memo, useEffect, useMemo, useRef, useState } from 'react';
 import { readColumns } from '../model/clipboard';
+import { hasTooLongCell, MAX_CELL_CHARS, TOO_LONG_MSG } from '../model/names';
+import { showToast } from '../state/store';
 import { clearRows, deleteRows, insertRow, setRow, type Col } from '../model/paste';
 import { IconWinClose } from './icons';
 import { ContextMenu } from './ContextMenu';
@@ -87,6 +89,8 @@ function PasteBoxImpl({ label, col, onPaste, onChange, selected, onSelect, fontS
     const text = ev.clipboardData.getData('text/plain');
     const cols = readColumns({ html, text });
     if (!cols.length) return;
+    // 有一格超過 Excel 的上限：整次不貼
+    if (hasTooLongCell(cols)) { showToast(TOO_LONG_MSG); return; }
     setEditing(null);
     if (selRows.length) onPaste(cols, minOf(selRows));
     else onPaste(cols);
@@ -213,7 +217,7 @@ function PasteBoxImpl({ label, col, onPaste, onChange, selected, onSelect, fontS
             {/* 行號欄剛好放得下 4 位數 */}
             <span className="mono" style={{ width: '4ch', flexShrink: 0, textAlign: 'right', fontSize: fz(10.5), color: 'var(--mute3)', lineHeight: '19px' }}>{i + 1}</span>
             {editing?.i === i ? (
-              <textarea className="pb-edit" ref={focusOnMount} value={editing.text} spellCheck={false}
+              <textarea maxLength={MAX_CELL_CHARS} className="pb-edit" ref={focusOnMount} value={editing.text} spellCheck={false}
                 rows={Math.max(1, editing.text.split('\n').length)}
                 onChange={(ev) => setEditing({ i, text: ev.target.value })}
                 onKeyDown={(ev) => {

@@ -255,6 +255,22 @@ export async function findRootConflicts(root: string, data: ProjectData): Promis
   return out;
 }
 
+/**
+ * 選了這個資料夾當存檔資料夾時，實際要存到哪裡：
+ * 空的（或還不存在）、或本來就是 Verso 的存檔資料夾，就用它；裡面有別的東西時，改存到裡面的「Verso」子資料夾，
+ * 不跟使用者原本的檔案混在一起。
+ */
+export async function saveRootFor(folder: string): Promise<string> {
+  if (!(await io.exists(folder))) return folder;
+  const items = (await io.list(folder)).filter((e) => !e.name.startsWith('.'));
+  if (!items.length) return folder;
+  if (items.some((e) => !e.dir && e.name === WORKSPACE)) return folder;
+  const scan = await scanFolder(folder).catch(() => null);
+  if (scan && scan.projects.length) return folder;
+  return io.join(folder, VERSO_SUBDIR);
+}
+const VERSO_SUBDIR = 'Verso';
+
 /** 存檔資料夾裡現在有的專案資料夾、檔案、字典（名稱不含 .xlsx） */
 export async function scanFolder(root: string): Promise<{ projects: string[]; files: { project: string; name: string }[]; dicts: { project: string; name: string }[] }> {
   const out = { projects: [] as string[], files: [] as { project: string; name: string }[], dicts: [] as { project: string; name: string }[] };

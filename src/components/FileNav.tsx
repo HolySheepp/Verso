@@ -5,8 +5,9 @@ import { ContextMenu } from './ContextMenu';
 import { ConfirmDialog } from './ConfirmDialog';
 import { RenameInput } from './RenameInput';
 import { sheetNameError } from '../model/names';
-import { isDone, markName, markVisual } from '../model/marks';
-import type { Entry, MarkId } from '../model/types';
+import { markName, markVisual } from '../model/marks';
+import { fileProgress, percentOf, sheetProgress } from '../model/progress';
+import type { MarkId } from '../model/types';
 import { MarkIcon } from './MarkIcon';
 import { IconArrowR, IconChevD, IconChevL, IconChevR, IconFile, IconHideTop, IconList, IconPaste, IconPlus, IconSheet } from './icons';
 import { fz } from '../model/fonts';
@@ -21,7 +22,6 @@ const menuItem: React.CSSProperties = {
   background: 'transparent', color: 'var(--text2)', textAlign: 'left',
 };
 
-const doneOf = (entries: Entry[]) => entries.filter(isDone).length;
 
 /** 頁簽列（目前檔案底下的頁簽）與檔案選擇 */
 export function FileNav({ tabW }: { tabW: number }) {
@@ -110,7 +110,7 @@ export function FileNav({ tabW }: { tabW: number }) {
         }}>
           {!noFiles && fileDoc.sheets.map((sh, i) => {
             const on = i === sheetIdx, near = Math.abs(i - sheetIdx) === 1;
-            const pct = sh.entries.length ? Math.round((doneOf(sh.entries) / sh.entries.length) * 100) : 0;
+            const pct = percentOf(sheetProgress(sh.entries));
             const kinds = badgeOrder
               .map((id) => ({ id, n: sh.entries.filter((e) => e.mark === id).length }))
               .filter((k) => k.n > 0);
@@ -187,7 +187,6 @@ export function FileNav({ tabW }: { tabW: number }) {
                     </button>
                     {!closed && project.files.map((f, i) => {
                       if (f.project !== p) return null;
-                      const all = f.sheets.flatMap((sh) => sh.entries);
                       return (
                         <button key={i} type="button" className="dd" role="option" aria-selected={i === s.file}
                           onClick={() => requestFile(i)}
@@ -195,7 +194,7 @@ export function FileNav({ tabW }: { tabW: number }) {
                           style={{ ...menuItem, gap: 10, paddingLeft: 27, color: undefined, background: i === s.file ? 'var(--sel)' : 'transparent' }}>
                           <span style={{ flexGrow: 1, fontSize: fz(12.5) }}>{f.name}</span>
                           <span style={{ fontSize: fz(11.5), color: 'var(--mute)' }}>{f.sheets.length} 個頁簽</span>
-                          <span style={{ fontSize: fz(11.5), color: 'var(--text2)' }}>{doneOf(all)} / {all.length}</span>
+                          <span style={{ fontSize: fz(11.5), color: 'var(--text2)' }}>{fileProgress(f).done} / {fileProgress(f).total}</span>
                         </button>
                       );
                     })}

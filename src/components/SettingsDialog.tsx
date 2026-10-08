@@ -13,7 +13,7 @@ import { Select } from './Select';
 import { DEFAULT_FONTS, FONT_SLOTS, MAX_PT, MIN_PT, OVERFLOWS, isDefaultFont, overflowOf, pushRecent, type FontSetting, type FontSlot, type Overflow } from '../model/fonts';
 import { useEffectiveTheme } from './useTheme';
 import { ACCENTS, MAX_CUSTOM_ACCENTS } from '../model/color';
-import { ACTION_LABELS, CONTEXTS, CONTEXT_ACTIONS, comboOf, createTabHold, type ActionId, type ShortcutContext } from '../model/shortcuts';
+import { ACTION_LABELS, CONTEXTS, CONTEXT_ACTIONS, comboOf, createTabHold, defaultBindings, type ActionId, type ShortcutContext } from '../model/shortcuts';
 import { fz } from '../model/fonts';
 
 // 設定目前只有「標記」「檢查」分類有內容，其他分類只有外觀
@@ -243,6 +243,12 @@ function ShortcutsSection() {
   const [recording, setRecording] = useState<ActionId | null>(null);
   // 衝突提示顯示在那一項下面
   const [error, setError] = useState<{ action: ActionId; msg: string } | null>(null);
+  // 還原預設：只還原目前選的情境，按之前先確認
+  const [askReset, setAskReset] = useState(false);
+  const defaults = defaultBindings()[ctx];
+  const same = (a: string[] = [], b: string[] = []) => a.length === b.length && a.every((x, i) => x === b[i]);
+  const allDefault = CONTEXT_ACTIONS[ctx].every((a) => same(bindings[ctx][a], defaults[a]));
+  const resetCtx = () => { CONTEXT_ACTIONS[ctx].forEach((a) => setBinding(ctx, a, defaults[a] ?? [])); setRecording(null); setError(null); setAskReset(false); };
 
   // 錄製中：下一個組合鍵就是新的快捷鍵；Backspace 清空；點別處取消
   useEffect(() => {
@@ -301,7 +307,13 @@ function ShortcutsSection() {
         <label htmlFor="verso-sc-ctx" style={{ fontSize: fz(12), color: 'var(--text2)' }}>情境</label>
         <Select id="verso-sc-ctx" value={ctx} style={{ width: 200 }} options={CONTEXTS.map((c) => ({ value: c.id, label: c.label }))}
           onChange={(v) => { setCtx(v as ShortcutContext); setRecording(null); setError(null); }} />
+        <button type="button" className="btn btn-ghost" disabled={allDefault} onClick={() => setAskReset(true)}
+          style={{ marginLeft: 'auto', height: 34, padding: '0 12px', background: 'var(--btn)', border: '1px solid var(--line4)', borderRadius: 8, fontSize: fz(12.5), opacity: allDefault ? 0.5 : 1 }}>還原預設</button>
       </div>
+      {askReset && (
+        <ConfirmDialog zIndex={55} title={'把「' + (CONTEXTS.find((c) => c.id === ctx)?.label ?? '') + '」的快捷鍵還原成預設？'}
+          choices={[{ label: '取消', onClick: () => setAskReset(false) }, { label: '還原', primary: true, onClick: resetCtx }]} />
+      )}
       <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
         {CONTEXT_ACTIONS[ctx].map((a) => {
           const rec = recording === a;

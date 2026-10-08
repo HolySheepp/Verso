@@ -1,3 +1,4 @@
+import { MAX_CELL_CHARS } from '../model/names';
 import { useDeferredValue, useEffect, useMemo, useRef, useState } from 'react';
 import { useShallow } from 'zustand/react/shallow';
 import { currentOf, shownSrc, currentProjectOf, dictEnabledIn, overrideKey, searchHit, useStore, useStorePick, type SideTab } from '../state/store';
@@ -372,7 +373,7 @@ function NotesSectionInner() {
           {suggOpen && (
             <>
               <label htmlFor="verso-sugg" className="sr-only">建議翻譯</label>
-              <textarea id="verso-sugg" value={cur.sugg} readOnly={!verify} onKeyDown={(ev) => sideFieldKey(ev, mode)}
+              <textarea maxLength={MAX_CELL_CHARS} id="verso-sugg" value={cur.sugg} readOnly={!verify} onKeyDown={(ev) => sideFieldKey(ev, mode)}
                 // 整段輸入在條目欄的復原算一步
                 onFocus={() => { setSuggFocus(true); s.beginEdit(); }} onBlur={() => { setSuggFocus(false); s.endEdit(); }}
                 onChange={(ev) => verify && s.updateEntry({ sugg: ev.target.value })}
@@ -396,7 +397,7 @@ function NotesSectionInner() {
       {noteOpen && (
         <>
           <label htmlFor="verso-note" className="sr-only">我的備註</label>
-          <textarea id="verso-note" value={cur.note} readOnly={mode === 'view'} onKeyDown={(ev) => sideFieldKey(ev, mode)}
+          <textarea maxLength={MAX_CELL_CHARS} id="verso-note" value={cur.note} readOnly={mode === 'view'} onKeyDown={(ev) => sideFieldKey(ev, mode)}
             onFocus={() => s.beginEdit()} onBlur={() => s.endEdit()}
             onChange={(ev) => mode !== 'view' && s.updateEntry({ note: ev.target.value })}
             style={{ ...area, flex: '1 1 auto', background: 'var(--bg0)', border: '1px solid var(--line4)' }} />

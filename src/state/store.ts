@@ -309,6 +309,11 @@ interface Actions {
 
 export type Store = State & Actions;
 
+/** 畫面下方短暫顯示一行提示 */
+export function showToast(text: string) {
+  useStore.setState((st) => ({ toast: { text, k: (st.toast?.k ?? 0) + 1 } }));
+}
+
 /** 設標記；手動選「已翻譯」時，剛貼入待確認的條目也一起確認 */
 const withMark = (e: Entry, id: MarkId, keepUpd = false): Entry => ({
   ...e, mark: toStoredMark(id), keptMark: undefined, ...(id === 'translated' ? { pending: false } : {}),
@@ -470,12 +475,15 @@ export const useStore = create<Store>((set, get) => {
     set({ project: { ...p, files: p.files.map((f, i) => (i === to ? { ...f, lengthStd: prev } : f)) } });
   };
 
-  // 條目欄與頁簽操作的復原／重做：記下整個檔案
+  // 條目欄與頁簽操作的復原／重做：每個檔案各自一份紀錄，換檔案再換回來還在。
+  // 記下整個檔案的頁簽，但復原時只換回頁簽和條目內容；檔名、所屬專案、長度標準不跟著退。
   // id：用檔案 ID 認檔案，不靠位置（檔案增刪、不儲存之後位置會變）
   type Snap = { file: number; id: string; doc: FileDoc; sheet: number; keys: string[] };
   const docId = (f: FileDoc) => f.fid ?? f.project + '/' + f.name;
-  const undoStack: Snap[] = [];
-  const redoStack: Snap[] = [];
+  const stacks = new Map<string, { undo: Snap[]; redo: Snap[] }>();
+  const stacksOf = (id: string) => { let st = stacks.get(id); if (!st) { st = { undo: [], redo: [] }; stacks.set(id, st); } return st; };
+  /** 目前這個檔案的紀錄 */
+  const currentStacks = () => { const f = get().project?.files[get().file]; return f ? stacksOf(docId(f)) : null; };
 
   const snapNow = (): Snap => {
     const s = get();
@@ -483,9 +491,10 @@ export const useStore = create<Store>((set, get) => {
     return { file: s.file, id: docId(doc), doc, sheet: currentOf(s).sheetIdx, keys: s.cellSel?.keys ?? [] };
   };
   const pushSnap = (snap: Snap) => {
-    undoStack.push(snap);
-    if (undoStack.length > 100) undoStack.shift();
-    redoStack.length = 0;
+    const st = stacksOf(snap.id);
+    st.undo.push(snap);
+    if (st.undo.length > 100) st.undo.shift();
+    st.redo.length = 0;
   };
   const pushUndo = () => pushSnap(snapNow());
 
@@ -512,7 +521,8 @@ export const useStore = create<Store>((set, get) => {
     const snap = { ...popped, file: fi };
     const s = get();
     to.push({ file: fi, id: popped.id, doc: p.files[fi], sheet: s.file === fi ? currentOf(s).sheetIdx : snap.sheet, keys: s.cellSel?.keys ?? [] });
-    replaceFile(fi, snap.doc);
+    // 只換回頁簽和條目；檔名、專案等檔案本身的設定用現在的
+    replaceFile(fi, { ...p.files[fi], sheets: snap.doc.sheets });
     const sheet = Math.min(snap.sheet, snap.doc.sheets.length - 1);
     const n = snap.doc.sheets[sheet]?.entries.length ?? 0;
     const keys = snap.keys.filter((k) => parseKey(k).i < n);
@@ -668,9 +678,9 @@ export const useStore = create<Store>((set, get) => {
       }
     },
 
-    undoSheet() { restore(undoStack, redoStack); },
-    clearUndo() { undoStack.length = 0; redoStack.length = 0; editSnap = null; },
-    redoSheet() { restore(redoStack, undoStack); },
+    undoSheet() { const st = currentStacks(); if (st) restore(st.undo, st.redo); },
+    clearUndo() { stacks.clear(); editSnap = null; },
+    redoSheet() { const st = currentStacks(); if (st) restore(st.redo, st.undo); },
 
     renameSheet(i, name) {
       const s = get();
@@ -1030,12 +1040,8 @@ export const useStore = create<Store>((set, get) => {
         const [f, sh] = k.split(':').map(Number);
         if (map(f) >= 0) selBy[selKey(map(f), sh)] = v;
       });
-      for (const stack of [undoStack, redoStack]) {
-        for (let j = stack.length - 1; j >= 0; j--) {
-          const f = map(stack[j].file);
-          if (f < 0) stack.splice(j, 1); else stack[j] = { ...stack[j], file: f };
-        }
-      }
+      // 刪掉的檔案：它的復原紀錄也不要了（其他檔案的紀錄用 ID 認，不受位置影響）
+      stacks.delete(docId(p.files[i]));
       const file = s.file === i ? Math.max(0, Math.min(i, p.files.length - 2)) : map(s.file);
       set({
         project: { ...p, files: p.files.filter((_, j) => j !== i) },

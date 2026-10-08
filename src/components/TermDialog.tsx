@@ -1,3 +1,4 @@
+import { MAX_CELL_CHARS } from '../model/names';
 import { useState } from 'react';
 import { useStore, type TermDraft } from '../state/store';
 import { DictPicker, NEW, ProjectPicker, firstDict, nameError, picked } from './Pickers';
@@ -56,7 +57,7 @@ function TermForm({ init }: { init: TermDraft }) {
           </div>
           <div style={col}>
             <label htmlFor="verso-g-note" style={labelS}>備註</label>
-            <textarea id="verso-g-note" className="field" value={d.note} onChange={(e) => patch({ note: e.target.value })} placeholder="例如：怪物名，複數 Gargoyles"
+            <textarea maxLength={MAX_CELL_CHARS} id="verso-g-note" className="field" value={d.note} onChange={(e) => patch({ note: e.target.value })} placeholder="例如：怪物名，複數 Gargoyles"
               style={{ height: 72, resize: 'none', padding: '9px 12px', lineHeight: 1.5 }} />
           </div>
           <div style={two}>

@@ -8,13 +8,13 @@ import { withFontDefaults } from '../model/fonts';
 import { MAX_CELL_CHARS, nameKey } from '../model/names';
 import { migrateList, migrateSheets } from '../model/shortcuts';
 import {
-  clearRecovery, findRootConflicts, mergeMarks, readFolderMeta, safeName as safeFileName, scanFolder, loadConfig, loadWorkspace, readDict, readDictFull, readRecovery, reloadFile, saveConfig, sortProjects, trashDict, trashFile, trashProject, writeDict, writeFile, writeMeta, writeRecovery,
+  clearRecovery, findRootConflicts, saveRootFor, mergeMarks, readFolderMeta, safeName as safeFileName, scanFolder, loadConfig, loadWorkspace, readDict, readDictFull, readRecovery, reloadFile, saveConfig, sortProjects, trashDict, trashFile, trashProject, writeDict, writeFile, writeMeta, writeRecovery,
   type AppConfig, type LastPosition, type RecoveryState,
 } from '../data/persist';
 import { emptyHistory } from '../model/history';
 import { editsOf, verifyToText } from '../model/verify';
 import { dictKey, newFileId, type CustomMark, type DictInfo, type FileDoc, type GlossaryTerm, type ProjectData } from '../model/types';
-import { currentOf, useStore, type SaveError } from './store';
+import { currentOf, showToast, useStore, type SaveError } from './store';
 import { checkAtStartup } from './updater';
 import type { RootConflict } from '../data/persist';
 
@@ -586,7 +586,10 @@ export async function changeSaveRoot(root: string) {
   askSaveThen(() => { void changeSaveRootNow(root); }, 'root');
 }
 
-async function changeSaveRootNow(root: string) {
+async function changeSaveRootNow(picked: string) {
+  // 選的資料夾裡有別的東西：改存到裡面的「Verso」資料夾
+  const root = await saveRootFor(picked).catch(() => picked);
+  if (root !== picked) showToast('資料夾裡有其他東西，改存到裡面的「Verso」資料夾');
   const p = useStore.getState().project;
   // 新資料夾已有同名的檔案或字典：先列出來讓使用者逐項選
   const items = p ? await findRootConflicts(root, p).catch(() => []) : [];
