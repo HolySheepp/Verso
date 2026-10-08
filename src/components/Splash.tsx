@@ -44,7 +44,13 @@ export function Splash() {
         </div>
       </div>
       {prompt ? <UpdateAsk version={prompt.version} onPick={prompt.resolve} /> : (
-        <div style={{ fontSize: fz(12.5), color: 'var(--mute)', minHeight: 18 }}>{loading?.text ?? ''}</div>
+        <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 12 }}>
+          <div style={{ fontSize: fz(12.5), color: 'var(--mute)', minHeight: 18 }}>{loading?.text ?? ''}</div>
+          {loading?.cancel && (
+            <button type="button" className="btn btn-ghost" onClick={loading.cancel} data-nodrag
+              style={{ height: 30, padding: '0 14px', background: 'var(--btn)', border: '1px solid var(--line4)', borderRadius: 8, fontSize: fz(12.5) }}>取消</button>
+          )}
+        </div>
       )}
     </div>
   );

@@ -27,16 +27,8 @@ function decodeText(data: Uint8Array): string {
   }
 }
 
-/** 工作表的每一列，從 A1 開始算，空白列也保留，列號才會和原檔一樣 */
-function sheetRows(ws: XLSX.WorkSheet): string[][] {
-  if (!ws['!ref']) return [];
-  const range = XLSX.utils.decode_range(ws['!ref']);
-  const rows = XLSX.utils.sheet_to_json<unknown[]>(ws, {
-    header: 1, raw: false, defval: '', blankrows: true, range: { s: { r: 0, c: 0 }, e: range.e },
-  });
-  // Windows 的換行（\r\n）統一成 \n
-  return rows.map((r) => r.map((v) => (v == null ? '' : String(v).replace(/\r\n?/g, '\n'))));
-}
+// 工作表的每一列：數字照原本的值，日期照顯示的文字（和讀 Verso 檔案共用）
+import { sheetRows } from './xlsxio';
 
 const hasContent = (rows: string[][]) => rows.some((r) => r.some((v) => v.trim()));
 

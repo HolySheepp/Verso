@@ -65,7 +65,8 @@ export interface LastPosition {
 /** 檔名不能有這些字元 */
 
 export async function loadConfig(): Promise<AppConfig> {
-  try { return JSON.parse(await io.readText(await io.configPath())) as AppConfig; } catch { return {}; }
+  // 安全存檔中途中斷時，設定檔可能還在 .bak：先讀正本，讀不到再讀備份
+  try { return JSON.parse(await readTextSafe(await io.configPath())) as AppConfig; } catch { return {}; }
 }
 
 export async function saveConfig(cfg: AppConfig) {

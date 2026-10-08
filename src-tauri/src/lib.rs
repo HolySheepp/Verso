@@ -28,17 +28,17 @@ fn install_kind() -> String {
     if installed { "installed".into() } else { "portable".into() }
 }
 
+/// 可以打開的網址：只有這幾個，一字不差
+const ALLOWED_URLS: &[&str] = &["https://github.com/HolySheepp/Verso/releases/latest"];
+
 /// 用預設瀏覽器打開網址（攜帶版打開下載頁用）
 #[tauri::command]
-fn open_url(url: String) -> Result<(), String> {
-    if !url.starts_with("https://github.com/HolySheepp/Verso/") {
+fn open_url(app: tauri::AppHandle, url: String) -> Result<(), String> {
+    use tauri_plugin_opener::OpenerExt;
+    if !ALLOWED_URLS.contains(&url.as_str()) {
         return Err("不允許的網址".into());
     }
-    std::process::Command::new("cmd")
-        .args(["/C", "start", "", &url])
-        .spawn()
-        .map(|_| ())
-        .map_err(|e| e.to_string())
+    app.opener().open_url(url, None::<&str>).map_err(|e| e.to_string())
 }
 
 /// 把資料夾設成隱藏（暫存復原資料夾用）
@@ -77,6 +77,7 @@ pub fn run() {
         .plugin(tauri_plugin_process::init())
         .plugin(tauri_plugin_fs::init())
         .plugin(tauri_plugin_dialog::init())
+        .plugin(tauri_plugin_opener::init())
         .invoke_handler(tauri::generate_handler![list_fonts, move_to_trash, install_kind, open_url, hide_path])
         .run(tauri::generate_context!())
         .expect("error while running tauri application");

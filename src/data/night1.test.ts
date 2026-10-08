@@ -33,3 +33,12 @@ describe('換到已有 Verso 資料的資料夾：合併自訂標記', () => {
     expect(m.nextMarkId).toBeGreaterThanOrEqual(4);
   });
 });
+
+describe('xlsx 的 _xHHHH_ 寫法', () => {
+  it('文字裡的 _x0041_ 存了再讀回來不變', async () => {
+    const { fileToXlsx, xlsxToFile } = await import('./xlsxio');
+    const e = { uid: 'u', id: '1', speaker: 'A', src: 'a_x0041_b', src0: 'a_x0041_b', tgt: 't', tgt0: 't', mark: '' as const, pending: false, skipCheck: false, note: '', sugg: '' };
+    const doc = { fid: 'f1', name: 'a', project: 'P', sheets: [{ name: 'S', entries: [e] }] };
+    expect(xlsxToFile('a', 'P', fileToXlsx(doc, []), []).sheets[0].entries[0].src).toBe('a_x0041_b');
+  });
+});

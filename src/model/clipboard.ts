@@ -49,13 +49,25 @@ export function parseHtmlTable(html: string): string[][] | null {
   const doc = new DOMParser().parseFromString(html, 'text/html');
   const trs = doc.querySelectorAll('tr');
   if (!trs.length) return null;
-  return Array.from(trs).map((tr) =>
-    Array.from(tr.querySelectorAll('td,th')).map((cell) => {
-      const c = cell.cloneNode(true) as HTMLElement;
-      c.querySelectorAll('br').forEach((br) => br.replaceWith('\n'));
-      return (c.textContent ?? '').replace(/ /g, ' ').replace(/\r\n?/g, '\n');
-    }),
-  );
+  // 合併的格子（rowspan、colspan）展開成網格，被佔掉的位置補空字串，後面的格子才不會往左跑
+  const grid: string[][] = [];
+  Array.from(trs).forEach((tr, r) => {
+    const row = (grid[r] ??= []);
+    let c = 0;
+    for (const cell of Array.from(tr.querySelectorAll('td,th'))) {
+      while (row[c] !== undefined) c++;
+      const el = cell.cloneNode(true) as HTMLElement;
+      el.querySelectorAll('br').forEach((br) => br.replaceWith('\n'));
+      const text = (el.textContent ?? '').replace(/ /g, ' ').replace(/\r\n?/g, '\n');
+      const rs = Math.max(1, Number(cell.getAttribute('rowspan')) || 1), cs = Math.max(1, Number(cell.getAttribute('colspan')) || 1);
+      for (let dr = 0; dr < rs; dr++) {
+        const rr = (grid[r + dr] ??= []);
+        for (let dc = 0; dc < cs; dc++) rr[c + dc] = dr === 0 && dc === 0 ? text : '';
+      }
+      c += cs;
+    }
+  });
+  return grid.slice(0, trs.length).map((row) => Array.from(row, (v) => v ?? ''));
 }
 
 /** 貼入：優先用表格格式，回傳每一欄（一次貼多欄時會有多欄，缺的格子補空白） */
@@ -81,7 +93,8 @@ export function columnToClipboard(values: (string | RichCell)[]): { html: string
       '<table xmlns="http://www.w3.org/1999/xhtml" cellspacing="0" cellpadding="0" dir="ltr" border="1" style="table-layout:fixed;font-size:10pt;font-family:Arial;width:0px;border-collapse:collapse;border:none" data-sheets-root="1" data-sheets-baot="1"><tbody>' +
       cells.map((c) => `<tr style="height:21px;"><td style="overflow:hidden;padding:2px 3px 2px 3px;vertical-align:bottom;wrap-strategy:4;white-space:normal;word-wrap:break-word;">${c}</td></tr>`).join('') +
       '</tbody></table></google-sheets-html-origin>'
-    : '<table><tbody>' + cells.map((c) => `<tr><td>${c}</td></tr>`).join('') + '</tbody></table>';
+    // 純表格也要這行樣式：貼到 Excel 時格子裡的換行才不會被拆成好幾列
+    : '<style type="text/css">br {mso-data-placement:same-cell;}</style><table><tbody>' + cells.map((c) => `<tr><td>${c}</td></tr>`).join('') + '</tbody></table>';
   const text = values
     .map((c) => (typeof c === 'string' ? c : c.text))
     .map((v) => (/[\n\t]/.test(v) || v.startsWith('"') ? '"' + v.replace(/"/g, '""') + '"' : v))

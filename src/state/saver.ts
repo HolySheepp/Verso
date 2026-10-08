@@ -173,7 +173,12 @@ function lastPosition(): LastPosition | undefined {
 
 /** 存檔。成功回傳 true；檔案被 Excel 開著之類的失敗會標成「未存檔」，之後自動重試 */
 export function saveNow(): Promise<boolean> {
-  return serial(async () => {
+  return serial(saveNowInner);
+}
+
+/** 存檔本身（已經在排隊裡時直接呼叫，避免排隊等自己） */
+async function saveNowInner(): Promise<boolean> {
+  {
     const ok = await saveAll();
     const s = useStore.getState();
     if (ok && !isDirty()) {
@@ -186,7 +191,7 @@ export function saveNow(): Promise<boolean> {
       requestAutosave();
     }
     return ok;
-  });
+  }
 }
 
 /** 字典改了就馬上存（新增詞條、新字典、修改字典），不等自動存檔 */
@@ -441,11 +446,16 @@ function watch() {
 /** 關閉前記下位置，然後真的關掉視窗 */
 async function finishAndClose() {
   closing = true;
+  await flushBeforeExit();
+  if (isTauri()) await getCurrentWindow().destroy();
+}
+
+/** 軟體要結束前（關閉、更新）：字典、專案設定（含目前位置）、軟體設定都寫進去 */
+export async function flushBeforeExit() {
   await saveDicts();
   const p = useStore.getState().project;
   if (p && p.files.length) { try { await writeMeta(useStore.getState().saveRoot, p, lastPosition()); } catch { /* 忽略 */ } }
   await persistConfig();
-  if (isTauri()) await getCurrentWindow().destroy();
 }
 
 /**
@@ -470,9 +480,9 @@ export async function dropRecovery() {
 }
 
 /** 會關掉目前內容的動作（例如更新）：有未儲存的修改就先問「儲存／不儲存／取消」，選好了才執行 */
-export function askSaveThen(go: () => void) {
+export function askSaveThen(go: () => void, kind: 'update' | 'root' = 'update') {
   if (!isDirty() && useStore.getState().saveStatus !== 'error') { go(); return; }
-  useStore.setState({ askSave: { kind: 'update', go }, fileMenuOpen: false });
+  useStore.setState({ askSave: { kind, go }, fileMenuOpen: false });
 }
 
 /** 檔案選單切換檔案 */
@@ -566,12 +576,17 @@ export async function resolveAskSave(choice: 'save' | 'discard' | 'cancel') {
     await finishAndClose();
     return;
   }
-  if (ask.kind === 'update') { ask.go(); return; }
+  if (ask.kind === 'update' || ask.kind === 'root') { ask.go(); return; }
   ask.go(indexOf(ask.target));
 }
 
 /** 更換存檔資料夾：之後的存檔都存到新資料夾，目前的內容馬上存一份過去 */
 export async function changeSaveRoot(root: string) {
+  // 有未儲存的修改：先問「儲存／不儲存／取消」，選好了才換
+  askSaveThen(() => { void changeSaveRootNow(root); }, 'root');
+}
+
+async function changeSaveRootNow(root: string) {
   const p = useStore.getState().project;
   // 新資料夾已有同名的檔案或字典：先列出來讓使用者逐項選
   const items = p ? await findRootConflicts(root, p).catch(() => []) : [];
@@ -604,8 +619,16 @@ export async function resolveRootConflicts(useFolder: RootConflict[]) {
   await switchRoot(rc.root);
 }
 
-async function switchRoot(root: string) {
+/** 換存檔資料夾：排隊執行，不跟自動存檔、存檔同時進行 */
+function switchRoot(root: string): Promise<void> {
+  return serial(() => switchRootNow(root));
+}
+
+async function switchRootNow(root: string) {
   useStore.getState().clearUndo();
+  // 舊資料夾的暫存復原用不到了
+  const oldRoot = useStore.getState().saveRoot;
+  if (oldRoot && oldRoot !== root) { await clearRecovery(oldRoot).catch(warnClear); resetRec(); }
   // 新資料夾已經有 Verso 的資料：自訂標記合併（同名當成同一個），檔案順序以資料夾裡原本的為主
   const folder = await readFolderMeta(root).catch(() => null);
   const cur = useStore.getState().project;
@@ -621,10 +644,10 @@ async function switchRoot(root: string) {
   useStore.setState({ saveRoot: root });
   saved = { files: new Map(), customs: null, dicts: new Map(), projects: [] };
   await persistConfig();
-  await saveNow();
+  await saveNowInner();
   if (folder?.orders.size) {
     // 把資料夾裡原本的檔案讀進來，再照資料夾原本的順序排（目前多出來的接在後面），存一次寫回順序
-    await serial(syncFolder);
+    await syncFolder();
     const p = useStore.getState().project;
     if (p) {
       const rank = (f: FileDoc) => { const o = folder.orders.get(f.project); const i = o ? o.indexOf(safeFileName(f.name)) : -1; return i < 0 ? 1e9 : i; };
@@ -632,7 +655,7 @@ async function switchRoot(root: string) {
       p.files.forEach((f, i) => { if (!first.has(f.project)) first.set(f.project, i); });
       const files = p.files.map((f, i) => ({ f, i })).sort((a, b) => first.get(a.f.project)! - first.get(b.f.project)! || rank(a.f) - rank(b.f) || a.i - b.i).map((x) => x.f);
       useStore.setState({ project: { ...p, files } });
-      await saveNow();
+      await saveNowInner();
     }
   }
 }

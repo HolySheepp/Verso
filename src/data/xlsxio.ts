@@ -21,6 +21,30 @@ function markLabel(mark: string, customs: CustomMark[]) {
   return BUILTIN_MARKS.find((b) => b.id === mark)?.label ?? '';
 }
 
+/**
+ * 一個格子的文字：數字用原本的值（不要被欄寬或格式變成「1.23E+5」「1,234」），
+ * 日期之類有日期格式的才用顯示的文字。換行統一成 \n。
+ */
+export function cellText(cell: XLSX.CellObject | undefined): string {
+  if (!cell || cell.v == null) return '';
+  const isDate = cell.t === 'd' || (cell.t === 'n' && typeof cell.z === 'string' && XLSX.SSF.is_date(cell.z));
+  const raw = cell.t === 'n' && !isDate ? String(cell.v) : String(cell.w ?? cell.v);
+  return raw.replace(/\r\n?/g, '\n');
+}
+
+/** 工作表的每一列（從 A1 開始，空白列也保留，列號才會和原檔一樣） */
+export function sheetRows(ws: XLSX.WorkSheet): string[][] {
+  if (!ws || !ws['!ref']) return [];
+  const range = XLSX.utils.decode_range(ws['!ref']);
+  const out: string[][] = [];
+  for (let r = 0; r <= range.e.r; r++) {
+    const row: string[] = [];
+    for (let c = 0; c <= range.e.c; c++) row.push(cellText(ws[XLSX.utils.encode_cell({ r, c })] as XLSX.CellObject | undefined));
+    out.push(row);
+  }
+  return out;
+}
+
 /** 所有格子都存成文字，避免 id 開頭的 0 被 Excel 吃掉 */
 function textSheet(rows: string[][]): XLSX.WorkSheet {
   const ws = XLSX.utils.aoa_to_sheet(rows);
@@ -30,7 +54,9 @@ function textSheet(rows: string[][]): XLSX.WorkSheet {
     // 空白格不寫進檔案（讀回來時缺的格子就是空白），檔案小、存得快
     if (c.v == null || c.v === '') { delete ws[k]; return; }
     c.t = 's';
-    c.v = String(c.v);
+    // 文字裡本來就有「_x0041_」這種寫法時，Excel 會把它當成跳脫字元換掉：先跳脫成 _x005F_，讀回來才是原字
+    // （要配合共用字串表 bookSST 寫入，這種寫法 Excel 和讀檔都只解一次）
+    c.v = String(c.v).replace(/_x([0-9A-Fa-f]{4})_/g, '_x005F_x$1_');
   });
   return ws;
 }
@@ -70,7 +96,7 @@ export function fileToXlsx(file: FileDoc, customs: CustomMark[]): Uint8Array {
   if (file.fid) settings.push(['檔案ID', file.fid]);
   if (file.lengthStd) settings.push(['長度標準', stdToText(file.lengthStd)]);
   if (settings.length > 1) appendSettings(wb, settings);
-  return new Uint8Array(XLSX.write(wb, { type: 'array', bookType: 'xlsx', compression: true }) as ArrayBuffer);
+  return new Uint8Array(XLSX.write(wb, { type: 'array', bookType: 'xlsx', compression: true, bookSST: true }) as ArrayBuffer);
 }
 
 /** 加上隱藏的設定工作表 */
@@ -174,7 +200,7 @@ function bookToFile(wb: XLSX.WorkBook, name: string, project: string, customs: C
     project,
     lengthStd,
     sheets: wb.SheetNames.filter((sn) => sn !== SETTINGS_SHEET).map((sn) => {
-      const rows = XLSX.utils.sheet_to_json<unknown[]>(wb.Sheets[sn], { header: 1, raw: false, defval: '' });
+      const rows = sheetRows(wb.Sheets[sn]);
       const header = (rows[0] ?? []).map(str);
       const col = columnIndex(header, ENTRY_HEADERS);
       const hasHeader = ENTRY_HEADERS.some((n) => header.includes(n));
@@ -210,7 +236,7 @@ export function dictToXlsx(terms: GlossaryTerm[], did?: string): Uint8Array {
   const rows = [DICT_HEADERS, ...terms.map((t) => [t.term, t.en, t.note])];
   XLSX.utils.book_append_sheet(wb, textSheet(rows), '字典');
   if (did) appendSettings(wb, [['項目', '值'], ['字典ID', did]]);
-  return new Uint8Array(XLSX.write(wb, { type: 'array', bookType: 'xlsx', compression: true }) as ArrayBuffer);
+  return new Uint8Array(XLSX.write(wb, { type: 'array', bookType: 'xlsx', compression: true, bookSST: true }) as ArrayBuffer);
 }
 
 /** 詞條的專案由字典所在的專案資料夾決定（舊檔案裡的「所屬專案」欄不再使用） */
@@ -227,7 +253,7 @@ export function readDictBook(project: string, dict: string, data: Uint8Array): {
 function dictTerms(wb: XLSX.WorkBook, project: string, dict: string): GlossaryTerm[] {
   const ws = wb.Sheets[wb.SheetNames.filter((n) => n !== SETTINGS_SHEET)[0]];
   if (!ws) return [];
-  const rows = XLSX.utils.sheet_to_json<unknown[]>(ws, { header: 1, raw: false, defval: '' });
+  const rows = sheetRows(ws);
   const header = (rows[0] ?? []).map(str);
   const col = columnIndex(header, DICT_HEADERS);
   const body = DICT_HEADERS.some((n) => header.includes(n)) ? rows.slice(1) : rows;

@@ -8,6 +8,8 @@ import { useStore } from './store';
 export const RELEASES_URL = 'https://github.com/HolySheepp/Verso/releases/latest';
 
 const STARTUP_WAIT = 2000;
+/** 下載更新時超過這麼久沒有進度就放棄 */
+const STALL_LIMIT = 60 * 1000;
 const RETRY_EVERY = 10 * 60 * 1000;
 
 let pending: Update | null = null;
@@ -42,29 +44,44 @@ export async function checkAtStartup(): Promise<boolean> {
   return install();
 }
 
-/** 下載並安裝：啟動畫面顯示下載進度，接著由安裝程式顯示安裝進度，裝好後自動重開 */
+/** 下載並安裝：啟動畫面顯示下載進度（可以取消），接著由安裝程式顯示安裝進度，裝好後自動重開 */
 async function install(): Promise<boolean> {
   const u = pending;
   if (!u) return false;
   let total = 0, got = 0;
-  const show = (p: number, text: string) => useStore.setState({ loading: { p, text } });
+  // 下載中可以按「取消」；60 秒沒有進度也自動放棄。放棄後就不安裝（下載中的內容直接丟掉）
+  let stop: (why: string) => void = () => {};
+  const stopped = new Promise<never>((_, reject) => { stop = (why) => reject(new Error(why)); });
+  const cancel = () => stop('canceled');
+  let stall = setTimeout(() => stop('下載太久沒有進度'), STALL_LIMIT);
+  const alive = () => { clearTimeout(stall); stall = setTimeout(() => stop('下載太久沒有進度'), STALL_LIMIT); };
+  const show = (p: number, text: string, canCancel = true) => useStore.setState({ loading: { p, text, cancel: canCancel ? cancel : undefined } });
   show(0, '下載更新 0%');
   try {
-    await u.downloadAndInstall((ev) => {
+    await Promise.race([stopped, u.download((ev) => {
+      alive();
       if (ev.event === 'Started') total = ev.data.contentLength ?? 0;
       else if (ev.event === 'Progress') {
         got += ev.data.chunkLength;
         const p = total ? got / total : 0;
         show(p, total ? `下載更新 ${Math.floor(p * 100)}%` : '下載更新中');
-      } else if (ev.event === 'Finished') show(1, '安裝中，完成後會自動重新開啟');
-    });
+      }
+    })]);
+    clearTimeout(stall);
+    // 開始安裝之後就不能取消了
+    show(1, '安裝中，完成後會自動重新開啟', false);
+    await u.install();
     // Windows 上安裝程式會關掉並重開 Verso；萬一沒有，就自己重開
     const { relaunch } = await import('@tauri-apps/plugin-process');
     await relaunch();
     return true;
   } catch (e) {
-    show(1, '更新失敗：' + String((e as Error)?.message ?? e).slice(0, 60) + '，用目前的版本開啟');
+    clearTimeout(stall);
+    const msg = String((e as Error)?.message ?? e);
+    if (msg === 'canceled') { useStore.setState({ updateAvailable: u.version }); return false; }
+    show(1, '更新失敗：' + msg.slice(0, 60) + '，用目前的版本開啟', false);
     await new Promise((r) => setTimeout(r, 1800));
+    useStore.setState({ updateAvailable: u.version });
     startBackgroundCheck();
     return false;
   }
@@ -99,10 +116,12 @@ export async function onUpdateIcon() {
   useStore.setState({ updatePrompt: null });
   if (!yes) return;
   // 有未儲存的修改：先問要不要儲存，選好了才更新（取消就不更新）
-  const { askSaveThen, dropRecovery } = await import('./saver');
+  const { askSaveThen, dropRecovery, flushBeforeExit } = await import('./saver');
   askSaveThen(() => void (async () => {
     // 已經存好（或選了不儲存）：暫存復原用不到了，避免更新重開後又問要不要恢復
     await dropRecovery();
+    // 跟關閉軟體一樣：字典、目前位置、設定先寫進去
+    await flushBeforeExit();
     // 畫面換成啟動畫面顯示進度
     useStore.setState({ loading: { p: 0, text: '準備更新' } });
     const ok = await install();

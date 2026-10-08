@@ -22,7 +22,7 @@ export type SaveStatus = 'saved' | 'dirty' | 'saving' | 'error';
  * 有未存修改時要先問使用者：關閉 App，或離開目前的檔案。
  * leave：target 是要去的檔案（專案/檔名），新建檔案時是 null；決定後呼叫 go，帶入那個檔案現在的位置（找不到是 -1）。
  */
-export type AskSave = { kind: 'close' } | { kind: 'leave'; target: string | null; go: (index: number) => void } | { kind: 'update'; go: () => void };
+export type AskSave = { kind: 'close' } | { kind: 'leave'; target: string | null; go: (index: number) => void } | { kind: 'update'; go: () => void } | { kind: 'root'; go: () => void };
 
 
 /** keys：用快捷鍵打開的選單，可以按數字選取 */
@@ -174,7 +174,8 @@ interface State {
   /** 存檔時發現超過 Excel 單格上限的格子（給人看的位置） */
   longCells: string[] | null;
   /** 啟動載入中：進度（0–1）與正在做的事；載入完是 null */
-  loading: { p: number; text: string } | null;
+  /** 啟動畫面的進度；cancel 有值時顯示「取消」（下載更新時） */
+  loading: { p: number; text: string; cancel?: () => void } | null;
   /** 問使用者要不要更新到新版本（resolve 傳回選擇） */
   updatePrompt: { version: string; resolve(yes: boolean): void } | null;
   /** 背景查到的新版本：標題列顯示小圖示 */

@@ -261,7 +261,7 @@ export default function App() {
       <RootConflictDialog />
       {s.askSave && (
         <ConfirmDialog zIndex={60} title="有未儲存的修改"
-          body={s.askSave.kind === 'close' ? '關閉前要儲存嗎？' : s.askSave.kind === 'update' ? '更新前要儲存嗎？' : '離開這個檔案前要儲存嗎？'}
+          body={s.askSave.kind === 'close' ? '關閉前要儲存嗎？' : s.askSave.kind === 'update' ? '更新前要儲存嗎？' : s.askSave.kind === 'root' ? '換存檔資料夾前要儲存嗎？' : '離開這個檔案前要儲存嗎？'}
           choices={[
             { label: '取消', onClick: () => void resolveAskSave('cancel') },
             { label: '不儲存', danger: true, onClick: () => void resolveAskSave('discard') },
