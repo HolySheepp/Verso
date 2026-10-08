@@ -1,3 +1,4 @@
+import { tx } from '../i18n';
 import { useEffect, useRef, useState } from 'react';
 import { fontStack, fz, listFonts } from '../model/fonts';
 import { IconChevD, IconSearch } from './icons';
@@ -41,36 +42,36 @@ export function FontSelect({ value, recent, onChange, label, disabled }: Props) 
   const item = (f: string, key: string) => (
     <button key={key} type="button" className="dd pop-item" role="option" aria-selected={f === value} onClick={() => pick(f)}
       style={{ background: f === value ? 'var(--sel)' : 'transparent', fontFamily: fontStack(f), whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis', display: 'block' }}>
-      {f || '預設'}
+      {f || tx('font.001')}
     </button>
   );
   const head = (t: string) => <div className="pop-title" style={{ padding: '8px 10px 4px' }}>{t}</div>;
 
   return (
     <>
-      <button ref={btn} type="button" className="fs" aria-haspopup="listbox" aria-expanded={open} aria-label={label + '字形'} onClick={toggle} disabled={disabled}
+      <button ref={btn} type="button" className="fs" aria-haspopup="listbox" aria-expanded={open} aria-label={tx('font.002', { label })} onClick={toggle} disabled={disabled}
         style={{
           flexGrow: 1, minWidth: 0, height: 34, display: 'flex', alignItems: 'center', gap: 8, padding: '0 10px',
           background: 'var(--bg0)', border: '1px solid var(--line4)', borderRadius: 8, textAlign: 'left', opacity: disabled ? 0.5 : 1,
         }}>
-        <span style={{ flexGrow: 1, minWidth: 0, overflow: 'hidden', whiteSpace: 'nowrap', textOverflow: 'ellipsis', fontFamily: fontStack(value), fontSize: fz(13) }}>{value || '預設'}</span>
+        <span style={{ flexGrow: 1, minWidth: 0, overflow: 'hidden', whiteSpace: 'nowrap', textOverflow: 'ellipsis', fontFamily: fontStack(value), fontSize: fz(13) }}>{value || tx('font.001')}</span>
         <IconChevD size={13} stroke="var(--mute)" />
       </button>
       {open && (
         <>
           <div onMouseDown={() => setOpen(false)} style={{ position: 'fixed', inset: 0, zIndex: 60 }} />
-          <div role="listbox" aria-label={label + '字形'} className="pop"
+          <div role="listbox" aria-label={tx('font.002', { label })} className="pop"
             style={{ position: 'fixed', left: pos.left, top: pos.top, width: pos.width, height: 320, zIndex: 61, display: 'flex', flexDirection: 'column' }}>
             <div style={{ position: 'relative', padding: 4 }}>
               <IconSearch size={13} stroke="var(--mute)" style={{ position: 'absolute', left: 14, top: 14, pointerEvents: 'none' }} />
-              <input autoFocus className="field" aria-label="搜尋字形" value={q} onChange={(e) => setQ(e.target.value)}
+              <input autoFocus className="field" aria-label={tx('font.003')} value={q} onChange={(e) => setQ(e.target.value)}
                 onKeyDown={(e) => { if (e.key === 'Escape') { e.stopPropagation(); setOpen(false); } }}
                 style={{ width: '100%', height: 32, padding: '0 10px 0 30px' }} />
             </div>
             <div style={{ flexGrow: 1, minHeight: 0, overflowY: 'auto' }}>
-              {recentShown.length > 0 && <>{head('近期')}{recentShown.map((f) => item(f, 'r:' + f))}</>}
-              {head('全部')}
-              {match('預設') && item('', 'default')}
+              {recentShown.length > 0 && <>{head(tx('font.004'))}{recentShown.map((f) => item(f, 'r:' + f))}</>}
+              {head(tx('font.005'))}
+              {match(tx('font.001')) && item('', 'default')}
               {all.map((f) => item(f, 'a:' + f))}
             </div>
           </div>

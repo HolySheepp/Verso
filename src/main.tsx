@@ -12,6 +12,17 @@ import './theme.css';
 import App from './App';
 import { ErrorBoundary } from './components/ErrorBoundary';
 import { useStore } from './state/store';
+import { startApp } from './state/saver';
+import { applyLang } from './i18n/lang';
+
+// 介面語言：一開始就套用上次的語言（啟動畫面的字也要對）
+applyLang(useStore.getState().uiLang);
+
+/** 換語言時整個畫面重畫一次，每個地方的文字都換成新語言 */
+function Root() {
+  const lang = useStore((s) => s.uiLang);
+  return <App key={lang} />;
+}
 
 // 檔案拖進軟體視窗：打開匯入視窗讀這個檔案（不讓視窗直接打開檔案）
 window.addEventListener('dragover', (ev) => ev.preventDefault());
@@ -28,7 +39,10 @@ window.addEventListener('drop', (ev) => {
 createRoot(document.getElementById('root')!).render(
   <StrictMode>
     <ErrorBoundary>
-      <App />
+      <Root />
     </ErrorBoundary>
   </StrictMode>,
 );
+
+// 啟動：讀設定、載入存檔資料夾（只跑一次，換語言重畫畫面時不會重來）
+void startApp();

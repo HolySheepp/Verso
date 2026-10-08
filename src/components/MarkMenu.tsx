@@ -1,3 +1,4 @@
+import { tx } from '../i18n';
 import { useStore } from '../state/store';
 import { BUILTIN_MARKS, markVisual } from '../model/marks';
 import type { CustomMark, MarkId } from '../model/types';
@@ -60,7 +61,7 @@ export function MarkMenu({ title, ariaLabel, current, exclude = [], onPick, styl
       <div className="pop-sep" />
       <button type="button" className="dd pop-item" style={{ background: 'transparent', color: 'var(--text2)', fontSize: fz(12.5) }}
         onClick={() => set({ settingsOpen: true, rowMenu: null, stampOpen: false, fileMenuOpen: false })}>
-        <IconPlus size={14} />管理自訂標記…
+        <IconPlus size={14} />{tx('markmenu.001')}
       </button>
     </div>
   );

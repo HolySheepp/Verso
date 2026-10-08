@@ -1,3 +1,4 @@
+import { tx } from '../i18n';
 import { useStore } from '../state/store';
 import { Select } from './Select';
 import { DICT_DIR, sameName } from '../model/names';
@@ -38,14 +39,14 @@ function Picker({ id, sel, newName, onSel, onNewName, stack, width, focus = true
 /** 專案下拉：現有專案＋新增專案 */
 export function ProjectPicker(p: PickerProps) {
   const projects = useStore((s) => s.project!.projects);
-  return <Picker {...p} options={projects} newLabel="新增專案" placeholder="專案名稱" />;
+  return <Picker {...p} options={projects} newLabel={tx('picker.001')} placeholder={tx('picker.002')} />;
 }
 
 /** 字典下拉：只列出該專案的字典＋新字典 */
 export function DictPicker(p: PickerProps & { project: string }) {
   const dicts = useStore((s) => s.project!.dicts);
   const options = dicts.filter((d) => d.project === p.project).map((d) => d.name);
-  return <Picker {...p} options={options} newLabel="新字典" placeholder="字典名稱" />;
+  return <Picker {...p} options={options} newLabel={tx('picker.003')} placeholder={tx('picker.004')} />;
 }
 
 /** 某專案的第一個字典，沒有就是「新字典」 */
@@ -55,18 +56,19 @@ export function firstDict(project: string) {
 }
 
 /** 新專案、新字典名稱的檢查訊息；沒問題回傳空字串 */
-export function nameError(kind: '專案' | '字典' | '檔案', sel: string, newName: string, existing: string[]) {
+export function nameError(kind: 'project' | 'dict' | 'file', sel: string, newName: string, existing: string[]) {
   if (sel !== NEW) return '';
+  const label = kind === 'project' ? tx('picker.005') : kind === 'dict' ? tx('picker.006') : tx('picker.007');
   const n = newName.trim();
   if (!n) return '';
-  if (/[\\/:*?"<>|]/.test(n)) return kind + '名稱不能有 \\ / : * ? " < > |';
+  if (/[\\/:*?"<>|]/.test(n)) return tx('picker.008', { label });
   // 「.」開頭的資料夾是軟體自己用的（例如暫存復原）；Windows 不允許結尾是「.」，也不能用保留名稱
-  if (n.startsWith('.')) return kind + '名稱不能用「.」開頭';
-  if (n.endsWith('.')) return kind + '名稱結尾不能是「.」';
-  if (/^(con|prn|aux|nul|com[1-9]|lpt[1-9])(\..*)?$/i.test(n)) return '「' + n + '」是 Windows 保留的名稱';
+  if (n.startsWith('.')) return tx('picker.009', { label });
+  if (n.endsWith('.')) return tx('picker.010', { label });
+  if (/^(con|prn|aux|nul|com[1-9]|lpt[1-9])(\..*)?$/i.test(n)) return tx('picker.011', { n });
   // 專案資料夾和字典資料夾放在一起，不能同名
-  if (kind === '專案' && sameName(n, DICT_DIR)) return `「${DICT_DIR}」是保留名稱`;
+  if (kind === 'project' && sameName(n, DICT_DIR)) return tx('picker.012', { DICT_DIR });
   // 大小寫不同、或存檔後會變成同一個檔名的，都算同名
-  if (existing.some((x) => sameName(x, n))) return '已有同名' + kind;
+  if (existing.some((x) => sameName(x, n))) return tx('picker.013', { label });
   return '';
 }

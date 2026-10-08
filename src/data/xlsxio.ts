@@ -1,6 +1,5 @@
 // 檔案與 xlsx 的互相轉換：一個檔案一個 xlsx，一個頁簽一個工作表
 import * as XLSX from 'xlsx';
-import { BUILTIN_MARKS } from '../model/marks';
 import { newUid } from '../model/paste';
 import { stdToText, textToStd } from '../model/length';
 import { SETTINGS_SHEET } from '../model/names';
@@ -15,10 +14,13 @@ export const DICT_HEADERS = ['原文', '譯文', '備註'];
 
 const STORED_BUILTIN = new Set(['verified', 'doubt', 'think', 'ignore']);
 
+/** 寫進「標記」欄的名稱：存檔一律用中文，不隨介面語言改變 */
+const MARK_NAMES_ZH: Record<string, string> = { untranslated: '未翻譯', translated: '已翻譯', verified: '已驗證', doubt: '疑慮', think: '待思考', ignore: '忽略' };
+
 function markLabel(mark: string, customs: CustomMark[]) {
   if (!mark) return '';
   if (mark.startsWith('c:')) return customs.find((c) => 'c:' + c.id === mark)?.name ?? '';
-  return BUILTIN_MARKS.find((b) => b.id === mark)?.label ?? '';
+  return MARK_NAMES_ZH[mark] ?? '';
 }
 
 /**

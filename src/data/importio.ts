@@ -1,4 +1,5 @@
 // 匯入檔案：讀進外部的表格或文字檔，給匯入視窗預覽
+import { tx } from '../i18n';
 import * as XLSX from 'xlsx';
 import { SETTINGS_SHEET } from '../model/names';
 import { isVersoHeader } from '../model/importSel';
@@ -35,7 +36,7 @@ const hasContent = (rows: string[][]) => rows.some((r) => r.some((v) => v.trim()
 /** 讀進一個檔案；不支援或讀不了時回傳錯誤訊息 */
 export function readImport(fileName: string, data: Uint8Array): ImportBook | string {
   const ext = extOf(fileName);
-  if (!IMPORT_EXTS.includes(ext)) return '不支援這種檔案';
+  if (!IMPORT_EXTS.includes(ext)) return tx('importfile.001');
   const name = fileName.replace(/\.[^.]+$/, '');
   let sheets: ImportSheet[];
   let verso = false;
@@ -54,9 +55,9 @@ export function readImport(fileName: string, data: Uint8Array): ImportBook | str
       verso = (ext === 'xlsx' && sheets.length > 0 && isVersoHeader(sheets[0].rows[0] ?? []));
     }
   } catch {
-    return '無法讀取這個檔案';
+    return tx('importfile.002');
   }
   sheets = sheets.filter((sh) => hasContent(sh.rows));
-  if (!sheets.length) return '檔案裡沒有內容';
+  if (!sheets.length) return tx('importfile.003');
   return { name, verso, sheets, data };
 }

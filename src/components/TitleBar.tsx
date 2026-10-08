@@ -1,3 +1,4 @@
+import { tx } from '../i18n';
 import { isTauri } from '@tauri-apps/api/core';
 import { getCurrentWindow } from '@tauri-apps/api/window';
 import { currentProjectOf, useStore } from '../state/store';
@@ -13,10 +14,10 @@ import {
 } from './icons';
 
 export const MODES: { id: Mode; label: string; Icon: typeof IconPen }[] = [
-  { id: 'translate', label: '翻譯', Icon: IconPen },
-  { id: 'verify', label: '驗證', Icon: IconShield },
-  { id: 'view', label: '檢視', Icon: IconEye },
-  { id: 'source', label: '原文修正', Icon: IconSrcEdit },
+  { id: 'translate', get label() { return tx('title.001'); }, Icon: IconPen },
+  { id: 'verify', get label() { return tx('title.002'); }, Icon: IconShield },
+  { id: 'view', get label() { return tx('title.003'); }, Icon: IconEye },
+  { id: 'source', get label() { return tx('title.004'); }, Icon: IconSrcEdit },
 ];
 
 // 在瀏覽器預覽時沒有視窗 API，按鈕不做事
@@ -40,7 +41,7 @@ export function TitleBar() {
   const mode = useStore((s) => s.mode);
   const theme = useEffectiveTheme();
   const set = useStore((s) => s.set);
-  const themeLabel = theme === 'light' ? '切換為深色模式' : '切換為淺色模式';
+  const themeLabel = theme === 'light' ? tx('title.005') : tx('title.006');
 
   return (
     <header data-tauri-drag-region style={{
@@ -53,24 +54,24 @@ export function TitleBar() {
         <span data-tauri-drag-region className="proj" style={{ color: 'var(--mute)', fontSize: fz(12), marginLeft: 6 }}>{projectName}</span>
         <span data-tauri-drag-region title={status === 'error' ? errors.map((x) => x.target + '：' + x.reason).join('\n') : undefined}
           style={{ display: 'flex', alignItems: 'center', gap: 5, minWidth: 0, maxWidth: 420, overflow: 'hidden', whiteSpace: 'nowrap', textOverflow: 'ellipsis', fontSize: fz(11.5), color: status === 'error' ? 'var(--errtx)' : 'var(--mute)', marginLeft: 4 }}>
-          {status === 'saved' ? <><IconCheck size={11} sw={2.4} stroke="var(--accent2)" />已儲存</>
-            : status === 'saving' ? '儲存中…'
-            : status === 'error' ? (errors[0] ? `未存檔：${errors[0].target}，${errors[0].reason}${errors.length > 1 ? `（另有 ${errors.length - 1} 項）` : ''}` : '未存檔，稍後自動重試')
-            : '有未儲存的修改'}
+          {status === 'saved' ? <><IconCheck size={11} sw={2.4} stroke="var(--accent2)" />{tx('title.007')}</>
+            : status === 'saving' ? tx('title.008')
+            : status === 'error' ? (errors[0] ? (errors.length > 1 ? tx('title.009', { target: errors[0].target, reason: errors[0].reason, v1: errors.length - 1 }) : tx('title.010', { target: errors[0].target, reason: errors[0].reason })) : tx('title.011'))
+            : tx('title.012')}
         </span>
-        <button type="button" className="ib" aria-label="儲存" title={'儲存' + (saveKey ? `（${saveKey}）` : '')} onClick={() => void manualSave()}
+        <button type="button" className="ib" aria-label={tx('title.013')} title={tx('title.014', { v1: saveKey ? `（${saveKey}）` : '' })} onClick={() => void manualSave()}
           style={{ width: 26, height: 26, display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 0, background: 'transparent', border: 0, borderRadius: 6, color: 'var(--text2)' }}>
           <IconSave size={14} />
         </button>
         {update && (
-          <button type="button" className="ib update-dot" aria-label={'有新版本 ' + update} title={`有新版本 ${update}，點一下更新`} onClick={() => void onUpdateIcon()}
+          <button type="button" className="ib update-dot" aria-label={tx('title.015', { update })} title={tx('title.016', { update })} onClick={() => void onUpdateIcon()}
             style={{ width: 26, height: 26, display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 0, background: 'var(--acc-soft)', border: 0, borderRadius: 6, color: 'var(--accent2)' }}>
             <IconUpdate size={14} sw={2.2} />
           </button>
         )}
       </div>
 
-      <div role="radiogroup" aria-label="工作模式" style={{
+      <div role="radiogroup" aria-label={tx('title.017')} style={{
         position: 'absolute', left: '50%', top: 7, transform: 'translateX(-50%)', display: 'flex', gap: 2, padding: 3,
         background: 'var(--bg0)', border: '1px solid var(--line)', borderRadius: 9,
       }}>
@@ -95,14 +96,14 @@ export function TitleBar() {
             onClick={() => set({ theme: theme === 'light' ? 'dark' : 'light' })}>
             {theme === 'light' ? <IconMoon size={15} /> : <IconSun size={15} />}
           </button>
-          <button type="button" className="ib" aria-label="設定" title="設定" style={topBtn}
+          <button type="button" className="ib" aria-label={tx('title.018')} title={tx('title.018')} style={topBtn}
             onClick={() => set({ settingsOpen: true, rowMenu: null, stampOpen: false, fileMenuOpen: false })}>
             <IconGear size={15} />
           </button>
         </div>
-        <button type="button" className="ib" aria-label="最小化" style={winBtn} onClick={() => win()?.minimize()}><IconWinMin /></button>
-        <button type="button" className="ib" aria-label="最大化" style={winBtn} onClick={() => win()?.toggleMaximize()}><IconWinMax /></button>
-        <button type="button" className="ib" aria-label="關閉" style={winBtn} onClick={() => win()?.close()}><IconWinClose /></button>
+        <button type="button" className="ib" aria-label={tx('title.019')} style={winBtn} onClick={() => win()?.minimize()}><IconWinMin /></button>
+        <button type="button" className="ib" aria-label={tx('title.020')} style={winBtn} onClick={() => win()?.toggleMaximize()}><IconWinMax /></button>
+        <button type="button" className="ib" aria-label={tx('title.021')} style={winBtn} onClick={() => win()?.close()}><IconWinClose /></button>
       </div>
     </header>
   );

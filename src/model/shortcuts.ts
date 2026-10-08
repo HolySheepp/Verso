@@ -1,10 +1,11 @@
+import { tx } from '../i18n';
 // 快捷鍵：兩種情境（在譯文框裡、不在輸入框時）各有一組，可在設定裡錄製改鍵
 
 export type ShortcutContext = 'input' | 'list';
 
 export const CONTEXTS: { id: ShortcutContext; label: string }[] = [
-  { id: 'input', label: '在譯文框裡' },
-  { id: 'list', label: '不在輸入框時' },
+  { id: 'input', get label() { return tx('shortcut.001'); } },
+  { id: 'list', get label() { return tx('shortcut.002'); } },
 ];
 
 export type ActionId =
@@ -12,27 +13,27 @@ export type ActionId =
   | 'editEntry' | 'clearTgt' | 'deleteCells' | 'prevSheet' | 'nextSheet' | 'close' | 'peek' | 'prevPending' | 'nextPending' | 'save' | 'applySrc' | 'peekSrc' | 'applyEdits';
 
 export const ACTION_LABELS: Record<ActionId, string> = {
-  main: '下一條／驗證並下一條',
-  newline: '換行',
-  stampNext: '標記並下一條',
-  prevEntry: '上一條（不留標記）',
-  nextEntry: '下一條（不留標記）',
-  markMenu: '開啟標記選單',
-  record: '記錄目前譯文',
-  leaveInput: '離開譯文框',
-  editEntry: '編輯選取條目的譯文',
-  clearTgt: '清除選取的格子',
-  deleteCells: '刪除選取的格子（下面的往上補）',
-  prevSheet: '上一個頁簽',
-  nextSheet: '下一個頁簽',
-  close: '關閉選單與視窗',
-  peek: '按住查看修改',
-  prevPending: '上一個待處理條目',
-  nextPending: '下一個待處理條目',
-  save: '存檔',
-  applySrc: '套用這條的新原文',
-  peekSrc: '按住查看舊原文',
-  applyEdits: '套用這條的全部修改',
+  get main() { return tx('shortcut.003'); },
+  get newline() { return tx('shortcut.004'); },
+  get stampNext() { return tx('shortcut.005'); },
+  get prevEntry() { return tx('shortcut.006'); },
+  get nextEntry() { return tx('shortcut.007'); },
+  get markMenu() { return tx('shortcut.008'); },
+  get record() { return tx('shortcut.009'); },
+  get leaveInput() { return tx('shortcut.010'); },
+  get editEntry() { return tx('shortcut.011'); },
+  get clearTgt() { return tx('shortcut.012'); },
+  get deleteCells() { return tx('shortcut.013'); },
+  get prevSheet() { return tx('shortcut.014'); },
+  get nextSheet() { return tx('shortcut.015'); },
+  get close() { return tx('shortcut.016'); },
+  get peek() { return tx('shortcut.017'); },
+  get prevPending() { return tx('shortcut.018'); },
+  get nextPending() { return tx('shortcut.019'); },
+  get save() { return tx('shortcut.020'); },
+  get applySrc() { return tx('shortcut.021'); },
+  get peekSrc() { return tx('shortcut.022'); },
+  get applyEdits() { return tx('shortcut.023'); },
 };
 
 /** 這些操作要按住才有效，放開就結束 */

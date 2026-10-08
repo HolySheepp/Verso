@@ -1,4 +1,5 @@
 // 標點符號檢測與初步機器驗證（以英文譯文為準）
+import { tx } from '../i18n';
 import type { LengthStd } from './length';
 import { overflows } from './measure';
 
@@ -8,19 +9,19 @@ export type CheckId =
   | 'curlyQuotes' | 'capital' | 'overflow';
 
 export const CHECKS: { id: CheckId; label: string }[] = [
-  { id: 'tags', label: '標籤與變數' },
-  { id: 'numbers', label: '數字' },
-  { id: 'ending', label: '句尾標點' },
-  { id: 'fullwidth', label: '全形符號' },
-  { id: 'pairs', label: '成對符號' },
-  { id: 'edgeSpace', label: '首尾空白' },
-  { id: 'doubleSpace', label: '連續空格' },
-  { id: 'repeatPunct', label: '連續重複標點' },
-  { id: 'cjk', label: '殘留中文' },
-  { id: 'ellipsis', label: '刪節號' },
-  { id: 'curlyQuotes', label: '中文引號' },
-  { id: 'capital', label: '大小寫' },
-  { id: 'overflow', label: '超框' },
+  { id: 'tags', get label() { return tx('check.001'); } },
+  { id: 'numbers', get label() { return tx('check.002'); } },
+  { id: 'ending', get label() { return tx('check.003'); } },
+  { id: 'fullwidth', get label() { return tx('check.004'); } },
+  { id: 'pairs', get label() { return tx('check.005'); } },
+  { id: 'edgeSpace', get label() { return tx('check.006'); } },
+  { id: 'doubleSpace', get label() { return tx('check.007'); } },
+  { id: 'repeatPunct', get label() { return tx('check.008'); } },
+  { id: 'cjk', get label() { return tx('check.009'); } },
+  { id: 'ellipsis', get label() { return tx('check.010'); } },
+  { id: 'curlyQuotes', get label() { return tx('check.011'); } },
+  { id: 'capital', get label() { return tx('check.012'); } },
+  { id: 'overflow', get label() { return tx('check.013'); } },
 ];
 
 export type CheckSettings = Record<CheckId, boolean>;
@@ -74,11 +75,11 @@ export function runChecks(src: string, tgt: string): Issue[] {
   const a = countOf(tokens(src)), b = countOf(tokens(tgt));
   for (const [t, n] of a) {
     const m = b.get(t) ?? 0;
-    if (m < n) add('tags', '-' + t, `缺少 ${t}`);
+    if (m < n) add('tags', '-' + t, tx('check.014', { t }));
   }
   for (const [t, n] of b) {
     const m = a.get(t) ?? 0;
-    if (n > m) add('tags', '+' + t, `多出 ${t}`);
+    if (n > m) add('tags', '+' + t, tx('check.015', { t }));
   }
 
   // 數字：原文有的數字，譯文要有（多出不報）
@@ -86,49 +87,49 @@ export function runChecks(src: string, tgt: string): Issue[] {
   const nums = new Set(plainSrc.match(/\d+(?:[.,]\d+)*/g) ?? []);
   for (const n of nums) {
     const re = new RegExp('(?<![\\d.,])' + n.replace(/[.,]/g, '\\$&') + '(?![\\d]|[.,]\\d)');
-    if (!re.test(plainTgt)) add('numbers', n, `缺少數字 ${n}`);
+    if (!re.test(plainTgt)) add('numbers', n, tx('check.016', { n }));
   }
 
   // 只有刪節號：必須剛好 6 個半形句點，可以包在引號裡
   const bare = tgt.trim();
   const dots = bare.match(/^"?(\.+)"?$/);
-  if (dots && dots[1].length !== 6) add('ellipsis', String(dots[1].length), `刪節號要 6 個句點（目前 ${dots[1].length} 個）`);
+  if (dots && dots[1].length !== 6) add('ellipsis', String(dots[1].length), tx('check.017', { length: dots[1].length }));
 
   // 句尾標點
   const end = trimEnd(tgt);
-  if (end && !endsWell(end)) add('ending', '', '句尾缺少標點');
+  if (end && !endsWell(end)) add('ending', '', tx('check.018'));
 
   // 全形符號
   const fw = Array.from(new Set(tgt.match(/[　-〿＀-￯…‥]/g) ?? []));
-  if (fw.length) add('fullwidth', fw.join(''), '有全形符號 ' + fw.map((c) => (c === '　' ? '全形空格' : c)).join(' '));
+  if (fw.length) add('fullwidth', fw.join(''), tx('check.019', { v1: fw.map((c) => (c === '　' ? tx('check.fullwidthSpace') : c)).join(' ') }));
 
   // 成對符號
   const cnt = (ch: string) => tgt.split(ch).length - 1;
-  if (cnt('(') !== cnt(')')) add('pairs', '()', '括號 ( ) 沒有成對');
-  if (cnt('[') !== cnt(']')) add('pairs', '[]', '括號 [ ] 沒有成對');
-  if (cnt('"') % 2) add('pairs', '"', '引號 " 沒有成對');
+  if (cnt('(') !== cnt(')')) add('pairs', '()', tx('check.020'));
+  if (cnt('[') !== cnt(']')) add('pairs', '[]', tx('check.021'));
+  if (cnt('"') % 2) add('pairs', '"', tx('check.022'));
 
   // 空白與重複標點
-  if (/^\s|\s$/.test(tgt)) add('edgeSpace', '', '開頭或結尾有多餘空白');
-  if (/ {2,}/.test(tgt)) add('doubleSpace', '', '有連續兩個空格');
+  if (/^\s|\s$/.test(tgt)) add('edgeSpace', '', tx('check.023'));
+  if (/ {2,}/.test(tgt)) add('doubleSpace', '', tx('check.024'));
   // 驚嘆號、問號可以重複（!!!、??）。句點：整句只有句點時看刪節號的規則；
   // 句子有其他內容時，句點只能是 1 個（句點）或 3 個（刪節號），其他數量都算重複標點
   const rep = Array.from(new Set([...(tgt.match(/([,;:—\-])\1+/g) ?? []), ...(dots ? [] : badDots(tgt).map((m) => m.text))]));
-  if (rep.length) add('repeatPunct', rep.join(''), '重複標點 ' + rep.join(' '));
+  if (rep.length) add('repeatPunct', rep.join(''), tx('check.025', { v1: rep.join(' ') }));
 
   // 中文引號：譯文引號只能用 " 和 '
   const curly = Array.from(new Set(tgt.match(/[“”‘’]/g) ?? []));
-  if (curly.length) add('curlyQuotes', curly.join(''), '有中文引號 ' + curly.join(' '));
+  if (curly.length) add('curlyQuotes', curly.join(''), tx('check.026', { v1: curly.join(' ') }));
 
   // 大小寫：句首、句號/問號/驚嘆號後要大寫；破折號後要小寫（I 除外）
   const firstLetter = tgt.replace(LEAD, '').match(/^[\s"'(\[.]*([A-Za-z])/);
-  if (firstLetter && /[a-z]/.test(firstLetter[1])) add('capital', 'start', '句首要大寫');
+  if (firstLetter && /[a-z]/.test(firstLetter[1])) add('capital', 'start', tx('check.027'));
   // 刪節號後不檢查（例如 Are you... are you mad?），只有整句以刪節號開頭時，刪節號後的字算句首
-  if (/(?:^|[^.])[.?!]["')]*\s+["'(]*[a-z]/.test(tgt)) add('capital', 'sentence', '句號、問號、驚嘆號後要大寫');
-  if (dashCapitals(tgt).length) add('capital', 'dash', '破折號後要小寫');
+  if (/(?:^|[^.])[.?!]["')]*\s+["'(]*[a-z]/.test(tgt)) add('capital', 'sentence', tx('check.028'));
+  if (dashCapitals(tgt).length) add('capital', 'dash', tx('check.029'));
 
   // 殘留中文
-  if (/[㐀-䶿一-鿿]/.test(tgt)) add('cjk', '', '譯文裡有中文字');
+  if (/[㐀-䶿一-鿿]/.test(tgt)) add('cjk', '', tx('check.030'));
 
   return out;
 }
@@ -151,7 +152,7 @@ function dashCapitals(tgt: string): number[] {
 export function enabledIssues(src: string, tgt: string, settings: CheckSettings, std?: LengthStd | null): Issue[] {
   const out = runChecks(src, tgt).filter((i) => settings[i.check]);
   // 超框：用長度標準實際排版，超過行數上限就報
-  if (std && settings.overflow && overflows(tgt, std)) out.push({ check: 'overflow', key: '', msg: `超框（超過 ${std.lines} 行）` });
+  if (std && settings.overflow && overflows(tgt, std)) out.push({ check: 'overflow', key: '', msg: tx('check.031', { lines: std.lines }) });
   return out;
 }
 

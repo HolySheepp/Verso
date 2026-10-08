@@ -1,3 +1,4 @@
+import { tx } from '../i18n';
 import { useState } from 'react';
 import { fz } from '../model/fonts';
 import { focusOnMount } from './windowDrag';
@@ -16,7 +17,7 @@ interface Props {
  * 改名用的輸入框：名稱不合規則時按 Enter 不會送出，下面顯示原因；
  * 按 Esc 或點別處（名稱不合規則時）就取消，維持原名。
  */
-export function RenameInput({ initial, validate, onDone, style, label = '名稱' }: Props) {
+export function RenameInput({ initial, validate, onDone, style, label = tx('rename.001') }: Props) {
   const [v, setV] = useState(initial);
   const err = v.trim() === initial.trim() ? '' : validate(v);
   const finish = (submit: boolean) => {

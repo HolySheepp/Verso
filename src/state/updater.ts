@@ -1,6 +1,7 @@
 // 自動檢查更新：安裝版在啟動畫面檢查（最多等 2 秒），查到就問要不要更新；
 // 沒查到結果就先進軟體，背景每 10 分鐘再試，查到時在標題列顯示小圖示。
 // 攜帶版只顯示小圖示，按了打開下載頁；開發版不檢查。
+import { tx } from '../i18n';
 import { invoke, isTauri } from '@tauri-apps/api/core';
 import type { Update } from '@tauri-apps/plugin-updater';
 import { useStore } from './store';
@@ -29,7 +30,7 @@ export async function checkAtStartup(): Promise<boolean> {
   try { kind = (await invoke<string>('install_kind')) === 'portable' ? 'portable' : 'installed'; } catch { /* 當成安裝版 */ }
   if (kind === 'portable') { startBackgroundCheck(); return false; }
 
-  useStore.setState({ loading: { p: 0.02, text: '檢查更新' } });
+  useStore.setState({ loading: { p: 0.02, text: tx('update.001') } });
   const found = await Promise.race([
     checkOnce().catch(() => null),
     new Promise<'timeout'>((r) => setTimeout(() => r('timeout'), STARTUP_WAIT)),
@@ -53,10 +54,10 @@ async function install(): Promise<boolean> {
   let stop: (why: string) => void = () => {};
   const stopped = new Promise<never>((_, reject) => { stop = (why) => reject(new Error(why)); });
   const cancel = () => stop('canceled');
-  let stall = setTimeout(() => stop('下載太久沒有進度'), STALL_LIMIT);
-  const alive = () => { clearTimeout(stall); stall = setTimeout(() => stop('下載太久沒有進度'), STALL_LIMIT); };
+  let stall = setTimeout(() => stop(tx('update.002')), STALL_LIMIT);
+  const alive = () => { clearTimeout(stall); stall = setTimeout(() => stop(tx('update.002')), STALL_LIMIT); };
   const show = (p: number, text: string, canCancel = true) => useStore.setState({ loading: { p, text, cancel: canCancel ? cancel : undefined } });
-  show(0, '下載更新 0%');
+  show(0, tx('update.003'));
   try {
     await Promise.race([stopped, u.download((ev) => {
       alive();
@@ -64,12 +65,12 @@ async function install(): Promise<boolean> {
       else if (ev.event === 'Progress') {
         got += ev.data.chunkLength;
         const p = total ? got / total : 0;
-        show(p, total ? `下載更新 ${Math.floor(p * 100)}%` : '下載更新中');
+        show(p, total ? tx('update.004', { v1: Math.floor(p * 100) }) : tx('update.005'));
       }
     })]);
     clearTimeout(stall);
     // 開始安裝之後就不能取消了
-    show(1, '安裝中，完成後會自動重新開啟', false);
+    show(1, tx('update.006'), false);
     await u.install();
     // Windows 上安裝程式會關掉並重開 Verso；萬一沒有，就自己重開
     const { relaunch } = await import('@tauri-apps/plugin-process');
@@ -79,7 +80,7 @@ async function install(): Promise<boolean> {
     clearTimeout(stall);
     const msg = String((e as Error)?.message ?? e);
     if (msg === 'canceled') { useStore.setState({ updateAvailable: u.version }); return false; }
-    show(1, '更新失敗：' + msg.slice(0, 60) + '，用目前的版本開啟', false);
+    show(1, tx('update.007', { v1: msg.slice(0, 60) }), false);
     await new Promise((r) => setTimeout(r, 1800));
     useStore.setState({ updateAvailable: u.version });
     startBackgroundCheck();
@@ -123,7 +124,7 @@ export async function onUpdateIcon() {
     // 跟關閉軟體一樣：字典、目前位置、設定先寫進去
     await flushBeforeExit();
     // 畫面換成啟動畫面顯示進度
-    useStore.setState({ loading: { p: 0, text: '準備更新' } });
+    useStore.setState({ loading: { p: 0, text: tx('update.008') } });
     const ok = await install();
     if (!ok) useStore.setState({ loading: null });
   })());

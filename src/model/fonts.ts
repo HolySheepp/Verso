@@ -1,4 +1,5 @@
 // 字體設定：系統字（整個介面）、id 與發話者（系統字的子項）、原文、譯文各自的字形與大小
+import { tx } from '../i18n';
 import { isTauri, invoke } from '@tauri-apps/api/core';
 
 export type FontSlot = 'ui' | 'id' | 'speaker' | 'src' | 'tgt';
@@ -20,17 +21,17 @@ export interface FontSetting {
 export type FontSettings = Record<FontSlot, FontSetting>;
 
 export const FONT_SLOTS: { id: FontSlot; label: string; sub?: boolean }[] = [
-  { id: 'ui', label: '系統字' },
+  { id: 'ui', get label() { return tx('fonts.001'); } },
   { id: 'id', label: 'id', sub: true },
-  { id: 'speaker', label: '發話者', sub: true },
-  { id: 'src', label: '原文' },
-  { id: 'tgt', label: '譯文' },
+  { id: 'speaker', get label() { return tx('fonts.002'); }, sub: true },
+  { id: 'src', get label() { return tx('fonts.003'); } },
+  { id: 'tgt', get label() { return tx('fonts.004'); } },
 ];
 
 export const OVERFLOWS: { id: Overflow; label: string }[] = [
-  { id: 'ellipsis', label: '省略' },
-  { id: 'wrap', label: '自動換行' },
-  { id: 'shrink', label: '自動縮放' },
+  { id: 'ellipsis', get label() { return tx('fonts.005'); } },
+  { id: 'wrap', get label() { return tx('fonts.006'); } },
+  { id: 'shrink', get label() { return tx('fonts.007'); } },
 ];
 
 export const DEFAULT_FONTS: FontSettings = {

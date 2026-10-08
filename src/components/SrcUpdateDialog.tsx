@@ -1,3 +1,4 @@
+import { tx } from '../i18n';
 import { memo, useMemo, useRef, useState } from 'react';
 import { currentOf, useStore } from '../state/store';
 import { checkColumns, emptyColumns, pasteColumns, type ColKey, type Columns } from '../model/paste';
@@ -15,7 +16,7 @@ import { dragWindow } from './windowDrag';
 import { fz } from '../model/fonts';
 
 const KEYS: ColKey[] = ['id', 'speaker', 'src'];
-const LABELS: Record<string, string> = { id: 'ID', speaker: '發話者', src: '原文' };
+const LABELS: Record<string, string> = { id: 'ID', get speaker() { return tx('srcupd.001'); }, get src() { return tx('srcupd.002'); } };
 
 /** 頁簽右鍵「更新原文（實驗性功能）」 */
 export function SrcUpdateDialog() {
@@ -92,9 +93,9 @@ function SrcUpdate({ sheetIdx }: { sheetIdx: number }) {
         style={{ width: 960, height: 640, maxWidth: 'calc(100% - 48px)', maxHeight: 'calc(100% - 48px)', boxShadow: '0 24px 64px rgba(0,0,0,0.5)', outline: 'none' }}>
         <div onMouseDown={dragWindow} style={{ height: 52, flexShrink: 0, display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '0 10px 0 20px', borderBottom: '1px solid var(--line)' }}>
           <h2 id="verso-upd-title" style={{ margin: 0, fontSize: fz(15), fontWeight: 600 }}>
-            更新原文：{sheet.name}<span style={{ marginLeft: 10, fontSize: fz(12), fontWeight: 400, color: 'var(--mute)' }}>實驗性功能</span>
+            {tx('srcupd.003')}{sheet.name}<span style={{ marginLeft: 10, fontSize: fz(12), fontWeight: 400, color: 'var(--mute)' }}>{tx('srcupd.004')}</span>
           </h2>
-          <button type="button" className="ib" aria-label="關閉" onClick={close}
+          <button type="button" className="ib" aria-label={tx('srcupd.005')} onClick={close}
             style={{ width: 34, height: 34, display: 'flex', alignItems: 'center', justifyContent: 'center', background: 'transparent', border: 0, borderRadius: 8, color: 'var(--text2)' }}>
             <IconWinClose size={13} sw={1.4} />
           </button>
@@ -117,28 +118,28 @@ function SrcUpdate({ sheetIdx }: { sheetIdx: number }) {
         <div style={{ flexShrink: 0, display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 12, padding: '12px 20px 16px', borderTop: '1px solid var(--line)' }}>
           <span role="alert" style={{ fontSize: fz(12.5), color: step === 'paste' && cols.src && !check.ok ? 'var(--errtx)' : 'var(--mute)' }}>
             {step === 'paste'
-              ? (cols.src && !check.ok ? check.msg : `新版 ${next.length} 條，目前 ${entries.length} 條`)
-              : busy ? '比對中…' : `沒變 ${summary.same}、改了 ${summary.changed}、新增 ${summary.added}、移除 ${summary.removed}`}
+              ? (cols.src && !check.ok ? check.msg : tx('srcupd.006', { length: next.length, v1: entries.length }))
+              : busy ? tx('srcupd.007') : tx('srcupd.008', { same: summary.same, changed: summary.changed, added: summary.added, removed: summary.removed })}
           </span>
           <div style={{ display: 'flex', gap: 8 }}>
             {step === 'paste' ? (
               <>
-                <button type="button" className="btn btn-ghost" onClick={close} style={btn}>取消</button>
-                <button type="button" className="btn btn-primary" disabled={!check.ok} onClick={toAlign} style={{ ...primary, opacity: check.ok ? 1 : 0.5 }}>下一步</button>
+                <button type="button" className="btn btn-ghost" onClick={close} style={btn}>{tx('srcupd.009')}</button>
+                <button type="button" className="btn btn-primary" disabled={!check.ok} onClick={toAlign} style={{ ...primary, opacity: check.ok ? 1 : 0.5 }}>{tx('srcupd.010')}</button>
               </>
             ) : (
               <>
-                <button type="button" className="btn btn-ghost" onClick={() => { alignRun.current++; setBusy(false); resetAlign(); setStep('paste'); }} style={btn}>上一步</button>
-                <button type="button" className="btn btn-primary" disabled={busy} onClick={() => setConfirm(true)} style={primary}>確定</button>
+                <button type="button" className="btn btn-ghost" onClick={() => { alignRun.current++; setBusy(false); resetAlign(); setStep('paste'); }} style={btn}>{tx('srcupd.011')}</button>
+                <button type="button" className="btn btn-primary" disabled={busy} onClick={() => setConfirm(true)} style={primary}>{tx('srcupd.012')}</button>
               </>
             )}
           </div>
         </div>
       </div>
       {confirm && (
-        <ConfirmDialog zIndex={60} title="套用新版原文？"
-          body={`沒變 ${summary.same}、改了 ${summary.changed}、新增 ${summary.added}、移除 ${summary.removed}。套用後可以在條目欄按 Ctrl+Z 退回。`}
-          choices={[{ label: '取消', onClick: () => setConfirm(false) }, { label: '套用', primary: true, onClick: () => { setConfirm(false); apply(); } }]} />
+        <ConfirmDialog zIndex={60} title={tx('srcupd.013')}
+          body={tx('srcupd.014', { same: summary.same, changed: summary.changed, added: summary.added, removed: summary.removed })}
+          choices={[{ label: tx('srcupd.009'), onClick: () => setConfirm(false) }, { label: tx('srcupd.015'), primary: true, onClick: () => { setConfirm(false); apply(); } }]} />
       )}
     </div>
   );
@@ -255,7 +256,7 @@ function AlignGrid({ rows, entries, next, infos, onChange }: {
   return (
     <div style={{ flexGrow: 1, minHeight: 0, display: 'flex', flexDirection: 'column', padding: '12px 20px 0' }}>
       <div style={{ display: 'grid', gridTemplateColumns: GRID, gap: 8, padding: '0 4px 8px', fontSize: fz(12), color: 'var(--text2)' }}>
-        <span /><span>目前的原文</span><span /><span>新版原文</span><span>相似度</span>
+        <span /><span>{tx('srcupd.016')}</span><span /><span>{tx('srcupd.017')}</span><span>{tx('srcupd.018')}</span>
       </div>
       <div ref={box} tabIndex={-1} onPointerDown={onDown} onPointerMove={onMove} onPointerUp={onUp} onContextMenu={onMenu}
         style={{ flexGrow: 1, minHeight: 0, overflowY: 'auto', display: 'flex', flexDirection: 'column', gap: 6, padding: '4px 4px 12px', outline: 'none' }}>
@@ -269,8 +270,8 @@ function AlignGrid({ rows, entries, next, infos, onChange }: {
         })}
       </div>
       {menu && (
-        <ContextMenu x={menu.x} y={menu.y} label="對齊" onClose={() => setMenu(null)} onPick={onPick}
-          items={[{ key: 'insert', label: '插入空格' }, { key: 'delete', label: '刪除空格', disabled: !menuBlanks.length }]} />
+        <ContextMenu x={menu.x} y={menu.y} label={tx('srcupd.019')} onClose={() => setMenu(null)} onPick={onPick}
+          items={[{ key: 'insert', label: tx('srcupd.020') }, { key: 'delete', label: tx('srcupd.021'), disabled: !menuBlanks.length }]} />
       )}
     </div>
   );
@@ -286,7 +287,7 @@ function AlignCell({ side, k, text, id, on, drop }: { side: Side; k: number; tex
       boxShadow: drop ? (drop === 'bottom' ? '0 3px 0 var(--accent)' : '0 -3px 0 var(--accent)') : undefined,
       fontSize: fz(12.5), lineHeight: 1.5, whiteSpace: 'pre-wrap', wordBreak: 'break-word', color: text === null ? 'var(--mute3)' : 'var(--text)', userSelect: 'none',
     }}>
-      {text === null ? '（空格）' : <>{id && <span className="mono" style={{ marginRight: 8, fontSize: fz(11), color: 'var(--mute)' }}>{id}</span>}{text}</>}
+      {text === null ? tx('srcupd.022') : <>{id && <span className="mono" style={{ marginRight: 8, fontSize: fz(11), color: 'var(--mute)' }}>{id}</span>}{text}</>}
     </div>
   );
 }
@@ -305,7 +306,7 @@ const AlignRowView = memo(function AlignRowView({ k, info, o, n, onOld, onNew, d
       <div><AlignCell side="old" k={k} text={o ? o.src : null} id={o?.id ?? ''} on={onOld} drop={dropOld} /></div>
       <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
         {a !== 'same' && (
-          <svg width="26" height="16" viewBox="0 0 26 16" aria-label={a === 'yellow' ? '有改' : '差很多或對面是空格'}>
+          <svg width="26" height="16" viewBox="0 0 26 16" aria-label={a === 'yellow' ? tx('srcupd.023') : tx('srcupd.024')}>
             <path d="M2 8h20M16 2.5l6 5.5-6 5.5" fill="none" stroke={a === 'yellow' ? YELLOW : RED} strokeWidth={a === 'yellow' ? 2.2 : 2.8} strokeLinecap="round" strokeLinejoin="round" />
           </svg>
         )}
@@ -313,7 +314,7 @@ const AlignRowView = memo(function AlignRowView({ k, info, o, n, onOld, onNew, d
       <div><AlignCell side="new" k={k} text={n ? n.src : null} id={n?.id ?? ''} on={onNew} drop={dropNew} /></div>
       <div style={{ paddingTop: 6, fontSize: fz(12), lineHeight: 1.4, color: a === 'same' ? 'var(--mute)' : a === 'yellow' ? YELLOW : RED }}>
         {info.sim === null ? '—' : Math.round(info.sim * 100) + '%'}
-        {info.elsewhere !== null && <div style={{ color: 'var(--accent2)' }}>高相似：第 {info.elsewhere} 條</div>}
+        {info.elsewhere !== null && <div style={{ color: 'var(--accent2)' }}>{tx('srcupd.025')}{' '}{info.elsewhere}{' '}{tx('srcupd.026')}</div>}
       </div>
     </div>
   );

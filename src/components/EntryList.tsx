@@ -1,3 +1,4 @@
+import { tx } from '../i18n';
 import { memo, useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react';
 import { flushSync } from 'react-dom';
 import { currentOf, hasPendingUpdate, searchHit, useStorePick, visibleIssues, type Filter } from '../state/store';
@@ -19,12 +20,12 @@ import type { CustomMark, Entry, MarkId } from '../model/types';
 import type { Issue } from '../model/checks';
 import { CellText } from './CellText';
 import { maxOf, minOf } from '../model/num';
-import { hasTooLongCell, MAX_CELL_CHARS, TOO_LONG_MSG } from '../model/names';
+import { hasTooLongCell, MAX_CELL_CHARS, tooLongMsg } from '../model/names';
 import { showToast } from '../state/store';
 
 /** # 欄（對話 id）、發話者欄、原文、譯文：依比例分配寬度 */
 const colsOf = (w: number[]) => w.map((x) => `minmax(0, ${x}fr)`).join(' ');
-const HEADS = ['#', '發話者', '原文', '譯文'];
+const headsOf = () => ['#', tx('list.001'), tx('list.002'), tx('list.003')];
 /** 條目欄的原文、譯文比工作欄小一點 */
 const SRC_FS = 'calc(var(--fs-src) * 13 / 15)';
 const TGT_FS = 'calc(var(--fs-tgt) * 13 / 15)';
@@ -55,12 +56,12 @@ let revealHandler: ((i: number) => void) | null = null;
 export function revealRow(i: number) { revealHandler?.(i); }
 
 const FILTERS: { id: Filter; label: string }[] = [
-  { id: 'all', label: '全部' },
-  { id: 'untranslated', label: '未翻譯' },
-  { id: 'doubt', label: '疑慮' },
-  { id: 'think', label: '待思考' },
-  { id: 'issues', label: '有問題' },
-  { id: 'srcupd', label: '原文更新' },
+  { id: 'all', get label() { return tx('list.004'); } },
+  { id: 'untranslated', get label() { return tx('list.005'); } },
+  { id: 'doubt', get label() { return tx('list.006'); } },
+  { id: 'think', get label() { return tx('list.007'); } },
+  { id: 'issues', get label() { return tx('list.008'); } },
+  { id: 'srcupd', get label() { return tx('list.009'); } },
 ];
 
 /** 條目欄一行要用到的操作；放在 ref 裡，行元件拿到的參照永遠不變，才不會因此整排重畫 */
@@ -105,7 +106,7 @@ interface RowProps {
 /** 條目欄的一行：只有自己的內容、選取、標記等變了才重畫 */
 const EntryRow = memo(function EntryRow({ e, i, k, m, issues, on, hit, selCols, editing, customs, cols, fitId, fitSpk, fitSrc, fitTgt, fontId, fontSpk, fontSrc, fontTgt, ovfId, ovfSpk, ovfSrc, ovfTgt, h }: RowProps) {
   const doubt = m === 'doubt', ver = m === 'verified', ign = m === 'ignore';
-  const label = '標記：' + markName(customs, m) + '，點擊變更';
+  const label = tx('list.010', { v1: markName(customs, m) });
   const cellProps = (c: CellCol) => {
     const isSel = selCols.includes(String(c));
     return {
@@ -144,11 +145,11 @@ const EntryRow = memo(function EntryRow({ e, i, k, m, issues, on, hit, selCols, 
       </button>
       <span className="row-pick" onMouseDown={(ev) => h.current.rowPick(ev, i)} onMouseEnter={(ev) => h.current.rowEnter(ev, i)} onContextMenu={(ev) => h.current.rowMenu(ev, i)} style={{ display: 'flex', flexDirection: 'column', gap: 3, alignItems: 'flex-start', justifyContent: 'center' }}>
         {e.lengthStd !== undefined && (
-          <span role="img" aria-label="特殊長度標準" title={'特殊標準：' + stdLabel(e.lengthStd)} style={{ display: 'flex', color: 'var(--accent2)' }}><IconRuler size={11} sw={2.2} /></span>
+          <span role="img" aria-label={tx('list.011')} title={tx('list.012', { v1: stdLabel(e.lengthStd) })} style={{ display: 'flex', color: 'var(--accent2)' }}><IconRuler size={11} sw={2.2} /></span>
         )}
         {e.note && (
-          <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="var(--text2)" strokeWidth="2.2" strokeLinejoin="round" role="img" aria-label="有備註">
-            <title>有備註</title><path d="M4 5h16v11H9.5L4 20.5z" />
+          <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="var(--text2)" strokeWidth="2.2" strokeLinejoin="round" role="img" aria-label={tx('list.013')}>
+            <title>{tx('list.013')}</title><path d="M4 5h16v11H9.5L4 20.5z" />
           </svg>
         )}
       </span>
@@ -162,7 +163,7 @@ const EntryRow = memo(function EntryRow({ e, i, k, m, issues, on, hit, selCols, 
         <span {...cellProps(2)} style={{ display: 'flex', alignItems: 'center', minWidth: 0, padding: '9px 16px 9px 0', lineHeight: 1.45, color: ver ? 'var(--mute2)' : 'var(--text)', fontSize: SRC_FS, fontFamily: 'var(--font-src)' }}>
           {/* 原文更新：顯示新原文 */}
           {editor(2) ?? (e.upd?.removed
-            ? <span style={{ fontSize: SRC_FS, color: 'var(--mute3)' }}>(新原文已移除)</span>
+            ? <span style={{ fontSize: SRC_FS, color: 'var(--mute3)' }}>{tx('list.014')}</span>
             : <CellText mode={ovfSrc} fontSize={SRC_FS} fit={{ width: fitSrc, font: fontSrc, text: e.upd?.src ?? e.src }}>{e.upd?.src ?? e.src}</CellText>)}
         </span>
         <span {...cellProps(3)} style={{
@@ -171,14 +172,14 @@ const EntryRow = memo(function EntryRow({ e, i, k, m, issues, on, hit, selCols, 
           color: ver ? 'var(--mute2)' : e.tgt ? 'var(--textsoft)' : 'var(--mute2)', fontStyle: e.tgt ? 'normal' : 'italic',
         }}>
           {editor(3) ?? (
-            <CellText mode={ovfTgt} fontSize={TGT_FS} fit={{ width: fitTgt - (issues.length ? 19 : 0), font: fontTgt, text: e.tgt || (ign ? '不需翻譯' : '尚未翻譯') }}>
+            <CellText mode={ovfTgt} fontSize={TGT_FS} fit={{ width: fitTgt - (issues.length ? 19 : 0), font: fontTgt, text: e.tgt || (ign ? tx('list.015') : tx('list.016')) }}>
               {issues.length > 0 && (
-                <span role="img" aria-label={issues.map((x) => x.msg).join('、')} title={issues.map((x) => x.msg).join('、')}
+                <span role="img" aria-label={issues.map((x) => x.msg).join(tx('common.sep'))} title={issues.map((x) => x.msg).join(tx('common.sep'))}
                   style={{ display: 'inline-flex', verticalAlign: '-2px', marginRight: 6, color: 'var(--warntx)', fontStyle: 'normal' }}>
                   <IconWarn size={13} sw={2.2} />
                 </span>
               )}
-              {e.tgt || (ign ? '不需翻譯' : '尚未翻譯')}
+              {e.tgt || (ign ? tx('list.015') : tx('list.016'))}
             </CellText>
           )}
         </span>
@@ -603,7 +604,7 @@ export function EntryList() {
     const matrix = (html && parseHtmlTable(html)) || parseTsv(ev.clipboardData.getData('text/plain'));
     if (!matrix.length) return;
     // 有一格超過 Excel 的上限：整次不貼
-    if (hasTooLongCell(matrix)) { showToast(TOO_LONG_MSG); return; }
+    if (hasTooLongCell(matrix)) { showToast(tooLongMsg()); return; }
     const top = firstKey(keys);
     // 貼上的起點看不到（被篩掉了）就不貼
     if (sheet.entries.length && !visSet.has(top.i)) return;
@@ -646,39 +647,39 @@ export function EntryList() {
   };
 
   return (
-    <section aria-label="文本條目" style={{
+    <section aria-label={tx('list.017')} style={{
       flexGrow: 1, minHeight: 0, display: 'flex', flexDirection: 'column', background: 'var(--panel)',
       border: '1px solid var(--line)', borderRadius: 10, overflow: 'hidden',
     }}>
       <div style={{ height: 44, flexShrink: 0, display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '0 12px 0 16px', borderBottom: '1px solid var(--line)' }}>
         <div style={{ display: 'flex', alignItems: 'baseline', gap: 10 }}>
-          <span className="sec-label">文本條目</span>
-          <span style={{ fontSize: fz(12), color: 'var(--mute)' }}>共 {sheet.entries.length} 條</span>
+          <span className="sec-label">{tx('list.017')}</span>
+          <span style={{ fontSize: fz(12), color: 'var(--mute)' }}>{tx('list.018')}{' '}{sheet.entries.length}{' '}{tx('list.019')}</span>
         </div>
         <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-        <button type="button" className="ib" aria-label="設定檔案的長度標準" title={'長度標準：' + stdLabel(fileStd)} onClick={() => s.set({ lengthDialog: 'file' })}
+        <button type="button" className="ib" aria-label={tx('list.020')} title={tx('list.021', { v1: stdLabel(fileStd) })} onClick={() => s.set({ lengthDialog: 'file' })}
           style={{ width: 34, height: 34, display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 0, background: 'var(--btn)', border: '1px solid var(--line3)', borderRadius: 8, color: 'var(--text2)' }}>
           <IconRuler size={16} />
         </button>
         {sheet.entries.some(hasPendingUpdate) && (
-          <button type="button" className="ib" aria-label="套用全部新原文" title="套用全部新原文" onClick={() => s.applyAllNewSources()}
+          <button type="button" className="ib" aria-label={tx('list.022')} title={tx('list.022')} onClick={() => s.applyAllNewSources()}
             style={{ width: 34, height: 34, display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 0, background: 'var(--btn)', border: '1px solid var(--line3)', borderRadius: 8, color: 'var(--accent2)' }}>
             <IconSrcApplyAll size={16} />
           </button>
         )}
-        <button type="button" className="ib" aria-label="全部檢查" title="全部檢查" onClick={() => s.checkAll()}
+        <button type="button" className="ib" aria-label={tx('list.023')} title={tx('list.023')} onClick={() => s.checkAll()}
           style={{ width: 34, height: 34, display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 0, background: 'var(--btn)', border: '1px solid var(--line3)', borderRadius: 8, color: 'var(--text2)' }}>
           <IconScan size={15} />
         </button>
-        <button type="button" className="ib" aria-label="複製譯文欄" title="複製譯文欄" onClick={askCopy}
+        <button type="button" className="ib" aria-label={tx('list.024')} title={tx('list.024')} onClick={askCopy}
           style={{ width: 34, height: 34, display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 0, background: 'var(--btn)', border: '1px solid var(--line3)', borderRadius: 8, color: copied ? 'var(--accent2)' : 'var(--text2)' }}>
           {copied ? <IconCheck size={14} sw={2.4} /> : <IconCopy size={14} />}
         </button>
-        <button type="button" className="ib" aria-label="複製備註" title="複製備註" onClick={() => void copyNotes()}
+        <button type="button" className="ib" aria-label={tx('list.025')} title={tx('list.025')} onClick={() => void copyNotes()}
           style={{ width: 34, height: 34, display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 0, background: 'var(--btn)', border: '1px solid var(--line3)', borderRadius: 8, color: notesCopied ? 'var(--accent2)' : 'var(--text2)' }}>
           {notesCopied ? <IconCheck size={14} sw={2.4} /> : <IconNote size={14} />}
         </button>
-        <div role="group" aria-label="篩選條目" className="seg-group">
+        <div role="group" aria-label={tx('list.026')} className="seg-group">
           {FILTERS.map((f) => {
             const on = filter === f.id;
             return (
@@ -704,7 +705,7 @@ export function EntryList() {
       }}>
         <span />
         <div ref={headRef} role="row" style={{ display: 'grid', gridTemplateColumns: colsOf(s.colWidths), minWidth: 0 }}>
-          {HEADS.map((h, c) => {
+          {headsOf().map((h, c) => {
             const allSel = visible.length > 0 && visible.every((i) => selected.has(cellKey(i, c)));
             return (
               <span key={h} role="columnheader" className={'col-head' + (allSel ? ' col-head-sel' : '')}
@@ -723,7 +724,7 @@ export function EntryList() {
                 }}>
                 <span style={{ overflow: 'hidden', textOverflow: 'ellipsis' }}>{h}</span>
                 {c < 3 && (
-                  <span className="col-resize" role="separator" aria-orientation="vertical" aria-label={'調整「' + h + '」欄寬'}
+                  <span className="col-resize" role="separator" aria-orientation="vertical" aria-label={tx('list.027', { h })}
                     onMouseDown={(ev) => onResizeDown(ev, c)} onClick={(ev) => ev.stopPropagation()}
                     style={{ position: 'absolute', right: -4, top: 0, bottom: 0, width: 8, cursor: 'col-resize', zIndex: 1 }} />
                 )}
@@ -733,7 +734,7 @@ export function EntryList() {
         </div>
       </div>
       <div ref={listRef} onScroll={syncView} onMouseDown={(ev) => { if (ev.target === ev.currentTarget || !(ev.target as HTMLElement).closest('.rw')) { ev.preventDefault(); sink.current?.focus({ preventScroll: true }); } }} style={{ position: 'relative', flexGrow: 1, overflowY: 'auto', scrollbarGutter: 'stable', padding: '4px 0', userSelect: 'none' }}>
-        <textarea ref={sink} className="list-sink" aria-label="條目欄" value="" onChange={() => {}}
+        <textarea ref={sink} className="list-sink" aria-label={tx('list.028')} value="" onChange={() => {}}
           onCopy={onCopy} onPaste={onPaste} onKeyDown={onSinkKey}
           style={{ position: 'absolute', left: 0, top: 0, width: 1, height: 1, padding: 0, border: 0, opacity: 0, resize: 'none', pointerEvents: 'none' }} />
         {/* 畫面外的條目不畫，用上下兩塊空白撐出整個捲軸的長度 */}
@@ -748,29 +749,29 @@ export function EntryList() {
         {end < rows.length && <div aria-hidden="true" style={{ height: offsets[rows.length] - offsets[end] }} />}
         {rows.length === 0 && (
           <div style={{ padding: '48px 0', textAlign: 'center', color: 'var(--mute)' }}>
-            {project.files.length === 0 ? '目前沒有檔案，請新增檔案' : sheet.entries.length === 0 ? '這個頁簽沒有條目' : '這個篩選條件下沒有條目'}
+            {project.files.length === 0 ? tx('list.029') : sheet.entries.length === 0 ? tx('list.030') : tx('list.031')}
           </div>
         )}
       </div>
       {menu && (
-        <ContextMenu x={menu.x} y={menu.y} label="條目"
+        <ContextMenu x={menu.x} y={menu.y} label={tx('list.032')}
           items={menu.kind === 'col' ? [
-            { key: 'clear', label: '清除整欄', disabled: readOnly },
+            { key: 'clear', label: tx('list.033'), disabled: readOnly },
           ] : menu.kind === 'row' ? [
-            { key: 'mark', label: '標記', disabled: readOnly },
-            ...(selRows.some((i) => sheet.entries[i] && hasPendingUpdate(sheet.entries[i])) ? [{ key: 'applySrc', label: '套用新原文', disabled: readOnly }] : []),
-            { key: 'clear', label: '清除', disabled: readOnly },
-            { key: 'delete', label: `刪除 ${selRows.length} 列`, danger: true, disabled: readOnly },
-            { key: 'insert', label: '在下方插入', disabled: readOnly, stepper: { value: insertCount, min: 1, max: 100, onChange: setInsertCount } },
-            { key: 'up', label: '上移', disabled: readOnly },
-            { key: 'down', label: '下移', disabled: readOnly },
+            { key: 'mark', label: tx('list.034'), disabled: readOnly },
+            ...(selRows.some((i) => sheet.entries[i] && hasPendingUpdate(sheet.entries[i])) ? [{ key: 'applySrc', label: tx('list.035'), disabled: readOnly }] : []),
+            { key: 'clear', label: tx('list.036'), disabled: readOnly },
+            { key: 'delete', label: tx('list.037', { length: selRows.length }), danger: true, disabled: readOnly },
+            { key: 'insert', label: tx('list.038'), disabled: readOnly, stepper: { value: insertCount, min: 1, max: 100, onChange: setInsertCount } },
+            { key: 'up', label: tx('list.039'), disabled: readOnly },
+            { key: 'down', label: tx('list.040'), disabled: readOnly },
           ] : [
-            { key: 'edit', label: '編輯', disabled: readOnly || !canEdit(firstKey(keys).c) },
-            { key: 'clear', label: '清除', disabled: readOnly },
-            { key: 'mark', label: '標記', disabled: readOnly },
-            ...(selRows.some((i) => sheet.entries[i] && hasPendingUpdate(sheet.entries[i])) ? [{ key: 'applySrc', label: '套用新原文', disabled: readOnly }] : []),
-            { key: 'up', label: '上移', disabled: readOnly },
-            { key: 'down', label: '下移', disabled: readOnly },
+            { key: 'edit', label: tx('list.041'), disabled: readOnly || !canEdit(firstKey(keys).c) },
+            { key: 'clear', label: tx('list.036'), disabled: readOnly },
+            { key: 'mark', label: tx('list.034'), disabled: readOnly },
+            ...(selRows.some((i) => sheet.entries[i] && hasPendingUpdate(sheet.entries[i])) ? [{ key: 'applySrc', label: tx('list.035'), disabled: readOnly }] : []),
+            { key: 'up', label: tx('list.039'), disabled: readOnly },
+            { key: 'down', label: tx('list.040'), disabled: readOnly },
           ]}
           onPick={menuAct} onClose={() => { setMenu(null); sink.current?.focus({ preventScroll: true }); }} />
       )}

@@ -1,4 +1,5 @@
 // 手動貼入：把貼上的整欄資料轉成條目
+import { tx } from '../i18n';
 import type { Entry } from './types';
 
 export type ColKey = 'id' | 'speaker' | 'src' | 'tgt' | 'note';
@@ -6,10 +7,10 @@ export type ColKey = 'id' | 'speaker' | 'src' | 'tgt' | 'note';
 /** 手動貼入、插入頁簽、管理專案編輯檔案的分欄（備註存成條目的「我的備註」） */
 export const COLS: { key: ColKey; label: string }[] = [
   { key: 'id', label: 'id' },
-  { key: 'speaker', label: '發話者' },
-  { key: 'src', label: '原文' },
-  { key: 'tgt', label: '譯文' },
-  { key: 'note', label: '備註' },
+  { key: 'speaker', get label() { return tx('pastecol.001'); } },
+  { key: 'src', get label() { return tx('pastecol.002'); } },
+  { key: 'tgt', get label() { return tx('pastecol.003'); } },
+  { key: 'note', get label() { return tx('pastecol.004'); } },
 ];
 
 /** 分欄的寬度：id、發話者固定寬，其他平分；放不下時橫向捲動 */
@@ -70,12 +71,12 @@ export const fitsRows = (c: Col, base: number) => c.rows.length <= base && c.row
 /** 檢查一個頁簽：原文必填，以原文的行數為準，已貼的各欄行數要一致 */
 export function checkColumns(c: Columns): { ok: boolean; msg: string } {
   const base = c.src?.rows.length ?? 0;
-  if (!base) return { ok: false, msg: '還沒貼原文' };
+  if (!base) return { ok: false, msg: tx('pastecol.005') };
   // 備註可以比條目少（只填前面幾條），不能比條目多
   const pasted = COLS.filter((col) => c[col.key] && col.key !== 'note');
   if (c.note && c.note.rows.length > base) pasted.push(COLS.find((col) => col.key === 'note')!);
   if (!pasted.every((col) => (col.key === 'note' ? c.note!.rows.length <= base : fitsRows(c[col.key]!, base)))) {
-    return { ok: false, msg: '各欄行數不一致：' + pasted.map((col) => `${col.label} ${c[col.key]!.rows.length}`).join('、') };
+    return { ok: false, msg: tx('pastecol.006', { v1: pasted.map((col) => `${col.label} ${c[col.key]!.rows.length}`).join(tx('common.sep')) }) };
   }
   return { ok: true, msg: '' };
 }

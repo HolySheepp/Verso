@@ -1,4 +1,5 @@
 // 匯入檔案：在預覽表格裡選範圍，指定成 id、發話者、原文、譯文
+import { tx } from '../i18n';
 import { emptyColumns, toCol, type ColKey, type Columns } from './paste';
 
 /** 選取的一塊範圍（欄、列都從 0 起算，含頭尾） */
@@ -27,13 +28,13 @@ export function colName(i: number): string {
 
 /** 把選取的範圍變成一個欄位的範圍；跨了不只一欄時回傳錯誤訊息 */
 export function rectsToField(rects: Rect[], rowCount: number): FieldSel | string {
-  if (!rects.length) return '還沒選範圍';
+  if (!rects.length) return tx('importsel.001');
   const cols = new Set<number>();
   rects.forEach((x) => { for (let c = x.c0; c <= x.c1; c++) cols.add(c); });
-  if (cols.size !== 1) return '一個欄位只能選一欄';
+  if (cols.size !== 1) return tx('importsel.002');
   const rows = new Set<number>();
   rects.forEach((x) => { for (let r = x.r0; r <= Math.min(x.r1, rowCount - 1); r++) rows.add(r); });
-  if (!rows.size) return '還沒選範圍';
+  if (!rows.size) return tx('importsel.001');
   return { col: [...cols][0], rows: [...rows].sort((a, b) => a - b) };
 }
 
@@ -55,7 +56,7 @@ export function rowRuns(rows: number[]): [number, number][] {
 export function fieldLabel(f: FieldSel, max = 2): string {
   const L = colName(f.col);
   const runs = rowRuns(f.rows).map(([a, b]) => (a === b ? `${L}${a + 1}` : `${L}${a + 1}:${L}${b + 1}`));
-  return runs.length > max ? runs.slice(0, max).join('、') + '…' : runs.join('、');
+  return runs.length > max ? runs.slice(0, max).join(tx('common.sep')) + '…' : runs.join(tx('common.sep'));
 }
 
 /** 照指定的範圍取出各欄，接著就能用手動貼入的檢查與轉換 */

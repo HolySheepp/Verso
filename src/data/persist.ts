@@ -3,6 +3,7 @@
 //   <存檔資料夾>/<專案>/<檔案>.xlsx，與 project.json（檔案順序）
 //   <存檔資料夾>/字典/<專案>/<字典>.xlsx
 //   <存檔資料夾>/verso.json（自訂標記、上次的位置；不分專案）
+import { tx } from '../i18n';
 import { io } from './fsio';
 import { dictToXlsxAsync, fileToXlsxAsync } from './xlsxAsync';
 import { DICT_DIR, safeName } from '../model/names';
@@ -36,6 +37,8 @@ export interface AppConfig {
   colWidths?: number[];
   finishLine?: boolean;
   lengthPresets?: { name: string; std: import('../model/length').LengthStd }[];
+  /** 介面語言：zh、en，或語言包的名稱 */
+  uiLang?: string;
 }
 
 /** 專案資料夾裡的小設定檔 */
@@ -115,7 +118,7 @@ async function loadDicts(root: string): Promise<{ dicts: DictInfo[]; terms: Glos
         const book = readDictBook(p.name, name, await io.readBinary(io.join(dir, p.name, f.name)));
         terms.push(...book.terms);
         if (book.did) dicts[dicts.length - 1].did = book.did;
-      } catch { unreadable.push(`字典 / ${p.name} / ${f.name}`); }
+      } catch { unreadable.push(tx('load.001', { name: p.name, v1: f.name })); }
     }
   }
   return { dicts, terms, projects, unreadable };
@@ -167,7 +170,7 @@ export async function loadWorkspace(root: string, onProgress?: (p: number, text:
   for (const [pi, name] of projectNames.entries()) {
     const dir = io.join(root, name);
     await recoverBackups(dir);
-    onProgress?.(0.15 + 0.7 * (pi / Math.max(1, projectNames.length)), `讀取專案「${name}」`);
+    onProgress?.(0.15 + 0.7 * (pi / Math.max(1, projectNames.length)), tx('load.002', { name }));
     let meta: ProjectMeta = { fileOrder: [] };
     try { meta = { ...meta, ...JSON.parse(await io.readText(io.join(dir, META))) }; } catch { /* 沒有設定檔 */ }
     const idMap = new Map<string, string>();
@@ -209,7 +212,7 @@ export async function loadWorkspace(root: string, onProgress?: (p: number, text:
     if (files.some((f) => f.project === name) || await io.exists(io.join(dir, META)).catch(() => false)) versoProjects.push(name);
   }
 
-  onProgress?.(0.88, '讀取字典');
+  onProgress?.(0.88, tx('load.003'));
   const d = await loadDicts(root);
   // 檔案、字典 ID：沒有的（舊檔案）或重複的（在外面複製出來的）給新的，下次存檔寫進去
   const newIds: string[] = [];

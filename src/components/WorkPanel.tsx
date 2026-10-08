@@ -1,3 +1,4 @@
+import { tx } from '../i18n';
 import { MAX_CELL_CHARS } from '../model/names';
 import { useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react';
 import { Splitter } from './Splitter';
@@ -24,10 +25,10 @@ import {
 } from './icons';
 
 const MODE_HINTS: Record<Mode, string> = {
-  translate: '只能編輯譯文',
-  verify: '在修改框修正譯文',
-  view: '唯讀',
-  source: '只能編輯原文，原始版本會保留',
+  get translate() { return tx('work.001'); },
+  get verify() { return tx('work.002'); },
+  get view() { return tx('work.003'); },
+  get source() { return tx('work.004'); },
 };
 
 const labelRow: React.CSSProperties = { display: 'flex', alignItems: 'center', justifyContent: 'space-between', height: 18 };
@@ -61,8 +62,8 @@ export function WorkPanel({ height, maxH }: { height: number; maxH: number }) {
   if (!hasEntry) {
     return (
       <>
-        <Splitter dir="h" label="調整工作欄高度" value={height} min={WORK_MIN} max={maxH} onChange={(v) => set({ workH: v })} />
-        <section aria-label="工作欄" style={{ height, flexShrink: 0, boxSizing: 'border-box', background: 'var(--panel)', border: '1px solid var(--line)', borderRadius: 10 }} />
+        <Splitter dir="h" label={tx('work.005')} value={height} min={WORK_MIN} max={maxH} onChange={(v) => set({ workH: v })} />
+        <section aria-label={tx('work.006')} style={{ height, flexShrink: 0, boxSizing: 'border-box', background: 'var(--panel)', border: '1px solid var(--line)', borderRadius: 10 }} />
       </>
     );
   }
@@ -91,7 +92,7 @@ function WorkPanelInner({ height, maxH }: { height: number; maxH: number }) {
   const mode = s.mode;
   const customs = project.customMarks;
   const issues = visibleIssues(cur, s.reported, s.checkSettings, currentOf(s).fileDoc.lengthStd);
-  const issueText = issues.map((i) => i.msg).join('、');
+  const issueText = issues.map((i) => i.msg).join(tx('common.sep'));
 
   const hist = s.history.byEntry[cur.uid];
   const texts = hist?.texts ?? [];
@@ -195,7 +196,7 @@ function WorkPanelInner({ height, maxH }: { height: number; maxH: number }) {
   const stamp = currentStamp(s);
   // 懸停提示：只顯示快捷鍵本身
   const keyTip = (a: ActionId, ctx: 'input' | 'list' = 'input') => keyOf(s.shortcuts, ctx, a) || undefined;
-  const stampLabel = '選擇標記，目前：' + markName(customs, stamp);
+  const stampLabel = tx('work.007', { v1: markName(customs, stamp) });
 
   const press = useRef<{ t: number } | null>(null);
 
@@ -427,21 +428,21 @@ function WorkPanelInner({ height, maxH }: { height: number; maxH: number }) {
     <span role="status" style={{ display: 'flex', alignItems: 'center', gap: 6, minWidth: 0, fontSize: fz(11.5), color: 'var(--warntx)' }}>
       <IconWarn size={12} sw={2.2} style={{ flexShrink: 0 }} />
       <span title={issueText} style={{ minWidth: 0, overflow: 'hidden', whiteSpace: 'nowrap', textOverflow: 'ellipsis' }}>{issueText}</span>
-      <button type="button" className="ib" onClick={() => s.skipCheck()} style={smallBtn}>略過</button>
+      <button type="button" className="ib" onClick={() => s.skipCheck()} style={smallBtn}>{tx('work.008')}</button>
     </span>
   );
 
-  const viewTip = viewOn ? '返回目前譯文' : texts.length ? '查看修改（按住預覽）' : '查看修改（尚無記錄）';
+  const viewTip = viewOn ? tx('work.009') : texts.length ? tx('work.010') : tx('work.011');
 
   /** 記錄、查看修改的按鈕與記錄槽位：翻譯模式放在譯文框，驗證模式放在修改框 */
   const histUI = (
     <>
-            <div role="toolbar" aria-label="譯文記錄" aria-orientation="vertical" style={{ position: 'absolute', right: 6, top: 6, display: 'flex', flexDirection: 'column', gap: 2 }}>
-              <button type="button" className="hb tip" data-tip={['記錄', keyTip('record')].filter(Boolean).join('  ')} aria-label="記錄" disabled={!(tgtEditable || verify) || showHist}
+            <div role="toolbar" aria-label={tx('work.012')} aria-orientation="vertical" style={{ position: 'absolute', right: 6, top: 6, display: 'flex', flexDirection: 'column', gap: 2 }}>
+              <button type="button" className="hb tip" data-tip={[tx('work.013'), keyTip('record')].filter(Boolean).join('  ')} aria-label={tx('work.013')} disabled={!(tgtEditable || verify) || showHist}
                 onClick={() => s.record(verify ? modText : undefined)}>
                 <IconFeather size={14} />
               </button>
-              <button type="button" className="hb tip" data-tip={viewTip} aria-label="查看修改" aria-pressed={viewOn} disabled={!texts.length}
+              <button type="button" className="hb tip" data-tip={viewTip} aria-label={tx('work.014')} aria-pressed={viewOn} disabled={!texts.length}
                 style={{ color: viewOn ? 'var(--accent2)' : 'var(--mute)', background: viewOn ? 'var(--acc-soft)' : 'transparent' }}
                 onPointerDown={(ev) => {
                   if (!texts.length) return;
@@ -461,7 +462,7 @@ function WorkPanelInner({ height, maxH }: { height: number; maxH: number }) {
                 <IconEye size={14} sw={2.2} />
               </button>
               {viewOn && (tgtEditable || verify) && (
-                <button type="button" className="hb tip" data-tip="使用此內容" aria-label="使用此內容" style={{ color: 'var(--accent2)' }}
+                <button type="button" className="hb tip" data-tip={tx('work.015')} aria-label={tx('work.015')} style={{ color: 'var(--accent2)' }}
                   onClick={() => (verify ? useSlotAsEdit() : s.useShownSlot())}>
                   <IconUse size={14} sw={2.2} />
                 </button>
@@ -470,12 +471,12 @@ function WorkPanelInner({ height, maxH }: { height: number; maxH: number }) {
 
             {showHist && (
               <div style={{ position: 'absolute', left: 8, bottom: 7, display: 'flex', alignItems: 'center', gap: 6, padding: '3px 4px 3px 8px', background: 'var(--pop)', border: '1px solid var(--line4)', borderRadius: 7 }}>
-                <span style={{ fontSize: fz(11), color: 'var(--text2)' }}>記錄</span>
-                <div role="radiogroup" aria-label="選擇記錄槽位" style={{ display: 'flex', gap: 3 }}>
+                <span style={{ fontSize: fz(11), color: 'var(--text2)' }}>{tx('work.013')}</span>
+                <div role="radiogroup" aria-label={tx('work.016')} style={{ display: 'flex', gap: 3 }}>
                   {texts.map((_, i) => {
                     const on = i === slot;
                     return (
-                      <button key={i} type="button" className="slot mono" role="radio" aria-checked={on} aria-label={'記錄 ' + (i + 1)}
+                      <button key={i} type="button" className="slot mono" role="radio" aria-checked={on} aria-label={tx('work.017', { v1: i + 1 })}
                         onClick={() => s.pickSlot(i)}
                         style={{
                           width: 22, height: 22, padding: 0, display: 'flex', alignItems: 'center', justifyContent: 'center', borderRadius: 5,
@@ -492,8 +493,8 @@ function WorkPanelInner({ height, maxH }: { height: number; maxH: number }) {
 
   return (
     <>
-    <Splitter dir="h" label="調整工作欄高度" value={actualH} min={WORK_MIN} max={maxH} onChange={onDrag} />
-    <section ref={sectionRef} aria-label="工作欄" style={{
+    <Splitter dir="h" label={tx('work.005')} value={actualH} min={WORK_MIN} max={maxH} onChange={onDrag} />
+    <section ref={sectionRef} aria-label={tx('work.006')} style={{
       minHeight: minH, maxHeight: maxH, flexShrink: 0, display: 'flex', flexDirection: 'column', gap: 10, padding: '14px 16px', boxSizing: 'border-box',
       background: 'var(--panel)', border: '1px solid var(--line)', borderRadius: 10,
     }}>
@@ -501,19 +502,19 @@ function WorkPanelInner({ height, maxH }: { height: number; maxH: number }) {
         <div style={{ flexGrow: 1, minWidth: 0, display: 'flex', flexDirection: 'column', gap: 6 }}>
           <div style={labelRow}>
             <span style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-              <label htmlFor="verso-source" className="sec-label">原文</label>
+              <label htmlFor="verso-source" className="sec-label">{tx('work.018')}</label>
               {srcEditable && (
                 <span style={{ display: 'flex', alignItems: 'center', gap: 4, fontSize: fz(11), color: 'var(--warntx)', padding: '1px 7px', borderRadius: 9, background: 'rgba(240,165,74,0.12)' }}>
-                  <IconPen size={10} sw={2.6} />可編輯
+                  <IconPen size={10} sw={2.6} />{tx('work.019')}
                 </span>
               )}
               {cur.upd && (
                 <span style={{ fontSize: fz(11), color: 'var(--accent2)', padding: '1px 7px', borderRadius: 9, background: 'var(--acc-soft)' }}>
-                  {cur.upd.removed ? '新版已移除' : cur.upd.applied ? '已套用新原文' : showNewSrc ? '原文已更新' : '舊原文'}
+                  {cur.upd.removed ? tx('work.020') : cur.upd.applied ? tx('work.021') : showNewSrc ? tx('work.022') : tx('work.023')}
                 </span>
               )}
             </span>
-            <span style={meta}>{cur.id && <span className="mono">#{cur.id}</span>}<span>{cur.speaker}</span><span>{(showNewSrc ? newSrc! : cur.src).length} 字</span></span>
+            <span style={meta}>{cur.id && <span className="mono">#{cur.id}</span>}<span>{cur.speaker}</span><span>{(showNewSrc ? newSrc! : cur.src).length}{' '}{tx('work.024')}</span></span>
           </div>
           <div style={boxStyle('src')}>
           <textarea maxLength={MAX_CELL_CHARS} id="verso-source" ref={setSrcEl} value={showNewSrc ? newSrc : cur.src} readOnly={!srcEditable || showNewSrc} onFocus={editFocus} onBlur={editBlur}
@@ -529,8 +530,8 @@ function WorkPanelInner({ height, maxH }: { height: number; maxH: number }) {
             {/* 命中字典的詞標色 */}
             <TextMarks target={srcEl} text={showNewSrc ? newSrc! : cur.src} ranges={showNewSrc ? srcDiffRanges : newSrc !== undefined ? [] : hitRanges} />
             {srcButtons > 0 && (
-              <div role="toolbar" aria-label="原文更新" aria-orientation="vertical" style={{ position: 'absolute', right: 6, top: 6, display: 'flex', flexDirection: 'column', gap: 2 }}>
-                {newSrc !== undefined && <button type="button" className="hb tip" data-tip="按住看舊原文" aria-label="按住看舊原文" aria-pressed={srcPeek}
+              <div role="toolbar" aria-label={tx('work.025')} aria-orientation="vertical" style={{ position: 'absolute', right: 6, top: 6, display: 'flex', flexDirection: 'column', gap: 2 }}>
+                {newSrc !== undefined && <button type="button" className="hb tip" data-tip={tx('work.026')} aria-label={tx('work.026')} aria-pressed={srcPeek}
                   style={{ color: srcPeek ? 'var(--accent2)' : 'var(--mute)', background: srcPeek ? 'var(--acc-soft)' : 'transparent' }}
                   onPointerDown={(ev) => {
                     try { ev.currentTarget.setPointerCapture(ev.pointerId); } catch { /* 無法捕捉時照常運作 */ }
@@ -541,7 +542,7 @@ function WorkPanelInner({ height, maxH }: { height: number; maxH: number }) {
                   <IconEye size={14} sw={2.2} />
                 </button>}
                 {mode !== 'view' && (
-                  <button type="button" className="hb tip" data-tip={cur.upd?.removed ? '套用（刪除這條）' : '套用新原文'} aria-label="套用新原文" style={{ color: 'var(--accent2)' }}
+                  <button type="button" className="hb tip" data-tip={cur.upd?.removed ? tx('work.027') : tx('work.028')} aria-label={tx('work.028')} style={{ color: 'var(--accent2)' }}
                     onClick={() => { s.applyNewSource(); setSrcPeek(false); }}>
                     <IconUse size={14} sw={2.2} />
                   </button>
@@ -555,17 +556,17 @@ function WorkPanelInner({ height, maxH }: { height: number; maxH: number }) {
 
           <div style={{ ...labelRow, marginTop: 6, gap: 12 }}>
             <span style={{ display: 'flex', alignItems: 'center', gap: 8, minWidth: 0 }}>
-              <label htmlFor="verso-target" className="sec-label">譯文</label>
+              <label htmlFor="verso-target" className="sec-label">{tx('work.029')}</label>
               {!tgtEditable && !verify && (
                 <span style={{ display: 'flex', alignItems: 'center', gap: 4, fontSize: fz(11), color: 'var(--text2)', padding: '1px 7px', borderRadius: 9, background: 'var(--chip)' }}>
-                  <IconLock size={10} sw={2.6} />唯讀
+                  <IconLock size={10} sw={2.6} />{tx('work.003')}
                 </span>
               )}
               {!showEdits && issueNote}
             </span>
             <span style={{ ...meta, flexShrink: 0 }}>
-              <span>{!verify && texts.length ? `已記錄 ${texts.length} / 3` : ''}</span>
-              <span>{cur.tgt.length} 字元</span>
+              <span>{!verify && texts.length ? tx('work.030', { length: texts.length }) : ''}</span>
+              <span>{cur.tgt.length}{' '}{tx('work.031')}</span>
             </span>
           </div>
           <div style={boxStyle('tgt')}>
@@ -591,14 +592,14 @@ function WorkPanelInner({ height, maxH }: { height: number; maxH: number }) {
               <div style={{ ...labelRow, marginTop: 6, gap: 12 }}>
                 {/* 有修改框時檢查的是修改框，問題提示也放在這裡 */}
                 <span style={{ display: 'flex', alignItems: 'center', gap: 8, minWidth: 0 }}>
-                  <label htmlFor="verso-edit" className="sec-label">修改</label>
+                  <label htmlFor="verso-edit" className="sec-label">{tx('work.032')}</label>
                   {issueNote}
                 </span>
                 <span style={{ ...meta, flexShrink: 0, alignItems: 'center' }}>
-                  <button type="button" className="ib" disabled={!edits.length} onClick={() => asStep(() => s.setVerify([], modText))} title="用修改後的內容取代譯文"
-                    style={{ ...smallBtn, opacity: edits.length ? 1 : 0.5 }}>全部套用</button>
-                  {verify && texts.length > 0 && <span>已記錄 {texts.length} / 3</span>}
-                  <span>{modText.length} 字元</span>
+                  <button type="button" className="ib" disabled={!edits.length} onClick={() => asStep(() => s.setVerify([], modText))} title={tx('work.033')}
+                    style={{ ...smallBtn, opacity: edits.length ? 1 : 0.5 }}>{tx('work.034')}</button>
+                  {verify && texts.length > 0 && <span>{tx('work.035')}{' '}{texts.length} / 3</span>}
+                  <span>{modText.length}{' '}{tx('work.031')}</span>
                 </span>
               </div>
               <div style={boxStyle('mod')}>
@@ -618,10 +619,10 @@ function WorkPanelInner({ height, maxH }: { height: number; maxH: number }) {
                 {verify && histUI}
               </div>
               {vMenu && spans[vMenu.i] && (
-                <ContextMenu x={vMenu.x} y={vMenu.y} label="修改" onClose={() => setVMenu(null)}
+                <ContextMenu x={vMenu.x} y={vMenu.y} label={tx('work.032')} onClose={() => setVMenu(null)}
                   items={verify
-                    ? [{ key: 'edit', label: '編輯' }, { key: 'del', label: '刪除' }, { key: 'apply', label: '套用' }]
-                    : [{ key: 'apply', label: '套用' }, { key: 'del', label: '忽略修改' }]}
+                    ? [{ key: 'edit', label: tx('work.036') }, { key: 'del', label: tx('work.037') }, { key: 'apply', label: tx('work.038') }]
+                    : [{ key: 'apply', label: tx('work.038') }, { key: 'del', label: tx('work.039') }]}
                   onPick={(k) => {
                     const i = vMenu.i;
                     setVMenu(null);
@@ -635,30 +636,30 @@ function WorkPanelInner({ height, maxH }: { height: number; maxH: number }) {
         </div>
 
         {/* 右側按鈕目前是示範用的暫代功能，之後再決定 */}
-        <div role="toolbar" aria-label="條目功能" aria-orientation="vertical" style={{ width: 36, flexShrink: 0, display: 'flex', flexDirection: 'column', gap: 6, paddingTop: 24 }}>
-          <button type="button" className="ib btn-side" aria-label="複製原文和譯文" title="複製原文和譯文"
+        <div role="toolbar" aria-label={tx('work.040')} aria-orientation="vertical" style={{ width: 36, flexShrink: 0, display: 'flex', flexDirection: 'column', gap: 6, paddingTop: 24 }}>
+          <button type="button" className="ib btn-side" aria-label={tx('work.041')} title={tx('work.041')}
             onClick={() => { void navigator.clipboard?.writeText((cur.upd?.src ?? cur.src) + '\n' + cur.tgt); }}>
             <IconCopyPair size={15} />
           </button>
           {mode === 'translate' && (
-            <button type="button" className="ib btn-side" aria-label="清除譯文" title="清除譯文" onClick={() => s.updateEntry({ tgt: '' })}>
+            <button type="button" className="ib btn-side" aria-label={tx('work.042')} title={tx('work.042')} onClick={() => s.updateEntry({ tgt: '' })}>
               <IconEraser size={15} />
             </button>
           )}
           {verify && (
-            <button type="button" className="ib btn-side" aria-label="全部清除" title="清除這一條的所有修改" disabled={!edits.length} onClick={() => asStep(() => s.setVerify([]))}
+            <button type="button" className="ib btn-side" aria-label={tx('work.043')} title={tx('work.044')} disabled={!edits.length} onClick={() => asStep(() => s.setVerify([]))}
               style={{ opacity: edits.length ? 1 : 0.5 }}>
               <IconEraser size={15} />
             </button>
           )}
           {mode !== 'view' && (
             // 插入標籤：只有外觀，尚未實作
-            <button type="button" className="ib btn-side" aria-label="插入標籤" title="插入標籤，例如 {0}">
+            <button type="button" className="ib btn-side" aria-label={tx('work.045')} title={tx('work.046')}>
               <IconBraces size={15} />
             </button>
           )}
           {mode === 'view' && (
-            <button type="button" className="ib btn-side" aria-label="複製譯文" title="複製譯文到剪貼簿"
+            <button type="button" className="ib btn-side" aria-label={tx('work.047')} title={tx('work.048')}
               onClick={() => { void navigator.clipboard?.writeText(cur.tgt); }}>
               <IconCopy size={15} />
             </button>
@@ -668,16 +669,16 @@ function WorkPanelInner({ height, maxH }: { height: number; maxH: number }) {
 
       <div style={{ height: 40, flexShrink: 0, display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
         <span style={{ display: 'flex', gap: 14, fontSize: fz(12), color: 'var(--mute)' }}>
-          <span>第 {sel + 1} / {total} 條</span><span>{MODE_HINTS[mode]}</span>
-          <button type="button" className="ib" aria-label="設定這一條的長度標準" title="這一條的特殊長度標準" onClick={() => s.set({ lengthDialog: 'entry' })}
+          <span>{tx('work.049')}{' '}{sel + 1} / {total}{' '}{tx('work.050')}</span><span>{MODE_HINTS[mode]}</span>
+          <button type="button" className="ib" aria-label={tx('work.051')} title={tx('work.052')} onClick={() => s.set({ lengthDialog: 'entry' })}
             style={{ height: 24, display: 'flex', alignItems: 'center', gap: 5, padding: '0 6px', margin: '-4px 0', background: 'transparent', border: 0, borderRadius: 6, color: cur.lengthStd !== undefined ? 'var(--accent2)' : 'var(--mute)', fontSize: fz(12) }}>
-            <IconRuler size={14} />{cur.lengthStd !== undefined && '特殊標準'}
+            <IconRuler size={14} />{cur.lengthStd !== undefined && tx('work.053')}
           </button>
         </span>
         <div style={{ display: 'flex', gap: 10, alignItems: 'center' }}>
           {mode === 'view' && (
             <button type="button" className="btn btn-ghost btn-std" onClick={() => s.prev()} title={keyTip('prevEntry', 'list')} style={{ gap: 6, padding: '0 16px' }}>
-              <IconChevL size={14} sw={2.2} />上一條
+              <IconChevL size={14} sw={2.2} />{tx('work.054')}
             </button>
           )}
           {mode !== 'view' && (
@@ -689,9 +690,9 @@ function WorkPanelInner({ height, maxH }: { height: number; maxH: number }) {
               </button>
               <button type="button" className="btn btn-ghost btn-std"
                 onClick={() => s.stampNext()} title={keyTip('stampNext')}
-                style={{ padding: '0 16px', borderLeft: 0, borderRadius: '0 8px 8px 0' }}>標記並下一條</button>
+                style={{ padding: '0 16px', borderLeft: 0, borderRadius: '0 8px 8px 0' }}>{tx('work.055')}</button>
               {s.stampOpen && (
-                <MarkMenu title="按下後留下的標記" ariaLabel="選擇按鈕要留下的標記" current={stamp} exclude={exclude}
+                <MarkMenu title={tx('work.056')} ariaLabel={tx('work.057')} current={stamp} exclude={exclude}
                   style={{ position: 'absolute', bottom: 46, left: 0 }}
                   onPick={(id) => s.set({ stamps: { ...s.stamps, [mode]: id }, stampOpen: false })} />
               )}
@@ -699,12 +700,12 @@ function WorkPanelInner({ height, maxH }: { height: number; maxH: number }) {
           )}
           {mode === 'verify' && (
             <button type="button" className="btn btn-primary btn-main" onClick={() => s.mainNext()} title={keyTip('main')}>
-              {edits.length || cur.sugg.trim() ? <><IconWarn size={14} sw={2.4} />疑慮並下一條</> : <><IconCheck size={14} sw={2.6} />驗證並下一條</>}
+              {edits.length || cur.sugg.trim() ? <><IconWarn size={14} sw={2.4} />{tx('work.058')}</> : <><IconCheck size={14} sw={2.6} />{tx('work.059')}</>}
             </button>
           )}
           {mode !== 'verify' && (
             <button type="button" className="btn btn-primary btn-main" onClick={() => s.next()} title={keyTip('main')}>
-              下一條<IconChevR size={14} sw={2.2} />
+              {tx('work.060')}<IconChevR size={14} sw={2.2} />
             </button>
           )}
         </div>

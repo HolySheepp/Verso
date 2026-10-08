@@ -1,3 +1,4 @@
+import { tx } from '../i18n';
 export interface MenuItem {
   key: string;
   label: string;
@@ -47,8 +48,8 @@ export function ContextMenu({ x, y, label, items, onPick, onClose }: Props) {
               {btn}
               <span style={{ minWidth: 18, textAlign: 'right', fontSize: 12, color: 'var(--text)' }}>{st.value}</span>
               <span style={{ display: 'flex', flexDirection: 'column', paddingRight: 4 }}>
-                <button type="button" className="ib" aria-label="增加" tabIndex={-1} disabled={st.value >= st.max} onClick={() => st.onChange(Math.min(st.max, st.value + 1))} style={arrow}>▲</button>
-                <button type="button" className="ib" aria-label="減少" tabIndex={-1} disabled={st.value <= st.min} onClick={() => st.onChange(Math.max(st.min, st.value - 1))} style={arrow}>▼</button>
+                <button type="button" className="ib" aria-label={tx('menu.001')} tabIndex={-1} disabled={st.value >= st.max} onClick={() => st.onChange(Math.min(st.max, st.value + 1))} style={arrow}>▲</button>
+                <button type="button" className="ib" aria-label={tx('menu.002')} tabIndex={-1} disabled={st.value <= st.min} onClick={() => st.onChange(Math.max(st.min, st.value - 1))} style={arrow}>▼</button>
               </span>
             </div>
           );

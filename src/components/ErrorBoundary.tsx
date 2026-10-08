@@ -1,3 +1,4 @@
+import { tx } from '../i18n';
 import { Component, type ReactNode } from 'react';
 import { autosaveNow } from '../state/saver';
 
@@ -13,7 +14,7 @@ export class ErrorBoundary extends Component<{ children: ReactNode }, { error: b
   }
 
   componentDidCatch(error: unknown) {
-    console.error('Verso 發生錯誤', error);
+    console.error(tx('error.001'), error);
     void autosaveNow().catch(() => undefined);
   }
 
@@ -21,10 +22,10 @@ export class ErrorBoundary extends Component<{ children: ReactNode }, { error: b
     if (!this.state.error) return this.props.children;
     return (
       <div role="alert" style={{ height: '100vh', display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', gap: 16, background: '#16181d', color: '#e6e8ee', fontFamily: 'sans-serif' }}>
-        <div style={{ fontSize: 16, fontWeight: 600 }}>發生錯誤</div>
-        <div style={{ fontSize: 13, color: '#9aa1ae' }}>目前的內容已經存進暫存，重新載入後可以恢復。</div>
+        <div style={{ fontSize: 16, fontWeight: 600 }}>{tx('error.002')}</div>
+        <div style={{ fontSize: 13, color: '#9aa1ae' }}>{tx('error.003')}</div>
         <button type="button" onClick={() => location.reload()} autoFocus
-          style={{ height: 36, padding: '0 18px', background: '#3b82f6', border: 0, borderRadius: 8, color: '#ffffff', fontSize: 13, fontWeight: 600, cursor: 'pointer' }}>重新載入</button>
+          style={{ height: 36, padding: '0 18px', background: '#3b82f6', border: 0, borderRadius: 8, color: '#ffffff', fontSize: 13, fontWeight: 600, cursor: 'pointer' }}>{tx('error.004')}</button>
       </div>
     );
   }

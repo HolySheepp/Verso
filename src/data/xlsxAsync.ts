@@ -1,4 +1,5 @@
 // 把轉 xlsx 的工作交給背景執行緒；沒辦法開背景執行緒時（例如跑測試）就在原地轉
+import { tx } from '../i18n';
 import { dictToXlsx, fileToXlsx } from './xlsxio';
 import type { CustomMark, FileDoc, GlossaryTerm } from '../model/types';
 
@@ -15,11 +16,11 @@ function getWorker(): Worker | null {
       const w = waiting.get(ev.data.id);
       if (!w) return;
       waiting.delete(ev.data.id);
-      if (ev.data.data) w.resolve(ev.data.data); else w.reject(new Error(ev.data.error ?? '轉檔失敗'));
+      if (ev.data.data) w.resolve(ev.data.data); else w.reject(new Error(ev.data.error ?? tx('xlsx.001')));
     };
     worker.onerror = () => {
       // 背景執行緒壞了：之後改在原地轉
-      waiting.forEach((w) => w.reject(new Error('轉檔失敗')));
+      waiting.forEach((w) => w.reject(new Error(tx('xlsx.001'))));
       waiting.clear();
       worker = null;
     };

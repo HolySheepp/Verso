@@ -1,3 +1,5 @@
+import { tx } from '../i18n';
+import { NO_SPEAKER, defaultSheetName } from '../model/names';
 import { useEffect, useState } from 'react';
 import { useStore, type MoveTarget } from '../state/store';
 import { requestAutosave, saveNow } from '../state/saver';
@@ -36,7 +38,7 @@ function Header({ id, title, onClose }: { id: string; title: string; onClose(): 
   return (
     <div style={{ height: 52, flexShrink: 0, display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '0 10px 0 20px', borderBottom: '1px solid var(--line)' }}>
       <h2 id={id} style={{ margin: 0, fontSize: fz(15), fontWeight: 600 }}>{title}</h2>
-      <button type="button" className="ib" aria-label="關閉" onClick={onClose} style={closeBtn}><IconWinClose size={13} sw={1.4} /></button>
+      <button type="button" className="ib" aria-label={tx('manage.001')} onClick={onClose} style={closeBtn}><IconWinClose size={13} sw={1.4} /></button>
     </div>
   );
 }
@@ -54,7 +56,7 @@ function TreeRow({ depth, icon, label, extra, selected, open, onToggle, onClick,
     return (
       <div style={{ display: 'flex', alignItems: 'flex-start', gap: 6, padding: `0 6px 0 ${6 + depth * 20}px` }}>
         <span style={{ width: 20, flexShrink: 0 }} />
-        <div style={{ flexGrow: 1, minWidth: 0 }}><NameInput initial={label} placeholder="名稱" error={rename.error} onDone={rename.onDone} /></div>
+        <div style={{ flexGrow: 1, minWidth: 0 }}><NameInput initial={label} placeholder={tx('manage.002')} error={rename.error} onDone={rename.onDone} /></div>
       </div>
     );
   }
@@ -62,7 +64,7 @@ function TreeRow({ depth, icon, label, extra, selected, open, onToggle, onClick,
     <div className="tree-row dd" onContextMenu={onMenu ? (ev) => { ev.preventDefault(); onMenu(ev); } : undefined}
       style={{ display: 'flex', alignItems: 'center', gap: 6, minHeight: 32, padding: `0 6px 0 ${6 + depth * 20}px`, borderRadius: 6, background: selected ? 'var(--sel)' : 'transparent' }}>
       {onToggle
-        ? <button type="button" className="ib" aria-expanded={open} aria-label={(open ? '收起' : '展開') + label} onClick={onToggle} style={{ ...actBtn, width: 20, height: 20 }}>
+        ? <button type="button" className="ib" aria-expanded={open} aria-label={(open ? tx('manage.003') : tx('manage.004')) + label} onClick={onToggle} style={{ ...actBtn, width: 20, height: 20 }}>
             <IconChevD size={11} sw={2.4} style={{ transform: `rotate(${open ? 0 : -90}deg)`, transition: 'transform 160ms' }} />
           </button>
         : <span style={{ width: 20, flexShrink: 0 }} />}
@@ -113,7 +115,7 @@ function MoveForm({ target }: { target: MoveTarget }) {
   const [sel, setSel] = useState(from);
   const [newName, setNewName] = useState('');
   const to = picked(sel, newName);
-  const err = nameError('專案', sel, newName, project.projects);
+  const err = nameError('project', sel, newName, project.projects);
   const close = () => set({ moveTarget: null });
   const ok = () => {
     if (!to || err) return;
@@ -127,15 +129,15 @@ function MoveForm({ target }: { target: MoveTarget }) {
     <div className="scrim" style={{ zIndex: 55 }} onMouseDown={dragWindow}>
       <div role="dialog" aria-modal="true" aria-labelledby="verso-move-title" className="dialog" style={{ width: 400, boxShadow: '0 24px 64px rgba(0,0,0,0.45)' }}
         onKeyDown={(e) => { if (e.key === 'Enter' && (e.target as HTMLElement).tagName === 'INPUT') ok(); }}>
-        <Header id="verso-move-title" title={`更改專案：${name}`} onClose={close} />
+        <Header id="verso-move-title" title={tx('manage.005', { name })} onClose={close} />
         <div style={{ display: 'flex', flexDirection: 'column', gap: 8, padding: '18px 20px' }}>
-          <label htmlFor="verso-move-proj" style={{ fontSize: fz(12), color: 'var(--text2)' }}>專案</label>
+          <label htmlFor="verso-move-proj" style={{ fontSize: fz(12), color: 'var(--text2)' }}>{tx('manage.006')}</label>
           <ProjectPicker id="verso-move-proj" stack sel={sel} newName={newName} onSel={setSel} onNewName={setNewName} />
           {err && <span role="alert" style={{ fontSize: fz(12.5), color: 'var(--errtx)' }}>{err}</span>}
         </div>
         <div style={{ display: 'flex', justifyContent: 'flex-end', gap: 8, padding: '12px 20px 16px', borderTop: '1px solid var(--line)' }}>
-          <button type="button" className="btn btn-ghost" onClick={close} style={{ ...ghostBtn, height: 36, padding: '0 16px', fontSize: fz(13) }}>取消</button>
-          <button type="button" className="btn btn-primary" disabled={!to || !!err} onClick={ok} style={primaryBtn}>確定</button>
+          <button type="button" className="btn btn-ghost" onClick={close} style={{ ...ghostBtn, height: 36, padding: '0 16px', fontSize: fz(13) }}>{tx('manage.007')}</button>
+          <button type="button" className="btn btn-primary" disabled={!to || !!err} onClick={ok} style={primaryBtn}>{tx('manage.008')}</button>
         </div>
       </div>
     </div>
@@ -153,29 +155,29 @@ function DeleteConfirm({ pending, onDone }: { pending: Pending; onDone(): void }
   const project = useStore((s) => s.project)!;
   const { deleteProject, deleteFile, deleteDict } = useStore.getState();
   const run = (fn: () => void) => { fn(); if (pending.kind === 'project') commitNow(); else commit(); onDone(); };
-  const cancel = { label: '取消', onClick: onDone };
+  const cancel = { label: tx('manage.007'), onClick: onDone };
   if (pending.kind === 'file') {
     const f = project.files[pending.index];
-    return <ConfirmDialog zIndex={58} title={`刪除檔案「${f?.name ?? ''}」？`} body="檔案會移到資源回收筒。"
-      choices={[cancel, { label: '刪除', primary: true, onClick: () => run(() => deleteFile(pending.index)) }]} />;
+    return <ConfirmDialog zIndex={58} title={tx('manage.009', { v1: f?.name ?? '' })} body={tx('manage.010')}
+      choices={[cancel, { label: tx('manage.011'), primary: true, onClick: () => run(() => deleteFile(pending.index)) }]} />;
   }
   if (pending.kind === 'dict') {
-    return <ConfirmDialog zIndex={58} title={`刪除字典「${pending.name}」？`} body="字典會移到資源回收筒。"
-      choices={[cancel, { label: '刪除', primary: true, onClick: () => run(() => deleteDict(pending.project, pending.name)) }]} />;
+    return <ConfirmDialog zIndex={58} title={tx('manage.012', { name: pending.name })} body={tx('manage.013')}
+      choices={[cancel, { label: tx('manage.011'), primary: true, onClick: () => run(() => deleteDict(pending.project, pending.name)) }]} />;
   }
   const files = project.files.filter((f) => f.project === pending.name).length;
   const dicts = project.dicts.filter((d) => d.project === pending.name).length;
-  const parts = [files && `${files} 個檔案`, dicts && `${dicts} 本字典`].filter(Boolean).join('、');
+  const parts = [files && tx('manage.014', { files }), dicts && tx('manage.015', { dicts })].filter(Boolean).join(tx('common.sep'));
   if (!dicts) {
-    return <ConfirmDialog zIndex={58} title={`刪除專案「${pending.name}」？`} body={parts ? `專案裡的 ${parts}會移到資源回收筒。` : undefined}
-      choices={[cancel, { label: '刪除', primary: true, onClick: () => run(() => deleteProject(pending.name, false)) }]} />;
+    return <ConfirmDialog zIndex={58} title={tx('manage.016', { name: pending.name })} body={parts ? tx('manage.017', { parts }) : undefined}
+      choices={[cancel, { label: tx('manage.011'), primary: true, onClick: () => run(() => deleteProject(pending.name, false)) }]} />;
   }
-  return <ConfirmDialog zIndex={58} title={`刪除專案「${pending.name}」？`}
-    body={`專案裡有 ${parts}。檔案會移到資源回收筒，字典要一起刪除，還是移到共用？`}
+  return <ConfirmDialog zIndex={58} title={tx('manage.016', { name: pending.name })}
+    body={tx('manage.018', { parts })}
     choices={[
       cancel,
-      { label: '一起刪除', danger: true, onClick: () => run(() => deleteProject(pending.name, false)) },
-      { label: '移到共用', primary: true, onClick: () => run(() => deleteProject(pending.name, true)) },
+      { label: tx('manage.019'), danger: true, onClick: () => run(() => deleteProject(pending.name, false)) },
+      { label: tx('manage.020'), primary: true, onClick: () => run(() => deleteProject(pending.name, true)) },
     ]} />;
 }
 
@@ -203,52 +205,52 @@ function ManageProjects() {
   const guard = (fn: () => void) => { if (dirty && curIdx >= 0) setAskLeave(() => fn); else fn(); };
   const close = () => guard(() => set({ manageProjectsOpen: false }));
   const renameBtn = (t: Pending) => (
-    <button type="button" className="ib" title="重新命名" aria-label="重新命名" style={actBtn} onClick={() => setRenaming(t)}><IconPenEdit size={13} sw={2.2} /></button>
+    <button type="button" className="ib" title={tx('manage.021')} aria-label={tx('manage.021')} style={actBtn} onClick={() => setRenaming(t)}><IconPenEdit size={13} sw={2.2} /></button>
   );
   const toggle = (p: string) => setClosed(closed.includes(p) ? closed.filter((x) => x !== p) : [...closed, p]);
 
   const fileActions = (i: number) => <>
     {renameBtn({ kind: 'file', index: i })}
-    <button type="button" className="ib" title="更改專案" aria-label="更改專案" style={actBtn} onClick={() => set({ moveTarget: { kind: 'file', index: i } })}><IconFolder size={13} /></button>
-    <button type="button" className="ib" title="刪除" aria-label="刪除檔案" style={actBtn} onClick={() => setPending({ kind: 'file', index: i })}><IconTrash size={13} /></button>
+    <button type="button" className="ib" title={tx('manage.022')} aria-label={tx('manage.022')} style={actBtn} onClick={() => set({ moveTarget: { kind: 'file', index: i } })}><IconFolder size={13} /></button>
+    <button type="button" className="ib" title={tx('manage.011')} aria-label={tx('manage.023')} style={actBtn} onClick={() => setPending({ kind: 'file', index: i })}><IconTrash size={13} /></button>
   </>;
 
   return (
     <div className="scrim" style={{ zIndex: 45 }} onMouseDown={dragWindow}>
       <div role="dialog" aria-modal="true" aria-labelledby="verso-mp-title" className="dialog"
         style={{ width: 1080, height: 680, maxWidth: 'calc(100% - 48px)', maxHeight: 'calc(100% - 48px)', boxShadow: '0 24px 64px rgba(0,0,0,0.5)' }}>
-        <Header id="verso-mp-title" title="管理專案" onClose={close} />
+        <Header id="verso-mp-title" title={tx('manage.024')} onClose={close} />
         <div style={{ flexGrow: 1, minHeight: 0, display: 'flex' }}>
         <div style={{ width: 280, flexShrink: 0, display: 'flex', flexDirection: 'column', borderRight: '1px solid var(--line)' }}>
         <div style={{ display: 'flex', padding: '12px 14px 4px' }}>
-          <button type="button" className="btn btn-ghost" onClick={() => setAdding(true)} style={ghostBtn}><IconPlus size={13} sw={2.2} />新增專案</button>
+          <button type="button" className="btn btn-ghost" onClick={() => setAdding(true)} style={ghostBtn}><IconPlus size={13} sw={2.2} />{tx('manage.025')}</button>
         </div>
         <div style={{ flexGrow: 1, minHeight: 0, overflowY: 'auto', padding: '6px 10px 14px' }}>
-          {adding && <NameInput placeholder="專案名稱" error={(v) => nameError('專案', NEW, v, project.projects)}
+          {adding && <NameInput placeholder={tx('manage.026')} error={(v) => nameError('project', NEW, v, project.projects)}
             onDone={(n) => { setAdding(false); if (n) { addProject(n); commit(); } }} />}
           {project.projects.map((p) => {
             const isOpen = !closed.includes(p);
             const files = project.files.map((f, i) => ({ f, i })).filter((x) => x.f.project === p);
             return (
               <div key={p}>
-                <TreeRow depth={0} label={p} extra={files.length ? `${files.length} 個檔案` : ''} open={isOpen} onToggle={() => toggle(p)}
+                <TreeRow depth={0} label={p} extra={files.length ? tx('manage.027', { length: files.length }) : ''} open={isOpen} onToggle={() => toggle(p)}
                   onRename={p === SHARED ? undefined : () => setRenaming({ kind: 'project', name: p })}
                   rename={renaming?.kind === 'project' && renaming.name === p ? {
-                    error: (v) => nameError('專案', NEW, v, project.projects),
+                    error: (v) => nameError('project', NEW, v, project.projects),
                     onDone: (n) => { setRenaming(null); if (n && n !== p) { renameProject(p, n); setClosed(closed.map((x) => (x === p ? n : x))); commitNow(); } },
                   } : undefined}
                   icon={<IconFolder size={14} stroke="var(--mute)" />}
                   onMenu={p === SHARED ? undefined : (ev) => setMenu({ x: ev.clientX, y: ev.clientY, target: { kind: 'project', name: p } })}
                   actions={p !== SHARED && <>
                     {renameBtn({ kind: 'project', name: p })}
-                    <button type="button" className="ib" title="刪除" aria-label={'刪除專案' + p} style={actBtn} onClick={() => setPending({ kind: 'project', name: p })}><IconTrash size={13} /></button>
+                    <button type="button" className="ib" title={tx('manage.011')} aria-label={tx('manage.028', { p })} style={actBtn} onClick={() => setPending({ kind: 'project', name: p })}><IconTrash size={13} /></button>
                   </>} />
                 {isOpen && files.map(({ f, i }) => (
                   <TreeRow key={i} depth={1} label={f.name} icon={<IconFile size={13} stroke="var(--mute)" />}
                     selected={i === curIdx} onClick={() => { if (i !== curIdx) guard(() => { setDirty(false); setCurSheets(f.sheets); }); }}
                     onRename={() => setRenaming({ kind: 'file', index: i })}
                     rename={renaming?.kind === 'file' && renaming.index === i ? {
-                      error: (v) => nameError('檔案', NEW, v, files.map((x) => x.f.name)),
+                      error: (v) => nameError('file', NEW, v, files.map((x) => x.f.name)),
                       onDone: (n) => { setRenaming(null); if (n && n !== f.name) { renameFile(i, n); commit(); } },
                     } : undefined}
                     onMenu={(ev) => setMenu({ x: ev.clientX, y: ev.clientY, target: { kind: 'file', index: i } })}
@@ -261,24 +263,24 @@ function ManageProjects() {
         </div>
         <div style={{ flexGrow: 1, minWidth: 0, display: 'flex', flexDirection: 'column' }}>
           {curIdx < 0
-            ? <div className="empty" style={{ margin: 20, flexGrow: 1, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>選擇左邊的檔案</div>
+            ? <div className="empty" style={{ margin: 20, flexGrow: 1, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>{tx('manage.029')}</div>
             : <FileEditor key={String(curIdx) + '/' + project.files.length} file={project.files[curIdx]} index={curIdx}
                 onDirty={setDirty} onSaved={(sheets) => { setCurSheets(sheets); setDirty(false); }} />}
         </div>
         </div>
       </div>
       {askLeave && (
-        <ConfirmDialog zIndex={58} title="有未儲存的修改" body="這個檔案的修改還沒儲存。"
+        <ConfirmDialog zIndex={58} title={tx('manage.030')} body={tx('manage.031')}
           choices={[
-            { label: '取消', onClick: () => setAskLeave(null) },
-            { label: '不儲存', danger: true, onClick: () => { const fn = askLeave; setAskLeave(null); setDirty(false); fn(); } },
+            { label: tx('manage.007'), onClick: () => setAskLeave(null) },
+            { label: tx('manage.032'), danger: true, onClick: () => { const fn = askLeave; setAskLeave(null); setDirty(false); fn(); } },
           ]} />
       )}
       {menu && (
-        <ContextMenu x={menu.x} y={menu.y} label="專案操作"
+        <ContextMenu x={menu.x} y={menu.y} label={tx('manage.033')}
           items={menu.target.kind === 'file'
-            ? [{ key: 'rename', label: '重新命名' }, { key: 'move', label: '更改專案' }, { key: 'delete', label: '刪除', danger: true }]
-            : [{ key: 'rename', label: '重新命名' }, { key: 'delete', label: '刪除', danger: true }]}
+            ? [{ key: 'rename', label: tx('manage.021') }, { key: 'move', label: tx('manage.022') }, { key: 'delete', label: tx('manage.011'), danger: true }]
+            : [{ key: 'rename', label: tx('manage.021') }, { key: 'delete', label: tx('manage.011'), danger: true }]}
           onClose={() => setMenu(null)}
           onPick={(k) => {
             const t = menu.target;
@@ -315,10 +317,10 @@ function toDraft(f: FileDoc): FileDraft {
 function fromDraft(f: FileDoc, draft: FileDraft): Sheet[] {
   const orig = new Map(f.sheets.flatMap((sh) => sh.entries).map((e) => [e.uid, e]));
   return draft.map((sh, si) => ({
-    name: sh.name.trim() || '頁簽 ' + (si + 1),
+    name: sh.name.trim() || defaultSheetName(si + 1),
     entries: (sh.cols.src?.rows ?? []).map((src, i): Entry => {
       const id = sh.cols.id?.rows[i] ?? '';
-      const speaker = (sh.cols.speaker?.rows[i] ?? '').trim() || '無';
+      const speaker = (sh.cols.speaker?.rows[i] ?? '').trim() || NO_SPEAKER;
       const tgt = sh.cols.tgt?.rows[i] ?? '';
       const uid = sh.cols.tgt?.ids?.[i];
       const base = uid ? orig.get(uid) : undefined;
@@ -361,7 +363,7 @@ function FileEditor({ file, index, onDirty, onSaved }: { file: FileDoc; index: n
     setBase(d); draft.reset(d); setSelRow(null);
     onSaved(next);
   };
-  const addSheet = () => { draft.commit([...sheets, { name: '頁簽 ' + (sheets.length + 1), cols: { id: null, speaker: null, src: null, tgt: null, note: null } }]); setCur(sheets.length); };
+  const addSheet = () => { draft.commit([...sheets, { name: defaultSheetName(sheets.length + 1), cols: { id: null, speaker: null, src: null, tgt: null, note: null } }]); setCur(sheets.length); };
   const tabAct = (k: string, i: number) => {
     setTabMenu(null);
     if (k === 'rename') setRenaming(i);
@@ -372,10 +374,10 @@ function FileEditor({ file, index, onDirty, onSaved }: { file: FileDoc; index: n
     <div style={{ flexGrow: 1, minHeight: 0, display: 'flex', flexDirection: 'column' }}
       onKeyDown={(ev) => handleUndoKeys(ev, () => { if (draft.undo()) setSelRow(null); }, () => { if (draft.redo()) setSelRow(null); })}>
       <div style={{ flexShrink: 0, padding: '14px 20px 0', fontSize: fz(13), color: 'var(--text2)' }}>{file.project} / <span style={{ color: 'var(--text)', fontWeight: 600 }}>{file.name}</span></div>
-      <div role="tablist" aria-label="頁簽" className="no-scrollbar" style={{ flexShrink: 0, display: 'flex', alignItems: 'center', gap: 4, padding: '10px 20px 0', overflowX: 'auto', borderBottom: '1px solid var(--line)' }}>
+      <div role="tablist" aria-label={tx('manage.036')} className="no-scrollbar" style={{ flexShrink: 0, display: 'flex', alignItems: 'center', gap: 4, padding: '10px 20px 0', overflowX: 'auto', borderBottom: '1px solid var(--line)' }}>
         {sheets.map((sh, i) => (
           renaming === i
-            ? <RenameInput key={i} initial={sh.name} label="頁簽名稱" style={{ height: 30, width: 140 }}
+            ? <RenameInput key={i} initial={sh.name} label={tx('manage.037')} style={{ height: 30, width: 140 }}
                 validate={(v) => sheetNameError(v, sheets.filter((_, j) => j !== i).map((x) => x.name))}
                 onDone={(v) => { setRenaming(null); if (v) draft.commit(sheets.map((x, j) => (j === i ? { ...x, name: v } : x))); }} />
             : <button key={i} type="button" role="tab" aria-selected={i === sheetIdx} className={'tb' + (i === sheetIdx ? ' on' : '')}
@@ -384,9 +386,9 @@ function FileEditor({ file, index, onDirty, onSaved }: { file: FileDoc; index: n
                 style={{
                   height: 32, padding: '0 12px', background: 'transparent', border: 0, borderBottom: `2px solid ${i === sheetIdx ? 'var(--accent)' : 'transparent'}`,
                   color: i === sheetIdx ? 'var(--text)' : 'var(--text2)', fontSize: fz(12.5), whiteSpace: 'nowrap', flexShrink: 0,
-                }}>{sh.name || '頁簽 ' + (i + 1)}</button>
+                }}>{sh.name || defaultSheetName(i + 1)}</button>
         ))}
-        <button type="button" className="ib" aria-label="新增頁簽" title="新增頁簽" onClick={addSheet} style={{ ...actBtn, color: 'var(--text2)' }}><IconPlus size={13} sw={2.2} /></button>
+        <button type="button" className="ib" aria-label={tx('manage.038')} title={tx('manage.038')} onClick={addSheet} style={{ ...actBtn, color: 'var(--text2)' }}><IconPlus size={13} sw={2.2} /></button>
       </div>
       <div style={{ flexGrow: 1, minHeight: 0, display: 'grid', gridTemplateColumns: COLS_GRID, gap: 12, padding: '12px 20px', overflowX: 'auto' }}>
         {COLS.map((c) => (
@@ -398,16 +400,16 @@ function FileEditor({ file, index, onDirty, onSaved }: { file: FileDoc; index: n
         ))}
       </div>
       <div style={{ flexShrink: 0, display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 12, padding: '12px 20px 16px', borderTop: '1px solid var(--line)' }}>
-        <span role="alert" style={{ fontSize: fz(12.5), color: error ? 'var(--errtx)' : 'var(--mute)' }}>{error || `${total} 條`}</span>
+        <span role="alert" style={{ fontSize: fz(12.5), color: error ? 'var(--errtx)' : 'var(--mute)' }}>{error || tx('manage.039', { total })}</span>
         <div style={{ display: 'flex', gap: 8 }}>
           <button type="button" className="btn btn-ghost" disabled={!dirty} onClick={() => { draft.reset(base); setSelRow(null); }}
-            style={{ ...ghostBtn, height: 36, padding: '0 16px', fontSize: fz(13), opacity: dirty ? 1 : 0.5 }}>還原</button>
-          <button type="button" className="btn btn-primary" disabled={!dirty || !!error} onClick={save} style={primaryBtn}>儲存</button>
+            style={{ ...ghostBtn, height: 36, padding: '0 16px', fontSize: fz(13), opacity: dirty ? 1 : 0.5 }}>{tx('manage.040')}</button>
+          <button type="button" className="btn btn-primary" disabled={!dirty || !!error} onClick={save} style={primaryBtn}>{tx('manage.041')}</button>
         </div>
       </div>
       {tabMenu && (
-        <ContextMenu x={tabMenu.x} y={tabMenu.y} label={'頁簽「' + (sheets[tabMenu.i]?.name ?? '') + '」'}
-          items={[{ key: 'rename', label: '重新命名' }, { key: 'delete', label: '刪除', danger: true, disabled: sheets.length <= 1 }]}
+        <ContextMenu x={tabMenu.x} y={tabMenu.y} label={tx('manage.042', { v1: sheets[tabMenu.i]?.name ?? '' })}
+          items={[{ key: 'rename', label: tx('manage.021') }, { key: 'delete', label: tx('manage.011'), danger: true, disabled: sheets.length <= 1 }]}
           onPick={(k) => tabAct(k, tabMenu.i)} onClose={() => setTabMenu(null)} />
       )}
     </div>
@@ -423,7 +425,7 @@ export function ManageDictsDialog() {
 
 type EditCols = { term: Col | null; en: Col | null; note: Col | null };
 const EDIT_KEYS: (keyof EditCols)[] = ['term', 'en', 'note'];
-const EDIT_LABELS: Record<keyof EditCols, string> = { term: '原文', en: '譯文', note: '備註' };
+const EDIT_LABELS: Record<keyof EditCols, string> = { get term() { return tx('manage.043'); }, get en() { return tx('manage.044'); }, get note() { return tx('manage.045'); } };
 
 function ManageDicts() {
   const project = useStore((s) => s.project)!;
@@ -463,8 +465,8 @@ function ManageDicts() {
   const { term, en, note } = cols.value;
   const n = term?.rows.length ?? 0;
   let error = '';
-  if (en && !fitsRows(en, n)) error = `原文 ${n} 行、譯文 ${en.rows.length} 行，行數不一致`;
-  else if (note && note.rows.length > n) error = `備註比原文多了 ${note.rows.length - n} 行`;
+  if (en && !fitsRows(en, n)) error = tx('manage.046', { n, length: en.rows.length });
+  else if (note && note.rows.length > n) error = tx('manage.047', { v1: note.rows.length - n });
   const save = () => {
     if (!cur || error) return;
     const rows = (term?.rows ?? []).map((t, i) => ({ term: t.trim(), en: (en?.rows[i] ?? '').trim(), note: (note?.rows[i] ?? '').trim() }))
@@ -487,7 +489,7 @@ function ManageDicts() {
       if (!seen.has(k)) { seen.add(k); keep.push(i); }
     });
     const n = rows.length - keep.length;
-    useStore.setState((st) => ({ toast: { text: n ? `已清除 ${n} 筆重複詞條` : '沒有重複的詞條', k: (st.toast?.k ?? 0) + 1 } }));
+    useStore.setState((st) => ({ toast: { text: n ? tx('manage.048', { n }) : tx('manage.049'), k: (st.toast?.k ?? 0) + 1 } }));
     if (!n) return;
     const pick = (col: Col | null): Col | null => (col ? { ...col, rows: keep.map((i) => col.rows[i] ?? ''), extra: 0 } : null);
     cols.commit({ term: pick(c.term), en: pick(c.en), note: pick(c.note) });
@@ -499,7 +501,7 @@ function ManageDicts() {
       onKeyDown={(ev) => handleUndoKeys(ev, () => { if (cols.undo()) setSelRow(null); }, () => { if (cols.redo()) setSelRow(null); })}>
       <div role="dialog" aria-modal="true" aria-labelledby="verso-md-title" className="dialog"
         style={{ width: 960, height: 640, maxWidth: 'calc(100% - 48px)', maxHeight: 'calc(100% - 48px)', boxShadow: '0 24px 64px rgba(0,0,0,0.5)' }}>
-        <Header id="verso-md-title" title="管理字典" onClose={close} />
+        <Header id="verso-md-title" title={tx('manage.050')} onClose={close} />
         <div style={{ flexGrow: 1, minHeight: 0, display: 'flex' }}>
           <div style={{ width: 280, flexShrink: 0, display: 'flex', flexDirection: 'column', borderRight: '1px solid var(--line)' }}>
             <div style={{ flexGrow: 1, minHeight: 0, overflowY: 'auto', padding: '10px 10px 14px' }}>
@@ -509,11 +511,11 @@ function ManageDicts() {
                 return (
                   <div key={p}>
                     <TreeRow depth={0} label={p} open={isOpen} onToggle={() => toggle(p)} icon={<IconFolder size={14} stroke="var(--mute)" />}
-                      actions={<button type="button" className="ib" title="新字典" aria-label={'在' + p + '新增字典'} style={actBtn}
+                      actions={<button type="button" className="ib" title={tx('manage.051')} aria-label={tx('manage.052', { p })} style={actBtn}
                         onClick={() => { setAdding(p); setClosed(closed.filter((x) => x !== p)); }}><IconPlus size={13} sw={2.2} /></button>} />
                     {isOpen && <>
                       {adding === p && <div style={{ paddingLeft: 26 }}>
-                        <NameInput placeholder="字典名稱" error={(v) => nameError('字典', NEW, v, dicts.map((d) => d.name))}
+                        <NameInput placeholder={tx('manage.053')} error={(v) => nameError('dict', NEW, v, dicts.map((d) => d.name))}
                           onDone={(name) => { setAdding(null); if (name) { addDict(p, name); commit(); open({ project: p, name }); } }} />
                       </div>}
                       {dicts.map((d) => {
@@ -523,7 +525,7 @@ function ManageDicts() {
                             selected={cur?.project === p && cur.name === d.name} onClick={() => open({ project: p, name: d.name })}
                             onRename={() => setRenaming({ project: p, name: d.name })}
                             rename={renaming?.project === p && renaming.name === d.name ? {
-                              error: (v) => nameError('字典', NEW, v, dicts.map((x) => x.name)),
+                              error: (v) => nameError('dict', NEW, v, dicts.map((x) => x.name)),
                               onDone: (n) => {
                                 setRenaming(null);
                                 if (!n || n === d.name) return;
@@ -535,11 +537,11 @@ function ManageDicts() {
                             } : undefined}
                             onMenu={(ev) => setMenu({ x: ev.clientX, y: ev.clientY, project: p, name: d.name })}
                             actions={<>
-                              <button type="button" className="ib" title="重新命名" aria-label="重新命名" style={actBtn}
+                              <button type="button" className="ib" title={tx('manage.021')} aria-label={tx('manage.021')} style={actBtn}
                                 onClick={() => setRenaming({ project: p, name: d.name })}><IconPenEdit size={13} sw={2.2} /></button>
-                              <button type="button" className="ib" title="更改專案" aria-label="更改專案" style={actBtn}
+                              <button type="button" className="ib" title={tx('manage.022')} aria-label={tx('manage.022')} style={actBtn}
                                 onClick={() => guard(() => set({ moveTarget: { kind: 'dict', project: p, name: d.name } }))}><IconFolder size={13} /></button>
-                              <button type="button" className="ib" title="刪除" aria-label="刪除字典" style={actBtn}
+                              <button type="button" className="ib" title={tx('manage.011')} aria-label={tx('manage.054')} style={actBtn}
                                 onClick={() => setPending({ kind: 'dict', project: p, name: d.name })}><IconTrash size={13} /></button>
                             </>} />
                         );
@@ -553,7 +555,7 @@ function ManageDicts() {
 
           <div style={{ flexGrow: 1, minWidth: 0, display: 'flex', flexDirection: 'column' }}>
             {!cur
-              ? <div className="empty" style={{ margin: 20, flexGrow: 1, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>選擇左邊的字典</div>
+              ? <div className="empty" style={{ margin: 20, flexGrow: 1, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>{tx('manage.055')}</div>
               : <>
                 <div style={{ padding: '14px 20px 0', fontSize: fz(13), color: 'var(--text2)' }}>{cur.project} / <span style={{ color: 'var(--text)', fontWeight: 600 }}>{cur.name}</span></div>
                 <div style={{ flexGrow: 1, minHeight: 0, display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: 12, padding: '12px 20px' }}>
@@ -565,16 +567,16 @@ function ManageDicts() {
                 </div>
                 <div style={{ flexShrink: 0, display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 12, padding: '12px 20px 16px', borderTop: '1px solid var(--line)' }}>
                   <span style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
-                    <span role="alert" style={{ fontSize: fz(12.5), color: error ? 'var(--errtx)' : 'var(--mute)' }}>{error || `${n} 筆`}</span>
+                    <span role="alert" style={{ fontSize: fz(12.5), color: error ? 'var(--errtx)' : 'var(--mute)' }}>{error || tx('manage.056', { n })}</span>
                     {n > 0 && (
-                      <button type="button" className="btn btn-ghost" disabled={!!error} onClick={dedupe} title="清除這本字典裡原文、譯文、備註都一樣的詞條，留第一筆（行數對不上時不能用）"
-                        style={{ ...ghostBtn, height: 28, padding: '0 10px', fontSize: fz(12), opacity: error ? 0.5 : 1 }}>清除重複詞條</button>
+                      <button type="button" className="btn btn-ghost" disabled={!!error} onClick={dedupe} title={tx('manage.057')}
+                        style={{ ...ghostBtn, height: 28, padding: '0 10px', fontSize: fz(12), opacity: error ? 0.5 : 1 }}>{tx('manage.058')}</button>
                     )}
                   </span>
                   <div style={{ display: 'flex', gap: 8 }}>
                     <button type="button" className="btn btn-ghost" disabled={!dirty} onClick={() => { cols.reset(base); setSelRow(null); }}
-                      style={{ ...ghostBtn, height: 36, padding: '0 16px', fontSize: fz(13), opacity: dirty ? 1 : 0.5 }}>還原</button>
-                    <button type="button" className="btn btn-primary" disabled={!!error} onClick={save} style={primaryBtn}>儲存</button>
+                      style={{ ...ghostBtn, height: 36, padding: '0 16px', fontSize: fz(13), opacity: dirty ? 1 : 0.5 }}>{tx('manage.040')}</button>
+                    <button type="button" className="btn btn-primary" disabled={!!error} onClick={save} style={primaryBtn}>{tx('manage.041')}</button>
                   </div>
                 </div>
               </>}
@@ -582,8 +584,8 @@ function ManageDicts() {
         </div>
       </div>
       {menu && (
-        <ContextMenu x={menu.x} y={menu.y} label={'字典「' + menu.name + '」'}
-          items={[{ key: 'rename', label: '重新命名' }, { key: 'move', label: '更改專案' }, { key: 'delete', label: '刪除', danger: true }]}
+        <ContextMenu x={menu.x} y={menu.y} label={tx('manage.059', { name: menu.name })}
+          items={[{ key: 'rename', label: tx('manage.021') }, { key: 'move', label: tx('manage.022') }, { key: 'delete', label: tx('manage.011'), danger: true }]}
           onClose={() => setMenu(null)}
           onPick={(k) => {
             const m = menu;
@@ -595,10 +597,10 @@ function ManageDicts() {
       )}
       {pending && <DeleteConfirm pending={pending} onDone={() => setPending(null)} />}
       {askLeave && (
-        <ConfirmDialog zIndex={58} title="有未儲存的修改" body="這本字典的修改還沒儲存。"
+        <ConfirmDialog zIndex={58} title={tx('manage.030')} body={tx('manage.060')}
           choices={[
-            { label: '取消', onClick: () => setAskLeave(null) },
-            { label: '不儲存', danger: true, onClick: () => { const fn = askLeave; setAskLeave(null); cols.reset(base); fn(); } },
+            { label: tx('manage.007'), onClick: () => setAskLeave(null) },
+            { label: tx('manage.032'), danger: true, onClick: () => { const fn = askLeave; setAskLeave(null); cols.reset(base); fn(); } },
           ]} />
       )}
     </div>

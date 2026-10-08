@@ -1,3 +1,5 @@
+import { tx } from '../i18n';
+import { bootLang } from '../i18n/lang';
 import { create } from 'zustand';
 import { useShallow } from 'zustand/react/shallow';
 import { effectiveStd, type LengthStd, type StdValue } from '../model/length';
@@ -197,6 +199,8 @@ interface State {
   checkSettings: CheckSettings;
   /** 譯文框接近長度上限時顯示終點線 */
   finishLine: boolean;
+  /** 介面語言：zh、en，或語言包的名稱 */
+  uiLang: string;
   /** 存起來的常用長度標準 */
   lengthPresets: { name: string; std: LengthStd }[];
   /** 長度標準設定視窗：設定檔案的標準，或只設定目前這一條 */
@@ -602,7 +606,7 @@ export const useStore = create<Store>((set, get) => {
     goneFiles: null,
     rootConflicts: null,
     saveErrors: [],
-    loading: { p: 0, text: '啟動中' },
+    loading: { p: 0, text: tx('store.001') },
     updatePrompt: null,
     updateAvailable: null,
     manageDictsOpen: false,
@@ -614,6 +618,7 @@ export const useStore = create<Store>((set, get) => {
     colWidths: DEFAULT_COL_WIDTHS,
     checkSettings: defaultCheckSettings(),
     finishLine: true,
+    uiLang: bootLang(),
     lengthPresets: [],
     lengthDialog: null,
     shortcuts: defaultBindings(),

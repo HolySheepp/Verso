@@ -1,3 +1,4 @@
+import { tx } from '../i18n';
 import { useRef, useState } from 'react';
 import { currentOf, useStore, useStorePick } from '../state/store';
 import { requestFile } from '../state/saver';
@@ -98,8 +99,8 @@ export function FileNav({ tabW }: { tabW: number }) {
   const badgeOrder: MarkId[] = ['doubt', 'think', ...project.customMarks.map((c) => `c:${c.id}` as MarkId)];
 
   return (
-    <nav aria-label="頁簽與檔案" style={{ height: 44, flexShrink: 0, display: 'flex', alignItems: 'center', gap: 8, marginBottom: 12 }}>
-      <button type="button" className="ib" aria-label="上一個頁簽" style={navBtn} onClick={() => s.setSheet(sheetIdx - 1)}>
+    <nav aria-label={tx('nav.001')} style={{ height: 44, flexShrink: 0, display: 'flex', alignItems: 'center', gap: 8, marginBottom: 12 }}>
+      <button type="button" className="ib" aria-label={tx('nav.002')} style={navBtn} onClick={() => s.setSheet(sheetIdx - 1)}>
         <IconChevL sw={2.2} />
       </button>
       <div onPointerDown={onPointerDown} onPointerMove={onPointerMove} onPointerUp={endDrag} onPointerCancel={endDrag}
@@ -119,7 +120,7 @@ export function FileNav({ tabW }: { tabW: number }) {
             const kinds = badgeOrder
               .map((id) => ({ id, n: sh.entries.filter((e) => e.mark === id).length }))
               .filter((k) => k.n > 0);
-            const tip = kinds.map((k) => markName(project.customMarks, k.id) + ' ' + k.n).join('、');
+            const tip = kinds.map((k) => markName(project.customMarks, k.id) + ' ' + k.n).join(tx('common.sep'));
             return (
               <button key={s.file + ':' + i} type="button" className="tb" aria-current={on ? 'page' : undefined} onClick={() => { lastClicks.current = [...lastClicks.current.slice(-1), i]; s.setSheet(i); }}
                 onDoubleClick={() => { const c = lastClicks.current; if (c.length === 2 && c[0] === i && c[1] === i) setRenaming({ i, name: sh.name }); }}
@@ -134,14 +135,14 @@ export function FileNav({ tabW }: { tabW: number }) {
                 <span style={{ display: 'flex', alignItems: 'center', gap: 6, minWidth: 0, width: '100%' }}>
                   <IconSheet size={12} style={{ flexShrink: 0, color: 'var(--mute)' }} />
                   {renaming?.i === i ? (
-                    <RenameInput initial={renaming.name} label="頁簽名稱"
+                    <RenameInput initial={renaming.name} label={tx('nav.003')}
                       validate={(v) => sheetNameError(v, fileDoc.sheets.filter((_, j) => j !== i).map((x) => x.name))}
                       onDone={(v) => { if (v) s.renameSheet(i, v); setRenaming(null); }}
                       style={{ flexGrow: 1, minWidth: 0, width: '100%', height: 22, padding: '0 6px', fontSize: fz(12.5) }} />
                   ) : (
                     <span style={{ flexGrow: 1, minWidth: 0, fontSize: fz(12.5), fontWeight: 500, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{sh.name}</span>
                   )}
-                  {sheetDone(sh.entries) && <Done label="這個頁簽都翻完了" />}
+                  {sheetDone(sh.entries) && <Done label={tx('nav.004')} />}
                   {kinds.length > 0 && (
                     <span title={tip} aria-label={tip} style={{ flexShrink: 0, display: 'flex', alignItems: 'center', gap: 3 }}>
                       {kinds.slice(0, 5).map((k) => <MarkIcon key={k.id} mark={markVisual(project.customMarks, k.id)} size={11} menu />)}
@@ -159,27 +160,27 @@ export function FileNav({ tabW }: { tabW: number }) {
           })}
         </div>
       </div>
-      <button type="button" className="ib" aria-label="下一個頁簽" style={navBtn} onClick={() => s.setSheet(sheetIdx + 1)}>
+      <button type="button" className="ib" aria-label={tx('nav.005')} style={navBtn} onClick={() => s.setSheet(sheetIdx + 1)}>
         <IconChevR sw={2.2} />
       </button>
 
       <div style={{ flexGrow: 1, position: 'relative', minWidth: 160, marginLeft: 4 }}>
-        <button type="button" className={'fs' + (noFiles && !menuOpen ? ' attention' : '')} aria-haspopup="listbox" aria-expanded={menuOpen} aria-label="選擇檔案"
+        <button type="button" className={'fs' + (noFiles && !menuOpen ? ' attention' : '')} aria-haspopup="listbox" aria-expanded={menuOpen} aria-label={tx('nav.006')}
           onClick={() => s.set({ fileMenuOpen: !menuOpen, rowMenu: null, stampOpen: false })}
           style={{
             width: '100%', height: 36, display: 'flex', alignItems: 'center', gap: 10, padding: '0 12px',
             background: 'var(--panel)', border: '1px solid var(--line3)', borderRadius: 8, textAlign: 'left',
           }}>
           <IconFile size={15} stroke="var(--mute)" style={{ flexShrink: 0 }} />
-          <span style={{ flexGrow: 1, minWidth: 0, overflow: 'hidden', whiteSpace: 'nowrap', textOverflow: 'ellipsis', fontSize: fz(12.5), color: noFiles ? 'var(--accent2)' : 'var(--textsoft)' }}>{noFiles ? '新增檔案' : fileDoc.name}</span>
-          {!noFiles && fileDone(fileDoc) && <Done label="這個檔案都翻完了" />}
+          <span style={{ flexGrow: 1, minWidth: 0, overflow: 'hidden', whiteSpace: 'nowrap', textOverflow: 'ellipsis', fontSize: fz(12.5), color: noFiles ? 'var(--accent2)' : 'var(--textsoft)' }}>{noFiles ? tx('nav.007') : fileDoc.name}</span>
+          {!noFiles && fileDone(fileDoc) && <Done label={tx('nav.008')} />}
           <span style={{ flexShrink: 0, display: 'flex', alignItems: 'center', gap: 5, fontSize: fz(11), color: 'var(--text2)', padding: '2px 8px', borderRadius: 10, background: 'var(--chip)' }}>
-            繁中<span role="img" aria-label="譯為" style={{ display: 'flex' }}><IconArrowR size={10} sw={2.4} /></span>EN
+            {tx('nav.009')}<span role="img" aria-label={tx('nav.010')} style={{ display: 'flex' }}><IconArrowR size={10} sw={2.4} /></span>EN
           </span>
           <IconChevD size={14} stroke="var(--mute)" style={{ flexShrink: 0 }} />
         </button>
         {menuOpen && (
-          <div role="listbox" aria-label="選擇檔案" className="pop" style={{ position: 'absolute', top: 42, left: 0, right: 0, zIndex: 30 }}>
+          <div role="listbox" aria-label={tx('nav.006')} className="pop" style={{ position: 'absolute', top: 42, left: 0, right: 0, zIndex: 30 }}>
             {/* 依專案分組，每組可以收合 */}
             <div style={{ maxHeight: 'min(60vh, 520px)', overflowY: 'auto' }}>
               {project.projects.filter((p) => project.files.some((f) => f.project === p)).map((p) => {
@@ -199,8 +200,8 @@ export function FileNav({ tabW }: { tabW: number }) {
                           onClick={() => requestFile(i)}
                           onContextMenu={(ev) => { ev.preventDefault(); setFileMenu({ i, x: ev.clientX, y: ev.clientY }); }}
                           style={{ ...menuItem, gap: 10, paddingLeft: 27, color: undefined, background: i === s.file ? 'var(--sel)' : 'transparent' }}>
-                          <span style={{ flexGrow: 1, display: 'flex', alignItems: 'center', gap: 6, fontSize: fz(12.5) }}>{f.name}{fileDone(f) && <Done label="這個檔案都翻完了" />}</span>
-                          <span style={{ fontSize: fz(11.5), color: 'var(--mute)' }}>{f.sheets.length} 個頁簽</span>
+                          <span style={{ flexGrow: 1, display: 'flex', alignItems: 'center', gap: 6, fontSize: fz(12.5) }}>{f.name}{fileDone(f) && <Done label={tx('nav.008')} />}</span>
+                          <span style={{ fontSize: fz(11.5), color: 'var(--mute)' }}>{f.sheets.length}{' '}{tx('nav.011')}</span>
                           <span style={{ fontSize: fz(11.5), color: 'var(--text2)' }}>{fileProgress(f, s.mode).done} / {fileProgress(f, s.mode).total}</span>
                         </button>
                       );
@@ -211,45 +212,45 @@ export function FileNav({ tabW }: { tabW: number }) {
             </div>
             {!noFiles && <div className="pop-sep" style={{ margin: '6px 4px' }} />}
             <button type="button" className="dd" style={menuItem} onClick={() => s.set({ pasteOpen: true, fileMenuOpen: false })}>
-              <IconPaste size={14} />手動貼入…
+              <IconPaste size={14} />{tx('nav.012')}
             </button>
             <button type="button" className="dd" style={menuItem} onClick={() => s.set({ importOpen: true, fileMenuOpen: false })}>
-              <IconPlus size={14} />匯入檔案…
+              <IconPlus size={14} />{tx('nav.013')}
             </button>
             <button type="button" className="dd" style={menuItem} onClick={() => s.set({ manageProjectsOpen: true, fileMenuOpen: false })}>
-              <IconList size={14} />管理專案…
+              <IconList size={14} />{tx('nav.014')}
             </button>
           </div>
         )}
       </div>
-      <button type="button" className="ib" aria-label="隱藏檔案欄" title="隱藏檔案欄" style={navBtn}
+      <button type="button" className="ib" aria-label={tx('nav.015')} title={tx('nav.015')} style={navBtn}
         onClick={() => s.set({ hideNav: true, fileMenuOpen: false })}>
         <IconHideTop size={15} />
       </button>
       {tabMenu && (
-        <ContextMenu x={tabMenu.x} y={tabMenu.y} label={'頁簽「' + (fileDoc.sheets[tabMenu.i]?.name ?? '') + '」'}
+        <ContextMenu x={tabMenu.x} y={tabMenu.y} label={tx('nav.016', { v1: fileDoc.sheets[tabMenu.i]?.name ?? '' })}
           items={[
-            { key: 'rename', label: '重新命名' },
-            { key: 'clear', label: '清除' },
-            { key: 'delete', label: '刪除', danger: true, disabled: fileDoc.sheets.length <= 1 },
-            { key: 'insert', label: '插入' },
-            { key: 'srcupd', label: '更新原文（實驗性功能）' },
+            { key: 'rename', label: tx('nav.017') },
+            { key: 'clear', label: tx('nav.018') },
+            { key: 'delete', label: tx('nav.019'), danger: true, disabled: fileDoc.sheets.length <= 1 },
+            { key: 'insert', label: tx('nav.020') },
+            { key: 'srcupd', label: tx('nav.021') },
           ]}
           onPick={(k) => onTabMenu(k, tabMenu.i)} onClose={() => setTabMenu(null)} />
       )}
       {fileMenu && (
-        <ContextMenu x={fileMenu.x} y={fileMenu.y} label={'檔案「' + (project.files[fileMenu.i]?.name ?? '') + '」'}
-          items={[{ key: 'move', label: '更改專案' }]}
+        <ContextMenu x={fileMenu.x} y={fileMenu.y} label={tx('nav.022', { v1: project.files[fileMenu.i]?.name ?? '' })}
+          items={[{ key: 'move', label: tx('nav.023') }]}
           onPick={() => { s.set({ moveTarget: { kind: 'file', index: fileMenu.i }, fileMenuOpen: false }); setFileMenu(null); }}
           onClose={() => setFileMenu(null)} />
       )}
       {ask && (
         <ConfirmDialog zIndex={60}
-          title={(ask.kind === 'clear' ? '清除' : '刪除') + '頁簽「' + (fileDoc.sheets[ask.i]?.name ?? '') + '」？'}
-          body={ask.kind === 'clear' ? '頁簽裡的條目會全部拿掉，頁簽保留。' : undefined}
+          title={tx(ask.kind === 'clear' ? 'nav.clearSheetAsk' : 'nav.deleteSheetAsk', { name: fileDoc.sheets[ask.i]?.name ?? '' })}
+          body={ask.kind === 'clear' ? tx('nav.025') : undefined}
           choices={[
-            { label: '取消', onClick: () => setAsk(null) },
-            { label: ask.kind === 'clear' ? '清除' : '刪除', primary: true, onClick: () => {
+            { label: tx('nav.026'), onClick: () => setAsk(null) },
+            { label: ask.kind === 'clear' ? tx('nav.018') : tx('nav.019'), primary: true, onClick: () => {
               if (ask.kind === 'clear') s.clearSheet(ask.i); else s.deleteSheet(ask.i);
               setAsk(null);
             } },

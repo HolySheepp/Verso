@@ -1,4 +1,5 @@
 // 檔案存取：桌面版用 Tauri 的檔案系統；瀏覽器預覽時存在 localStorage，方便測試
+import { tx } from '../i18n';
 import { isTauri } from '@tauri-apps/api/core';
 
 export interface FileIO {
@@ -39,7 +40,7 @@ async function safeWrite(fs: FsPlugin, p: string, d: Uint8Array) {
   const back = await fs.readFile(tmp);
   if (back.length !== d.length) {
     await fs.remove(tmp).catch(() => undefined);
-    throw new Error('寫入的檔案不完整');
+    throw new Error(tx('fs.001'));
   }
   const had = await fs.exists(p);
   if (had) {

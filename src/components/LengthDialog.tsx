@@ -1,3 +1,4 @@
+import { tx } from '../i18n';
 import { useRef, useState } from 'react';
 import { currentOf, useStore } from '../state/store';
 import { CELL_PADDING, CJK_FAMILY, CJK_SIZE, sameStd, stdLabel, type LengthStd, type StdValue } from '../model/length';
@@ -10,9 +11,9 @@ import { IconTrash, IconWinClose } from './icons';
 
 type Way = 'params' | 'cjk' | 'visual';
 const WAYS: { id: Way; label: string }[] = [
-  { id: 'params', label: '既有參數' },
-  { id: 'cjk', label: '中文上限' },
-  { id: 'visual', label: '視覺' },
+  { id: 'params', get label() { return tx('length.001'); } },
+  { id: 'cjk', get label() { return tx('length.002'); } },
+  { id: 'visual', get label() { return tx('length.003'); } },
 ];
 
 /** 常用標準下拉最下面的「管理常用標準」 */
@@ -110,9 +111,9 @@ function LengthForm({ target }: { target: 'file' | 'entry' }) {
 
   const fontRow = (
     <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-      <span style={{ ...label, width: 64, flexShrink: 0 }}>譯文字型</span>
-      <FontSelect value={family} recent={recent} label="譯文" onChange={(f) => { setFamily(f); s.set({ recentFonts: pushRecent(recent, f) }); }} />
-      <Select ariaLabel="譯文字級" value={String(size)} onChange={(v) => setSize(Number(v))}
+      <span style={{ ...label, width: 64, flexShrink: 0 }}>{tx('length.004')}</span>
+      <FontSelect value={family} recent={recent} label={tx('length.005')} onChange={(f) => { setFamily(f); s.set({ recentFonts: pushRecent(recent, f) }); }} />
+      <Select ariaLabel={tx('length.006')} value={String(size)} onChange={(v) => setSize(Number(v))}
         options={sizes.map((n) => ({ value: String(n), label: n + ' pt' }))} style={{ width: 84, height: 34, flexShrink: 0 }} />
     </div>
   );
@@ -122,8 +123,8 @@ function LengthForm({ target }: { target: 'file' | 'entry' }) {
       <div role="dialog" aria-modal="true" aria-labelledby="verso-len-title" className="dialog"
         style={{ width: 640, maxWidth: 'calc(100% - 48px)', maxHeight: 'calc(100% - 48px)', boxShadow: '0 24px 64px rgba(0,0,0,0.5)' }}>
         <div style={{ height: 52, flexShrink: 0, display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '0 10px 0 20px', borderBottom: '1px solid var(--line)' }}>
-          <h2 id="verso-len-title" style={{ margin: 0, fontSize: fz(15), fontWeight: 600 }}>{target === 'file' ? '檔案的長度標準' : '這一條的特殊標準'}</h2>
-          <button type="button" className="ib" aria-label="關閉" onClick={close}
+          <h2 id="verso-len-title" style={{ margin: 0, fontSize: fz(15), fontWeight: 600 }}>{target === 'file' ? tx('length.007') : tx('length.008')}</h2>
+          <button type="button" className="ib" aria-label={tx('length.009')} onClick={close}
             style={{ width: 34, height: 34, display: 'flex', alignItems: 'center', justifyContent: 'center', background: 'transparent', border: 0, borderRadius: 8, color: 'var(--text2)' }}>
             <IconWinClose size={13} sw={1.4} />
           </button>
@@ -131,16 +132,16 @@ function LengthForm({ target }: { target: 'file' | 'entry' }) {
 
         <div style={{ display: 'flex', flexDirection: 'column', gap: 14, padding: '16px 20px', overflowY: 'auto' }}>
           <div style={{ fontSize: fz(12.5), color: 'var(--mute)' }}>
-            目前：{stdLabel(current)}{target === 'entry' && entryStd === undefined && fileStd !== undefined ? '（檔案標準）' : ''}
+            {tx('length.010')}{stdLabel(current)}{target === 'entry' && entryStd === undefined && fileStd !== undefined ? tx('length.011') : ''}
           </div>
 
           <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-            <span style={{ ...label, width: 64, flexShrink: 0 }}>常用標準</span>
-            <Select ariaLabel="套用常用標準" value={presets.find((p) => sameStd(p.std, std))?.name ?? ''} onChange={usePreset}
-              options={[{ value: '', label: '(無)' }, ...presets.map((p) => ({ value: p.name, label: p.name })), { value: MANAGE, label: '管理常用標準…' }]} style={{ width: 240, height: 34 }} />
+            <span style={{ ...label, width: 64, flexShrink: 0 }}>{tx('length.012')}</span>
+            <Select ariaLabel={tx('length.013')} value={presets.find((p) => sameStd(p.std, std))?.name ?? ''} onChange={usePreset}
+              options={[{ value: '', label: tx('length.014') }, ...presets.map((p) => ({ value: p.name, label: p.name })), { value: MANAGE, label: tx('length.015') }]} style={{ width: 240, height: 34 }} />
           </div>
 
-          <div role="radiogroup" aria-label="設定方式" style={{ display: 'flex', gap: 2, padding: 3, alignSelf: 'flex-start', background: 'var(--bg0)', border: '1px solid var(--line)', borderRadius: 9 }}>
+          <div role="radiogroup" aria-label={tx('length.016')} style={{ display: 'flex', gap: 2, padding: 3, alignSelf: 'flex-start', background: 'var(--bg0)', border: '1px solid var(--line)', borderRadius: 9 }}>
             {WAYS.map((w) => (
               <button key={w.id} type="button" role="radio" aria-checked={way === w.id} className="seg" onClick={() => setWay(w.id)}
                 style={{ height: 28, padding: '0 14px', border: 0, borderRadius: 6, fontSize: fz(12.5), background: way === w.id ? 'var(--segon)' : 'transparent', color: way === w.id ? 'var(--text)' : 'var(--text2)' }}>
@@ -152,29 +153,29 @@ function LengthForm({ target }: { target: 'file' | 'entry' }) {
           {way === 'params' && <>
             {fontRow}
             <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-              <label htmlFor="verso-len-w" style={{ ...label, width: 64 }}>欄寬</label>
+              <label htmlFor="verso-len-w" style={{ ...label, width: 64 }}>{tx('length.017')}</label>
               <NumField id="verso-len-w" value={width} onChange={setWidth} /><span style={label}>px</span>
-              <label htmlFor="verso-len-l" style={{ ...label, marginLeft: 16 }}>行數</label>
+              <label htmlFor="verso-len-l" style={{ ...label, marginLeft: 16 }}>{tx('length.018')}</label>
               <NumField id="verso-len-l" value={lines} onChange={setLines} />
             </div>
           </>}
 
           {way === 'cjk' && <>
             <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-              <label htmlFor="verso-len-c" style={{ ...label, width: 64 }}>每行最多</label>
-              <NumField id="verso-len-c" value={cjkChars} onChange={setCjkChars} /><span style={label}>字</span>
-              <label htmlFor="verso-len-cl" style={{ ...label, marginLeft: 16 }}>行數</label>
+              <label htmlFor="verso-len-c" style={{ ...label, width: 64 }}>{tx('length.019')}</label>
+              <NumField id="verso-len-c" value={cjkChars} onChange={setCjkChars} /><span style={label}>{tx('length.020')}</span>
+              <label htmlFor="verso-len-cl" style={{ ...label, marginLeft: 16 }}>{tx('length.018')}</label>
               <NumField id="verso-len-cl" value={cjkLines} onChange={setCjkLines} />
             </div>
-            <div style={{ fontSize: fz(12.5), color: 'var(--mute)' }}>以微軟正黑體 12pt 換算，欄寬 {cjkWidth}px</div>
+            <div style={{ fontSize: fz(12.5), color: 'var(--mute)' }}>{tx('length.021')}{' '}{cjkWidth}px</div>
             {fontRow}
           </>}
 
           {way === 'visual' && <>
             <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-              <label htmlFor="verso-len-v" style={{ ...label, width: 64 }}>示範字數</label>
+              <label htmlFor="verso-len-v" style={{ ...label, width: 64 }}>{tx('length.022')}</label>
               <NumField id="verso-len-v" value={visCount} onChange={setVisCount} />
-              <span style={{ ...label, marginLeft: 16 }}>欄寬 {visWidth}px・{visLines} 行</span>
+              <span style={{ ...label, marginLeft: 16 }}>{tx('length.017')}{' '}{visWidth}px・{visLines}{' '}{tx('length.023')}</span>
             </div>
             <div data-nodrag style={{ overflowX: 'auto', paddingBottom: 4 }}>
               <div style={{
@@ -183,7 +184,7 @@ function LengthForm({ target }: { target: 'file' | 'entry' }) {
                 fontFamily: fontStack(CJK_FAMILY), fontSize: ptToPx(CJK_SIZE), lineHeight: 'normal', whiteSpace: 'pre-wrap', overflowWrap: 'break-word',
               }}>
                 {sample(visCount)}
-                <span role="separator" aria-label="拖動調整欄寬" onMouseDown={onEdgeDown}
+                <span role="separator" aria-label={tx('length.024')} onMouseDown={onEdgeDown}
                   style={{ position: 'absolute', top: 0, right: -5, bottom: 0, width: 10, cursor: 'col-resize', background: 'linear-gradient(to right, transparent 4px, var(--accent) 4px, var(--accent) 6px, transparent 6px)' }} />
               </div>
             </div>
@@ -191,23 +192,23 @@ function LengthForm({ target }: { target: 'file' | 'entry' }) {
           </>}
 
           <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-            <input className="field" value={presetName} onChange={(e) => setPresetName(e.target.value)} placeholder="常用標準名稱" aria-label="常用標準名稱" style={{ width: 200, height: 34 }} />
-            <button type="button" className="btn btn-ghost" disabled={!presetName.trim() || !valid} onClick={savePreset} style={{ ...ghost, height: 34, opacity: presetName.trim() && valid ? 1 : 0.5 }}>存成常用標準</button>
+            <input className="field" value={presetName} onChange={(e) => setPresetName(e.target.value)} placeholder={tx('length.025')} aria-label={tx('length.025')} style={{ width: 200, height: 34 }} />
+            <button type="button" className="btn btn-ghost" disabled={!presetName.trim() || !valid} onClick={savePreset} style={{ ...ghost, height: 34, opacity: presetName.trim() && valid ? 1 : 0.5 }}>{tx('length.026')}</button>
           </div>
         </div>
 
         <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 8, padding: '12px 20px 16px', borderTop: '1px solid var(--line)' }}>
           <div style={{ display: 'flex', gap: 8 }}>
-            <button type="button" className="btn btn-ghost" onClick={() => apply('none')} style={ghost}>無上限</button>
+            <button type="button" className="btn btn-ghost" onClick={() => apply('none')} style={ghost}>{tx('length.027')}</button>
             {target === 'entry' && (
               <button type="button" className="btn btn-ghost" disabled={entryStd === undefined} onClick={() => apply(undefined)}
-                style={{ ...ghost, opacity: entryStd === undefined ? 0.5 : 1 }}>改回檔案標準</button>
+                style={{ ...ghost, opacity: entryStd === undefined ? 0.5 : 1 }}>{tx('length.028')}</button>
             )}
           </div>
           <div style={{ display: 'flex', gap: 8 }}>
-            <button type="button" className="btn btn-ghost" onClick={close} style={ghost}>取消</button>
+            <button type="button" className="btn btn-ghost" onClick={close} style={ghost}>{tx('length.029')}</button>
             <button type="button" className="btn btn-primary" disabled={!valid} onClick={() => apply(std)}
-              style={{ height: 36, padding: '0 18px', background: 'var(--primary)', border: 0, borderRadius: 8, color: '#ffffff', fontSize: fz(13), fontWeight: 600 }}>套用</button>
+              style={{ height: 36, padding: '0 18px', background: 'var(--primary)', border: 0, borderRadius: 8, color: '#ffffff', fontSize: fz(13), fontWeight: 600 }}>{tx('length.030')}</button>
           </div>
         </div>
       </div>
@@ -215,21 +216,21 @@ function LengthForm({ target }: { target: 'file' | 'entry' }) {
         <div className="scrim" style={{ zIndex: 55 }}>
           <div role="dialog" aria-modal="true" aria-labelledby="verso-preset-title" className="dialog" style={{ width: 460, maxHeight: 'calc(100% - 48px)', boxShadow: '0 24px 64px rgba(0,0,0,0.5)' }}>
             <div style={{ height: 52, flexShrink: 0, display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '0 10px 0 20px', borderBottom: '1px solid var(--line)' }}>
-              <h2 id="verso-preset-title" style={{ margin: 0, fontSize: fz(15), fontWeight: 600 }}>管理常用標準</h2>
-              <button type="button" className="ib" aria-label="關閉" onClick={() => setManaging(false)}
+              <h2 id="verso-preset-title" style={{ margin: 0, fontSize: fz(15), fontWeight: 600 }}>{tx('length.031')}</h2>
+              <button type="button" className="ib" aria-label={tx('length.009')} onClick={() => setManaging(false)}
                 style={{ width: 34, height: 34, display: 'flex', alignItems: 'center', justifyContent: 'center', background: 'transparent', border: 0, borderRadius: 8, color: 'var(--text2)' }}>
                 <IconWinClose size={13} sw={1.4} />
               </button>
             </div>
             <div style={{ display: 'flex', flexDirection: 'column', gap: 6, padding: '14px 20px 18px', overflowY: 'auto' }}>
-              {presets.length === 0 && <div className="empty" style={{ padding: '24px 12px' }}>還沒有常用標準</div>}
+              {presets.length === 0 && <div className="empty" style={{ padding: '24px 12px' }}>{tx('length.032')}</div>}
               {presets.map((p) => (
                 <div key={p.name} style={{ display: 'flex', alignItems: 'center', gap: 10, padding: '8px 10px', background: 'var(--card)', border: '1px solid var(--line2)', borderRadius: 8 }}>
                   <div style={{ flexGrow: 1, minWidth: 0, display: 'flex', flexDirection: 'column', gap: 2 }}>
                     <span style={{ fontSize: fz(13), fontWeight: 600 }}>{p.name}</span>
                     <span style={{ fontSize: fz(11.5), color: 'var(--mute)' }}>{stdLabel(p.std)}</span>
                   </div>
-                  <button type="button" className="ib" aria-label={'刪除常用標準「' + p.name + '」'} title="刪除"
+                  <button type="button" className="ib" aria-label={tx('length.033', { name: p.name })} title={tx('length.034')}
                     onClick={() => s.set({ lengthPresets: presets.filter((x) => x.name !== p.name) })}
                     style={{ width: 30, height: 30, display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 0, background: 'transparent', border: 0, borderRadius: 6, color: 'var(--mute)' }}>
                     <IconTrash size={14} />

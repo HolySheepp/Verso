@@ -1,3 +1,4 @@
+import { tx } from './i18n';
 import { useEffect, useState } from 'react';
 import { currentOf, showToast, useStore, useStorePick } from './state/store';
 import { effectiveMark } from './model/marks';
@@ -21,7 +22,7 @@ import { RootConflictDialog } from './components/RootConflictDialog';
 import { ManageDictsDialog, ManageProjectsDialog, MoveProjectDialog } from './components/ManageDialogs';
 import { Shortcuts } from './components/Shortcuts';
 import { ConfirmDialog } from './components/ConfirmDialog';
-import { resolveAskSave, resolveRecovery, startApp } from './state/saver';
+import { resolveAskSave, resolveRecovery } from './state/saver';
 import { useEffectiveTheme } from './components/useTheme';
 import { IconCheck, IconChevD, IconChevL } from './components/icons';
 import { fontVars, fz } from './model/fonts';
@@ -50,7 +51,7 @@ function Toast() {
       if (el.value.length - (el.selectionEnd - el.selectionStart) + add.length <= el.maxLength) return;
       ev.preventDefault();
       ev.stopImmediatePropagation();
-      showToast('Excel 一格最多 32767 字，貼上後會超過，沒有貼上');
+      showToast(tx('app.001'));
     };
     document.addEventListener('paste', onPaste, true);
     return () => document.removeEventListener('paste', onPaste, true);
@@ -80,9 +81,9 @@ function LongCellsNotice() {
   const cells = useStore((st) => st.longCells);
   if (!cells) return null;
   return (
-    <ConfirmDialog zIndex={60} title="有格子超過 Excel 的單格上限"
-      body={'Excel 一格最多 32767 字，下列條目超過了，用 Excel 開啟時會被截斷：' + cells.slice(0, 8).join('、') + (cells.length > 8 ? ` 等 ${cells.length} 條` : '')}
-      choices={[{ label: '知道了', primary: true, onClick: () => useStore.setState({ longCells: null }) }]} />
+    <ConfirmDialog zIndex={60} title={tx('app.002')}
+      body={tx('app.003', { v1: cells.slice(0, 8).join(tx('common.sep')), v2: cells.length > 8 ? tx('common.moreEntries', { n: cells.length }) : '' })}
+      choices={[{ label: tx('app.004'), primary: true, onClick: () => useStore.setState({ longCells: null }) }]} />
   );
 }
 
@@ -91,9 +92,9 @@ function UnreadableNotice() {
   const list = useStore((st) => st.unreadable);
   if (!list) return null;
   return (
-    <ConfirmDialog zIndex={60} title="有檔案讀不到"
-      body={'下列檔案打不開，這次先略過（檔案本身沒有被改動）：' + list.slice(0, 8).join('、') + (list.length > 8 ? ` 等 ${list.length} 個` : '') + '。可能被 Excel 開著或檔案損毀，處理好後重新開啟 Verso 就會讀進來。'}
-      choices={[{ label: '知道了', primary: true, onClick: () => useStore.setState({ unreadable: null }) }]} />
+    <ConfirmDialog zIndex={60} title={tx('app.005')}
+      body={tx('app.006', { v1: list.slice(0, 8).join(tx('common.sep')), v2: list.length > 8 ? tx('common.moreItems', { n: list.length }) : '' })}
+      choices={[{ label: tx('app.004'), primary: true, onClick: () => useStore.setState({ unreadable: null }) }]} />
   );
 }
 
@@ -102,9 +103,9 @@ function GoneNotice() {
   const list = useStore((st) => st.goneFiles);
   if (!list?.length) return null;
   return (
-    <ConfirmDialog zIndex={60} title="存檔資料夾裡有檔案不見了"
-      body={'下列檔案在資料夾裡找不到了，軟體裡的內容還在，下次存檔會重新寫回：' + list.slice(0, 8).join('、') + (list.length > 8 ? ` 等 ${list.length} 個` : '')}
-      choices={[{ label: '知道了', primary: true, onClick: () => useStore.setState({ goneFiles: null }) }]} />
+    <ConfirmDialog zIndex={60} title={tx('app.007')}
+      body={tx('app.008', { v1: list.slice(0, 8).join(tx('common.sep')), v2: list.length > 8 ? tx('common.moreItems', { n: list.length }) : '' })}
+      choices={[{ label: tx('app.004'), primary: true, onClick: () => useStore.setState({ goneFiles: null }) }]} />
   );
 }
 
@@ -114,10 +115,10 @@ function RecoveryDialog() {
   const ask = useStore((st) => st.recoveryAsk);
   if (!ask) return null;
   return (
-    <ConfirmDialog zIndex={70} title="上次沒有正常關閉" body="有自動暫存但還沒儲存的內容。恢復後要按儲存才會寫進檔案。"
+    <ConfirmDialog zIndex={70} title={tx('app.009')} body={tx('app.010')}
       choices={[
-        { label: '捨棄', onClick: () => void resolveRecovery('discard') },
-        { label: '恢復', primary: true, onClick: () => void resolveRecovery('restore') },
+        { label: tx('app.011'), onClick: () => void resolveRecovery('discard') },
+        { label: tx('app.012'), primary: true, onClick: () => void resolveRecovery('restore') },
       ]} />
   );
 }
@@ -126,10 +127,10 @@ function UpdatePromptDialog() {
   const prompt = useStore((st) => st.updatePrompt);
   if (!prompt) return null;
   return (
-    <ConfirmDialog zIndex={70} title={`檢測到新版本 ${prompt.version}`} body="要現在更新嗎？更新完會自動重新開啟。"
+    <ConfirmDialog zIndex={70} title={tx('app.013', { version: prompt.version })} body={tx('app.014')}
       choices={[
-        { label: '稍後', onClick: () => prompt.resolve(false) },
-        { label: '更新', primary: true, onClick: () => prompt.resolve(true) },
+        { label: tx('app.015'), onClick: () => prompt.resolve(false) },
+        { label: tx('app.016'), primary: true, onClick: () => prompt.resolve(true) },
       ]} />
   );
 }
@@ -145,8 +146,8 @@ function StatusBar() {
       background: 'var(--bar)', borderTop: '1px solid var(--line)', fontSize: fz(11.5), color: 'var(--mute)',
     }}>
       <div style={{ display: 'flex', gap: 18 }}>
-        {file && <span>檔案進度 {done} / {total} 條</span>}
-        <span>模式：{MODES.find((m) => m.id === mode)!.label}</span>
+        {file && <span>{tx('app.017')}{' '}{done} / {total}{' '}{tx('app.018')}</span>}
+        <span>{tx('app.019')}{MODES.find((m) => m.id === mode)!.label}</span>
       </div>
     </footer>
   );
@@ -160,7 +161,7 @@ function RowMarkMenu() {
   const e = sheet.entries[s.rowMenu.index];
   if (!e) return null;
   return (
-    <MarkMenu title="變更標記" ariaLabel="變更標記"
+    <MarkMenu title={tx('app.020')} ariaLabel={tx('app.020')}
       current={effectiveMark(e)}
       style={{ position: 'absolute', left: s.rowMenu.x, top: s.rowMenu.y, boxShadow: '0 16px 40px rgba(0,0,0,0.5)' }}
       numbered={!!s.rowMenu.keys} active={s.rowMenu.keys ? s.rowMenu.active : undefined}
@@ -173,8 +174,6 @@ export default function App() {
   const s = useStorePick('accent', 'accentPreview', 'fonts', 'hideNav', 'hideSide', 'sideW', 'workH', 'rowMenu', 'stampOpen', 'fileMenuOpen', 'askSave', 'set', 'closePopups');
   const hasProject = useStore((st) => !!st.project);
   const { w, h } = useWindowSize();
-
-  useEffect(() => { void startApp(); }, []);
 
   // 深淺主題與主題色
   const theme = useEffectiveTheme();
@@ -228,7 +227,7 @@ export default function App() {
         <main style={{ flexGrow: 1, display: 'flex', flexDirection: 'column', minWidth: 0, padding: 12 }}>
           {showNav ? <FileNav tabW={tabW} /> : (
             <div style={{ height: 14, flexShrink: 0, display: 'flex', justifyContent: 'flex-end', margin: '-6px 0 8px' }}>
-              <button type="button" className="ib" aria-label="顯示檔案欄" title="顯示檔案欄" onClick={() => s.set({ hideNav: false })}
+              <button type="button" className="ib" aria-label={tx('app.021')} title={tx('app.021')} onClick={() => s.set({ hideNav: false })}
                 style={{ width: 32, height: 16, display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 0, background: 'var(--panel)', border: '1px solid var(--line)', borderRadius: '0 0 8px 8px', color: 'var(--text2)' }}>
                 <IconChevD size={12} sw={2.4} />
               </button>
@@ -240,12 +239,12 @@ export default function App() {
 
         {showSide ? (
           <>
-            <Splitter dir="v" label="調整右側欄寬度" value={sideW} min={260} max={sideMax} onChange={(v) => s.set({ sideW: v })} />
+            <Splitter dir="v" label={tx('app.022')} value={sideW} min={260} max={sideMax} onChange={(v) => s.set({ sideW: v })} />
             <SidePanel width={sideW} />
           </>
         ) : (
           <div style={{ width: 30, flexShrink: 0, display: 'flex', flexDirection: 'column', alignItems: 'center', paddingTop: 16, background: 'var(--bar)', borderLeft: '1px solid var(--line)' }}>
-            <button type="button" className="ib" aria-label="顯示右側欄" title="顯示右側欄" onClick={() => s.set({ hideSide: false })}
+            <button type="button" className="ib" aria-label={tx('app.023')} title={tx('app.023')} onClick={() => s.set({ hideSide: false })}
               style={{ width: 24, height: 28, display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 0, background: 'transparent', border: 0, borderRadius: 6, color: 'var(--text2)' }}>
               <IconChevL size={14} sw={2.4} />
             </button>
@@ -257,7 +256,7 @@ export default function App() {
 
       {/* 點擊空白處關閉選單 */}
       {anyPop && (
-        <button type="button" tabIndex={-1} aria-label="關閉選單" onClick={() => s.closePopups()}
+        <button type="button" tabIndex={-1} aria-label={tx('app.024')} onClick={() => s.closePopups()}
           style={{ position: 'absolute', inset: 0, zIndex: 25, background: 'transparent', border: 0, cursor: 'default' }} />
       )}
 
@@ -275,12 +274,12 @@ export default function App() {
       <RecoveryDialog />
       <RootConflictDialog />
       {s.askSave && (
-        <ConfirmDialog zIndex={60} title="有未儲存的修改"
-          body={s.askSave.kind === 'close' ? '關閉前要儲存嗎？' : s.askSave.kind === 'update' ? '更新前要儲存嗎？' : s.askSave.kind === 'root' ? '換存檔資料夾前要儲存嗎？' : '離開這個檔案前要儲存嗎？'}
+        <ConfirmDialog zIndex={60} title={tx('app.025')}
+          body={s.askSave.kind === 'close' ? tx('app.026') : s.askSave.kind === 'update' ? tx('app.027') : s.askSave.kind === 'root' ? tx('app.028') : tx('app.029')}
           choices={[
-            { label: '取消', onClick: () => void resolveAskSave('cancel') },
-            { label: '不儲存', danger: true, onClick: () => void resolveAskSave('discard') },
-            { label: '儲存', primary: true, onClick: () => void resolveAskSave('save') },
+            { label: tx('app.030'), onClick: () => void resolveAskSave('cancel') },
+            { label: tx('app.031'), danger: true, onClick: () => void resolveAskSave('discard') },
+            { label: tx('app.032'), primary: true, onClick: () => void resolveAskSave('save') },
           ]} />
       )}
       <Shortcuts />

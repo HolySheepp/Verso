@@ -1,3 +1,4 @@
+import { tx } from '../i18n';
 // 句子長度標準：譯文在指定欄寬、字型、字級下，最多能排幾行（模擬 Google Sheets 的儲存格）
 
 export interface LengthStd {
@@ -42,9 +43,9 @@ export function textToStd(t: string): StdValue | undefined {
 
 /** 給人看的簡短說明 */
 export function stdLabel(v: StdValue | undefined): string {
-  if (!v) return '未設定';
+  if (!v) return tx('len.001');
   if (v === 'none') return NONE_TEXT;
-  return `${v.family} ${v.size}pt・欄寬 ${v.width}px・${v.lines} 行`;
+  return tx('len.002', { family: v.family, size: v.size, width: v.width, lines: v.lines });
 }
 
 export const sameStd = (a: StdValue | undefined, b: StdValue | undefined) => stdToText(a) === stdToText(b);

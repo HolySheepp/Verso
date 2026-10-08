@@ -1,3 +1,4 @@
+import { tx } from '../i18n';
 // 顏色換算：HSV ↔ hex（自訂主題色的色盤用）
 
 export interface Hsv { h: number; s: number; v: number } // h: 0–360，s／v: 0–1
@@ -54,12 +55,12 @@ export function normalizeHex(hex: string): string | null {
 
 /** 內建主題色：名稱與畫色票用的顏色（實際色值在 theme.css，深淺主題各一組） */
 export const ACCENTS: { id: string; label: string; dark: string; light: string }[] = [
-  { id: 'blue', label: '藍', dark: '#4f8cff', light: '#2f6fe4' },
-  { id: 'green', label: '綠', dark: '#4cc38a', light: '#1f9d62' },
-  { id: 'purple', label: '紫', dark: '#ac86f9', light: '#7342d7' },
-  { id: 'teal', label: '青', dark: '#30c9e8', light: '#1395ae' },
-  { id: 'amber', label: '琥珀', dark: '#f0a93b', light: '#b7720c' },
-  { id: 'rose', label: '玫瑰', dark: '#f06b8e', light: '#d23f68' },
+  { id: 'blue', get label() { return tx('colors.001'); }, dark: '#4f8cff', light: '#2f6fe4' },
+  { id: 'green', get label() { return tx('colors.002'); }, dark: '#4cc38a', light: '#1f9d62' },
+  { id: 'purple', get label() { return tx('colors.003'); }, dark: '#ac86f9', light: '#7342d7' },
+  { id: 'teal', get label() { return tx('colors.004'); }, dark: '#30c9e8', light: '#1395ae' },
+  { id: 'amber', get label() { return tx('colors.005'); }, dark: '#f0a93b', light: '#b7720c' },
+  { id: 'rose', get label() { return tx('colors.006'); }, dark: '#f06b8e', light: '#d23f68' },
 ];
 
 /** 自訂主題色最多幾個 */

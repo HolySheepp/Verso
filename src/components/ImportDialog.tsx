@@ -1,3 +1,5 @@
+import { tx } from '../i18n';
+import { DEFAULT_FILE_NAME } from '../model/names';
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { currentProjectOf, useStore } from '../state/store';
 import { leaveFile } from '../state/saver';
@@ -65,7 +67,7 @@ export function ImportDialog() {
     // 讀不到、或檔案壞掉時顯示原因，不要沒有反應
     let res: ReturnType<typeof readImport>;
     try { res = readImport(file.name, new Uint8Array(await file.arrayBuffer())); } catch (e) {
-      setErr('讀不到這個檔案：' + String((e as Error)?.message ?? e).slice(0, 80));
+      setErr(tx('import.001', { v1: String((e as Error)?.message ?? e).slice(0, 80) }));
       return;
     }
     if (typeof res === 'string') { setErr(res); return; }
@@ -84,7 +86,7 @@ export function ImportDialog() {
         style={{ width, height, maxWidth: 'calc(100% - 48px)', maxHeight: 'calc(100% - 48px)', boxShadow: '0 24px 64px rgba(0,0,0,0.5)' }}>
         <div style={{ height: 52, flexShrink: 0, display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '0 10px 0 20px', borderBottom: '1px solid var(--line)' }}>
           <h2 id="verso-import-title" style={{ margin: 0, fontSize: fz(15), fontWeight: 600 }}>{title}</h2>
-          <button type="button" className="ib" aria-label="關閉" onClick={close}
+          <button type="button" className="ib" aria-label={tx('import.002')} onClick={close}
             style={{ width: 34, height: 34, display: 'flex', alignItems: 'center', justifyContent: 'center', background: 'transparent', border: 0, borderRadius: 8, color: 'var(--text2)' }}>
             <IconWinClose size={13} sw={1.4} />
           </button>
@@ -97,7 +99,7 @@ export function ImportDialog() {
 
   // 第一步：拖入或選擇檔案
   if (!book) {
-    return shell('匯入檔案', 520, undefined,
+    return shell(tx('import.003'), 520, undefined,
       <div style={{ padding: 20 }}>
         <div
           onDragOver={(ev) => { ev.preventDefault(); ev.dataTransfer.dropEffect = 'copy'; setOver(true); }}
@@ -109,9 +111,9 @@ export function ImportDialog() {
             border: `1.5px dashed ${over ? 'var(--accent)' : 'var(--line6)'}`, borderRadius: 10,
             background: over ? 'var(--acc-soft)' : 'var(--bg0)', transition: 'background 120ms, border-color 120ms',
           }}>
-          <span style={{ fontSize: fz(13.5), color: 'var(--text2)' }}>把檔案拖到這裡</span>
+          <span style={{ fontSize: fz(13.5), color: 'var(--text2)' }}>{tx('import.004')}</span>
           <button type="button" className="btn btn-ghost" onClick={() => picker.current?.click()}
-            style={{ height: 34, padding: '0 16px', background: 'var(--btn)', border: '1px solid var(--line4)', borderRadius: 8, fontSize: fz(13) }}>選擇檔案</button>
+            style={{ height: 34, padding: '0 16px', background: 'var(--btn)', border: '1px solid var(--line4)', borderRadius: 8, fontSize: fz(13) }}>{tx('import.005')}</button>
           <input ref={picker} type="file" hidden accept={IMPORT_EXTS.map((e) => '.' + e).join(',')}
             onChange={(ev) => { void load(ev.target.files?.[0]); ev.target.value = ''; }} />
         </div>
@@ -122,15 +124,15 @@ export function ImportDialog() {
   const projects = useStore.getState().project!.projects;
   const allFiles = useStore.getState().project!.files;
   const projName = picked(projSel, newProj);
-  const projError = nameError('專案', projSel, newProj, projects);
-  const fileError = !name.trim() ? '' : nameError('檔案', NEW, name, allFiles.filter((f) => f.project === projName).map((f) => f.name));
+  const projError = nameError('project', projSel, newProj, projects);
+  const fileError = !name.trim() ? '' : nameError('file', NEW, name, allFiles.filter((f) => f.project === projName).map((f) => f.name));
 
   const nameRow = (
     <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
-      <label htmlFor="verso-import-name" style={{ fontSize: fz(12), color: 'var(--text2)', flexShrink: 0 }}>檔名</label>
+      <label htmlFor="verso-import-name" style={{ fontSize: fz(12), color: 'var(--text2)', flexShrink: 0 }}>{tx('import.006')}</label>
       <input id="verso-import-name" type="text" className="field" value={name} onChange={(e) => setName(e.target.value)}
-        placeholder="未命名檔案" aria-invalid={!!fileError} style={{ width: 320, borderColor: fileError ? 'var(--errtx)' : undefined }} />
-      <label htmlFor="verso-import-proj" style={{ marginLeft: 8, fontSize: fz(12), color: 'var(--text2)', flexShrink: 0 }}>專案</label>
+        placeholder={DEFAULT_FILE_NAME} aria-invalid={!!fileError} style={{ width: 320, borderColor: fileError ? 'var(--errtx)' : undefined }} />
+      <label htmlFor="verso-import-proj" style={{ marginLeft: 8, fontSize: fz(12), color: 'var(--text2)', flexShrink: 0 }}>{tx('import.008')}</label>
       <ProjectPicker id="verso-import-proj" sel={projSel} newName={newProj} onSel={setProjSel} onNewName={setNewProj} width={160} />
     </div>
   );
@@ -140,9 +142,9 @@ export function ImportDialog() {
       <span role="alert" style={{ fontSize: fz(12.5), color: 'var(--errtx)', minWidth: 0 }}>{error}</span>
       <div style={{ display: 'flex', gap: 8, flexShrink: 0 }}>
         <button type="button" className="btn btn-ghost" onClick={close}
-          style={{ height: 36, padding: '0 16px', background: 'var(--btn)', border: '1px solid var(--line4)', borderRadius: 8, fontSize: fz(13) }}>取消</button>
+          style={{ height: 36, padding: '0 16px', background: 'var(--btn)', border: '1px solid var(--line4)', borderRadius: 8, fontSize: fz(13) }}>{tx('import.009')}</button>
         <button type="button" className="btn btn-primary" disabled={blocked} onClick={onOk}
-          style={{ height: 36, padding: '0 18px', background: 'var(--primary)', border: 0, borderRadius: 8, color: '#ffffff', fontSize: fz(13), fontWeight: 600 }}>匯入</button>
+          style={{ height: 36, padding: '0 18px', background: 'var(--primary)', border: 0, borderRadius: 8, color: '#ffffff', fontSize: fz(13), fontWeight: 600 }}>{tx('import.010')}</button>
       </div>
     </div>
   );
@@ -156,17 +158,17 @@ export function ImportDialog() {
     const blocked = !!error || !projName;
     const ok = () => {
       if (blocked) return;
-      const doc = xlsxToFile(name.trim() || '未命名檔案', projName, book.data, useStore.getState().project!.customMarks);
+      const doc = xlsxToFile(name.trim() || DEFAULT_FILE_NAME, projName, book.data, useStore.getState().project!.customMarks);
       finish(doc);
     };
-    return shell('匯入檔案', 640, undefined,
+    return shell(tx('import.003'), 640, undefined,
       <div style={{ display: 'flex', flexDirection: 'column', gap: 14, padding: '16px 20px' }}>
         {nameRow}
         <div style={{ display: 'flex', flexDirection: 'column', gap: 2, maxHeight: 240, overflowY: 'auto' }}>
           {book.sheets.map((sh, i) => (
             <div key={i} style={{ display: 'flex', justifyContent: 'space-between', padding: '6px 10px', borderRadius: 6, background: i % 2 ? 'transparent' : 'var(--ov1)', fontSize: fz(12.5) }}>
               <span>{sh.name}</span>
-              <span style={{ color: 'var(--mute)' }}>{Math.max(0, sh.rows.length - 1)} 條</span>
+              <span style={{ color: 'var(--mute)' }}>{Math.max(0, sh.rows.length - 1)}{' '}{tx('import.011')}</span>
             </div>
           ))}
         </div>
@@ -179,7 +181,7 @@ export function ImportDialog() {
   const patch = (i: number, p: Partial<DraftSheet>) => setSheets((all) => all.map((sh, j) => (j === i ? { ...sh, ...p } : sh)));
   const results = sheets.map((sh) => {
     const r = checkColumns(fieldsToColumns(sh.rows, sh.fields));
-    return r.ok ? r : { ok: false, msg: r.msg.replace('還沒貼原文', '還沒選原文') };
+    return r.ok ? r : { ok: false, msg: r.msg.replace(tx('import.012'), tx('import.013')) };
   });
   const badName = sheets.findIndex((sh, i) => sheetNameError(sh.name, sheets.filter((_, j) => j !== i).map((x) => x.name)));
   const firstBad = results.findIndex((r) => !r.ok);
@@ -191,7 +193,7 @@ export function ImportDialog() {
   const ok = () => {
     if (blocked) return;
     finish({
-      name: name.trim() || '未命名檔案',
+      name: name.trim() || DEFAULT_FILE_NAME,
       project: projName,
       sheets: sheets.map((sh) => ({ name: sh.name.trim(), entries: columnsToEntries(fieldsToColumns(sh.rows, sh.fields)) })),
     });
@@ -201,22 +203,22 @@ export function ImportDialog() {
     setCur((c) => Math.max(0, c >= i ? c - 1 : c));
   };
 
-  return shell('匯入檔案', 1040, 700,
+  return shell(tx('import.003'), 1040, 700,
     <div style={{ flexGrow: 1, minHeight: 0, display: 'flex', flexDirection: 'column', gap: 14, padding: '16px 20px' }}>
       {nameRow}
-      <div role="tablist" aria-label="頁簽" className="no-scrollbar"
+      <div role="tablist" aria-label={tx('import.014')} className="no-scrollbar"
         style={{ display: 'flex', alignItems: 'center', gap: TAB_GAP, minWidth: 0, overflowX: 'auto', overflowY: 'hidden', borderBottom: '1px solid var(--line)', flexShrink: 0 }}>
         {sheets.map((sh, i) => {
           const on = i === cur;
           return (
             <div key={sh.id} style={{ flexShrink: 0, display: 'flex', alignItems: 'center', borderBottom: `2px solid ${on ? 'var(--accent)' : 'transparent'}` }}>
               {renaming === i ? (
-                <RenameInput initial={sh.name} label="頁簽名稱"
+                <RenameInput initial={sh.name} label={tx('import.015')}
                   validate={(v) => sheetNameError(v, sheets.filter((_, j) => j !== i).map((x) => x.name))}
                   onDone={(v) => { if (v) patch(i, { name: v }); setRenaming(null); }}
                   style={{ height: 28, width: 140, margin: '4px 0', padding: '0 8px' }} />
               ) : (
-                <button type="button" role="tab" className="stab" aria-selected={on} title="雙擊改名"
+                <button type="button" role="tab" className="stab" aria-selected={on} title={tx('import.016')}
                   onClick={() => setCur(i)} onDoubleClick={() => { setCur(i); setRenaming(i); }}
                   onContextMenu={(ev) => { ev.preventDefault(); setCur(i); setTabMenu({ i, x: ev.clientX, y: ev.clientY }); }}
                   style={{ height: 36, padding: '0 10px', background: 'transparent', border: 0, fontSize: fz(13), fontWeight: 500, color: on ? 'var(--text)' : 'var(--mute)', whiteSpace: 'nowrap' }}>
@@ -224,7 +226,7 @@ export function ImportDialog() {
                 </button>
               )}
               {sheets.length > 1 && renaming !== i && (
-                <button type="button" className="ib" aria-label={'移除頁簽「' + sh.name + '」'} title="移除" onClick={() => removeSheet(i)}
+                <button type="button" className="ib" aria-label={tx('import.017', { name: sh.name })} title={tx('import.018')} onClick={() => removeSheet(i)}
                   style={{ width: 20, height: 20, display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 0, background: 'transparent', border: 0, borderRadius: 5, color: 'var(--mute)' }}>
                   <IconWinClose size={9} sw={1.4} />
                 </button>
@@ -235,10 +237,10 @@ export function ImportDialog() {
       </div>
       {sheet && <Preview key={sheet.id} sheet={sheet} onFields={(fields) => patch(cur, { fields })} />}
       {tabMenu && (
-        <ContextMenu x={tabMenu.x} y={tabMenu.y} label={'頁簽「' + (sheets[tabMenu.i]?.name ?? '') + '」'}
+        <ContextMenu x={tabMenu.x} y={tabMenu.y} label={tx('import.019', { v1: sheets[tabMenu.i]?.name ?? '' })}
           items={[
-            { key: 'rename', label: '重新命名' },
-            { key: 'delete', label: '移除', danger: true, disabled: sheets.length <= 1 },
+            { key: 'rename', label: tx('import.020') },
+            { key: 'delete', label: tx('import.018'), danger: true, disabled: sheets.length <= 1 },
           ]}
           onPick={(k) => { const i = tabMenu.i; setTabMenu(null); if (k === 'rename') setRenaming(i); if (k === 'delete' && sheets.length > 1) removeSheet(i); }}
           onClose={() => setTabMenu(null)} />
@@ -348,12 +350,12 @@ function Preview({ sheet, onFields }: { sheet: DraftSheet; onFields(f: FieldMap)
           const f = fields[c.key];
           return (
             <div key={c.key} className={'imp-chip imp-f-' + c.key} data-set={f ? '' : undefined}>
-              <button type="button" className="imp-chip-btn" title={'把選取的範圍設為' + c.label} onClick={() => assign(c.key)}>
+              <button type="button" className="imp-chip-btn" title={tx('import.021', { label: c.label })} onClick={() => assign(c.key)}>
                 <span style={{ fontWeight: 600 }}>{c.label}</span>
-                <span style={{ color: f ? 'var(--text2)' : 'var(--mute)' }}>{f ? `${fieldLabel(f)}（${f.rows.length}）` : '未選'}</span>
+                <span style={{ color: f ? 'var(--text2)' : 'var(--mute)' }}>{f ? `${fieldLabel(f)}（${f.rows.length}）` : tx('import.022')}</span>
               </button>
               {f && (
-                <button type="button" className="ib" aria-label={'清除' + c.label} title="清除" onClick={() => clear(c.key)}
+                <button type="button" className="ib" aria-label={tx('import.023', { label: c.label })} title={tx('import.024')} onClick={() => clear(c.key)}
                   style={{ width: 22, height: 22, display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 0, background: 'transparent', border: 0, borderRadius: 5, color: 'var(--mute)' }}>
                   <IconWinClose size={9} sw={1.4} />
                 </button>
@@ -396,8 +398,8 @@ function Preview({ sheet, onFields }: { sheet: DraftSheet; onFields(f: FieldMap)
         </div>
       </div>
       {menu && (
-        <ContextMenu x={menu.x} y={menu.y} label="設為"
-          items={COLS.map((c) => ({ key: c.key, label: '設為' + c.label, disabled: !rects.length }))}
+        <ContextMenu x={menu.x} y={menu.y} label={tx('import.025')}
+          items={COLS.map((c) => ({ key: c.key, label: tx('import.026', { label: c.label }), disabled: !rects.length }))}
           onPick={(k) => assign(k as ColKey)} onClose={() => setMenu(null)} />
       )}
     </div>

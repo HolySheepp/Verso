@@ -1,3 +1,4 @@
+import { tx } from '../i18n';
 import { MAX_CELL_CHARS } from '../model/names';
 import { useDeferredValue, useEffect, useMemo, useRef, useState } from 'react';
 import { useShallow } from 'zustand/react/shallow';
@@ -15,10 +16,10 @@ import {
 } from './icons';
 
 const TABS: { id: SideTab; label: string; Icon: typeof IconBook }[] = [
-  { id: 'dict', label: '字典', Icon: IconBook },
-  { id: 'search', label: '搜尋', Icon: IconSearch },
-  { id: 'web', label: '瀏覽器', Icon: IconGlobe },
-  { id: 'ref', label: '參照', Icon: IconBookmark },
+  { id: 'dict', get label() { return tx('side.001'); }, Icon: IconBook },
+  { id: 'search', get label() { return tx('side.002'); }, Icon: IconSearch },
+  { id: 'web', get label() { return tx('side.003'); }, Icon: IconGlobe },
+  { id: 'ref', get label() { return tx('side.004'); }, Icon: IconBookmark },
 ];
 
 /** 專案標籤 */
@@ -40,7 +41,7 @@ function TermCard({ g, altKey }: { g: GlossaryTerm; altKey?: number }) {
       <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 8 }}>
         <span style={{ display: 'flex', alignItems: 'center', gap: 8, minWidth: 0 }}>
           <span style={{ fontSize: fz(15), fontWeight: 500 }}>{g.term}</span>
-          {altKey && <span className="mono" title={`按 Alt+${altKey} 把譯名放進譯文框`} style={{ fontSize: fz(10.5), color: 'var(--mute)', padding: '1px 5px', border: '1px solid var(--line3)', borderRadius: 4 }}>Alt+{altKey}</span>}
+          {altKey && <span className="mono" title={tx('side.006', { altKey })} style={{ fontSize: fz(10.5), color: 'var(--mute)', padding: '1px 5px', border: '1px solid var(--line3)', borderRadius: 4 }}>Alt+{altKey}</span>}
         </span>
         <span style={{ display: 'flex', alignItems: 'center', gap: 5 }}>
         <ProjTag name={g.proj} />
@@ -52,12 +53,12 @@ function TermCard({ g, altKey }: { g: GlossaryTerm; altKey?: number }) {
       </div>
       <div style={{ fontSize: fz(14), color: 'var(--accent3)' }}>{g.en}</div>
       <div style={{ fontSize: fz(12), lineHeight: 1.5, color: 'var(--text2)', paddingRight: 56 }}>{g.note || '—'}</div>
-      <button type="button" className="ib" aria-label={'編輯詞條「' + g.term + '」'} title="編輯詞條"
+      <button type="button" className="ib" aria-label={tx('side.007', { term: g.term })} title={tx('side.008')}
         onClick={() => set({ termDraft: { id: g.id, term: g.term, en: g.en, note: g.note, dict: g.dict, proj: g.proj } })}
         style={{ position: 'absolute', right: 34, bottom: 6, width: 26, height: 26, display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 0, background: 'transparent', border: 0, borderRadius: 6, color: 'var(--mute)' }}>
         <IconPenEdit size={13} sw={2.2} />
       </button>
-      <button type="button" className="ib" aria-label={'複製譯文「' + g.en + '」'} title={copied ? '已複製' : '複製譯文'} onClick={copy}
+      <button type="button" className="ib" aria-label={tx('side.009', { en: g.en })} title={copied ? tx('side.010') : tx('side.011')} onClick={copy}
         style={{ position: 'absolute', right: 6, bottom: 6, width: 26, height: 26, display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 0, background: 'transparent', border: 0, borderRadius: 6, color: copied ? 'var(--accent2)' : 'var(--mute)' }}>
         {copied ? <IconCheck size={13} sw={2.4} /> : <IconCopy size={13} />}
       </button>
@@ -125,23 +126,23 @@ function DictTab() {
 
   return (
     <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
-      <label htmlFor="verso-dict" className="sr-only">搜尋詞條</label>
+      <label htmlFor="verso-dict" className="sr-only">{tx('side.012')}</label>
       <div style={{ display: 'flex', gap: 6 }}>
         <div style={{ position: 'relative', flexGrow: 1, minWidth: 0 }}>
           <IconSearch size={14} stroke="var(--mute)" style={{ position: 'absolute', left: 11, top: 11, pointerEvents: 'none' }} />
           <input id="verso-dict" type="search" className="field" value={dq} onChange={(ev) => set({ dictQuery: ev.target.value })}
-            placeholder="搜尋專有名詞或譯名" style={{ width: '100%', padding: '0 12px 0 32px' }} />
+            placeholder={tx('side.013')} style={{ width: '100%', padding: '0 12px 0 32px' }} />
         </div>
-        <button type="button" className="ib" aria-label="新增詞條" title="新增詞條"
+        <button type="button" className="ib" aria-label={tx('side.014')} title={tx('side.014')}
           onClick={() => set({ termDraft: { id: null, term: q && results.length === 0 ? q : '', en: '', note: '', dict: dicts.find((d) => d.project === current)?.name ?? '', proj: current } })}
           style={{ width: 36, height: 36, flexShrink: 0, display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 0, background: 'var(--btn)', border: '1px solid var(--line4)', borderRadius: 8, color: 'var(--text2)' }}>
           <IconPlus size={15} sw={2.2} />
         </button>
-        <button type="button" className="ib" aria-label="貼入字典" title="貼入字典" onClick={() => set({ dictPasteOpen: true })}
+        <button type="button" className="ib" aria-label={tx('side.015')} title={tx('side.015')} onClick={() => set({ dictPasteOpen: true })}
           style={{ width: 36, height: 36, flexShrink: 0, display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 0, background: 'var(--btn)', border: '1px solid var(--line4)', borderRadius: 8, color: 'var(--text2)' }}>
           <IconPaste size={15} />
         </button>
-        <button type="button" className="ib" aria-label="管理字典" title="管理字典" onClick={() => set({ manageDictsOpen: true })}
+        <button type="button" className="ib" aria-label={tx('side.016')} title={tx('side.016')} onClick={() => set({ manageDictsOpen: true })}
           style={{ width: 36, height: 36, flexShrink: 0, display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 0, background: 'var(--btn)', border: '1px solid var(--line4)', borderRadius: 8, color: 'var(--text2)' }}>
           <IconList size={15} />
         </button>
@@ -150,11 +151,11 @@ function DictTab() {
         <button type="button" className="ib" aria-expanded={pickOpen} onClick={() => setPickOpen(!pickOpen)}
           style={{ height: 26, display: 'flex', alignItems: 'center', gap: 6, padding: '0 6px 0 2px', background: 'transparent', border: 0, borderRadius: 6, color: 'var(--text2)', fontSize: fz(12) }}>
           <IconChevD size={12} sw={2.4} style={{ transform: `rotate(${pickOpen ? 0 : -90}deg)`, transition: 'transform 160ms' }} />
-          啟用的字典
+          {tx('side.017')}
           <span style={{ color: 'var(--mute)' }}>{on.size} / {dicts.length}</span>
         </button>
         {pickOpen && (
-          <div role="group" aria-label="啟用的字典" style={{ display: 'flex', flexDirection: 'column', gap: 2, marginTop: 4, padding: 4, background: 'var(--card)', border: '1px solid var(--line2)', borderRadius: 8 }}>
+          <div role="group" aria-label={tx('side.017')} style={{ display: 'flex', flexDirection: 'column', gap: 2, marginTop: 4, padding: 4, background: 'var(--card)', border: '1px solid var(--line2)', borderRadius: 8 }}>
             {sorted.map((d) => (
               <label key={dictKey(d.project, d.name)} className="dd"
                 onContextMenu={(ev) => { ev.preventDefault(); setDictMenu({ d, x: ev.clientX, y: ev.clientY }); }} style={{ height: 30, display: 'flex', alignItems: 'center', gap: 8, padding: '0 8px', borderRadius: 6, cursor: 'pointer', fontSize: fz(12.5) }}>
@@ -169,18 +170,18 @@ function DictTab() {
       </div>
       {dq && (
         <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
-          <div style={{ fontSize: fz(11.5), color: 'var(--mute)' }}>搜尋結果 {results.length} 筆</div>
+          <div style={{ fontSize: fz(11.5), color: 'var(--mute)' }}>{tx('side.018')}{' '}{results.length}{' '}{tx('side.019')}</div>
           {results.slice(0, shown).map((g) => <TermCard key={g.id} g={g} />)}
           {results.length > shown && <div ref={moreRef} style={{ height: 1 }} />}
-          {results.length === 0 && <div className="empty" style={{ padding: '20px 12px' }}>找不到「{dq}」</div>}
+          {results.length === 0 && <div className="empty" style={{ padding: '20px 12px' }}>{tx('side.020')}{dq}」</div>}
           <div style={{ height: 1, background: 'var(--line)', margin: '4px 0' }} />
         </div>
       )}
-      <div style={{ fontSize: fz(11.5), color: 'var(--mute)' }}>這一條命中 {matches.length} 個詞條</div>
+      <div style={{ fontSize: fz(11.5), color: 'var(--mute)' }}>{tx('side.021')}{' '}{matches.length}{' '}{tx('side.022')}</div>
       {matches.map((g, i) => <TermCard key={g.id} g={g} altKey={i < 9 ? i + 1 : undefined} />)}
-      {matches.length === 0 && <div className="empty" style={{ padding: '32px 12px' }}>這一條沒有符合的詞條</div>}
+      {matches.length === 0 && <div className="empty" style={{ padding: '32px 12px' }}>{tx('side.023')}</div>}
       {dictMenu && (
-        <ContextMenu x={dictMenu.x} y={dictMenu.y} label={'字典「' + dictMenu.d.name + '」'} items={[{ key: 'move', label: '更改專案' }]}
+        <ContextMenu x={dictMenu.x} y={dictMenu.y} label={tx('side.024', { name: dictMenu.d.name })} items={[{ key: 'move', label: tx('side.025') }]}
           onPick={() => { set({ moveTarget: { kind: 'dict', project: dictMenu.d.project, name: dictMenu.d.name } }); setDictMenu(null); }}
           onClose={() => setDictMenu(null)} />
       )}
@@ -203,7 +204,7 @@ function scan(files: FileDoc[], q: string, at: [number, number, number], n: numb
         const e = sheet.entries[i];
         if (!searchHit(e, q)) continue;
         if (hits.length === n) return { hits, at: [f, sh, i], done: false };
-        hits.push({ f, sh, i, where: `${file.project} · ${file.name} · ${sheet.name} · #${e.id || i + 1}`, src: shownSrc(e), tgt: e.tgt || '尚未翻譯' });
+        hits.push({ f, sh, i, where: `${file.project} · ${file.name} · ${sheet.name} · #${e.id || i + 1}`, src: shownSrc(e), tgt: e.tgt || tx('side.026') });
       }
     }
   }
@@ -250,9 +251,9 @@ function SearchTab() {
   const results = res.hits;
   return (
     <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
-      <label htmlFor="verso-search" className="sr-only">搜尋所有檔案</label>
+      <label htmlFor="verso-search" className="sr-only">{tx('side.027')}</label>
       <input id="verso-search" type="search" className="field" value={q} onChange={(ev) => set({ searchQuery: ev.target.value })}
-        placeholder="搜尋所有檔案" />
+        placeholder={tx('side.027')} />
       {results.map((r) => (
         <button key={r.f + ':' + r.sh + ':' + r.i} type="button" className="sr" onClick={() => leaveFile(files[r.f] ?? null, (idx) => { if (idx >= 0) select(idx, r.sh, r.i); })}
           style={{ display: 'flex', flexDirection: 'column', gap: 4, padding: '10px 12px', textAlign: 'left', background: 'var(--card)', border: '1px solid var(--line2)', borderRadius: 8 }}>
@@ -262,7 +263,7 @@ function SearchTab() {
         </button>
       ))}
       {!res.done && <div ref={sentinel} style={{ height: 1 }} />}
-      {res.q && res.q === dq && results.length === 0 && <div style={{ padding: '24px 8px', textAlign: 'center', color: 'var(--mute)' }}>找不到「{res.q}」</div>}
+      {res.q && res.q === dq && results.length === 0 && <div style={{ padding: '24px 8px', textAlign: 'center', color: 'var(--mute)' }}>{tx('side.020')}{res.q}」</div>}
     </div>
   );
 }
@@ -273,11 +274,11 @@ function WebTab() {
   return (
     <div style={{ display: 'flex', flexDirection: 'column', gap: 10, height: '100%' }}>
       <div style={{ display: 'flex', gap: 4, alignItems: 'center' }}>
-        <button type="button" className="ib" aria-label="上一頁" style={nav}><IconChevL sw={2.2} /></button>
-        <button type="button" className="ib" aria-label="下一頁" style={nav}><IconChevR sw={2.2} /></button>
-        <button type="button" className="ib" aria-label="重新整理" style={nav}><IconRefresh /></button>
-        <label htmlFor="verso-url" className="sr-only">網址</label>
-        <input id="verso-url" type="text" placeholder="輸入網址或關鍵字" style={{ flexGrow: 1, minWidth: 0, height: 32, boxSizing: 'border-box', padding: '0 10px', background: 'var(--bg0)', border: '1px solid var(--line4)', borderRadius: 16, color: 'var(--text)', fontSize: fz(12.5) }} />
+        <button type="button" className="ib" aria-label={tx('side.028')} style={nav}><IconChevL sw={2.2} /></button>
+        <button type="button" className="ib" aria-label={tx('side.029')} style={nav}><IconChevR sw={2.2} /></button>
+        <button type="button" className="ib" aria-label={tx('side.030')} style={nav}><IconRefresh /></button>
+        <label htmlFor="verso-url" className="sr-only">{tx('side.031')}</label>
+        <input id="verso-url" type="text" placeholder={tx('side.032')} style={{ flexGrow: 1, minWidth: 0, height: 32, boxSizing: 'border-box', padding: '0 10px', background: 'var(--bg0)', border: '1px solid var(--line4)', borderRadius: 16, color: 'var(--text)', fontSize: fz(12.5) }} />
       </div>
       <div style={{ flexGrow: 1, minHeight: 260, display: 'flex', alignItems: 'center', justifyContent: 'center', background: 'var(--bgdeep)', border: '1px solid var(--line)', borderRadius: 8, color: 'var(--mute)' }}>
         <IconGlobe size={28} sw={1.5} />
@@ -291,7 +292,7 @@ function RefTab() {
   const refs = useStore((s) => s.project!.refs);
   return (
     <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
-      <div style={{ fontSize: fz(11.5), color: 'var(--mute)' }}>專案參照文件</div>
+      <div style={{ fontSize: fz(11.5), color: 'var(--mute)' }}>{tx('side.033')}</div>
       {refs.map((rf) => (
         <button key={rf.name} type="button" className="sr" style={{ display: 'flex', alignItems: 'center', gap: 10, padding: '10px 12px', textAlign: 'left', background: 'var(--card)', border: '1px solid var(--line2)', borderRadius: 8 }}>
           <IconFile size={16} stroke="var(--mute)" style={{ flexShrink: 0 }} />
@@ -329,14 +330,14 @@ function NotesSectionInner() {
     () => (cur.sugg && !cur.skipSugg && !suggFocus ? enabledIssues(cur.upd?.src ?? cur.src, cur.sugg, s.checkSettings, effectiveStd(cur.lengthStd, fileStd)) : []),
     [cur.sugg, cur.skipSugg, cur.src, cur.upd?.src, cur.lengthStd, fileStd, s.checkSettings, suggFocus],
   );
-  const suggIssueText = suggIssues.map((i) => i.msg).join('、');
+  const suggIssueText = suggIssues.map((i) => i.msg).join(tx('common.sep'));
   const mode = s.mode;
   const suggVisible = mode === 'verify' || !!cur.sugg;
   const suggOpen = !s.suggClosed, noteOpen = !s.noteClosed;
   const verify = mode === 'verify';
 
   return (
-    <section aria-label="備註" style={{
+    <section aria-label={tx('side.034')} style={{
       height: (suggVisible && suggOpen) || noteOpen ? 300 : 'auto', flexShrink: 0, display: 'flex', flexDirection: 'column', gap: 8,
       padding: '12px 14px 14px', boxSizing: 'border-box', borderTop: '1px solid var(--line)', background: 'var(--panel)',
     }}>
@@ -346,33 +347,33 @@ function NotesSectionInner() {
             <button type="button" className="ib" aria-expanded={suggOpen} aria-controls="verso-sugg" style={toggleBtn}
               onClick={() => s.set({ suggClosed: suggOpen })}>
               <IconChevD size={12} sw={2.4} style={{ transform: `rotate(${suggOpen ? 0 : -90}deg)`, transition: 'transform 160ms' }} />
-              建議翻譯
+              {tx('side.035')}
             </button>
             {suggIssues.length > 0 && (
               <span role="status" style={{ display: 'flex', alignItems: 'center', gap: 6, minWidth: 0, flexGrow: 1, fontSize: fz(11.5), color: 'var(--warntx)' }}>
                 <IconWarn size={12} sw={2.2} style={{ flexShrink: 0 }} />
                 <span title={suggIssueText} style={{ minWidth: 0, overflow: 'hidden', whiteSpace: 'nowrap', textOverflow: 'ellipsis' }}>{suggIssueText}</span>
                 <button type="button" className="ib" onClick={() => s.updateEntry({ skipSugg: true })}
-                  style={{ flexShrink: 0, height: 20, padding: '0 8px', background: 'transparent', border: '1px solid var(--line4)', borderRadius: 5, color: 'var(--text2)', fontSize: fz(11) }}>略過</button>
+                  style={{ flexShrink: 0, height: 20, padding: '0 8px', background: 'transparent', border: '1px solid var(--line4)', borderRadius: 5, color: 'var(--text2)', fontSize: fz(11) }}>{tx('side.036')}</button>
               </span>
             )}
-            {cur.sugg && <span style={{ flexShrink: 0, flexGrow: suggIssues.length ? 0 : 1, textAlign: 'right', fontSize: fz(11.5), color: 'var(--mute)' }}>{cur.sugg.length} 字元</span>}
+            {cur.sugg && <span style={{ flexShrink: 0, flexGrow: suggIssues.length ? 0 : 1, textAlign: 'right', fontSize: fz(11.5), color: 'var(--mute)' }}>{cur.sugg.length}{' '}{tx('side.037')}</span>}
             {mode === 'translate' && cur.sugg && (
               <span style={{ display: 'flex', gap: 6 }}>
-                <button type="button" className="btn btn-ghost" title="刪除建議翻譯" onClick={() => s.updateEntry({ sugg: '' })}
+                <button type="button" className="btn btn-ghost" title={tx('side.038')} onClick={() => s.updateEntry({ sugg: '' })}
                   style={{ height: 26, display: 'flex', alignItems: 'center', padding: '0 10px', background: 'var(--btn)', border: '1px solid var(--line4)', borderRadius: 6, fontSize: fz(12), fontWeight: 500, color: 'var(--text)' }}>
-                  刪除
+                  {tx('side.039')}
                 </button>
-                <button type="button" className="btn btn-ghost" title="記錄目前譯文，並把建議翻譯套用到譯文框" onClick={() => s.applySuggestion()}
+                <button type="button" className="btn btn-ghost" title={tx('side.040')} onClick={() => s.applySuggestion()}
                   style={{ height: 26, display: 'flex', alignItems: 'center', gap: 5, padding: '0 10px', background: 'var(--btn)', border: '1px solid var(--line4)', borderRadius: 6, fontSize: fz(12), fontWeight: 500, color: 'var(--text)' }}>
-                  <IconUse size={12} sw={2.4} />套用
+                  <IconUse size={12} sw={2.4} />{tx('side.041')}
                 </button>
               </span>
             )}
           </div>
           {suggOpen && (
             <>
-              <label htmlFor="verso-sugg" className="sr-only">建議翻譯</label>
+              <label htmlFor="verso-sugg" className="sr-only">{tx('side.035')}</label>
               <textarea maxLength={MAX_CELL_CHARS} id="verso-sugg" value={cur.sugg} readOnly={!verify} onKeyDown={(ev) => sideFieldKey(ev, mode)}
                 // 整段輸入在條目欄的復原算一步
                 onFocus={() => { setSuggFocus(true); s.beginEdit(); }} onBlur={() => { setSuggFocus(false); s.endEdit(); }}
@@ -391,12 +392,12 @@ function NotesSectionInner() {
         <button type="button" className="ib" aria-expanded={noteOpen} aria-controls="verso-note" style={toggleBtn}
           onClick={() => s.set({ noteClosed: noteOpen })}>
           <IconChevD size={12} sw={2.4} style={{ transform: `rotate(${noteOpen ? 0 : -90}deg)`, transition: 'transform 160ms' }} />
-          我的備註
+          {tx('side.042')}
         </button>
       </div>
       {noteOpen && (
         <>
-          <label htmlFor="verso-note" className="sr-only">我的備註</label>
+          <label htmlFor="verso-note" className="sr-only">{tx('side.042')}</label>
           <textarea maxLength={MAX_CELL_CHARS} id="verso-note" value={cur.note} readOnly={mode === 'view'} onKeyDown={(ev) => sideFieldKey(ev, mode)}
             onFocus={() => s.beginEdit()} onBlur={() => s.endEdit()}
             onChange={(ev) => mode !== 'view' && s.updateEntry({ note: ev.target.value })}
@@ -411,10 +412,10 @@ export function SidePanel({ width }: { width: number }) {
   const side = useStore((s) => s.side);
   const set = useStore((s) => s.set);
   return (
-    <aside aria-label="其他功能" style={{ width, flexShrink: 0, display: 'flex', flexDirection: 'column', background: 'var(--bar)', borderLeft: '1px solid var(--line)' }}>
+    <aside aria-label={tx('side.043')} style={{ width, flexShrink: 0, display: 'flex', flexDirection: 'column', background: 'var(--bar)', borderLeft: '1px solid var(--line)' }}>
       <div style={{ height: 68, flexShrink: 0, display: 'flex', alignItems: 'flex-end', padding: '0 10px', borderBottom: '1px solid var(--line)', boxSizing: 'border-box' }}>
         {/* 設計檔在預設寬度下分頁文字會斷行，這裡改為不斷行，太窄時可橫向捲動 */}
-        <div role="tablist" aria-label="功能分頁" className="no-scrollbar" style={{ minWidth: 0, display: 'flex', overflowX: 'auto' }}>
+        <div role="tablist" aria-label={tx('side.044')} className="no-scrollbar" style={{ minWidth: 0, display: 'flex', overflowX: 'auto' }}>
           {TABS.map(({ id, label, Icon }) => {
             const on = side === id;
             return (
@@ -430,10 +431,10 @@ export function SidePanel({ width }: { width: number }) {
           })}
         </div>
         {/* 新增分頁：只有外觀 */}
-        <button type="button" className="ib side-hb" aria-label="新增分頁" title="新增分頁" style={{ margin: '0 0 8px auto' }}>
+        <button type="button" className="ib side-hb" aria-label={tx('side.045')} title={tx('side.045')} style={{ margin: '0 0 8px auto' }}>
           <IconPlus size={14} />
         </button>
-        <button type="button" className="ib side-hb" aria-label="隱藏右側欄" title="隱藏右側欄" style={{ margin: '0 0 8px 2px' }}
+        <button type="button" className="ib side-hb" aria-label={tx('side.046')} title={tx('side.046')} style={{ margin: '0 0 8px 2px' }}
           onClick={() => set({ hideSide: true })}>
           <IconHideRight size={15} />
         </button>

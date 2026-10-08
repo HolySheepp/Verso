@@ -1,6 +1,7 @@
 // 存檔控制：啟動時載入、偵測修改、自動存檔、Ctrl+S、關閉或切換檔案時詢問。
 // 自動存檔只寫「暫存復原」（存檔資料夾裡的隱藏資料夾），正式的 xlsx 只在手動儲存時才寫；
 // 選「不儲存」就退回上次手動儲存的內容。字典不受影響，改了就馬上存。
+import { tx } from '../i18n';
 import { isTauri } from '@tauri-apps/api/core';
 import { getCurrentWindow } from '@tauri-apps/api/window';
 import { io } from '../data/fsio';
@@ -15,6 +16,7 @@ import { emptyHistory } from '../model/history';
 import { editsOf, verifyToText } from '../model/verify';
 import { dictKey, newFileId, type CustomMark, type DictInfo, type FileDoc, type GlossaryTerm, type ProjectData } from '../model/types';
 import { currentOf, showToast, useStore, type SaveError } from './store';
+import { applyLang, systemLang } from '../i18n/lang';
 import { checkAtStartup } from './updater';
 import type { RootConflict } from '../data/persist';
 
@@ -36,7 +38,7 @@ let rec = { files: new Map<string, FileDoc>(), state: '' };
 let recPending = false;
 let recSince = 0;
 /** 暫存復原刪不掉時記下來（狀態照樣重設，下次存檔或開啟時會再試） */
-const warnClear = (e: unknown) => { console.warn('清除暫存復原失敗', e); };
+const warnClear = (e: unknown) => { console.warn(tx('save.001'), e); };
 const resetRec = () => { rec = { files: new Map(), state: '' }; recPending = false; };
 /** 暫存復原裡每個檔案內容的檔名 */
 const recName = (f: FileDoc) => (f.fid ?? fileKey(f)).replace(/[\\/:*?"<>|]/g, '_') + '.json';
@@ -117,11 +119,11 @@ const warnedLong = new Set<string>();
 /** 存檔失敗的原因，翻成看得懂的話（Windows 的錯誤代碼） */
 export function saveReason(e: unknown): string {
   const m = String((e as { message?: string })?.message ?? e);
-  if (/os error 32|os error 33|being used by another process|used by another/i.test(m)) return '檔案被其他程式開著（例如 Excel），關掉後會自動重試';
-  if (/os error 5\b|access is denied|permission denied/i.test(m)) return '沒有寫入權限';
-  if (/os error 123|os error 161|invalid filename|syntax is incorrect/i.test(m)) return '名稱不合法';
-  if (/os error 112|not enough space|no space/i.test(m)) return '磁碟空間不足';
-  if (/os error (2|3)\b|cannot find|not found/i.test(m)) return '找不到存檔資料夾';
+  if (/os error 32|os error 33|being used by another process|used by another/i.test(m)) return tx('save.002');
+  if (/os error 5\b|access is denied|permission denied/i.test(m)) return tx('save.003');
+  if (/os error 123|os error 161|invalid filename|syntax is incorrect/i.test(m)) return tx('save.004');
+  if (/os error 112|not enough space|no space/i.test(m)) return tx('save.005');
+  if (/os error (2|3)\b|cannot find|not found/i.test(m)) return tx('save.006');
   return m.length > 80 ? m.slice(0, 80) + '…' : m;
 }
 
@@ -208,14 +210,14 @@ export function saveDicts(): Promise<boolean> {
       const i = k.indexOf('/');
       // 整個專案被刪掉時，交給檔案存檔一起處理
       if (!p.projects.includes(k.slice(0, i))) continue;
-      try { await trashDict(s.saveRoot, k.slice(0, i), k.slice(i + 1)); dicts.delete(k); } catch (e) { errors.push({ target: '字典 ' + k, reason: saveReason(e) }); }
+      try { await trashDict(s.saveRoot, k.slice(0, i), k.slice(i + 1)); dicts.delete(k); } catch (e) { errors.push({ target: tx('save.007', { k }), reason: saveReason(e) }); }
     }
     const ids = dictIds(p);
     for (const [k, terms] of groups) {
       const sig = dictSignature(terms, ids.get(k));
       if (saved.dicts.get(k) === sig) continue;
       const i = k.indexOf('/');
-      try { await writeDict(s.saveRoot, k.slice(0, i), k.slice(i + 1), terms, ids.get(k)); dicts.set(k, sig); } catch (e) { errors.push({ target: '字典 ' + k, reason: saveReason(e) }); }
+      try { await writeDict(s.saveRoot, k.slice(0, i), k.slice(i + 1), terms, ids.get(k)); dicts.set(k, sig); } catch (e) { errors.push({ target: tx('save.007', { k }), reason: saveReason(e) }); }
     }
     saved = { ...saved, dicts };
     if (errors.length) useStore.setState({ saveStatus: 'error', saveErrors: errors });
@@ -235,7 +237,7 @@ async function saveAll(): Promise<boolean> {
   const done = { files: new Map(saved.files), customs: saved.customs, dicts: new Map(saved.dicts), projects: saved.projects };
   // 刪掉（或搬走）的專案、檔案、字典移到資源回收筒
   const gone = saved.projects.filter((x) => !p.projects.includes(x));
-  for (const x of gone) { try { await trashProject(s.saveRoot, x); } catch (e) { fail('專案資料夾「' + x + '」', e); } }
+  for (const x of gone) { try { await trashProject(s.saveRoot, x); } catch (e) { fail(tx('save.008', { x }), e); } }
   const byKey = new Map(p.files.map((f) => [fileKey(f), f]));
   for (const [k, f] of saved.files) {
     if (byKey.has(k)) continue;
@@ -245,7 +247,7 @@ async function saveAll(): Promise<boolean> {
   for (const k of saved.dicts.keys()) {
     if (groups.has(k)) continue;
     const i = k.indexOf('/');
-    try { if (!gone.includes(k.slice(0, i))) await trashDict(s.saveRoot, k.slice(0, i), k.slice(i + 1)); done.dicts.delete(k); } catch (e) { fail('字典 ' + k, e); }
+    try { if (!gone.includes(k.slice(0, i))) await trashDict(s.saveRoot, k.slice(0, i), k.slice(i + 1)); done.dicts.delete(k); } catch (e) { fail(tx('save.007', { k }), e); }
   }
   // 還沒有檔案時不必建立專案資料夾（只存字典）
   if (p.files.length || saved.files.size || p.projects !== saved.projects) {
@@ -275,14 +277,14 @@ async function saveAll(): Promise<boolean> {
     const fresh = long.filter((x) => !warnedLong.has(x));
     fresh.forEach((x) => warnedLong.add(x));
     if (fresh.length) useStore.setState({ longCells: fresh });
-    try { await writeMeta(s.saveRoot, p, lastPosition()); if (ok) { done.customs = p.customMarks; done.projects = p.projects; } } catch (e) { fail('專案設定檔', e); }
+    try { await writeMeta(s.saveRoot, p, lastPosition()); if (ok) { done.customs = p.customMarks; done.projects = p.projects; } } catch (e) { fail(tx('save.009'), e); }
   }
   const ids = dictIds(p);
   for (const [k, terms] of groups) {
     const sig = dictSignature(terms, ids.get(k));
     if (saved.dicts.get(k) === sig) continue;
     const i = k.indexOf('/');
-    try { await writeDict(s.saveRoot, k.slice(0, i), k.slice(i + 1), terms, ids.get(k)); done.dicts.set(k, sig); } catch (e) { fail('字典 ' + k, e); }
+    try { await writeDict(s.saveRoot, k.slice(0, i), k.slice(i + 1), terms, ids.get(k)); done.dicts.set(k, sig); } catch (e) { fail(tx('save.007', { k }), e); }
   }
   saved = done;
   const dirty = isDirty();
@@ -293,7 +295,7 @@ async function saveAll(): Promise<boolean> {
 /** 手動存檔（儲存鈕、Ctrl+S）：存好後在畫面中間提示 */
 export async function manualSave() {
   const ok = await saveNow();
-  if (ok) useStore.setState((s) => ({ toast: { text: '已儲存', k: (s.toast?.k ?? 0) + 1 } }));
+  if (ok) useStore.setState((s) => ({ toast: { text: tx('save.010'), k: (s.toast?.k ?? 0) + 1 } }));
 }
 
 // ---- 設定檔 ----
@@ -304,12 +306,12 @@ async function persistConfig(patch: Partial<AppConfig> = {}) {
   const s = useStore.getState();
   config = {
     ...config, ...patch,
-    saveRoot: s.saveRoot, autosaveMin: s.autosaveMin, theme: s.theme, accent: s.accent, customAccents: s.customAccents, rainbowUnlocked: s.rainbowUnlocked, fonts: s.fonts, recentFonts: s.recentFonts,
+    saveRoot: s.saveRoot, autosaveMin: s.autosaveMin, uiLang: s.uiLang, theme: s.theme, accent: s.accent, customAccents: s.customAccents, rainbowUnlocked: s.rainbowUnlocked, fonts: s.fonts, recentFonts: s.recentFonts,
     shortcuts: s.shortcuts, checkSettings: s.checkSettings, dictOverrides: s.dictOverrides, collapsedProjects: s.collapsedProjects, colWidths: s.colWidths, finishLine: s.finishLine, lengthPresets: s.lengthPresets,
   };
   try { await saveConfig(config); } catch { /* 設定存不下不影響使用 */ }
   // 啟動畫面用：下次一開就知道要鋪什麼底色
-  try { localStorage.setItem('verso-boot', JSON.stringify({ theme: s.theme, accent: s.accent })); } catch { /* 存不下就算了 */ }
+  try { localStorage.setItem('verso-boot', JSON.stringify({ theme: s.theme, accent: s.accent, lang: s.uiLang })); } catch { /* 存不下就算了 */ }
 }
 
 /** 回到上次的位置；條目被刪了就停在最接近的一條，頁簽不在就回到檔案開頭 */
@@ -330,7 +332,7 @@ export async function startApp() {
   // 先檢查更新：選了更新就會裝好並重開，不必繼續啟動
   if (await checkAtStartup()) return;
   const step = (p: number, text: string) => useStore.setState({ loading: { p, text } });
-  step(0.05, '讀取設定');
+  step(0.05, tx('save.011'));
   config = await loadConfig();
   const saveRoot = config.saveRoot || await io.defaultRoot();
   const st = useStore.getState();
@@ -350,15 +352,18 @@ export async function startApp() {
     colWidths: config.colWidths?.length === 4 ? config.colWidths : st.colWidths,
     finishLine: config.finishLine ?? true,
     lengthPresets: config.lengthPresets ?? [],
+    // 第一次開啟（設定裡沒有）時跟系統語言
+    uiLang: config.uiLang || systemLang(),
   });
+  applyLang(useStore.getState().uiLang);
 
   let project: ProjectData = { files: [], customMarks: [], nextMarkId: 1, glossary: [], dicts: [], projects: sortProjects([]), refs: [] };
   let last: LastPosition | undefined;
   let migrated = false;
   let newIds: string[] = [];
   try {
-    try { localStorage.setItem('verso-boot', JSON.stringify({ theme: useStore.getState().theme, accent: useStore.getState().accent })); } catch { /* 存不下就算了 */ }
-    step(0.12, '讀取專案');
+    try { localStorage.setItem('verso-boot', JSON.stringify({ theme: useStore.getState().theme, accent: useStore.getState().accent, lang: useStore.getState().uiLang })); } catch { /* 存不下就算了 */ }
+    step(0.12, tx('save.012'));
     const r = await loadWorkspace(saveRoot, step);
     project = r.data; last = r.last; migrated = r.remapped; newIds = r.newIds;
     if (r.unreadable.length) useStore.setState({ unreadable: r.unreadable });
@@ -384,7 +389,7 @@ export async function startApp() {
     if (r && sameAsOfficial(r, project)) await clearRecovery(saveRoot).catch(warnClear);
     else if (r) { pendingRecovery = r; useStore.setState({ recoveryAsk: true }); }
   } catch { /* 讀不到就當沒有 */ }
-  step(1, '完成');
+  step(1, tx('save.013'));
   startFolderWatch();
   // 讓進度條停在填滿的樣子一下再進主畫面
   setTimeout(() => useStore.setState({ loading: null }), 220);
@@ -396,6 +401,8 @@ function watch() {
   if (watching) return;
   watching = true;
 
+  // 換語言：之後的文字都用新語言（畫面由 App 整個重畫）
+  useStore.subscribe((s, prev) => { if (s.uiLang !== prev.uiLang) applyLang(s.uiLang); });
   // 內容一有變動就標成未存
   let dictTimer: ReturnType<typeof setTimeout> | undefined;
   useStore.subscribe((s, prev) => {
@@ -414,7 +421,7 @@ function watch() {
     }
     // 設定改了就存到設定檔
     if (s.theme !== prev.theme || s.accent !== prev.accent || s.customAccents !== prev.customAccents || s.rainbowUnlocked !== prev.rainbowUnlocked || s.fonts !== prev.fonts || s.recentFonts !== prev.recentFonts || s.shortcuts !== prev.shortcuts || s.checkSettings !== prev.checkSettings
-      || s.dictOverrides !== prev.dictOverrides || s.collapsedProjects !== prev.collapsedProjects || s.colWidths !== prev.colWidths || s.finishLine !== prev.finishLine || s.lengthPresets !== prev.lengthPresets || s.autosaveMin !== prev.autosaveMin || s.saveRoot !== prev.saveRoot) {
+      || s.dictOverrides !== prev.dictOverrides || s.collapsedProjects !== prev.collapsedProjects || s.colWidths !== prev.colWidths || s.finishLine !== prev.finishLine || s.lengthPresets !== prev.lengthPresets || s.autosaveMin !== prev.autosaveMin || s.saveRoot !== prev.saveRoot || s.uiLang !== prev.uiLang) {
       clearTimeout(configTimer);
       configTimer = setTimeout(() => void persistConfig(), 400);
     }
@@ -589,7 +596,7 @@ export async function changeSaveRoot(root: string) {
 async function changeSaveRootNow(picked: string) {
   // 選的資料夾裡有別的東西：改存到裡面的「Verso」資料夾
   const root = await saveRootFor(picked).catch(() => picked);
-  if (root !== picked) showToast('資料夾裡有其他東西，改存到裡面的「Verso」資料夾');
+  if (root !== picked) showToast(tx('save.014'));
   const p = useStore.getState().project;
   // 新資料夾已有同名的檔案或字典：先列出來讓使用者逐項選
   const items = p ? await findRootConflicts(root, p).catch(() => []) : [];
@@ -806,9 +813,9 @@ async function syncFolder() {
   });
   const names = [...files.map((f) => f.name), ...copies.map((f) => f.name), ...dicts.map((d) => d.info.name)];
   const renames = [...renamed.map((r) => `${r.from.name} → ${r.to.name}`), ...renamedDicts.map((r) => `${r.from.name} → ${r.to.name}`)];
-  const toastText = [names.length ? '已載入：' + names.slice(0, 3).join('、') + (names.length > 3 ? ` 等 ${names.length} 個` : '') : '', renames.length ? '已改名：' + renames.slice(0, 2).join('、') + (renames.length > 2 ? ` 等 ${renames.length} 個` : '') : ''].filter(Boolean).join('；');
+  const toastText = [names.length ? tx('save.015', { v1: names.slice(0, 3).join(tx('common.sep')), v2: names.length > 3 ? tx('common.moreItems', { n: names.length }) : '' }) : '', renames.length ? tx('save.016', { v1: renames.slice(0, 2).join(tx('common.sep')), v2: renames.length > 2 ? tx('common.moreItems', { n: renames.length }) : '' }) : ''].filter(Boolean).join('；');
   if (toastText) useStore.setState((st) => ({ toast: { text: toastText, k: (st.toast?.k ?? 0) + 1 } }));
-  const goneNames = [...gone.map((f) => `${f.project} / ${f.name}`), ...goneDicts.map((d) => `字典 / ${d.project} / ${d.name}`)];
+  const goneNames = [...gone.map((f) => `${f.project} / ${f.name}`), ...goneDicts.map((d) => tx('save.017', { project: d.project, name: d.name }))];
   if (goneNames.length) useStore.setState((st) => ({ goneFiles: [...new Set([...(st.goneFiles ?? []), ...goneNames])] }));
   // 不見的字典馬上寫回（排在這次檢查之後）
   if (goneDicts.length) void saveDicts();

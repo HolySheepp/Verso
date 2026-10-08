@@ -1,6 +1,7 @@
+import { tx } from '../i18n';
 import { memo, useEffect, useMemo, useRef, useState } from 'react';
 import { readColumns } from '../model/clipboard';
-import { hasTooLongCell, MAX_CELL_CHARS, TOO_LONG_MSG } from '../model/names';
+import { hasTooLongCell, MAX_CELL_CHARS, tooLongMsg } from '../model/names';
 import { showToast } from '../state/store';
 import { clearRows, deleteRows, insertRow, setRow, type Col } from '../model/paste';
 import { IconWinClose } from './icons';
@@ -92,7 +93,7 @@ function PasteBoxImpl({ label, col, onPaste, onChange, selected, onSelect, fontS
     const cols = readColumns({ html, text });
     if (!cols.length) return;
     // 有一格超過 Excel 的上限：整次不貼
-    if (hasTooLongCell(cols)) { showToast(TOO_LONG_MSG); return; }
+    if (hasTooLongCell(cols)) { showToast(tooLongMsg()); return; }
     setEditing(null);
     if (selRows.length) onPaste(cols, minOf(selRows));
     else onPaste(cols);
@@ -165,15 +166,15 @@ function PasteBoxImpl({ label, col, onPaste, onChange, selected, onSelect, fontS
 
   return (
     <div style={{ minWidth: 0, minHeight: 0, display: 'flex', flexDirection: 'column', gap: 6 }}>
-      <div className={'pb-head' + (colSel ? ' pb-head-sel' : '')} title="選取整欄"
+      <div className={'pb-head' + (colSel ? ' pb-head-sel' : '')} title={tx('pastebox.001')}
         onMouseDown={(ev) => { if (ev.button !== 0 || (ev.target as HTMLElement).closest('button')) return; ev.preventDefault(); commit(); onSelect('col'); focusSink(); }}
         style={{ height: 22, display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '0 4px', borderRadius: 5, cursor: 'pointer' }}>
         <span style={{ fontSize: fz(12), color: colSel ? 'var(--accent2)' : 'var(--text2)' }}>
-          {label}{required && <span style={{ marginLeft: 6, fontSize: fz(11), color: 'var(--warntx)' }}>＊必填</span>}
+          {label}{required && <span style={{ marginLeft: 6, fontSize: fz(11), color: 'var(--warntx)' }}>{tx('pastebox.002')}</span>}
         </span>
         <span style={{ display: 'flex', alignItems: 'center', gap: 4, fontSize: fz(11.5), color: 'var(--mute)' }}>
-          {rows && <>{rows.length} 行
-            <button type="button" className="ib" aria-label={'清除' + label} title="清除" onClick={() => onChange(null)}
+          {rows && <>{rows.length}{' '}{tx('pastebox.003')}
+            <button type="button" className="ib" aria-label={tx('pastebox.004', { label })} title={tx('pastebox.005')} onClick={() => onChange(null)}
               style={{ width: 22, height: 22, display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 0, background: 'transparent', border: 0, borderRadius: 5, color: 'var(--mute)' }}>
               <IconWinClose size={10} sw={1.4} />
             </button></>}
@@ -246,12 +247,12 @@ function PasteBoxImpl({ label, col, onPaste, onChange, selected, onSelect, fontS
       </div>
 
       {menu && (
-        <ContextMenu x={menu.x} y={menu.y} label={label + (selRows.length > 1 ? ` ${selRows.length} 行` : ` 第 ${(selRows[0] ?? 0) + 1} 行`)}
+        <ContextMenu x={menu.x} y={menu.y} label={label + (selRows.length > 1 ? tx('pastebox.006', { length: selRows.length }) : tx('pastebox.007', { v1: (selRows[0] ?? 0) + 1 }))}
           items={[
-            { key: 'edit', label: '編輯', disabled: selRows.length !== 1 },
-            { key: 'clear', label: '清空' },
-            { key: 'delete', label: '刪除', danger: true },
-            { key: 'insert', label: '插入' },
+            { key: 'edit', label: tx('pastebox.008'), disabled: selRows.length !== 1 },
+            { key: 'clear', label: tx('pastebox.009') },
+            { key: 'delete', label: tx('pastebox.010'), danger: true },
+            { key: 'insert', label: tx('pastebox.011') },
           ]}
           onPick={act}
           onClose={() => { setMenu(null); focusSink(); }} />

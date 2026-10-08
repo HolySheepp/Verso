@@ -1,4 +1,5 @@
 // 把自動比對交給背景執行緒；沒辦法開背景執行緒時（例如跑測試）就在原地算
+import { tx } from '../i18n';
 import { autoAlign, type AlignRow, type NewRow } from './srcUpdate';
 
 let worker: Worker | null = null;
@@ -14,10 +15,10 @@ function getWorker(): Worker | null {
       const w = waiting.get(ev.data.id);
       if (!w) return;
       waiting.delete(ev.data.id);
-      if (ev.data.rows) w.resolve(ev.data.rows); else w.reject(new Error(ev.data.error ?? '比對失敗'));
+      if (ev.data.rows) w.resolve(ev.data.rows); else w.reject(new Error(ev.data.error ?? tx('align.001')));
     };
     worker.onerror = () => {
-      waiting.forEach((w) => w.reject(new Error('比對失敗')));
+      waiting.forEach((w) => w.reject(new Error(tx('align.001'))));
       waiting.clear();
       worker = null;
     };
