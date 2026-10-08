@@ -1,4 +1,5 @@
-import { memo, useEffect, useMemo, useRef, useState } from 'react';
+import { memo, useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react';
+import { flushSync } from 'react-dom';
 import { currentOf, hasPendingUpdate, searchHit, useStorePick, visibleIssues, type Filter } from '../state/store';
 import { effectiveMark, markName, markVisual } from '../model/marks';
 import { columnToClipboard, parseHtmlTable, parseTsv, writeColumn } from '../model/clipboard';
@@ -31,6 +32,26 @@ const MIN_COL_PX = 24;
 /** 往下／往上移動時，前方保留幾條看得到 */
 const KEEP_VISIBLE = 3;
 
+// ---- 虛擬捲動：只畫看得到的條目，上下各多畫幾條當緩衝 ----
+/** 還沒量過的條目先當成這麼高（一行字的條目） */
+const EST_ROW = 40;
+/** 上下各多畫幾條 */
+const BUFFER = 10;
+/** 條目欄上下的留白（跟樣式的 padding 一樣） */
+const LIST_PAD = 4;
+
+/** offsets[k] 是第 k 列的上緣；找出 y 落在第幾列 */
+function rowAt(offsets: Float64Array, y: number): number {
+  let lo = 0, hi = offsets.length - 2;
+  if (hi < 0) return 0;
+  while (lo < hi) { const mid = (lo + hi + 1) >> 1; if (offsets[mid] <= y) lo = mid; else hi = mid - 1; }
+  return lo;
+}
+
+/** 讓某一條看得到（例如 Shift 延伸選取時）：條目欄登記的處理函式 */
+let revealHandler: ((i: number) => void) | null = null;
+export function revealRow(i: number) { revealHandler?.(i); }
+
 const FILTERS: { id: Filter; label: string }[] = [
   { id: 'all', label: '全部' },
   { id: 'untranslated', label: '未翻譯' },
@@ -59,6 +80,8 @@ interface RowHandlers {
 interface RowProps {
   e: Entry;
   i: number;
+  /** 在畫面上（篩選後）的第幾列 */
+  k: number;
   m: MarkId;
   issues: Issue[];
   on: boolean;
@@ -78,7 +101,7 @@ interface RowProps {
 }
 
 /** 條目欄的一行：只有自己的內容、選取、標記等變了才重畫 */
-const EntryRow = memo(function EntryRow({ e, i, m, issues, on, hit, selCols, editing, customs, cols, fitId, fitSpk, fitSrc, fitTgt, fontId, fontSpk, fontSrc, fontTgt, ovfId, ovfSpk, ovfSrc, ovfTgt, h }: RowProps) {
+const EntryRow = memo(function EntryRow({ e, i, k, m, issues, on, hit, selCols, editing, customs, cols, fitId, fitSpk, fitSrc, fitTgt, fontId, fontSpk, fontSrc, fontTgt, ovfId, ovfSpk, ovfSrc, ovfTgt, h }: RowProps) {
   const doubt = m === 'doubt', ver = m === 'verified', ign = m === 'ignore';
   const label = '標記：' + markName(customs, m) + '，點擊變更';
   const cellProps = (c: CellCol) => {
@@ -106,7 +129,7 @@ const EntryRow = memo(function EntryRow({ e, i, m, issues, on, hit, selCols, edi
       onBlur={() => h.current.commitEdit(false)} />
   ) : null);
   return (
-    <div key={e.uid} className="rw" aria-current={on ? 'true' : undefined} style={{
+    <div key={e.uid} className="rw" data-uid={e.uid} data-k={k} aria-current={on ? 'true' : undefined} style={{
       display: 'grid', gridTemplateColumns: '24px 16px minmax(0, 1fr)', padding: '0 12px 0 4px',
       borderTop: `1px solid ${doubt ? 'var(--dbline)' : 'transparent'}`,
       borderBottom: `1px solid ${doubt ? 'var(--dbline)' : 'transparent'}`,
@@ -205,30 +228,6 @@ export function EntryList() {
   const readOnly = s.mode === 'view';
   const ovf = { id: overflowOf(s.fonts, 'id'), speaker: overflowOf(s.fonts, 'speaker'), src: overflowOf(s.fonts, 'src'), tgt: overflowOf(s.fonts, 'tgt') };
 
-  // 換條目時讓目前這條保持在可見範圍。
-  // 用下一條或快捷鍵往下（上）移動時，下方（上方）至少保留 3 條看得到；滑鼠點選只確保這條看得到。
-  const handledMove = useRef(s.moveSeq);
-  useEffect(() => {
-    const list = listRef.current;
-    const row = list?.querySelector('[aria-current="true"]')?.closest('.rw') as HTMLElement | null;
-    if (!list || !row) return;
-    const keyboard = handledMove.current !== s.moveSeq;
-    handledMove.current = s.moveSeq;
-    // 滑鼠按著時不捲動：捲動會讓游標下的格子變成別格，被當成拖動選取
-    if (pressAt.current) return;
-    row.scrollIntoView({ block: 'nearest' });
-    if (!keyboard) return;
-    const rowsEls = Array.from(list.querySelectorAll<HTMLElement>('.rw'));
-    const k = rowsEls.indexOf(row);
-    const box = list.getBoundingClientRect();
-    if (s.moveDir > 0) {
-      const edge = rowsEls[Math.min(k + KEEP_VISIBLE, rowsEls.length - 1)].getBoundingClientRect();
-      if (edge.bottom > box.bottom) list.scrollTop += edge.bottom - box.bottom;
-    } else {
-      const edge = rowsEls[Math.max(k - KEEP_VISIBLE, 0)].getBoundingClientRect();
-      if (edge.top < box.top) list.scrollTop -= box.top - edge.top;
-    }
-  }, [s.file, sheetIdx, sel, s.moveSeq]);
 
   // 複製譯文欄：未翻譯的留空，待確認的照原本譯文輸出
   const doCopy = async () => {
@@ -281,6 +280,103 @@ export function EntryList() {
     const posOf = new Map(visible.map((i, k) => [i, k]));
     return { rows, visible, posOf };
   }, [all, filter]);
+
+  // ---- 虛擬捲動 ----
+  // 量過的條目記住實際高度（依條目），沒量過的先用估的；欄寬、字體、模式變了，記住的高度全部作廢
+  const heights = useRef(new Map<string, number>());
+  const [hVer, setHVer] = useState(0);
+  const layoutKey = colPx.map(Math.round).join(',') + '|' + JSON.stringify(s.fonts) + '|' + s.mode;
+  const lastLayout = useRef(layoutKey);
+  if (lastLayout.current !== layoutKey) { lastLayout.current = layoutKey; heights.current.clear(); }
+  const offsets = useMemo(() => {
+    const o = new Float64Array(rows.length + 1);
+    rows.forEach((r, k) => { o[k + 1] = o[k] + (heights.current.get(r.e.uid) ?? EST_ROW); });
+    return o;
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [rows, hVer, layoutKey]);
+  const offsetsRef = useRef(offsets);
+  offsetsRef.current = offsets;
+  // 條目欄捲到哪裡、有多高；只在要畫的範圍變了才重畫
+  const [view, setView] = useState({ top: 0, h: 800 });
+  const rangeOf = (top: number, h: number, o = offsetsRef.current) => {
+    const n = o.length - 1;
+    return { start: Math.max(0, rowAt(o, top - LIST_PAD) - BUFFER), end: Math.min(n, rowAt(o, top - LIST_PAD + h) + 1 + BUFFER) };
+  };
+  const { start, end } = rangeOf(view.top, view.h, offsets);
+  const rangeRef = useRef({ start, end });
+  rangeRef.current = { start, end };
+  const syncView = () => {
+    const el = listRef.current;
+    if (!el) return;
+    const r = rangeOf(el.scrollTop, el.clientHeight);
+    if (r.start !== rangeRef.current.start || r.end !== rangeRef.current.end) setView({ top: el.scrollTop, h: el.clientHeight });
+  };
+  useEffect(() => {
+    const el = listRef.current;
+    if (!el) return;
+    const ro = new ResizeObserver(() => setView({ top: el.scrollTop, h: el.clientHeight }));
+    ro.observe(el);
+    return () => ro.disconnect();
+  }, []);
+
+  // 換條目時讓目前這條保持在可見範圍：照算出來的位置捲，不用找畫面上的元素（畫面外的條目沒有畫）。
+  // 用下一條或快捷鍵往下（上）移動時，下方（上方）至少保留 3 條看得到；滑鼠點選只確保這條看得到。
+  // 估的高度可能不準：畫出來、量好之後再對一次，直到不用再捲
+  const handledMove = useRef(s.moveSeq);
+  const pending = useRef<{ i: number; keyboard: boolean; dir: number; tries: number } | null>(null);
+  const ensure = (): boolean => {
+    const p = pending.current, el = listRef.current;
+    if (!p || !el) return false;
+    const pos = posOf.get(p.i);
+    if (pos === undefined) { pending.current = null; return false; }
+    const o = offsetsRef.current, n = o.length - 1, vh = el.clientHeight;
+    const topOf = (k: number) => LIST_PAD + o[k], bottomOf = (k: number) => LIST_PAD + o[k + 1];
+    let top = el.scrollTop;
+    // 這條本身看得到
+    if (topOf(pos) < top) top = topOf(pos);
+    else if (bottomOf(pos) > top + vh) top = bottomOf(pos) - vh;
+    if (p.keyboard) {
+      if (p.dir > 0) { const b = bottomOf(Math.min(pos + KEEP_VISIBLE, n - 1)); if (b > top + vh) top = b - vh; }
+      else { const t = topOf(Math.max(pos - KEEP_VISIBLE, 0)); if (t < top) top = t; }
+    }
+    top = Math.max(0, Math.round(top));
+    if (Math.abs(top - el.scrollTop) < 1 || ++p.tries > 6) { pending.current = null; return false; }
+    el.scrollTop = top;
+    setView({ top: el.scrollTop, h: vh });
+    return true;
+  };
+  useEffect(() => {
+    const keyboard = handledMove.current !== s.moveSeq;
+    handledMove.current = s.moveSeq;
+    // 滑鼠按著時不捲動：捲動會讓游標下的格子變成別格，被當成拖動選取
+    if (pressAt.current) return;
+    pending.current = { i: sel, keyboard, dir: s.moveDir, tries: 0 };
+    ensure();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [s.file, sheetIdx, sel, s.moveSeq]);
+  // Shift 延伸選取等：讓某一條看得到（同步畫出來，之後可以馬上找到它的元素）
+  useEffect(() => {
+    revealHandler = (i) => flushSync(() => { pending.current = { i, keyboard: false, dir: 0, tries: 0 }; ensure(); });
+    return () => { revealHandler = null; };
+  });
+  // 畫好之後量看得到的條目：高度跟記住的不一樣就記下來；上面的條目變高變矮時，捲動位置跟著補，畫面不會跳
+  useLayoutEffect(() => {
+    const el = listRef.current;
+    if (!el) return;
+    let changed = false, above = 0;
+    const firstK = rowAt(offsetsRef.current, el.scrollTop - LIST_PAD);
+    el.querySelectorAll<HTMLElement>('.rw[data-uid]').forEach((row) => {
+      const uid = row.dataset.uid!, k = Number(row.dataset.k), h = row.offsetHeight;
+      const known = heights.current.get(uid);
+      if (known !== undefined && Math.abs(known - h) < 0.5) return;
+      heights.current.set(uid, h);
+      const old = known ?? EST_ROW;
+      if (Math.abs(old - h) >= 0.5) { changed = true; if (k < firstK) above += h - old; }
+    });
+    if (above && !pending.current) el.scrollTop += above;
+    if (changed) setHVer((v) => v + 1);
+    else ensure();
+  });
 
   // 選到的格子；沒有特別選時就是目前這條的譯文格。被篩掉、看不到的格子不算（清除、刪除、貼上都不會動到它們）
   const visSet = posOf;
@@ -632,17 +728,20 @@ export function EntryList() {
           })}
         </div>
       </div>
-      <div ref={listRef} onMouseDown={(ev) => { if (ev.target === ev.currentTarget || !(ev.target as HTMLElement).closest('.rw')) { ev.preventDefault(); sink.current?.focus({ preventScroll: true }); } }} style={{ position: 'relative', flexGrow: 1, overflowY: 'auto', scrollbarGutter: 'stable', padding: '4px 0', userSelect: 'none' }}>
+      <div ref={listRef} onScroll={syncView} onMouseDown={(ev) => { if (ev.target === ev.currentTarget || !(ev.target as HTMLElement).closest('.rw')) { ev.preventDefault(); sink.current?.focus({ preventScroll: true }); } }} style={{ position: 'relative', flexGrow: 1, overflowY: 'auto', scrollbarGutter: 'stable', padding: '4px 0', userSelect: 'none' }}>
         <textarea ref={sink} className="list-sink" aria-label="條目欄" value="" onChange={() => {}}
           onCopy={onCopy} onPaste={onPaste} onKeyDown={onSinkKey}
           style={{ position: 'absolute', left: 0, top: 0, width: 1, height: 1, padding: 0, border: 0, opacity: 0, resize: 'none', pointerEvents: 'none' }} />
-        {rows.map(({ e, i, m, issues }) => (
-          <EntryRow key={e.uid} e={e} i={i} m={m} issues={issues} on={i === sel} hit={searchOn && searchHit(e, searchQ)}
+        {/* 畫面外的條目不畫，用上下兩塊空白撐出整個捲軸的長度 */}
+        {start > 0 && <div aria-hidden="true" style={{ height: offsets[start] }} />}
+        {rows.slice(start, end).map(({ e, i, m, issues }, j) => (
+          <EntryRow key={e.uid} e={e} i={i} k={start + j} m={m} issues={issues} on={i === sel} hit={searchOn && searchHit(e, searchQ)}
             selCols={selColsOf(i)} editing={editing && editing.i === i ? editing : null}
             customs={customs} cols={cols} fitId={colPx[0] - 2} fitSpk={colPx[1] - 12} fitSrc={colPx[2] - 16} fitTgt={colPx[3] - 32}
             fontId={cellFontCss(s.fonts, 'id')} fontSpk={cellFontCss(s.fonts, 'speaker')} fontSrc={cellFontCss(s.fonts, 'src')} fontTgt={cellFontCss(s.fonts, 'tgt')}
             ovfId={ovf.id} ovfSpk={ovf.speaker} ovfSrc={ovf.src} ovfTgt={ovf.tgt} h={handlers} />
         ))}
+        {end < rows.length && <div aria-hidden="true" style={{ height: offsets[rows.length] - offsets[end] }} />}
         {rows.length === 0 && (
           <div style={{ padding: '48px 0', textAlign: 'center', color: 'var(--mute)' }}>
             {project.files.length === 0 ? '目前沒有檔案，請新增檔案' : sheet.entries.length === 0 ? '這個頁簽沒有條目' : '這個篩選條件下沒有條目'}

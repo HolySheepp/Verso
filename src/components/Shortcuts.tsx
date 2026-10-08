@@ -4,6 +4,7 @@ import { HOLD_ACTIONS, actionFor, comboOf, createTabHold, type ActionId } from '
 import { effectiveMark } from '../model/marks';
 import { markMenuIds } from './MarkMenu';
 import { rowMenuPos } from './rowMenu';
+import { revealRow } from './EntryList';
 import { manualSave } from '../state/saver';
 import { TGT_COL, cellKey, clearCells, deleteCells, parseKey } from '../model/cells';
 import { verifySession } from '../state/verifySession';
@@ -54,16 +55,12 @@ function listNav(combo: string): { dir: 'left' | 'right' | 'up' | 'down'; extend
   return null;
 }
 
-/** 擴大選取時，讓移動中的那一角看得到 */
+/** 擴大選取時，讓移動中的那一角看得到（條目欄只畫看得到的條目，由條目欄照位置捲動） */
 function revealFocus() {
-  requestAnimationFrame(() => {
-    const st = useStore.getState();
-    const f = st.cellSel?.focus;
-    if (!f) return;
-    const rows = Array.from(document.querySelectorAll<HTMLElement>('.rw'));
-    const k = visibleRows(st).indexOf(f.i);
-    rows[k]?.scrollIntoView({ block: 'nearest' });
-  });
+  setTimeout(() => {
+    const f = useStore.getState().cellSel?.focus;
+    if (f) revealRow(f.i);
+  }, 0);
 }
 
 /**
@@ -279,6 +276,8 @@ export function Shortcuts() {
         }
         case 'markMenu': {
           if (!entry) break;
+          // 目前這條可能被捲到畫面外（沒有畫）：先捲回來畫好，再找它的標記按鈕
+          revealRow(sel);
           const btn = document.querySelector<HTMLElement>('.rw[aria-current="true"] .mk');
           const pos = btn ? rowMenuPos(btn, s.project!.customMarks.length) : { x: 40, y: 120 };
           const ids = markMenuIds(s.project!.customMarks);
