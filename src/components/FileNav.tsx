@@ -6,10 +6,10 @@ import { ConfirmDialog } from './ConfirmDialog';
 import { RenameInput } from './RenameInput';
 import { sheetNameError } from '../model/names';
 import { markName, markVisual } from '../model/marks';
-import { fileProgress, percentOf, sheetProgress } from '../model/progress';
+import { fileDone, fileProgress, percentOf, sheetDone, sheetProgress } from '../model/progress';
 import type { MarkId } from '../model/types';
 import { MarkIcon } from './MarkIcon';
-import { IconArrowR, IconChevD, IconChevL, IconChevR, IconFile, IconHideTop, IconList, IconPaste, IconPlus, IconSheet } from './icons';
+import { IconArrowR, IconCheck, IconChevD, IconChevL, IconChevR, IconFile, IconHideTop, IconList, IconPaste, IconPlus, IconSheet } from './icons';
 import { fz } from '../model/fonts';
 
 const navBtn: React.CSSProperties = {
@@ -24,9 +24,14 @@ const menuItem: React.CSSProperties = {
 
 
 /** 頁簽列（目前檔案底下的頁簽）與檔案選擇 */
+/** 頁簽、檔案都翻完時名稱旁的勾（主題色） */
+function Done({ label }: { label: string }) {
+  return <span role="img" aria-label={label} title={label} style={{ flexShrink: 0, display: 'flex', color: 'var(--accent)' }}><IconCheck size={12} sw={2.6} /></span>;
+}
+
 export function FileNav({ tabW }: { tabW: number }) {
   // 只訂閱這個區塊用到的資料（包含 currentOf 等輔助函式間接用到的）
-  const s = useStorePick('project', 'file', 'sheetBy', 'selBy', 'collapsedProjects', 'fileMenuOpen', 'set', 'setSheet', 'renameSheet', 'deleteSheet', 'clearSheet');
+  const s = useStorePick('project', 'mode', 'file', 'sheetBy', 'selBy', 'collapsedProjects', 'fileMenuOpen', 'set', 'setSheet', 'renameSheet', 'deleteSheet', 'clearSheet');
   const project = s.project!;
   const { fileDoc, sheetIdx } = currentOf(s);
   const menuOpen = s.fileMenuOpen;
@@ -110,7 +115,7 @@ export function FileNav({ tabW }: { tabW: number }) {
         }}>
           {!noFiles && fileDoc.sheets.map((sh, i) => {
             const on = i === sheetIdx, near = Math.abs(i - sheetIdx) === 1;
-            const pct = percentOf(sheetProgress(sh.entries));
+            const pct = percentOf(sheetProgress(sh.entries, s.mode));
             const kinds = badgeOrder
               .map((id) => ({ id, n: sh.entries.filter((e) => e.mark === id).length }))
               .filter((k) => k.n > 0);
@@ -136,6 +141,7 @@ export function FileNav({ tabW }: { tabW: number }) {
                   ) : (
                     <span style={{ flexGrow: 1, minWidth: 0, fontSize: fz(12.5), fontWeight: 500, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{sh.name}</span>
                   )}
+                  {sheetDone(sh.entries) && <Done label="這個頁簽都翻完了" />}
                   {kinds.length > 0 && (
                     <span title={tip} aria-label={tip} style={{ flexShrink: 0, display: 'flex', alignItems: 'center', gap: 3 }}>
                       {kinds.slice(0, 5).map((k) => <MarkIcon key={k.id} mark={markVisual(project.customMarks, k.id)} size={11} menu />)}
@@ -166,6 +172,7 @@ export function FileNav({ tabW }: { tabW: number }) {
           }}>
           <IconFile size={15} stroke="var(--mute)" style={{ flexShrink: 0 }} />
           <span style={{ flexGrow: 1, minWidth: 0, overflow: 'hidden', whiteSpace: 'nowrap', textOverflow: 'ellipsis', fontSize: fz(12.5), color: noFiles ? 'var(--accent2)' : 'var(--textsoft)' }}>{noFiles ? '新增檔案' : fileDoc.name}</span>
+          {!noFiles && fileDone(fileDoc) && <Done label="這個檔案都翻完了" />}
           <span style={{ flexShrink: 0, display: 'flex', alignItems: 'center', gap: 5, fontSize: fz(11), color: 'var(--text2)', padding: '2px 8px', borderRadius: 10, background: 'var(--chip)' }}>
             繁中<span role="img" aria-label="譯為" style={{ display: 'flex' }}><IconArrowR size={10} sw={2.4} /></span>EN
           </span>
@@ -192,9 +199,9 @@ export function FileNav({ tabW }: { tabW: number }) {
                           onClick={() => requestFile(i)}
                           onContextMenu={(ev) => { ev.preventDefault(); setFileMenu({ i, x: ev.clientX, y: ev.clientY }); }}
                           style={{ ...menuItem, gap: 10, paddingLeft: 27, color: undefined, background: i === s.file ? 'var(--sel)' : 'transparent' }}>
-                          <span style={{ flexGrow: 1, fontSize: fz(12.5) }}>{f.name}</span>
+                          <span style={{ flexGrow: 1, display: 'flex', alignItems: 'center', gap: 6, fontSize: fz(12.5) }}>{f.name}{fileDone(f) && <Done label="這個檔案都翻完了" />}</span>
                           <span style={{ fontSize: fz(11.5), color: 'var(--mute)' }}>{f.sheets.length} 個頁簽</span>
-                          <span style={{ fontSize: fz(11.5), color: 'var(--text2)' }}>{fileProgress(f).done} / {fileProgress(f).total}</span>
+                          <span style={{ fontSize: fz(11.5), color: 'var(--text2)' }}>{fileProgress(f, s.mode).done} / {fileProgress(f, s.mode).total}</span>
                         </button>
                       );
                     })}

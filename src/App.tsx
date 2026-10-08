@@ -138,7 +138,7 @@ function StatusBar() {
   // 目前這個檔案所有頁簽加起來的進度（每個頁簽的結果有快取，打字時只重算那個頁簽）
   const file = useStore((s) => s.project!.files[s.file]);
   const mode = useStore((s) => s.mode);
-  const { done, total } = fileProgress(file);
+  const { done, total } = fileProgress(file, mode);
   return (
     <footer style={{
       height: 28, flexShrink: 0, display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '0 16px',
