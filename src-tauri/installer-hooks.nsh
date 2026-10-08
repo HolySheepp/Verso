@@ -22,37 +22,62 @@ Var VersoDelDicts
       ${EndIf}
     ${EndIf}
     ${If} ${FileExists} "$VersoRoot\*.*"
-      MessageBox MB_YESNO|MB_ICONQUESTION|MB_DEFBUTTON2 "要一起刪除所有翻譯檔案嗎？$\r$\n$\r$\n位置：$VersoRoot（字典以外的各專案資料夾）$\r$\n選「否」會保留，之後重新安裝還能繼續使用。" /SD IDNO IDNO +2
+      MessageBox MB_YESNO|MB_ICONQUESTION|MB_DEFBUTTON2 "要一起刪除 Verso 的翻譯檔案嗎？$\r$\n$\r$\n位置：$VersoRoot$\r$\n只會刪 Verso 建立的檔案，資料夾裡你自己放的東西會保留。$\r$\n選「否」會保留，之後重新安裝還能繼續使用。" /SD IDNO IDNO +2
         StrCpy $VersoDelFiles 1
-      MessageBox MB_YESNO|MB_ICONQUESTION|MB_DEFBUTTON2 "要一起刪除所有字典嗎？$\r$\n$\r$\n位置：$VersoRoot\字典$\r$\n選「否」會保留。" /SD IDNO IDNO +2
+      MessageBox MB_YESNO|MB_ICONQUESTION|MB_DEFBUTTON2 "要一起刪除 Verso 的字典嗎？$\r$\n$\r$\n位置：$VersoRoot\字典$\r$\n選「否」會保留。" /SD IDNO IDNO +2
         StrCpy $VersoDelDicts 1
     ${EndIf}
   ${EndIf}
 !macroend
 
 !macro NSIS_HOOK_POSTUNINSTALL
+  ; 只刪 Verso 自己的檔案：清單 versofiles.txt 由 Verso 存檔時寫在設定資料夾（UTF-16，每行「種類|路徑」）。
+  ; F 翻譯檔案與設定檔、R 暫存復原資料夾、D 字典、P／Q 專案與字典資料夾（空了才刪）。
+  ; 資料夾裡使用者自己的東西一律保留，所以不會整個刪掉存檔資料夾。
   ${If} $VersoDelFiles = 1
-  ${AndIf} $VersoDelDicts = 1
-    RMDir /r "$VersoRoot"
-  ${Else}
-    ${If} $VersoDelDicts = 1
-      RMDir /r "$VersoRoot\字典"
-    ${EndIf}
-    ${If} $VersoDelFiles = 1
-      ; 字典資料夾以外的專案資料夾全部刪掉
-      FindFirst $0 $1 "$VersoRoot\*"
-      ${DoWhile} $1 != ""
-        ${If} $1 != "."
-        ${AndIf} $1 != ".."
-        ${AndIf} $1 != "字典"
-        ${AndIf} ${FileExists} "$VersoRoot\$1\*.*"
-          RMDir /r "$VersoRoot\$1"
+  ${OrIf} $VersoDelDicts = 1
+    ClearErrors
+    FileOpen $0 "$APPDATA\${BUNDLEID}\versofiles.txt" r
+    ${IfNot} ${Errors}
+      ${Do}
+        ClearErrors
+        FileReadUTF16LE $0 $1
+        ${If} ${Errors}
+          ${ExitDo}
         ${EndIf}
-        FindNext $0 $1
+        ; 去掉行尾的換行
+        ${Do}
+          StrCpy $2 $1 1 -1
+          ${If} $2 == "$\r"
+          ${OrIf} $2 == "$\n"
+            StrCpy $1 $1 -1
+          ${Else}
+            ${ExitDo}
+          ${EndIf}
+        ${Loop}
+        StrCpy $2 $1 2
+        StrCpy $3 $1 "" 2
+        ${If} $VersoDelFiles = 1
+          ${If} $2 == "F|"
+            Delete "$3"
+          ${ElseIf} $2 == "R|"
+            RMDir /r "$3"
+          ${ElseIf} $2 == "P|"
+            RMDir "$3"
+          ${EndIf}
+        ${EndIf}
+        ${If} $VersoDelDicts = 1
+          ${If} $2 == "D|"
+            Delete "$3"
+          ${ElseIf} $2 == "Q|"
+            RMDir "$3"
+          ${EndIf}
+        ${EndIf}
       ${Loop}
-      FindClose $0
-      Delete "$VersoRoot\verso.json"
-      RMDir "$VersoRoot"
+      FileClose $0
     ${EndIf}
+    ; 空了才刪
+    RMDir "$VersoRoot\字典"
+    RMDir "$VersoRoot"
   ${EndIf}
 !macroend

@@ -17,10 +17,10 @@ describe('條目欄格子', () => {
   it('複製選取範圍，沒選到的格子留空', () => {
     expect(copyMatrix(entries(), all, [cellKey(0, 2), cellKey(0, 3), cellKey(2, 3)])).toEqual([['a', 'A'], ['', 'C']]);
   });
-  it('貼上從左上角開始往右往下填，去掉空行，多出的行新增條目，被貼到的算待確認', () => {
-    const r = pasteMatrix(entries(), all, { i: 2, c: 3 }, [['X'], [''], ['Y'], ['Z']]);
-    expect(tgts(r.entries)).toEqual(['A', 'B', 'X', 'Y', 'Z']);
-    expect(r.entries[4].pending).toBe(true);
+  it('貼上從左上角開始往右往下填，中間的空行照樣貼、結尾的空行拿掉，多出的行新增條目，被貼到的算待確認', () => {
+    const r = pasteMatrix(entries(), all, { i: 2, c: 3 }, [['X'], [''], ['Y'], ['Z'], [''], ['']]);
+    expect(tgts(r.entries)).toEqual(['A', 'B', 'X', '', 'Y', 'Z']);
+    expect(r.entries[5].pending).toBe(true);
     expect(r.entries[2].pending).toBe(true);
     expect(r.entries[0].pending).toBe(false);
   });

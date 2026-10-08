@@ -7,7 +7,7 @@ import { io } from './fsio';
 import { dictToXlsxAsync, fileToXlsxAsync } from './xlsxAsync';
 import { DICT_DIR, safeName } from '../model/names';
 export { DICT_DIR, safeName };
-import { readDictBook, xlsxToFile } from './xlsxio';
+import { isVersoDictData, isVersoFileData, readDictBook, xlsxToVersoFile } from './xlsxio';
 import type { CheckSettings } from '../model/checks';
 import type { FontSettings } from '../model/fonts';
 import type { Bindings } from '../model/shortcuts';
@@ -162,6 +162,7 @@ export async function loadWorkspace(root: string, onProgress?: (p: number, text:
   let nextId = ws?.nextMarkId ?? 1;
   let remapped = false;
   const files: FileDoc[] = [];
+  const versoProjects: string[] = [];
   for (const [pi, name] of projectNames.entries()) {
     const dir = io.join(root, name);
     await recoverBackups(dir);
@@ -189,7 +190,10 @@ export async function loadWorkspace(root: string, onProgress?: (p: number, text:
       try {
         // 用合併後的編號讀檔；有改到編號的條目，存檔時會寫回新的編號
         const known = customs.map((c) => ({ ...c, id: [...idMap].find(([, v]) => v === c.id)?.[0] ?? c.id }));
-        let f = xlsxToFile(n, name, await io.readBinary(io.join(dir, n + '.xlsx')), idMap.size ? known : customs);
+        const read = xlsxToVersoFile(n, name, await io.readBinary(io.join(dir, n + '.xlsx')), idMap.size ? known : customs);
+        // 不是 Verso 的 xlsx（使用者自己放的檔案）：不讀、不寫、不移動
+        if (!read) continue;
+        let f = read;
         if (idMap.size) {
           remapped = true;
           f = { ...f, sheets: f.sheets.map((sh) => ({ ...sh, entries: sh.entries.map((e) => {
@@ -200,6 +204,8 @@ export async function loadWorkspace(root: string, onProgress?: (p: number, text:
         files.push(f);
       } catch { unreadable.push(`${name} / ${n}.xlsx`); }
     }
+    // 沒有 Verso 檔案、也沒有 project.json 的資料夾不是專案
+    if (files.some((f) => f.project === name) || await io.exists(io.join(dir, META)).catch(() => false)) versoProjects.push(name);
   }
 
   onProgress?.(0.88, '讀取字典');
@@ -224,7 +230,7 @@ export async function loadWorkspace(root: string, onProgress?: (p: number, text:
   return {
     data: {
       files, customMarks: customs, nextMarkId: nextId, glossary: d.terms, dicts: d.dicts,
-      projects: sortProjects([...projectNames, ...d.projects]), refs: [],
+      projects: sortProjects([...versoProjects, ...d.projects]), refs: [],
     },
     last: ws?.last,
     remapped: remapped || (!ws && customs.length > 0),
@@ -262,8 +268,10 @@ export async function scanFolder(root: string): Promise<{ projects: string[]; fi
       }
       continue;
     }
-    out.projects.push(e.name);
-    for (const f of await io.list(io.join(root, e.name))) if (!f.dir && isXlsx(f.name)) out.files.push({ project: e.name, name: f.name.slice(0, -5) });
+    const items = await io.list(io.join(root, e.name));
+    // 有 project.json 的才確定是專案；只有 xlsx 的，要讀了確定是 Verso 檔案才會加進來
+    if (items.some((f) => !f.dir && f.name === META)) out.projects.push(e.name);
+    for (const f of items) if (!f.dir && isXlsx(f.name)) out.files.push({ project: e.name, name: f.name.slice(0, -5) });
   }
   return out;
 }
@@ -281,7 +289,7 @@ export async function readDictFull(root: string, project: string, name: string):
 export async function reloadFile(root: string, project: string, name: string, customs: CustomMark[]): Promise<FileDoc | null> {
   const p = io.join(root, project, safeName(name) + '.xlsx');
   if (!(await io.exists(p))) return null;
-  return xlsxToFile(name, project, await io.readBinary(p), customs);
+  return xlsxToVersoFile(name, project, await io.readBinary(p), customs);
 }
 
 export async function writeFile(root: string, file: FileDoc, customs: CustomMark[]) {
@@ -307,14 +315,52 @@ export async function writeMeta(root: string, data: ProjectData, last?: LastPosi
   await io.mkdir(root);
   const ws: WorkspaceMeta = { customMarks: data.customMarks, nextMarkId: data.nextMarkId ?? 1, last };
   await io.writeText(io.join(root, WORKSPACE), JSON.stringify(ws, null, 2));
+  await writeUninstallList(root, data).catch(() => undefined);
+}
+
+/**
+ * 給解除安裝程式看的清單：只列 Verso 自己的檔案和資料夾，解除安裝時只刪這些。
+ * 每行「種類|路徑」：F 翻譯檔案、D 字典、R 整個刪的資料夾（暫存復原）、P/Q 專案／字典資料夾（空了才刪）。
+ * 用 UTF-16 寫，安裝程式才讀得懂中文路徑。
+ */
+async function writeUninstallList(root: string, data: ProjectData) {
+  const lines: string[] = [];
+  lines.push('R|' + io.join(root, RECOVERY_DIR));
+  data.files.forEach((f) => lines.push('F|' + io.join(root, f.project, safeName(f.name) + '.xlsx')));
+  data.projects.forEach((p) => lines.push('F|' + io.join(root, p, META)));
+  lines.push('F|' + io.join(root, WORKSPACE));
+  data.dicts.forEach((d) => lines.push('D|' + io.join(root, DICT_DIR, d.project, safeName(d.name) + '.xlsx')));
+  data.projects.forEach((p) => lines.push('P|' + io.join(root, p)));
+  data.projects.forEach((p) => lines.push('Q|' + io.join(root, DICT_DIR, p)));
+  const text = lines.join('\r\n') + '\r\n';
+  const bytes = new Uint8Array(2 + text.length * 2);
+  bytes[0] = 0xff; bytes[1] = 0xfe;
+  for (let i = 0; i < text.length; i++) { const c = text.charCodeAt(i); bytes[2 + i * 2] = c & 0xff; bytes[3 + i * 2] = c >> 8; }
+  const cfg = await io.configPath();
+  await io.writeBinary(cfg.replace(/[^\\/]*$/, 'versofiles.txt'), bytes);
 }
 
 /** 刪除的檔案、字典、專案都移到資源回收筒 */
 export const trashFile = (root: string, project: string, name: string) => io.trash(io.join(root, project, safeName(name) + '.xlsx'));
 export const trashDict = (root: string, project: string, dict: string) => io.trash(io.join(root, DICT_DIR, project, safeName(dict) + '.xlsx'));
+/**
+ * 刪除專案：只把 Verso 的檔案、字典和 project.json 移到資源回收筒；
+ * 資料夾裡還有別的東西就保留資料夾，空了才一起移走。
+ */
 export async function trashProject(root: string, project: string) {
-  await io.trash(io.join(root, project));
-  await io.trash(io.join(root, DICT_DIR, project));
+  await trashOwned(io.join(root, project), async (name, path) =>
+    name === META || (isXlsx(name) && isVersoFileData(await io.readBinary(path))));
+  await trashOwned(io.join(root, DICT_DIR, project), async (name, path) => isXlsx(name) && isVersoDictData(await io.readBinary(path)));
+}
+
+async function trashOwned(dir: string, owned: (name: string, path: string) => Promise<boolean>) {
+  if (!(await io.exists(dir))) return;
+  for (const e of await io.list(dir)) {
+    if (e.dir) continue;
+    const path = io.join(dir, e.name);
+    if (await owned(e.name, path).catch(() => false)) await io.trash(path);
+  }
+  if (!(await io.list(dir)).length) await io.trash(dir);
 }
 
 export async function writeDict(root: string, project: string, dict: string, terms: GlossaryTerm[], did?: string) {
@@ -378,5 +424,48 @@ export async function readRecovery(root: string): Promise<{ state: RecoveryState
 /** 刪掉暫存復原（手動儲存後、選「不儲存」或「捨棄」時） */
 export async function clearRecovery(root: string) {
   const dir = io.join(root, RECOVERY_DIR);
-  if (await io.exists(dir)) await io.remove(dir);
+  if (await io.exists(dir)) await io.remove(dir, { recursive: true });
+}
+
+// ---- 換到已經有 Verso 資料的資料夾 ----
+
+/**
+ * 新資料夾裡原本的設定：自訂標記（verso.json）、各專案的檔案順序（project.json）。
+ * 沒有就是 null。
+ */
+export async function readFolderMeta(root: string): Promise<{ customMarks: CustomMark[]; nextMarkId: number; orders: Map<string, string[]> } | null> {
+  let ws: WorkspaceMeta | null = null;
+  try { ws = JSON.parse(await io.readText(io.join(root, WORKSPACE))); } catch { /* 沒有 */ }
+  const orders = new Map<string, string[]>();
+  if (await io.exists(root)) {
+    for (const e of await io.list(root)) {
+      if (!e.dir || e.name === DICT_DIR || e.name.startsWith('.')) continue;
+      try {
+        const meta = JSON.parse(await io.readText(io.join(root, e.name, META))) as ProjectMeta;
+        if (Array.isArray(meta.fileOrder)) orders.set(e.name, meta.fileOrder);
+      } catch { /* 沒有 project.json */ }
+    }
+  }
+  if (!ws && !orders.size) return null;
+  return { customMarks: ws?.customMarks ?? [], nextMarkId: ws?.nextMarkId ?? 1, orders };
+}
+
+/**
+ * 合併自訂標記：以資料夾裡原本的為主；名稱一樣的當成同一個，其他的接在後面（編號撞到就重新編）。
+ * 回傳合併後的標記，以及目前的編號要換成什麼（idMap）。
+ */
+export function mergeMarks(theirs: CustomMark[], theirNext: number, ours: CustomMark[], ourNext: number) {
+  let customs = [...theirs];
+  let next = Math.max(theirNext, 1);
+  const idMap = new Map<string, string>();
+  const nextFree = () => String(Math.max(next, ...customs.map((c) => Number(c.id) + 1).filter((n) => !Number.isNaN(n))));
+  for (const m of ours) {
+    const same = customs.find((c) => c.name === m.name);
+    if (same) { if (same.id !== m.id) idMap.set(m.id, same.id); continue; }
+    const id = customs.some((c) => c.id === m.id) ? nextFree() : m.id;
+    if (id !== m.id) idMap.set(m.id, id);
+    customs = [...customs, { ...m, id }];
+    next = Math.max(next, Number(id) + 1 || next);
+  }
+  return { customs, nextMarkId: Math.max(next, ourNext), idMap };
 }

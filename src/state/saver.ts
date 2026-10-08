@@ -8,7 +8,7 @@ import { withFontDefaults } from '../model/fonts';
 import { MAX_CELL_CHARS, nameKey } from '../model/names';
 import { migrateList, migrateSheets } from '../model/shortcuts';
 import {
-  clearRecovery, findRootConflicts, scanFolder, loadConfig, loadWorkspace, readDict, readDictFull, readRecovery, reloadFile, saveConfig, sortProjects, trashDict, trashFile, trashProject, writeDict, writeFile, writeMeta, writeRecovery,
+  clearRecovery, findRootConflicts, mergeMarks, readFolderMeta, safeName as safeFileName, scanFolder, loadConfig, loadWorkspace, readDict, readDictFull, readRecovery, reloadFile, saveConfig, sortProjects, trashDict, trashFile, trashProject, writeDict, writeFile, writeMeta, writeRecovery,
   type AppConfig, type LastPosition, type RecoveryState,
 } from '../data/persist';
 import { emptyHistory } from '../model/history';
@@ -34,6 +34,8 @@ let closing = false;
 let rec = { files: new Map<string, FileDoc>(), state: '' };
 let recPending = false;
 let recSince = 0;
+/** 暫存復原刪不掉時記下來（狀態照樣重設，下次存檔或開啟時會再試） */
+const warnClear = (e: unknown) => { console.warn('清除暫存復原失敗', e); };
 const resetRec = () => { rec = { files: new Map(), state: '' }; recPending = false; };
 /** 暫存復原裡每個檔案內容的檔名 */
 const recName = (f: FileDoc) => (f.fid ?? fileKey(f)).replace(/[\\/:*?"<>|]/g, '_') + '.json';
@@ -46,7 +48,7 @@ async function autosave() {
   recPending = false;
   if (!isDirty()) {
     // 改回跟正式檔一樣了：暫存復原用不到
-    if (rec.state) { await clearRecovery(s.saveRoot).catch(() => undefined); resetRec(); }
+    if (rec.state) { await clearRecovery(s.saveRoot).catch(warnClear); resetRec(); }
     return;
   }
   const files: RecoveryState['files'] = [];
@@ -96,11 +98,15 @@ function dictGroups(p: ProjectData) {
   return groups;
 }
 
-function markSaved(p: ProjectData) {
+/**
+ * 記下「正式檔目前的內容」。字典的已存紀錄只在真的寫進字典檔時才更新，
+ * 所以平常不動（withDicts 只在剛從硬碟讀進來時用）。
+ */
+function markSaved(p: ProjectData, withDicts = false) {
   saved = {
     files: new Map(p.files.map((f) => [fileKey(f), f])),
     customs: p.customMarks,
-    dicts: new Map([...dictGroups(p)].map(([d, t]) => [d, dictSignature(t, dictIds(p).get(d))])),
+    dicts: withDicts ? new Map([...dictGroups(p)].map(([d, t]) => [d, dictSignature(t, dictIds(p).get(d))])) : saved.dicts,
     projects: p.projects,
   };
 }
@@ -170,7 +176,7 @@ export function saveNow(): Promise<boolean> {
     if (ok && !isDirty()) {
       // 正式檔已經是最新的：記下這個版本（含檔案順序），刪掉暫存復原
       if (s.project) markSaved(s.project);
-      await clearRecovery(s.saveRoot).catch(() => undefined);
+      await clearRecovery(s.saveRoot).catch(warnClear);
       resetRec();
     } else {
       // 還有沒存進去的修改：暫存復原馬上改成只剩這些
@@ -237,6 +243,8 @@ async function saveAll(): Promise<boolean> {
   if (p.files.length || saved.files.size || p.projects !== saved.projects) {
     const customsChanged = p.customMarks !== saved.customs;
     const long: string[] = [];
+    // 改名、搬專案的舊位置：等所有檔案都寫好之後才移走（兩個檔案互換名稱時，舊位置正好是另一個檔案的新位置）
+    const moved: FileDoc[] = [];
     for (const f of p.files) {
       // 自訂標記改了名稱也要重寫，因為「標記」欄寫的是名稱
       if (saved.files.get(fileKey(f)) === f && !customsChanged) continue;
@@ -245,11 +253,15 @@ async function saveAll(): Promise<boolean> {
       try {
         await writeFile(s.saveRoot, f, p.customMarks);
         done.files.set(fileKey(f), f);
-        // 改了名稱或搬了專案：新位置寫好後，舊位置的檔案移到資源回收筒（只差大小寫時是同一個檔案，不用移）
-        if (old && diskKey(old.project, old.name) !== diskKey(f.project, f.name) && !gone.includes(old.project)) {
-          await trashFile(s.saveRoot, old.project, old.name).catch(() => undefined);
-        }
+        // 改了名稱或搬了專案：記下舊位置（只差大小寫時是同一個檔案，不用移）
+        if (old && diskKey(old.project, old.name) !== diskKey(f.project, f.name) && !gone.includes(old.project)) moved.push(old);
       } catch (e) { fail(`${f.project} / ${f.name}`, e); }
+    }
+    // 舊位置移到資源回收筒；正好是現在某個檔案的位置就不動
+    const taken = new Set(p.files.map((f) => diskKey(f.project, f.name)));
+    for (const old of moved) {
+      if (taken.has(diskKey(old.project, old.name))) continue;
+      await trashFile(s.saveRoot, old.project, old.name).catch(() => undefined);
     }
     // 新出現的超長格子才提示，同一格不重複提示
     const fresh = long.filter((x) => !warnedLong.has(x));
@@ -344,7 +356,7 @@ export async function startApp() {
     if (r.unreadable.length) useStore.setState({ unreadable: r.unreadable });
   } catch { /* 讀不到就從空的開始 */ }
   // 先記下已存的內容再換專案，避免監聽到變動時誤判成未存
-  markSaved(project);
+  markSaved(project, true);
   useStore.setState({ project, file: 0, sheetBy: {}, selBy: {}, history: emptyHistory(), saveStatus: 'saved' });
   // 舊版的自訂標記合併後要重寫一次（檔案裡的標記編號、工作區設定檔）
   // 格式轉換，不是使用者的修改：直接寫回正式檔
@@ -361,7 +373,7 @@ export async function startApp() {
   try {
     const r = await readRecovery(saveRoot);
     // 暫存的內容跟正式檔一模一樣（例如存好之後沒來得及清掉）：不用問，直接清掉
-    if (r && sameAsOfficial(r, project)) await clearRecovery(saveRoot).catch(() => undefined);
+    if (r && sameAsOfficial(r, project)) await clearRecovery(saveRoot).catch(warnClear);
     else if (r) { pendingRecovery = r; useStore.setState({ recoveryAsk: true }); }
   } catch { /* 讀不到就當沒有 */ }
   step(1, '完成');
@@ -451,7 +463,7 @@ const indexOf = (key: string | null) => (key === null ? -1 : useStore.getState()
 /** 內容已經跟正式檔一樣時，刪掉暫存復原（更新前用） */
 export async function dropRecovery() {
   if (isDirty()) return;
-  await serial(async () => { await clearRecovery(useStore.getState().saveRoot).catch(() => undefined); resetRec(); });
+  await serial(async () => { await clearRecovery(useStore.getState().saveRoot).catch(warnClear); resetRec(); });
 }
 
 /** 會關掉目前內容的動作（例如更新）：有未儲存的修改就先問「儲存／不儲存／取消」，選好了才執行 */
@@ -483,7 +495,9 @@ async function discardChanges(target: string | null) {
   // 檔案可能少了，位置一律重設，避免指到不存在的檔案
   useStore.setState({ project: next, file: idx, sheetBy: {}, selBy: {}, cellSel: null, reported: {}, viewOn: false, peek: false, saveStatus: 'saved' });
   markSaved(next);
-  await clearRecovery(s.saveRoot).catch(() => undefined);
+  // 復原紀錄是退回之前的內容，已經對不上了
+  useStore.getState().clearUndo();
+  await clearRecovery(s.saveRoot).catch(warnClear);
   resetRec();
 }
 
@@ -517,7 +531,7 @@ export async function resolveRecovery(choice: 'restore' | 'discard') {
   useStore.setState({ recoveryAsk: false });
   const s = useStore.getState();
   if (!r || !s.project) return;
-  if (choice === 'discard') { await clearRecovery(s.saveRoot).catch(() => undefined); resetRec(); return; }
+  if (choice === 'discard') { await clearRecovery(s.saveRoot).catch(warnClear); resetRec(); return; }
   const official = new Map(s.project.files.map((f) => [fileKey(f), f]));
   const files = r.state.files.map((x) => r.files.get(x.key) ?? official.get(x.key)).filter((f): f is FileDoc => !!f);
   const next: ProjectData = {
@@ -530,6 +544,7 @@ export async function resolveRecovery(choice: 'restore' | 'discard') {
   const curKey = s.project.files[s.file] ? fileKey(s.project.files[s.file]) : null;
   const idx = Math.max(0, files.findIndex((f) => fileKey(f) === curKey));
   useStore.setState({ project: next, file: idx, cellSel: null, reported: {} });
+  useStore.getState().clearUndo();
   // 暫存復原裡已經是這些內容，不必馬上重寫
   rec = { files: new Map([...r.files].filter(([k]) => files.some((f) => fileKey(f) === k))), state: '' };
 }
@@ -587,10 +602,36 @@ export async function resolveRootConflicts(useFolder: RootConflict[]) {
 }
 
 async function switchRoot(root: string) {
+  useStore.getState().clearUndo();
+  // 新資料夾已經有 Verso 的資料：自訂標記合併（同名當成同一個），檔案順序以資料夾裡原本的為主
+  const folder = await readFolderMeta(root).catch(() => null);
+  const cur = useStore.getState().project;
+  if (folder && cur) {
+    const m = mergeMarks(folder.customMarks, folder.nextMarkId, cur.customMarks, cur.nextMarkId ?? 1);
+    const remap = (mark: string) => (mark.startsWith('c:') && m.idMap.has(mark.slice(2)) ? 'c:' + m.idMap.get(mark.slice(2)) : mark);
+    const files = m.idMap.size ? cur.files.map((f) => ({ ...f, sheets: f.sheets.map((sh) => ({ ...sh, entries: sh.entries.map((e) => {
+      const mark = remap(e.mark), kept = e.keptMark ? remap(e.keptMark) : e.keptMark;
+      return mark === e.mark && kept === e.keptMark ? e : { ...e, mark: mark as typeof e.mark, keptMark: kept };
+    }) })) })) : cur.files;
+    useStore.setState({ project: { ...cur, files, customMarks: m.customs, nextMarkId: m.nextMarkId } });
+  }
   useStore.setState({ saveRoot: root });
   saved = { files: new Map(), customs: null, dicts: new Map(), projects: [] };
   await persistConfig();
   await saveNow();
+  if (folder?.orders.size) {
+    // 把資料夾裡原本的檔案讀進來，再照資料夾原本的順序排（目前多出來的接在後面），存一次寫回順序
+    await serial(syncFolder);
+    const p = useStore.getState().project;
+    if (p) {
+      const rank = (f: FileDoc) => { const o = folder.orders.get(f.project); const i = o ? o.indexOf(safeFileName(f.name)) : -1; return i < 0 ? 1e9 : i; };
+      const first = new Map<string, number>();
+      p.files.forEach((f, i) => { if (!first.has(f.project)) first.set(f.project, i); });
+      const files = p.files.map((f, i) => ({ f, i })).sort((a, b) => first.get(a.f.project)! - first.get(b.f.project)! || rank(a.f) - rank(b.f) || a.i - b.i).map((x) => x.f);
+      useStore.setState({ project: { ...p, files } });
+      await saveNow();
+    }
+  }
 }
 
 /** 讓使用者選新的存檔資料夾 */

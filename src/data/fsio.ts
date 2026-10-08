@@ -10,7 +10,8 @@ export interface FileIO {
   mkdir(path: string): Promise<void>;
   /** 列出資料夾裡的項目名稱 */
   list(path: string): Promise<{ name: string; dir: boolean }[]>;
-  remove(path: string): Promise<void>;
+  /** 刪除；資料夾要加 recursive 才會連裡面的東西一起刪 */
+  remove(path: string, opts?: { recursive?: boolean }): Promise<void>;
   rename(from: string, to: string): Promise<void>;
   /** 移到資源回收筒（瀏覽器預覽時直接刪掉） */
   trash(path: string): Promise<void>;
@@ -67,7 +68,7 @@ const tauriIO = (): FileIO => {
     async exists(p) { return (await fsp).exists(p); },
     async mkdir(p) { await (await fsp).mkdir(p, { recursive: true }); },
     async list(p) { return (await (await fsp).readDir(p)).map((e) => ({ name: e.name, dir: e.isDirectory })); },
-    async remove(p) { await (await fsp).remove(p); },
+    async remove(p, opts) { await (await fsp).remove(p, opts?.recursive ? { recursive: true } : undefined); },
     async trash(p) {
       if (!(await (await fsp).exists(p))) return;
       const { invoke } = await import('@tauri-apps/api/core');

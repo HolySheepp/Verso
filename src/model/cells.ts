@@ -53,11 +53,13 @@ export function copyMatrix(entries: Entry[], visible: number[], keys: string[]):
 
 /**
  * 貼上：從左上角那格開始往右、往下填，超過四欄的部分忽略；
- * 看得到的條目用完了就在最後面新增條目。整列都是空白的行會先拿掉。
+ * 看得到的條目用完了就在最後面新增條目。只拿掉結尾整列空白的行（整欄複製常會多出來），中間的空白行照樣貼成空白。
  * 被貼到的條目一律算待確認。
  */
 export function pasteMatrix(entries: Entry[], visible: number[], top: Cell, matrix: string[][]): { entries: Entry[]; touched: number[] } {
-  const rows = matrix.filter((r) => r.some((v) => v.trim() !== ''));
+  let n = matrix.length;
+  while (n > 0 && !matrix[n - 1].some((v) => v.trim() !== '')) n--;
+  const rows = matrix.slice(0, n);
   const out = [...entries];
   const touched: number[] = [];
   let pos = visible.indexOf(top.i);

@@ -5,6 +5,7 @@ import { newUid } from '../model/paste';
 import { stdToText, textToStd } from '../model/length';
 import { SETTINGS_SHEET } from '../model/names';
 import { textToVerify, verifyToText, editsOf } from '../model/verify';
+import { isVersoHeader } from '../model/importSel';
 import type { CustomMark, Entry, FileDoc, GlossaryTerm, SrcUpdate, StoredMark } from '../model/types';
 
 /** 給人看的欄位在前，程式要用的資料放在最右邊（不隱藏） */
@@ -109,8 +110,55 @@ function columnIndex(header: string[], names: string[]) {
   return (name: string) => (hasHeader ? header.indexOf(name) : names.indexOf(name));
 }
 
-export function xlsxToFile(name: string, project: string, data: Uint8Array, customs: CustomMark[]): FileDoc {
+/**
+ * 是不是 Verso 的檔案：有檔案 ID（隱藏的設定表），或第一個工作表是 Verso 的欄位標題。
+ * 存檔資料夾裡別的 xlsx 一律不讀、不寫、不移動。
+ */
+function isVersoBook(wb: XLSX.WorkBook): boolean {
+  if (readSetting(wb, '檔案ID')) return true;
+  const first = wb.SheetNames.find((n) => n !== SETTINGS_SHEET);
+  if (!first) return false;
+  return isVersoHeader(headerRow(wb.Sheets[first]));
+}
+
+/** 工作表第一列（只讀標題，不轉整張表） */
+function headerRow(ws: XLSX.WorkSheet): string[] {
+  const out: string[] = [];
+  for (let c = 0; c < 40; c++) {
+    const cell = ws[XLSX.utils.encode_cell({ r: 0, c })] as XLSX.CellObject | undefined;
+    out.push(cell ? str(cell.w ?? cell.v) : '');
+  }
+  while (out.length && !out[out.length - 1]) out.pop();
+  return out;
+}
+
+export function isVersoFileData(data: Uint8Array): boolean {
+  try { return isVersoBook(XLSX.read(data, { type: 'array', sheetRows: 2 })); } catch { return false; }
+}
+
+/** 是不是 Verso 的字典：有字典 ID，或標題是「原文、譯文、備註」 */
+export function isVersoDictData(data: Uint8Array): boolean {
+  try {
+    const wb = XLSX.read(data, { type: 'array', sheetRows: 2 });
+    if (readSetting(wb, '字典ID')) return true;
+    const first = wb.SheetNames.find((n) => n !== SETTINGS_SHEET);
+    if (!first) return false;
+    const h = headerRow(wb.Sheets[first]);
+    return h[0] === '原文' && h[1] === '譯文';
+  } catch { return false; }
+}
+
+/** 讀 Verso 的檔案；不是 Verso 的檔案回傳 null */
+export function xlsxToVersoFile(name: string, project: string, data: Uint8Array, customs: CustomMark[]): FileDoc | null {
   const wb = XLSX.read(data, { type: 'array' });
+  return isVersoBook(wb) ? bookToFile(wb, name, project, customs) : null;
+}
+
+export function xlsxToFile(name: string, project: string, data: Uint8Array, customs: CustomMark[]): FileDoc {
+  return bookToFile(XLSX.read(data, { type: 'array' }), name, project, customs);
+}
+
+function bookToFile(wb: XLSX.WorkBook, name: string, project: string, customs: CustomMark[]): FileDoc {
   const known = new Set(customs.map((c) => 'c:' + c.id));
   // 檔案設定工作表：不當成頁簽
   const lengthStd = textToStd(readSetting(wb, '長度標準'));

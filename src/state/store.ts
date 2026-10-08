@@ -270,6 +270,8 @@ interface Actions {
   /** 修改目前頁簽的條目（可用 Ctrl+Z 復原） */
   editSheet(fn: (entries: Entry[]) => { entries: Entry[]; keys?: string[] }): void;
   undoSheet(): void;
+  /** 清空條目欄的復原／重做紀錄（不儲存、恢復暫存、換存檔資料夾時，舊紀錄已經對不上） */
+  clearUndo(): void;
   redoSheet(): void;
   renameSheet(i: number, name: string): void;
   /** 清除頁簽：拿掉所有條目，頁簽保留 */
@@ -404,13 +406,16 @@ export const useStore = create<Store>((set, get) => {
   };
 
   // 條目欄與頁簽操作的復原／重做：記下整個檔案
-  type Snap = { file: number; doc: FileDoc; sheet: number; keys: string[] };
+  // id：用檔案 ID 認檔案，不靠位置（檔案增刪、不儲存之後位置會變）
+  type Snap = { file: number; id: string; doc: FileDoc; sheet: number; keys: string[] };
+  const docId = (f: FileDoc) => f.fid ?? f.project + '/' + f.name;
   const undoStack: Snap[] = [];
   const redoStack: Snap[] = [];
 
   const snapNow = (): Snap => {
     const s = get();
-    return { file: s.file, doc: s.project!.files[s.file], sheet: currentOf(s).sheetIdx, keys: s.cellSel?.keys ?? [] };
+    const doc = s.project!.files[s.file];
+    return { file: s.file, id: docId(doc), doc, sheet: currentOf(s).sheetIdx, keys: s.cellSel?.keys ?? [] };
   };
   const pushSnap = (snap: Snap) => {
     undoStack.push(snap);
@@ -433,12 +438,16 @@ export const useStore = create<Store>((set, get) => {
   };
 
   const restore = (from: Snap[], to: Snap[]) => {
-    const snap = from.pop();
+    const popped = from.pop();
     const p = get().project;
-    if (!snap || !p || !p.files[snap.file]) return;
+    if (!popped || !p) return;
+    // 用檔案 ID 找回那個檔案；找不到（已經不在了）就丟掉這一步
+    const fi = p.files.findIndex((f) => docId(f) === popped.id);
+    if (fi < 0) return;
+    const snap = { ...popped, file: fi };
     const s = get();
-    to.push({ file: snap.file, doc: p.files[snap.file], sheet: s.file === snap.file ? currentOf(s).sheetIdx : snap.sheet, keys: s.cellSel?.keys ?? [] });
-    replaceFile(snap.file, snap.doc);
+    to.push({ file: fi, id: popped.id, doc: p.files[fi], sheet: s.file === fi ? currentOf(s).sheetIdx : snap.sheet, keys: s.cellSel?.keys ?? [] });
+    replaceFile(fi, snap.doc);
     const sheet = Math.min(snap.sheet, snap.doc.sheets.length - 1);
     const n = snap.doc.sheets[sheet]?.entries.length ?? 0;
     const keys = snap.keys.filter((k) => parseKey(k).i < n);
@@ -591,6 +600,7 @@ export const useStore = create<Store>((set, get) => {
     },
 
     undoSheet() { restore(undoStack, redoStack); },
+    clearUndo() { undoStack.length = 0; redoStack.length = 0; editSnap = null; },
     redoSheet() { restore(redoStack, undoStack); },
 
     renameSheet(i, name) {
