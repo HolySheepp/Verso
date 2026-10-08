@@ -1,11 +1,12 @@
-import { useMemo, useRef, useState } from 'react';
+import { memo, useMemo, useRef, useState } from 'react';
 import { currentOf, useStore } from '../state/store';
 import { checkColumns, emptyColumns, pasteColumns, type ColKey, type Columns } from '../model/paste';
 import {
-  applyUpdate, autoAlign, deleteBlank, insertBlank, moveCells, rowInfos, sequentialRows, summarize,
+  applyUpdate, deleteBlank, insertBlank, moveCells, rowInfos, sequentialRows, summarize,
   type AlignRow, type NewRow, type RowInfo, type Side,
 } from '../model/srcUpdate';
 import type { Entry } from '../model/types';
+import { autoAlignAsync } from '../model/alignAsync';
 import { PasteBox, type BoxSel } from './PasteBox';
 import { ConfirmDialog } from './ConfirmDialog';
 import { ContextMenu } from './ContextMenu';
@@ -46,6 +47,7 @@ function SrcUpdate({ sheetIdx }: { sheetIdx: number }) {
   const undo = () => setHist((h) => (h.past.length ? { rows: h.past[h.past.length - 1], past: h.past.slice(0, -1), future: [h.rows, ...h.future] } : h));
   const redo = () => setHist((h) => (h.future.length ? { rows: h.future[0], past: [...h.past, h.rows], future: h.future.slice(1) } : h));
   const [busy, setBusy] = useState(false);
+  const alignRun = useRef(0);
   const [confirm, setConfirm] = useState(false);
 
   const check = checkColumns(cols);
@@ -66,11 +68,12 @@ function SrcUpdate({ sheetIdx }: { sheetIdx: number }) {
     setHist({ rows: sequentialRows(entries.length, next.length), past: [], future: [] });
     setStep('align');
     setBusy(true);
-    // 先讓畫面顯示「比對中」，再開始算
-    setTimeout(() => {
-      commit(autoAlign(entries.map((e) => ({ id: e.id, src: e.src })), next));
-      setBusy(false);
-    }, 30);
+    // 在背景執行緒算，畫面不會卡住；算完前按了「上一步」就丟掉結果
+    const run = ++alignRun.current;
+    autoAlignAsync(entries.map((e) => ({ id: e.id, src: e.src })), next)
+      .then((r) => { if (run === alignRun.current) commit(r); })
+      .catch(() => { /* 比對失敗：留在照順序對應 */ })
+      .finally(() => { if (run === alignRun.current) setBusy(false); });
   };
   const apply = () => {
     applySrcUpdate(sheetIdx, applyUpdate(entries, next, safeRows, { id: !!cols.id, speaker: !!cols.speaker }));
@@ -125,7 +128,7 @@ function SrcUpdate({ sheetIdx }: { sheetIdx: number }) {
               </>
             ) : (
               <>
-                <button type="button" className="btn btn-ghost" onClick={() => { resetAlign(); setStep('paste'); }} style={btn}>上一步</button>
+                <button type="button" className="btn btn-ghost" onClick={() => { alignRun.current++; setBusy(false); resetAlign(); setStep('paste'); }} style={btn}>上一步</button>
                 <button type="button" className="btn btn-primary" disabled={busy} onClick={() => setConfirm(true)} style={primary}>確定</button>
               </>
             )}
@@ -242,21 +245,11 @@ function AlignGrid({ rows, entries, next, infos, onChange }: {
     }
   };
 
-  const cell = (side: Side, k: number, text: string | null, id: string): React.ReactNode => {
-    const on = inSel(side, k);
-    const dropHere = drop !== null && sel?.side === side && (drop === k || (drop === rows.length && k === rows.length - 1));
-    const below = drop === rows.length && k === rows.length - 1;
-    return (
-      <div data-acell="" data-side={side} data-row={k} style={{
-        minWidth: 0, minHeight: 34, boxSizing: 'border-box', padding: '6px 10px', borderRadius: 6, cursor: on ? 'grab' : 'default',
-        background: on ? 'var(--acc-soft)' : text === null ? 'transparent' : 'var(--bg0)',
-        border: `1px ${text === null ? 'dashed' : 'solid'} ${on ? 'var(--accent)' : 'var(--line)'}`,
-        boxShadow: dropHere ? (below ? '0 3px 0 var(--accent)' : '0 -3px 0 var(--accent)') : undefined,
-        fontSize: fz(12.5), lineHeight: 1.5, whiteSpace: 'pre-wrap', wordBreak: 'break-word', color: text === null ? 'var(--mute3)' : 'var(--text)', userSelect: 'none',
-      }}>
-        {text === null ? '（空格）' : <>{id && <span className="mono" style={{ marginRight: 8, fontSize: fz(11), color: 'var(--mute)' }}>{id}</span>}{text}</>}
-      </div>
-    );
+  /** 這一邊在第 k 列的落點：放在上緣或（拖到最後時）下緣 */
+  const dropOf = (side: Side, k: number): 'top' | 'bottom' | null => {
+    if (drop === null || sel?.side !== side) return null;
+    if (drop === rows.length && k === rows.length - 1) return 'bottom';
+    return drop === k ? 'top' : null;
   };
 
   return (
@@ -265,29 +258,14 @@ function AlignGrid({ rows, entries, next, infos, onChange }: {
         <span /><span>目前的原文</span><span /><span>新版原文</span><span>相似度</span>
       </div>
       <div ref={box} tabIndex={-1} onPointerDown={onDown} onPointerMove={onMove} onPointerUp={onUp} onContextMenu={onMenu}
-        style={{ flexGrow: 1, minHeight: 0, overflowY: 'auto', display: 'grid', gridTemplateColumns: GRID, gap: '6px 8px', alignContent: 'start', padding: '4px 4px 12px', outline: 'none' }}>
+        style={{ flexGrow: 1, minHeight: 0, overflowY: 'auto', display: 'flex', flexDirection: 'column', gap: 6, padding: '4px 4px 12px', outline: 'none' }}>
         {rows.map((r, k) => {
           const info = infos[k];
           if (!info) return null;
-          const a = info.arrow;
-          const o = r.old === null ? null : entries[r.old];
-          const n = r.new === null ? null : next[r.new];
-          return [
-            <div key={k + 'k'} className="mono" style={{ paddingTop: 7, textAlign: 'right', fontSize: fz(11.5), color: 'var(--mute)' }}>{k + 1}</div>,
-            <div key={k + 'o'}>{cell('old', k, o ? o.src : null, o?.id ?? '')}</div>,
-            <div key={k + 'a'} style={{ display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-              {a !== 'same' && (
-                <svg width="26" height="16" viewBox="0 0 26 16" aria-label={a === 'yellow' ? '有改' : '差很多或對面是空格'}>
-                  <path d="M2 8h20M16 2.5l6 5.5-6 5.5" fill="none" stroke={a === 'yellow' ? YELLOW : RED} strokeWidth={a === 'yellow' ? 2.2 : 2.8} strokeLinecap="round" strokeLinejoin="round" />
-                </svg>
-              )}
-            </div>,
-            <div key={k + 'n'}>{cell('new', k, n ? n.src : null, n?.id ?? '')}</div>,
-            <div key={k + 'p'} style={{ paddingTop: 6, fontSize: fz(12), lineHeight: 1.4, color: a === 'same' ? 'var(--mute)' : a === 'yellow' ? YELLOW : RED }}>
-              {info.sim === null ? '—' : Math.round(info.sim * 100) + '%'}
-              {info.elsewhere !== null && <div style={{ color: 'var(--accent2)' }}>高相似：第 {info.elsewhere} 條</div>}
-            </div>,
-          ];
+          return (
+            <AlignRowView key={k} k={k} info={info} o={r.old === null ? null : entries[r.old]} n={r.new === null ? null : next[r.new]}
+              onOld={inSel('old', k)} onNew={inSel('new', k)} dropOld={dropOf('old', k)} dropNew={dropOf('new', k)} />
+          );
         })}
       </div>
       {menu && (
@@ -297,3 +275,46 @@ function AlignGrid({ rows, entries, next, infos, onChange }: {
     </div>
   );
 }
+
+/** 對齊表格的一格 */
+function AlignCell({ side, k, text, id, on, drop }: { side: Side; k: number; text: string | null; id: string; on: boolean; drop: 'top' | 'bottom' | null }) {
+  return (
+    <div data-acell="" data-side={side} data-row={k} style={{
+      minWidth: 0, minHeight: 34, boxSizing: 'border-box', padding: '6px 10px', borderRadius: 6, cursor: on ? 'grab' : 'default',
+      background: on ? 'var(--acc-soft)' : text === null ? 'transparent' : 'var(--bg0)',
+      border: `1px ${text === null ? 'dashed' : 'solid'} ${on ? 'var(--accent)' : 'var(--line)'}`,
+      boxShadow: drop ? (drop === 'bottom' ? '0 3px 0 var(--accent)' : '0 -3px 0 var(--accent)') : undefined,
+      fontSize: fz(12.5), lineHeight: 1.5, whiteSpace: 'pre-wrap', wordBreak: 'break-word', color: text === null ? 'var(--mute3)' : 'var(--text)', userSelect: 'none',
+    }}>
+      {text === null ? '（空格）' : <>{id && <span className="mono" style={{ marginRight: 8, fontSize: fz(11), color: 'var(--mute)' }}>{id}</span>}{text}</>}
+    </div>
+  );
+}
+
+/**
+ * 對齊表格的一列。拖曳、選取時只有選取或落點有變的列會重畫；
+ * 畫面外的列不排版、不繪製（content-visibility），上萬列也順。
+ */
+const AlignRowView = memo(function AlignRowView({ k, info, o, n, onOld, onNew, dropOld, dropNew }: {
+  k: number; info: RowInfo; o: Entry | null; n: NewRow | null; onOld: boolean; onNew: boolean; dropOld: 'top' | 'bottom' | null; dropNew: 'top' | 'bottom' | null;
+}) {
+  const a = info.arrow;
+  return (
+    <div style={{ display: 'grid', gridTemplateColumns: GRID, gap: 8, flexShrink: 0, contentVisibility: 'auto', containIntrinsicSize: 'auto 40px' }}>
+      <div className="mono" style={{ paddingTop: 7, textAlign: 'right', fontSize: fz(11.5), color: 'var(--mute)' }}>{k + 1}</div>
+      <div><AlignCell side="old" k={k} text={o ? o.src : null} id={o?.id ?? ''} on={onOld} drop={dropOld} /></div>
+      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+        {a !== 'same' && (
+          <svg width="26" height="16" viewBox="0 0 26 16" aria-label={a === 'yellow' ? '有改' : '差很多或對面是空格'}>
+            <path d="M2 8h20M16 2.5l6 5.5-6 5.5" fill="none" stroke={a === 'yellow' ? YELLOW : RED} strokeWidth={a === 'yellow' ? 2.2 : 2.8} strokeLinecap="round" strokeLinejoin="round" />
+          </svg>
+        )}
+      </div>
+      <div><AlignCell side="new" k={k} text={n ? n.src : null} id={n?.id ?? ''} on={onNew} drop={dropNew} /></div>
+      <div style={{ paddingTop: 6, fontSize: fz(12), lineHeight: 1.4, color: a === 'same' ? 'var(--mute)' : a === 'yellow' ? YELLOW : RED }}>
+        {info.sim === null ? '—' : Math.round(info.sim * 100) + '%'}
+        {info.elsewhere !== null && <div style={{ color: 'var(--accent2)' }}>高相似：第 {info.elsewhere} 條</div>}
+      </div>
+    </div>
+  );
+});
