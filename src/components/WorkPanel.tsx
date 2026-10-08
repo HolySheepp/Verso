@@ -538,7 +538,7 @@ function WorkPanelInner({ height, maxH }: { height: number; maxH: number }) {
               </div>
             )}
             {hover && hits[hover.hit] && (
-              <div className="hit-tip" style={{ left: hover.x, top: hover.y - 2 }}>{hits[hover.hit].term.en}</div>
+              <div className="hit-tip" style={{ left: hover.x, top: hover.y - 2 }}>{[...new Set(hits[hover.hit].terms.map((t) => t.en))].join(' / ')}</div>
             )}
           </div>
 

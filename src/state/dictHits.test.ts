@@ -10,3 +10,14 @@ describe('原文命中字典的詞', () => {
     expect(hits[1].spans).toEqual([{ start: 4, end: 8 }, { start: 9, end: 13 }]);
   });
 });
+
+describe('同一個原文有好幾個譯名', () => {
+  it('全部列出來，目前專案的排前面；被長詞擋住後還會往後找', async () => {
+    const { findHits } = await import('./dictHits');
+    const t = (id: string, term: string, en: string, proj: string) => ({ id, term, en, note: '', proj, dict: 'd' });
+    const hits = findHits('石像鬼王和石像鬼', [t('1', '石像鬼', 'gargoyle', '共用'), t('2', '石像鬼', 'Gargoyle', 'A'), t('3', '石像鬼王', 'Gargoyle King', '共用')], 'A');
+    const g = hits.find((h) => h.term.term === '石像鬼')!;
+    expect(g.terms.map((x) => x.id)).toEqual(['2', '1']);
+    expect(g.spans).toEqual([{ start: 5, end: 8 }]);
+  });
+});

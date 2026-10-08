@@ -106,7 +106,8 @@ function DictTab() {
     return () => clearTimeout(t);
   }, [uid, src]);
   const matchSrc = uid !== srcNow.uid ? src : srcNow.src;
-  const matches = useMemo(() => findHits(matchSrc, active).map((h) => h.term), [active, matchSrc]);
+  // 同一個原文在好幾本字典有不同譯名時，全部列出來
+  const matches = useMemo(() => findHits(matchSrc, active, current).flatMap((h) => h.terms), [active, matchSrc, current]);
   // 目前專案的字典排最前面，再來是共用，其他照原本順序
   const rank = (d: DictInfo) => (d.project === current ? 0 : d.project === SHARED ? 1 : 2);
   const sorted = [...dicts].sort((a, b) => rank(a) - rank(b));

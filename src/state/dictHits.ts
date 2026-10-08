@@ -2,11 +2,14 @@
 // 只算目前選中的這一條，其他條目不比對。
 import { useMemo } from 'react';
 import { useShallow } from 'zustand/react/shallow';
-import { dictKey, type GlossaryTerm } from '../model/types';
+import { SHARED, dictKey, type GlossaryTerm } from '../model/types';
 import { currentOf, shownSrc, currentProjectOf, dictEnabledIn, useStore } from './store';
 
 export interface DictHit {
+  /** 第一個譯名（Alt+數字插入這個）：目前專案的字典優先 */
   term: GlossaryTerm;
+  /** 同一個原文在各本字典裡的所有譯名，順序同上 */
+  terms: GlossaryTerm[];
   /** 在原文裡出現的所有位置 */
   spans: { start: number; end: number }[];
 }
@@ -29,23 +32,32 @@ export function useActiveTerms(): GlossaryTerm[] {
  * 找出原文裡的命中詞，依第一次出現的位置排序（第 1 個就是 Alt+1）。
  * 長的詞優先：「石像鬼王」命中時，裡面的「石像鬼」不再另外算。
  */
-export function findHits(src: string, terms: GlossaryTerm[]): DictHit[] {
+export function findHits(src: string, terms: GlossaryTerm[], current?: string): DictHit[] {
   if (!src) return [];
+  // 同一個原文的詞條放一起；目前專案的字典排前面，再來是共用
+  const groups = new Map<string, GlossaryTerm[]>();
+  for (const g of terms) {
+    if (!g.term || !src.includes(g.term)) continue;
+    const list = groups.get(g.term);
+    if (list) list.push(g); else groups.set(g.term, [g]);
+  }
+  const rank = (g: GlossaryTerm) => (g.proj === current ? 0 : g.proj === SHARED ? 1 : 2);
   const taken: boolean[] = new Array(src.length).fill(false);
   const hits: DictHit[] = [];
-  const seen = new Set<string>();
-  for (const g of [...terms].sort((a, b) => b.term.length - a.term.length)) {
-    if (!g.term || seen.has(g.term) || !src.includes(g.term)) continue;
+  // 長的詞優先：只用來排除被長詞蓋住的位置
+  for (const word of [...groups.keys()].sort((a, b) => b.length - a.length)) {
     const spans: { start: number; end: number }[] = [];
-    for (let at = src.indexOf(g.term); at >= 0; at = src.indexOf(g.term, at + g.term.length)) {
-      const end = at + g.term.length;
-      if (taken.slice(at, end).some(Boolean)) continue;
+    for (let at = src.indexOf(word); at >= 0;) {
+      const end = at + word.length;
+      // 這個位置被長詞擋住：從下一個字繼續找
+      if (taken.slice(at, end).some(Boolean)) { at = src.indexOf(word, at + 1); continue; }
       for (let k = at; k < end; k++) taken[k] = true;
       spans.push({ start: at, end });
+      at = src.indexOf(word, end);
     }
     if (!spans.length) continue;
-    seen.add(g.term);
-    hits.push({ term: g, spans });
+    const variants = [...groups.get(word)!].sort((a, b) => rank(a) - rank(b));
+    hits.push({ term: variants[0], terms: variants, spans });
   }
   return hits.sort((a, b) => a.spans[0].start - b.spans[0].start);
 }
@@ -55,5 +67,6 @@ export function useCurrentHits(): DictHit[] {
   const terms = useActiveTerms();
   // 畫面上顯示的原文（有新原文時用新原文）
   const src = useStore((s) => { const e = currentOf(s).entry; return e ? shownSrc(e) : ''; });
-  return useMemo(() => findHits(src, terms), [src, terms]);
+  const current = useStore((s) => currentProjectOf(s));
+  return useMemo(() => findHits(src, terms, current), [src, terms, current]);
 }

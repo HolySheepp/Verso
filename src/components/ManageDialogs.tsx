@@ -565,8 +565,8 @@ function ManageDicts() {
                   <span style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
                     <span role="alert" style={{ fontSize: fz(12.5), color: error ? 'var(--errtx)' : 'var(--mute)' }}>{error || `${n} 筆`}</span>
                     {n > 0 && (
-                      <button type="button" className="btn btn-ghost" onClick={dedupe} title="清除這本字典裡原文、譯文、備註都一樣的詞條，留第一筆"
-                        style={{ ...ghostBtn, height: 28, padding: '0 10px', fontSize: fz(12) }}>清除重複詞條</button>
+                      <button type="button" className="btn btn-ghost" disabled={!!error} onClick={dedupe} title="清除這本字典裡原文、譯文、備註都一樣的詞條，留第一筆（行數對不上時不能用）"
+                        style={{ ...ghostBtn, height: 28, padding: '0 10px', fontSize: fz(12), opacity: error ? 0.5 : 1 }}>清除重複詞條</button>
                     )}
                   </span>
                   <div style={{ display: 'flex', gap: 8 }}>

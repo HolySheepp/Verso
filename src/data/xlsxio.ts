@@ -137,6 +137,10 @@ export function isVersoFileData(data: Uint8Array): boolean {
   try { return isVersoBook(XLSX.read(data, { type: 'array', sheetRows: 2 })); } catch { return false; }
 }
 
+let termSeq = 0;
+/** 詞條 ID：隨機、不重複（不用「字典名稱＋列號」，改名或增刪列之後才不會撞到） */
+const newTermId = () => 't' + Date.now().toString(36) + (termSeq++).toString(36) + Math.random().toString(36).slice(2, 6);
+
 /** 是不是 Verso 的字典：有字典 ID，或標題是「原文、譯文、備註」 */
 export function isVersoDictData(data: Uint8Array): boolean {
   try {
@@ -229,6 +233,6 @@ function dictTerms(wb: XLSX.WorkBook, project: string, dict: string): GlossaryTe
   const body = DICT_HEADERS.some((n) => header.includes(n)) ? rows.slice(1) : rows;
   const get = (r: unknown[], n: string) => { const i = col(n); return i >= 0 ? str(r[i]) : ''; };
   return body
-    .map((r, i): GlossaryTerm => ({ id: 'd:' + project + '/' + dict + ':' + i, term: get(r, '原文'), en: get(r, '譯文'), note: get(r, '備註'), proj: project, dict }))
+    .map((r): GlossaryTerm => ({ id: newTermId(), term: get(r, '原文'), en: get(r, '譯文'), note: get(r, '備註'), proj: project, dict }))
     .filter((t) => t.term || t.en);
 }

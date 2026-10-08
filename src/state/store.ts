@@ -317,6 +317,23 @@ const withMark = (e: Entry, id: MarkId, keepUpd = false): Entry => ({
   ...(e.upd && !keepUpd && id !== 'srcupd' ? (e.upd.applied ? { upd: undefined } : { upd: { ...e.upd, hidden: true } }) : {}),
 });
 
+/**
+ * 字典開關的 key 是「目前專案>字典專案/字典名稱」：專案或字典改名、搬移、刪除時跟著改。
+ * fn 回傳 null 代表刪掉這個 key。
+ */
+function remapOverrides(o: Record<string, boolean>, fn: (cur: string, dictProject: string, dictName: string) => [string, string, string] | null): Record<string, boolean> {
+  const out: Record<string, boolean> = {};
+  for (const [k, v] of Object.entries(o)) {
+    const gt = k.indexOf('>');
+    const dk = k.slice(gt + 1);
+    const sl = dk.indexOf('/');
+    const r = gt < 0 || sl < 0 ? [k.slice(0, gt), '', ''] as [string, string, string] : fn(k.slice(0, gt), dk.slice(0, sl), dk.slice(sl + 1));
+    if (!r) continue;
+    out[gt < 0 || sl < 0 ? k : r[0] + '>' + dictKey(r[1], r[2])] = v;
+  }
+  return out;
+}
+
 /** 拿掉同一本字典裡完全一樣的詞條（原文、譯文、備註都一樣，前後空白不算），留第一筆；不同字典的不算重複 */
 export function dedupeGlossary(glossary: GlossaryTerm[]): GlossaryTerm[] {
   const seen = new Set<string>();
@@ -935,8 +952,11 @@ export const useStore = create<Store>((set, get) => {
       const terms: GlossaryTerm[] = pairs.map(([term, en], i) => ({
         id: 'p' + base + i, term, en, note: '', dict, proj,
       }));
+      // 只拿這次貼入的跟目標字典比，重複的不加；其他字典完全不動
+      const target = project.glossary.filter((g) => g.proj === proj && g.dict === dict);
+      const fresh = dedupeGlossary([...target, ...terms]).slice(target.length);
       set({
-        project: { ...withDict(project, proj, dict), glossary: dedupeGlossary([...project.glossary, ...terms]) },
+        project: { ...withDict(project, proj, dict), glossary: [...project.glossary, ...fresh] },
         dictPasteOpen: false,
       });
     },
@@ -1027,6 +1047,8 @@ export const useStore = create<Store>((set, get) => {
       const p = get().project;
       if (!p || from === SHARED || !to || from === to || sameName(to, DICT_DIR) || p.projects.some((x) => x !== from && sameName(x, to))) return;
       const r = (x: string) => (x === from ? to : x);
+      // 字典開關：「在哪個專案」和「哪本字典」兩邊的專案名稱都要跟著改
+      set({ dictOverrides: remapOverrides(get().dictOverrides, (cur, dp, dn) => [r(cur), r(dp), dn]) });
       set({
         project: {
           ...p,
@@ -1063,6 +1085,7 @@ export const useStore = create<Store>((set, get) => {
     renameDict(project, from, to) {
       const p = get().project;
       if (!p || !to || from === to || p.dicts.some((d) => d.project === project && d.name !== from && sameName(d.name, to))) return;
+      set({ dictOverrides: remapOverrides(get().dictOverrides, (cur, dp, dn) => [cur, dp, dp === project && dn === from ? to : dn]) });
       set({ project: {
         ...p,
         dicts: p.dicts.map((d) => (d.project === project && d.name === from ? { ...d, name: to } : d)),
@@ -1079,6 +1102,7 @@ export const useStore = create<Store>((set, get) => {
     deleteDict(project, name) {
       const p = get().project;
       if (!p) return;
+      set({ dictOverrides: remapOverrides(get().dictOverrides, (cur, dp, dn) => (dp === project && dn === name ? null : [cur, dp, dn])) });
       set({ project: {
         ...p,
         dicts: p.dicts.filter((d) => !(d.project === project && d.name === name)),
@@ -1093,6 +1117,7 @@ export const useStore = create<Store>((set, get) => {
       // 搬到別的專案還是同一本字典：ID 不變
       const did = p.dicts.find((d) => d.project === project && d.name === name)?.did;
       const q = withDict({ ...p, dicts: p.dicts.filter((d) => !(d.project === project && d.name === name)) }, to, n, did);
+      set({ dictOverrides: remapOverrides(get().dictOverrides, (cur, dp, dn) => (dp === project && dn === name ? [cur, to, n] : [cur, dp, dn])) });
       set({ project: { ...q, glossary: p.glossary.map((g) => (g.proj === project && g.dict === name ? { ...g, proj: to, dict: n } : g)) } });
     },
 
@@ -1101,8 +1126,12 @@ export const useStore = create<Store>((set, get) => {
       if (!p) return;
       const base = Date.now().toString(36);
       const terms: GlossaryTerm[] = rows.map((r, i) => ({ id: 'm' + base + i, ...r, dict: name, proj: project }));
-      const others = p.glossary.filter((g) => !(g.proj === project && g.dict === name));
-      set({ project: { ...withDict(p, project, name), glossary: [...others, ...terms] } });
+      // 放回這本字典原本在清單裡的位置（不要每次儲存都跑到最後面，影響命中的先後）
+      const mine = (g: GlossaryTerm) => g.proj === project && g.dict === name;
+      const at = p.glossary.findIndex(mine);
+      const others = p.glossary.filter((g) => !mine(g));
+      const pos = at < 0 ? others.length : p.glossary.slice(0, at).filter((g) => !mine(g)).length;
+      set({ project: { ...withDict(p, project, name), glossary: [...others.slice(0, pos), ...terms, ...others.slice(pos)] } });
     },
 
     checkAll() {
