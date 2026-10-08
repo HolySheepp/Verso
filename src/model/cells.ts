@@ -1,6 +1,7 @@
 // 條目欄的格子：選取、複製、貼上、清除、刪除、插入、上下移
 import { newUid } from './paste';
 import type { Entry } from './types';
+import { minOf } from './num';
 
 /** 條目欄的四欄：#（對話 id）、發話者、原文、譯文 */
 export const CELL_COLS = ['id', 'speaker', 'src', 'tgt'] as const;
@@ -112,7 +113,7 @@ export function deleteCells(entries: Entry[], keys: string[]): Entry[] {
 export function insertCells(entries: Entry[], keys: string[]): Entry[] {
   const out = [...entries];
   const cols = byColumn(keys);
-  const first = Math.min(...keys.map((k) => parseKey(k).i));
+  const first = minOf(keys.map((k) => parseKey(k).i));
   let needed = out.length;
   const columns = new Map<CellCol, string[]>();
   cols.forEach((_, c) => {

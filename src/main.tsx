@@ -10,6 +10,7 @@ import '@fontsource/noto-sans-tc/500.css';
 import '@fontsource/noto-sans-tc/700.css';
 import './theme.css';
 import App from './App';
+import { ErrorBoundary } from './components/ErrorBoundary';
 import { useStore } from './state/store';
 
 // 檔案拖進軟體視窗：打開匯入視窗讀這個檔案（不讓視窗直接打開檔案）
@@ -26,6 +27,8 @@ window.addEventListener('drop', (ev) => {
 
 createRoot(document.getElementById('root')!).render(
   <StrictMode>
-    <App />
+    <ErrorBoundary>
+      <App />
+    </ErrorBoundary>
   </StrictMode>,
 );

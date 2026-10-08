@@ -104,3 +104,14 @@ describe('原文更新：手動調整', () => {
     expect(infos[1].elsewhere).toBe(1);
   });
 });
+
+describe('原文更新：ID 不可信', () => {
+  it('ID 配到完全不同的句子、別處有很像的：改用內容', async () => {
+    const { autoAlign, matchKey } = await import('./srcUpdate');
+    const old = [{ id: '1', src: 'The castle gate is open' }, { id: '2', src: 'Bring me the sword' }];
+    const next = [{ id: '1', speaker: '', src: 'Bring me the sword' }, { id: '2', speaker: '', src: 'The castle gate is open' }];
+    const rows = autoAlign(old, next);
+    expect(rows.find((r) => r.old === 0)!.new).toBe(1);
+    expect(matchKey('……')).toBe('……');
+  });
+});

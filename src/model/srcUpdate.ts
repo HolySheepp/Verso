@@ -25,7 +25,9 @@ export function matchKey(text: string): string {
   let s = (text || '').replace(RICH_TAG, '').normalize('NFC');
   s = Array.from(s, (ch) => CHAR_MAP[ch] ?? ch).join('');
   s = s.toLowerCase().replace(PLACEHOLDER, ' ');
-  return s.replace(/[^\p{L}\p{N}]+/gu, '');
+  const k = s.replace(/[^\p{L}\p{N}]+/gu, '');
+  // 整句都是標點（例如「……」）：去掉標點會變成空的，改用原字串（只去掉空白）來比
+  return k || (text || '').replace(/\s+/g, '');
 }
 
 /** 兩段文字的相似度 0～1（2 × 最長共同子序列 ÷ 兩邊長度和） */
@@ -121,6 +123,15 @@ export function autoAlign(old: { id: string; src: string }[], next: NewRow[]): A
     const j = k && co.get(k) === 1 ? newById.get(k) : undefined;
     if (j !== undefined) { pairOf.set(i, j); newUsed.add(j); }
   });
+  // ID 配好、內容卻幾乎不一樣（低於 0.3），而別處有很像的句子（0.85 以上）：ID 可能貼錯了，不信 ID，改用內容對齊
+  if (pairOf.size) {
+    const ko = old.map((o) => matchKey(o.src)), kn = next.map((r) => matchKey(r.src));
+    for (const [i, j] of [...pairOf]) {
+      if (j === null || ratio(ko[i], kn[j]) >= 0.3) continue;
+      const elsewhere = kn.some((k, jj) => jj !== j && ratio(ko[i], k) >= 0.85) || ko.some((k, ii) => ii !== i && ratio(k, kn[j]) >= 0.85);
+      if (elsewhere) { pairOf.delete(i); newUsed.delete(j); }
+    }
+  }
   // 2. 其餘照順序全域對齊
   const restOld = old.map((_, i) => i).filter((i) => !pairOf.has(i));
   const restNew = next.map((_, j) => j).filter((j) => !newUsed.has(j));

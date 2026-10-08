@@ -1,6 +1,6 @@
 import { useDeferredValue, useEffect, useMemo, useRef, useState } from 'react';
 import { useShallow } from 'zustand/react/shallow';
-import { currentOf, currentProjectOf, dictEnabledIn, overrideKey, searchHit, useStore, useStorePick, type SideTab } from '../state/store';
+import { currentOf, shownSrc, currentProjectOf, dictEnabledIn, overrideKey, searchHit, useStore, useStorePick, type SideTab } from '../state/store';
 import { SHARED, dictKey, type DictInfo, type FileDoc, type GlossaryTerm } from '../model/types';
 import { fz } from '../model/fonts';
 import { enabledIssues } from '../model/checks';
@@ -75,7 +75,7 @@ function DictTab() {
     overrides: s.dictOverrides,
     current: currentProjectOf(s),
     uid: currentOf(s).entry?.uid ?? '',
-    src: currentOf(s).entry?.src ?? '',
+    src: currentOf(s).entry ? shownSrc(currentOf(s).entry!) : '',
   })));
   const set = useStore((s) => s.set);
   const [pickOpen, setPickOpen] = useState(false);
@@ -199,7 +199,7 @@ function scan(files: FileDoc[], q: string, at: [number, number, number], n: numb
         const e = sheet.entries[i];
         if (!searchHit(e, q)) continue;
         if (hits.length === n) return { hits, at: [f, sh, i], done: false };
-        hits.push({ f, sh, i, where: `${file.project} · ${file.name} · ${sheet.name} · #${e.id || i + 1}`, src: e.src, tgt: e.tgt || '尚未翻譯' });
+        hits.push({ f, sh, i, where: `${file.project} · ${file.name} · ${sheet.name} · #${e.id || i + 1}`, src: shownSrc(e), tgt: e.tgt || '尚未翻譯' });
       }
     }
   }
@@ -316,7 +316,7 @@ function NotesSection() {
 
 function NotesSectionInner() {
   // 只訂閱這個區塊用到的資料（包含 currentOf 等輔助函式間接用到的）
-  const s = useStorePick('project', 'file', 'sheetBy', 'selBy', 'mode', 'suggClosed', 'noteClosed', 'set', 'updateEntry', 'applySuggestion', 'checkSettings');
+  const s = useStorePick('project', 'file', 'sheetBy', 'selBy', 'mode', 'suggClosed', 'noteClosed', 'set', 'updateEntry', 'applySuggestion', 'checkSettings', 'beginEdit', 'endEdit');
   const cur = currentOf(s).entry!;
   const fileStd = currentOf(s).fileDoc.lengthStd;
   // 建議翻譯也檢查（跟譯文一樣的規則）；打字中不提示，離開輸入框才顯示
@@ -370,7 +370,8 @@ function NotesSectionInner() {
             <>
               <label htmlFor="verso-sugg" className="sr-only">建議翻譯</label>
               <textarea id="verso-sugg" value={cur.sugg} readOnly={!verify} onKeyDown={(ev) => sideFieldKey(ev, mode)}
-                onFocus={() => setSuggFocus(true)} onBlur={() => setSuggFocus(false)}
+                // 整段輸入在條目欄的復原算一步
+                onFocus={() => { setSuggFocus(true); s.beginEdit(); }} onBlur={() => { setSuggFocus(false); s.endEdit(); }}
                 onChange={(ev) => verify && s.updateEntry({ sugg: ev.target.value })}
                 style={{
                   ...area, flex: noteOpen ? '0 0 84px' : '1 1 auto',
@@ -393,6 +394,7 @@ function NotesSectionInner() {
         <>
           <label htmlFor="verso-note" className="sr-only">我的備註</label>
           <textarea id="verso-note" value={cur.note} readOnly={mode === 'view'} onKeyDown={(ev) => sideFieldKey(ev, mode)}
+            onFocus={() => s.beginEdit()} onBlur={() => s.endEdit()}
             onChange={(ev) => mode !== 'view' && s.updateEntry({ note: ev.target.value })}
             style={{ ...area, flex: '1 1 auto', background: 'var(--bg0)', border: '1px solid var(--line4)' }} />
         </>

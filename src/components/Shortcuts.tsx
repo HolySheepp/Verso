@@ -5,7 +5,7 @@ import { effectiveMark } from '../model/marks';
 import { markMenuIds } from './MarkMenu';
 import { rowMenuPos } from './rowMenu';
 import { manualSave } from '../state/saver';
-import { TGT_COL, cellKey, clearCells, deleteCells } from '../model/cells';
+import { TGT_COL, cellKey, clearCells, deleteCells, parseKey } from '../model/cells';
 import { verifySession } from '../state/verifySession';
 
 /** 工作用的輸入框：翻譯模式是譯文框，驗證模式是修改框，原文修正模式是原文框 */
@@ -64,6 +64,28 @@ function revealFocus() {
     const k = visibleRows(st).indexOf(f.i);
     rows[k]?.scrollIntoView({ block: 'nearest' });
   });
+}
+
+/**
+ * 有對話框或選單開著，或焦點在按鈕上（條目欄的按鈕除外）：條目欄和工作欄的快捷鍵都不處理。
+ * 例如「有未儲存的修改」焦點在「儲存」時按 Enter，要按到那個按鈕，而不是跳下一條。
+ */
+/** 選到的格子裡目前篩選下看得到的；都看不到時就是目前這條的譯文格 */
+function visibleKeys(s: ReturnType<typeof useStore.getState>, sel: number): string[] {
+  const vis = new Set(visibleRows(s));
+  const keys = (s.cellSel?.keys ?? []).filter((k) => vis.has(parseKey(k).i));
+  return keys.length ? keys : [cellKey(sel, TGT_COL)];
+}
+
+export function shortcutsBlocked(): boolean {
+  const s = useStore.getState();
+  if (s.settingsOpen || s.termDraft || s.pasteOpen || s.srcUpdate !== null || s.recoveryAsk || s.importOpen || s.dictPasteOpen
+    || s.manageProjectsOpen || s.manageDictsOpen || s.moveTarget || s.lengthDialog || s.askSave || s.updatePrompt || s.rootConflicts
+    || s.longCells?.length || s.unreadable?.length || s.goneFiles?.length) return true;
+  // 檔案欄的刪除確認、複製前的確認、右鍵選單這些只存在畫面上的對話框
+  if (document.querySelector('[role="dialog"], [role="alertdialog"], [role="menu"]')) return true;
+  const el = document.activeElement as HTMLElement | null;
+  return !!el?.closest('button') && !el.closest('.rw');
 }
 
 /** 把游標放進工作用的輸入框最後面 */
@@ -142,7 +164,7 @@ export function Shortcuts() {
     /** 依目前焦點的情境執行快捷鍵，有執行就回傳 true */
     const handle = (combo: string) => {
       const s = useStore.getState();
-      if (!s.project || s.settingsOpen || s.termDraft || s.pasteOpen || s.srcUpdate !== null || s.recoveryAsk || s.importOpen || s.dictPasteOpen || s.lengthDialog) return false;
+      if (!s.project || shortcutsBlocked()) return false;
       const el = document.activeElement;
       const inWork = isWorkInput(el, s.mode);
       // 在備註、搜尋框之類的地方，只有存檔快捷鍵有效
@@ -222,14 +244,14 @@ export function Shortcuts() {
         case 'clearTgt': {
           // 清除選取的格子（沒特別選時就是這條的譯文）；檢視模式不能改
           if (s.mode === 'view') break;
-          const keys = s.cellSel?.keys.length ? s.cellSel.keys : [cellKey(sel, TGT_COL)];
+          const keys = visibleKeys(s, sel);
           s.editSheet((es) => ({ entries: clearCells(es, keys), keys }));
           break;
         }
         case 'deleteCells': {
           // 刪除選取的格子，同一欄下面的往上補；檢視模式不能改
           if (s.mode === 'view') break;
-          const keys = s.cellSel?.keys.length ? s.cellSel.keys : [cellKey(sel, TGT_COL)];
+          const keys = visibleKeys(s, sel);
           s.editSheet((es) => ({ entries: deleteCells(es, keys), keys }));
           break;
         }

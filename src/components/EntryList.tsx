@@ -17,6 +17,7 @@ import { cellFontCss, fz, overflowOf, type Overflow } from '../model/fonts';
 import type { CustomMark, Entry, MarkId } from '../model/types';
 import type { Issue } from '../model/checks';
 import { CellText } from './CellText';
+import { maxOf, minOf } from '../model/num';
 
 /** # 欄（對話 id）、發話者欄、原文、譯文：依比例分配寬度 */
 const colsOf = (w: number[]) => w.map((x) => `minmax(0, ${x}fr)`).join(' ');
@@ -273,8 +274,10 @@ export function EntryList() {
     .filter(({ m, issues }) => filter === 'all' || (filter === 'issues' ? issues.length > 0 : m === filter));
   const visible = rows.map((x) => x.i);
 
-  // 選到的格子；沒有特別選時就是目前這條的譯文格
-  const keys = s.cellSel?.keys.length ? s.cellSel.keys : [cellKey(sel, TGT_COL)];
+  // 選到的格子；沒有特別選時就是目前這條的譯文格。被篩掉、看不到的格子不算（清除、刪除、貼上都不會動到它們）
+  const visSet = new Set(visible);
+  const picked = (s.cellSel?.keys ?? []).filter((k) => visSet.has(parseKey(k).i));
+  const keys = picked.length ? picked : [cellKey(sel, TGT_COL)];
   const selected = new Set(keys);
   // 選到的列；每一列四欄都選了才算「選整列」
   const selRows = [...new Set(keys.map((k) => parseKey(k).i))].sort((a, b) => a - b);
@@ -489,11 +492,13 @@ export function EntryList() {
     const matrix = (html && parseHtmlTable(html)) || parseTsv(ev.clipboardData.getData('text/plain'));
     if (!matrix.length) return;
     const top = parseKey([...keys].sort(order)[0]);
+    // 貼上的起點看不到（被篩掉了）就不貼
+    if (sheet.entries.length && !visSet.has(top.i)) return;
     // 空的頁簽從第一欄（#）開始貼
-    const firstCol = (sheet.entries.length ? Math.min(...keys.map((x) => parseKey(x).c)) : 0) as CellCol;
+    const firstCol = (sheet.entries.length ? minOf(keys.map((x) => parseKey(x).c)) : 0) as CellCol;
     s.editSheet((es) => {
       const r2 = pasteMatrix(es, visible, { i: top.i, c: firstCol }, matrix);
-      const width = Math.min(Math.max(...matrix.map((x) => x.length)), 4 - firstCol);
+      const width = Math.min(maxOf(matrix.map((x) => x.length), 0), 4 - firstCol);
       return { entries: r2.entries, keys: r2.touched.flatMap((i) => Array.from({ length: width }, (_, j) => cellKey(i, firstCol + j))) };
     });
   };
@@ -564,7 +569,7 @@ export function EntryList() {
           {FILTERS.map((f) => {
             const on = filter === f.id;
             return (
-              <button key={f.id} type="button" className="seg" aria-pressed={on} onClick={() => set({ filter: f.id })}
+              <button key={f.id} type="button" className="seg" aria-pressed={on} onClick={() => set({ filter: f.id, cellSel: null })}
                 style={{
                   height: 26, display: 'flex', alignItems: 'center', gap: 6, padding: '0 10px', border: 0, borderRadius: 6, fontSize: fz(12),
                   background: on ? 'var(--segon)' : 'transparent', color: on ? 'var(--text)' : 'var(--text2)',

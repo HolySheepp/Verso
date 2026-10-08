@@ -11,6 +11,7 @@ import { SHARED, dictKey, newFileId, type CustomMark, type DictInfo, type Entry,
 import { sortProjects, type RootConflict } from '../data/persist';
 import { DICT_DIR, safeName, sameName, sheetNameError } from '../model/names';
 import { compose, editsOf, type VEdit } from '../model/verify';
+import { maxOf, minOf } from '../model/num';
 
 export type Filter = 'all' | 'untranslated' | 'doubt' | 'think' | 'issues' | 'srcupd';
 export type SideTab = 'dict' | 'search' | 'web' | 'ref';
@@ -48,6 +49,18 @@ export interface TermDraft {
 
 const selKey = (f: number, sh: number) => f + ':' + sh;
 
+/** 某個檔案的頁簽位置改了：selBy 裡「檔案:頁簽」的 key 跟著換；map 回傳 -1 代表那個頁簽不在了 */
+function shiftSheetSel(selBy: Record<string, number>, file: number, map: (sh: number) => number): Record<string, number> {
+  const out: Record<string, number> = {};
+  Object.entries(selBy).forEach(([k, v]) => {
+    const [f, sh] = k.split(':').map(Number);
+    if (f !== file) { out[k] = v; return; }
+    const n = map(sh);
+    if (n >= 0) out[selKey(f, n)] = v;
+  });
+  return out;
+}
+
 /** 需要檢查的條目：有譯文、沒標忽略、沒按略過 */
 const checkable = (e: Entry) => !!e.tgt && e.mark !== 'ignore' && !e.skipCheck;
 
@@ -70,7 +83,7 @@ export function visibleIssues(e: Entry, reported: Record<string, string[]>, sett
   if (!keys || !checkable(e)) return NO_ISSUES;
   const hit = issueCache.get(e);
   if (hit && hit.keys === keys && hit.settings === settings && hit.fileStd === fileStd) return hit.out;
-  const found = enabledIssues(e.src, checkText(e), settings, effectiveStd(e.lengthStd, fileStd)).filter((i) => keys.includes(i.key));
+  const found = enabledIssues(shownSrc(e), checkText(e), settings, effectiveStd(e.lengthStd, fileStd)).filter((i) => keys.includes(i.key));
   // 沒有問題時回傳同一個空陣列，條目欄的行元件才不會因為「新的空陣列」重畫
   const out = found.length ? found : NO_ISSUES;
   issueCache.set(e, { keys, settings, fileStd, out });
@@ -336,7 +349,10 @@ function withDict(p: ProjectData, project: string, dict: string, did?: string): 
 export const DEFAULT_COL_WIDTHS = [9, 12, 39.5, 39.5];
 
 /** 工具欄搜尋：原文、譯文（不分大小寫）或 id 有包含搜尋字 */
-export const searchHit = (e: Entry, q: string) => !!q && (e.src.includes(q) || e.tgt.toLowerCase().includes(q.toLowerCase()) || e.id.includes(q));
+/** 畫面上顯示的原文：有暫存的新原文時就是新原文（字典命中、檢查、搜尋都用這個） */
+export const shownSrc = (e: Entry) => e.upd?.src ?? e.src;
+
+export const searchHit = (e: Entry, q: string) => !!q && (shownSrc(e).includes(q) || e.tgt.toLowerCase().includes(q.toLowerCase()) || e.id.includes(q));
 
 /** 上次的色彩模式與主題色（存在瀏覽器裡），啟動畫面一開始就用它鋪底色，不用等設定檔讀完 */
 export function bootLook(): { theme: Theme; accent: string } {
@@ -374,7 +390,8 @@ export function dictEnabledIn(current: string, overrides: Record<string, boolean
 export function currentOf(s: Pick<State, 'project' | 'file' | 'sheetBy' | 'selBy'>) {
   // 檔案被移除時退回第一個檔案；專案裡還沒有檔案時給一個空的，避免畫面整個壞掉
   const fileDoc = s.project!.files[s.file] ?? s.project!.files[0] ?? EMPTY_FILE;
-  const sheetIdx = s.sheetBy[s.file] ?? 0;
+  // 頁簽被刪掉時，記著的位置可能超出範圍：夾回有效範圍，修改才會寫到看得到的那個頁簽
+  const sheetIdx = Math.max(0, Math.min(s.sheetBy[s.file] ?? 0, fileDoc.sheets.length - 1));
   const sheet: Sheet = fileDoc.sheets[sheetIdx] ?? fileDoc.sheets[0];
   const sel = Math.min(s.selBy[selKey(s.file, sheetIdx)] ?? 0, Math.max(0, sheet.entries.length - 1));
   return { fileDoc, sheetIdx, sheet, sel, entry: sheet.entries[sel] as Entry | undefined };
@@ -463,7 +480,7 @@ export const useStore = create<Store>((set, get) => {
     const s = get();
     const reported = { ...s.reported };
     entries.forEach((e) => {
-      const issues = checkable(e) ? enabledIssues(e.src, checkText(e), s.checkSettings, effectiveStd(e.lengthStd, fileStd)) : [];
+      const issues = checkable(e) ? enabledIssues(shownSrc(e), checkText(e), s.checkSettings, effectiveStd(e.lengthStd, fileStd)) : [];
       if (issues.length) reported[e.uid] = issues.map((i) => i.key);
       else delete reported[e.uid];
     });
@@ -594,7 +611,7 @@ export const useStore = create<Store>((set, get) => {
       pushUndo();
       replaceSheet(s.file, sheetIdx, r.entries);
       if (r.keys?.length) {
-        const first = Math.min(...r.keys.map((k) => parseKey(k).i));
+        const first = minOf(r.keys.map((k) => parseKey(k).i));
         set({ cellSel: { keys: r.keys, anchor: parseKey(r.keys[0]) }, selBy: { ...get().selBy, [selKey(s.file, sheetIdx)]: first } });
       }
     },
@@ -629,7 +646,9 @@ export const useStore = create<Store>((set, get) => {
       const curIdx = currentOf(s).sheetIdx;
       replaceFile(s.file, { ...f, sheets: f.sheets.filter((_, j) => j !== i) });
       const next = Math.max(0, Math.min(curIdx > i ? curIdx - 1 : curIdx, f.sheets.length - 2));
-      set({ sheetBy: { ...get().sheetBy, [s.file]: next }, cellSel: null, ...noPopups, ...noView });
+      // 後面頁簽記著的選取位置跟著往前移
+      const selBy = shiftSheetSel(get().selBy, s.file, (sh) => (sh === i ? -1 : sh > i ? sh - 1 : sh));
+      set({ sheetBy: { ...get().sheetBy, [s.file]: next }, selBy, cellSel: null, ...noPopups, ...noView });
     },
 
     insertSheets(after, sheets) {
@@ -638,7 +657,9 @@ export const useStore = create<Store>((set, get) => {
       if (!f || !sheets.length) return;
       pushUndo();
       replaceFile(s.file, { ...f, sheets: [...f.sheets.slice(0, after + 1), ...sheets, ...f.sheets.slice(after + 1)] });
-      set({ sheetBy: { ...get().sheetBy, [s.file]: after + 1 }, cellSel: null, pasteInsert: null, pasteOpen: false, filter: 'all', ...noPopups, ...noView });
+      // 插入位置後面的頁簽，記著的選取位置跟著往後移；新頁簽從第一條開始
+      const selBy = shiftSheetSel(get().selBy, s.file, (sh) => (sh > after ? sh + sheets.length : sh));
+      set({ selBy, sheetBy: { ...get().sheetBy, [s.file]: after + 1 }, cellSel: null, pasteInsert: null, pasteOpen: false, filter: 'all', ...noPopups, ...noView });
     },
 
     next() {
@@ -650,7 +671,10 @@ export const useStore = create<Store>((set, get) => {
       if (entry?.upd && !entry.upd.hidden && (s.mode === 'translate' || s.mode === 'verify')) {
         patchEntry(sel, (e) => { if (e.upd?.applied) { const { upd: _u, ...rest } = e; void _u; return rest; } return { ...e, upd: { ...e.upd!, hidden: true } }; });
       }
-      if (sel < sheet.entries.length - 1) { get().select(s.file, sheetIdx, sel + 1); set({ moveSeq: get().moveSeq + 1, moveDir: 1 }); }
+      // 走到目前篩選下看得到的下一條；這條自己被篩掉了（例如翻完就不再是未翻譯）也一樣往後找
+      const target = visibleRows(get()).find((i) => i > sel);
+      void sheet;
+      if (target !== undefined) { get().select(s.file, sheetIdx, target); set({ moveSeq: get().moveSeq + 1, moveDir: 1 }); }
       else { leaveCurrent(); set({ stampOpen: false }); }
     },
 
@@ -761,26 +785,32 @@ export const useStore = create<Store>((set, get) => {
     applySrcUpdate(sheet, entries) {
       const s = get();
       if (!s.project) return;
+      // 套用後用條目編號找回原本選的那條（順序可能變了）
+      const k = selKey(s.file, sheet);
+      const oldSel = s.selBy[k] ?? 0;
+      const uid = s.project.files[s.file]?.sheets[sheet]?.entries[oldSel]?.uid;
       pushUndo();
       replaceSheet(s.file, sheet, entries);
-      const n = entries.length;
-      const k = selKey(s.file, sheet);
-      set({ srcUpdate: null, cellSel: null, selBy: { ...get().selBy, [k]: Math.min(get().selBy[k] ?? 0, Math.max(0, n - 1)) } });
+      const found = uid ? entries.findIndex((e) => e.uid === uid) : -1;
+      const sel = found >= 0 ? found : Math.min(oldSel, Math.max(0, entries.length - 1));
+      set({ srcUpdate: null, cellSel: null, selBy: { ...get().selBy, [k]: sel } });
     },
 
     applyNewSource() {
       const { entry, sel, sheet, sheetIdx } = cur();
       // 檢視模式不能改
       if (!entry || !hasPendingUpdate(entry) || get().mode === 'view') return;
+      // 正在輸入框裡編輯：先結束那段編輯，套用自己算一步
+      const editing = !!editSnap;
+      if (editing) get().endEdit();
       pushUndo();
       if (entry.upd!.removed) {
         // 新版已移除：套用就是把這條刪掉
         const next = sheet.entries.filter((_, i) => i !== sel);
         replaceSheet(get().file, sheetIdx, next);
         set({ cellSel: null, selBy: { ...get().selBy, [selKey(get().file, sheetIdx)]: Math.max(0, Math.min(sel, next.length - 1)) } });
-        return;
-      }
-      patchEntry(sel, withNewSource);
+      } else patchEntry(sel, withNewSource);
+      if (editing) get().beginEdit();
     },
 
     applyAllEdits() {
@@ -827,7 +857,7 @@ export const useStore = create<Store>((set, get) => {
       if (!project) return;
       // 自訂標記用編號記錄，改名不影響
       const used = project.customMarks.map((m) => Number(m.id)).filter((n) => !Number.isNaN(n));
-      const next = Math.max(project.nextMarkId ?? 1, ...used.map((n) => n + 1));
+      const next = maxOf(used.map((n) => n + 1), project.nextMarkId ?? 1);
       set({ project: { ...project, customMarks: [...project.customMarks, { ...c, id: String(next) }], nextMarkId: next + 1 } });
     },
 
@@ -988,6 +1018,11 @@ export const useStore = create<Store>((set, get) => {
       const f = s.project?.files[i];
       if (!f || !sheets.length) return;
       replaceFile(i, { ...f, sheets });
+      // 頁簽變少了：目前停的頁簽、選的條目夾回有效範圍
+      const sh = Math.min(s.sheetBy[i] ?? 0, sheets.length - 1);
+      const k = selKey(i, sh);
+      const sel = Math.min(s.selBy[k] ?? 0, Math.max(0, sheets[sh].entries.length - 1));
+      set({ sheetBy: { ...get().sheetBy, [i]: sh }, selBy: { ...get().selBy, [k]: sel } });
       if (s.file === i) set({ cellSel: null, ...noView });
     },
 

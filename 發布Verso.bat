@@ -36,6 +36,9 @@ echo [4/5] Checking for an up-to-date installer...
 set "SKIP="
 set "NSIS=%CARGO_TARGET_DIR%\release\bundle\nsis"
 if exist "..\安裝包\Verso_%VER%_x64-setup.exe" if exist "%NSIS%\Verso_%VER%_x64-setup.exe" if exist "%NSIS%\Verso_%VER%_x64-setup.exe.sig" if exist "%CARGO_TARGET_DIR%\release\verso.exe" set "SKIP=-SkipBuild"
+rem The signature must not be older than the installer, or the auto-update would break: rebuild in that case
+if defined SKIP powershell -NoProfile -Command "if ((Get-Item '%NSIS%\Verso_%VER%_x64-setup.exe.sig').LastWriteTime -lt (Get-Item '%NSIS%\Verso_%VER%_x64-setup.exe').LastWriteTime) { exit 1 }"
+if defined SKIP if errorlevel 1 ( set "SKIP=" & echo       The signature is older than the installer. )
 if defined SKIP ( echo       Installer for %VER% already built, skipping the build. ) else ( echo       No up-to-date installer, building now. This takes a few minutes. )
 
 echo [5/5] Publishing...

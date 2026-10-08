@@ -7,6 +7,7 @@ import { focusOnMount } from './windowDrag';
 import { cellFontCss, fz, overflowOf } from '../model/fonts';
 import { useStore } from '../state/store';
 import { CellText } from './CellText';
+import { maxOf, minOf } from '../model/num';
 
 /** 方框裡選到的東西：幾行（同一欄裡），或整欄 */
 export type BoxSel = { rows: number[]; anchor: number } | 'col';
@@ -87,7 +88,7 @@ function PasteBoxImpl({ label, col, onPaste, onChange, selected, onSelect, fontS
     const cols = readColumns({ html, text });
     if (!cols.length) return;
     setEditing(null);
-    if (selRows.length) onPaste(cols, Math.min(...selRows));
+    if (selRows.length) onPaste(cols, minOf(selRows));
     else onPaste(cols);
   };
 
@@ -117,12 +118,12 @@ function PasteBoxImpl({ label, col, onPaste, onChange, selected, onSelect, fontS
     if (!selRows.length) return;
     const next = deleteRows(col, selRows);
     onChange(next.rows.length ? next : null);
-    const at = Math.min(Math.min(...selRows), next.rows.length - 1);
+    const at = Math.min(minOf(selRows), next.rows.length - 1);
     onSelect(at >= 0 ? { rows: [at], anchor: at } : null);
   };
   const insert = () => {
     if (!col || !selRows.length) return;
-    const at = Math.max(...selRows);
+    const at = maxOf(selRows);
     onChange(insertRow(col, at));
     setEditing({ i: at + 1, text: '' });
     onSelect({ rows: [at + 1], anchor: at + 1 });

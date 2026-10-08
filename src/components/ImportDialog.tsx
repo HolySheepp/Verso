@@ -12,6 +12,7 @@ import { COLS as ALL_COLS, checkColumns, columnsToEntries, type ColKey } from '.
 import { colName, emptyFields, fieldLabel, fieldsToColumns, inRect, rectOf, rectsToField, type FieldMap, type Rect } from '../model/importSel';
 import { IMPORT_EXTS, readImport, type ImportBook } from '../data/importio';
 import { xlsxToFile } from '../data/xlsxio';
+import { maxOf } from '../model/num';
 
 interface DraftSheet { id: string; name: string; rows: string[][]; width: number; fields: FieldMap }
 
@@ -61,13 +62,18 @@ export function ImportDialog() {
   async function load(file: File | undefined) {
     if (!file) return;
     setErr('');
-    const res = readImport(file.name, new Uint8Array(await file.arrayBuffer()));
+    // 讀不到、或檔案壞掉時顯示原因，不要沒有反應
+    let res: ReturnType<typeof readImport>;
+    try { res = readImport(file.name, new Uint8Array(await file.arrayBuffer())); } catch (e) {
+      setErr('讀不到這個檔案：' + String((e as Error)?.message ?? e).slice(0, 80));
+      return;
+    }
     if (typeof res === 'string') { setErr(res); return; }
     setBook(res);
     setName(res.name);
     setSheets(res.sheets.map((sh) => ({
       id: 'i' + sheetSeq++, name: sh.name, rows: sh.rows,
-      width: Math.max(1, ...sh.rows.map((r) => r.length)), fields: emptyFields(),
+      width: maxOf(sh.rows.map((r) => r.length), 1), fields: emptyFields(),
     })));
     setCur(0);
   }

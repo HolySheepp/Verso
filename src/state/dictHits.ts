@@ -3,7 +3,7 @@
 import { useMemo } from 'react';
 import { useShallow } from 'zustand/react/shallow';
 import { dictKey, type GlossaryTerm } from '../model/types';
-import { currentOf, currentProjectOf, dictEnabledIn, useStore } from './store';
+import { currentOf, shownSrc, currentProjectOf, dictEnabledIn, useStore } from './store';
 
 export interface DictHit {
   term: GlossaryTerm;
@@ -53,6 +53,7 @@ export function findHits(src: string, terms: GlossaryTerm[]): DictHit[] {
 /** 目前這一條原文的命中詞 */
 export function useCurrentHits(): DictHit[] {
   const terms = useActiveTerms();
-  const src = useStore((s) => currentOf(s).entry?.src ?? '');
+  // 畫面上顯示的原文（有新原文時用新原文）
+  const src = useStore((s) => { const e = currentOf(s).entry; return e ? shownSrc(e) : ''; });
   return useMemo(() => findHits(src, terms), [src, terms]);
 }

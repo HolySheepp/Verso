@@ -39,6 +39,8 @@ function SrcUpdate({ sheetIdx }: { sheetIdx: number }) {
   const [step, setStep] = useState<'paste' | 'align'>('paste');
   // 對齊結果與視窗內的復原紀錄
   const [hist, setHist] = useState<{ rows: AlignRow[]; past: AlignRow[][]; future: AlignRow[][] }>({ rows: [], past: [], future: [] });
+  /** 回到貼入步驟或原文欄改了：舊的對齊結果對不上了，清掉 */
+  const resetAlign = () => setHist({ rows: [], past: [], future: [] });
   const rows = hist.rows;
   const commit = (next: AlignRow[]) => setHist((h) => ({ rows: next, past: [...h.past.slice(-99), h.rows], future: [] }));
   const undo = () => setHist((h) => (h.past.length ? { rows: h.past[h.past.length - 1], past: h.past.slice(0, -1), future: [h.rows, ...h.future] } : h));
@@ -49,8 +51,13 @@ function SrcUpdate({ sheetIdx }: { sheetIdx: number }) {
   const check = checkColumns(cols);
   const next: NewRow[] = useMemo(() => (cols.src?.rows ?? []).map((src, i) => ({ id: cols.id?.rows[i] ?? '', speaker: cols.speaker?.rows[i] ?? '', src })), [cols]);
   const entries = sheet?.entries ?? [];
-  const infos = useMemo(() => rowInfos(entries.map((e) => e.src), next.map((n) => n.src), rows), [rows, entries, next]);
-  const summary = useMemo(() => summarize(entries, next, rows), [entries, next, rows]);
+  // 只在對齊步驟才算；對不上的索引（例如原文欄改過）當成空格，避免整個畫面出錯
+  const safeRows = useMemo(() => (step === 'align' ? rows.map((r) => ({
+    old: r.old !== null && r.old < entries.length ? r.old : null,
+    new: r.new !== null && r.new < next.length ? r.new : null,
+  })) : []), [step, rows, entries.length, next.length]);
+  const infos = useMemo(() => rowInfos(entries.map((e) => e.src), next.map((n) => n.src), safeRows), [safeRows, entries, next]);
+  const summary = useMemo(() => summarize(entries, next, safeRows), [entries, next, safeRows]);
 
   if (!sheet) return null;
 
@@ -66,7 +73,7 @@ function SrcUpdate({ sheetIdx }: { sheetIdx: number }) {
     }, 30);
   };
   const apply = () => {
-    applySrcUpdate(sheetIdx, applyUpdate(entries, next, rows, { id: !!cols.id, speaker: !!cols.speaker }));
+    applySrcUpdate(sheetIdx, applyUpdate(entries, next, safeRows, { id: !!cols.id, speaker: !!cols.speaker }));
   };
 
   const onKeyDown = (ev: React.KeyboardEvent) => {
@@ -94,14 +101,14 @@ function SrcUpdate({ sheetIdx }: { sheetIdx: number }) {
           <div style={{ flexGrow: 1, minHeight: 0, display: 'grid', gridTemplateColumns: '120px 145px minmax(0, 1fr)', gap: 12, padding: '16px 20px' }}>
             {KEYS.map((k) => (
               <PasteBox key={k} label={LABELS[k]} col={cols[k]} required={k === 'src'} fontSlot={k === 'id' || k === 'speaker' ? k : undefined}
-                onPaste={(values, start) => setCols((c) => ({ ...c, ...pasteColumns(KEYS, k, values, c, start) }))}
-                onChange={(col) => setCols((c) => ({ ...c, [k]: col }))}
+                onPaste={(values, start) => { resetAlign(); setCols((c) => ({ ...c, ...pasteColumns(KEYS, k, values, c, start) })); }}
+                onChange={(col) => { resetAlign(); setCols((c) => ({ ...c, [k]: col })); }}
                 selected={sel?.key === k ? sel.sel : null}
                 onSelect={(s) => setSel(s === null ? null : { key: k, sel: s })} />
             ))}
           </div>
         ) : (
-          <AlignGrid rows={rows} entries={entries} next={next} infos={infos} onChange={commit} />
+          <AlignGrid rows={safeRows} entries={entries} next={next} infos={infos} onChange={commit} />
         )}
 
         <div style={{ flexShrink: 0, display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 12, padding: '12px 20px 16px', borderTop: '1px solid var(--line)' }}>
@@ -118,7 +125,7 @@ function SrcUpdate({ sheetIdx }: { sheetIdx: number }) {
               </>
             ) : (
               <>
-                <button type="button" className="btn btn-ghost" onClick={() => setStep('paste')} style={btn}>上一步</button>
+                <button type="button" className="btn btn-ghost" onClick={() => { resetAlign(); setStep('paste'); }} style={btn}>上一步</button>
                 <button type="button" className="btn btn-primary" disabled={busy} onClick={() => setConfirm(true)} style={primary}>確定</button>
               </>
             )}

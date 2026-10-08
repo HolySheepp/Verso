@@ -2,6 +2,7 @@
 // 跟 Google Sheets 一樣自動換行，再數排出來幾行。沒有畫面（例如跑測試）時不量。
 import { fontStack, ptToPx } from './fonts';
 import { CELL_PADDING, type LengthStd } from './length';
+import { maxOf } from './num';
 
 export interface Measure {
   /** 排出來的行數（空字串是 0 行） */
@@ -45,8 +46,8 @@ function layout(el: HTMLDivElement, text: string): { lines: number; remain: numb
   const rects = Array.from(range.getClientRects()).filter((r) => r.width > 0 || r.height > 0);
   const tops: number[] = [];
   rects.forEach((r) => { if (!tops.some((x) => Math.abs(x - r.top) <= 2)) tops.push(r.top); });
-  const lastTop = Math.max(...tops);
-  const lastRight = Math.max(...rects.filter((r) => Math.abs(r.top - lastTop) <= 2).map((r) => r.right));
+  const lastTop = maxOf(tops);
+  const lastRight = maxOf(rects.filter((r) => Math.abs(r.top - lastTop) <= 2).map((r) => r.right));
   // 結尾是換行時，最後多一個空行
   const lines = tops.length + (text.endsWith('\n') ? 1 : 0);
   const content = el.getBoundingClientRect();

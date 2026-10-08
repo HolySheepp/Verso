@@ -14,6 +14,7 @@ import { MarkMenu } from './MarkMenu';
 import { ContextMenu } from './ContextMenu';
 import { applyChange, applyOne, compose, editsOf, removeOne, spansOf, type VEdit } from '../model/verify';
 import { verifySession } from '../state/verifySession';
+import { shortcutsBlocked } from './Shortcuts';
 import { srcDiff } from '../model/srcUpdate';
 import { fz } from '../model/fonts';
 import {
@@ -393,8 +394,7 @@ function WorkPanelInner({ height, maxH }: { height: number; maxH: number }) {
   useEffect(() => {
     const onKey = (ev: KeyboardEvent) => {
       if (!ev.altKey || ev.ctrlKey || ev.metaKey || ev.shiftKey || !/^Digit[1-9]$/.test(ev.code)) return;
-      const st = useStore.getState();
-      if (st.settingsOpen || st.termDraft || st.pasteOpen || st.srcUpdate !== null || st.importOpen || st.dictPasteOpen || st.manageProjectsOpen || st.manageDictsOpen || st.lengthDialog || st.moveTarget) return;
+      if (shortcutsBlocked()) return;
       const hit = altRef.current.hits[Number(ev.code.slice(5)) - 1];
       ev.preventDefault();
       if (hit) insertTerm(hit.term.en);
@@ -516,7 +516,7 @@ function WorkPanelInner({ height, maxH }: { height: number; maxH: number }) {
               borderRadius: 8, fontSize: 'var(--fs-src)', fontFamily: 'var(--font-src)', lineHeight: 1.6, color: 'var(--text)',
             }} />
             {/* 命中字典的詞標色 */}
-            <TextMarks target={srcEl} text={showNewSrc ? newSrc! : cur.src} ranges={showNewSrc ? srcDiffRanges : hitRanges} />
+            <TextMarks target={srcEl} text={showNewSrc ? newSrc! : cur.src} ranges={showNewSrc ? srcDiffRanges : newSrc !== undefined ? [] : hitRanges} />
             {srcButtons > 0 && (
               <div role="toolbar" aria-label="原文更新" aria-orientation="vertical" style={{ position: 'absolute', right: 6, top: 6, display: 'flex', flexDirection: 'column', gap: 2 }}>
                 {newSrc !== undefined && <button type="button" className="hb tip" data-tip="按住看舊原文" aria-label="按住看舊原文" aria-pressed={srcPeek}
