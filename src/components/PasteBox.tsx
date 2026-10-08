@@ -62,8 +62,10 @@ function PasteBoxImpl({ label, col, onPaste, onChange, selected, onSelect, fontS
     ro.observe(el);
     return () => ro.disconnect();
   }, [ovf]);
-  // 方框寬度扣掉行號欄、間距和內距
-  const fitW = Math.max(0, boxW - 50);
+  // 行號欄只留最大行號需要的位數（8 行就 1 位數），行號靠右對齊
+  const digits = Math.max(1, String(col?.rows.length ?? 0).length);
+  // 方框寬度扣掉行號欄、間距和內距（原本以 4 位數算 50px，每少一位約少 6.5px）
+  const fitW = Math.max(0, boxW - 50 + (4 - digits) * 6.5);
   const font = fontSlot === 'id' ? { family: 'var(--font-id)', size: 'var(--fs-id)' } : fontSlot === 'speaker' ? { family: 'var(--font-spk)', size: 'var(--fs-spk)' } : null;
   // 用一個看不見的文字框接收貼上，這樣不管點在方框哪裡、按 Ctrl+V 都一定會觸發貼上
   const input = useRef<HTMLTextAreaElement>(null);
@@ -214,8 +216,7 @@ function PasteBoxImpl({ label, col, onPaste, onChange, selected, onSelect, fontS
             }}
             // 畫面外的行不排版、不繪製，幾千行時捲動才順
             style={{ display: 'flex', alignItems: 'center', gap: 6, padding: '2px 8px 2px 4px', fontSize: fz(12.5), lineHeight: 1.5, contentVisibility: 'auto', containIntrinsicSize: 'auto 23px' }}>
-            {/* 行號欄剛好放得下 4 位數 */}
-            <span className="mono" style={{ width: '4ch', flexShrink: 0, textAlign: 'right', fontSize: fz(10.5), color: 'var(--mute3)', lineHeight: '19px' }}>{i + 1}</span>
+            <span className="mono" style={{ width: digits + 'ch', flexShrink: 0, textAlign: 'right', fontSize: fz(10.5), color: 'var(--mute3)', lineHeight: '19px' }}>{i + 1}</span>
             {editing?.i === i ? (
               <textarea maxLength={MAX_CELL_CHARS} className="pb-edit" ref={focusOnMount} value={editing.text} spellCheck={false}
                 rows={Math.max(1, editing.text.split('\n').length)}
