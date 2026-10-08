@@ -444,14 +444,17 @@ export function currentOf(s: Pick<State, 'project' | 'file' | 'sheetBy' | 'selBy
 
 export const useStore = create<Store>((set, get) => {
   /** 對目前頁簽的某一條做不可變更新 */
-  const patchEntry = (index: number, fn: (e: Entry) => Entry) => {
+  const patchEntry = (index: number, fn: (e: Entry) => Entry) => patchEntries(new Set([index]), fn);
+
+  /** 一次改目前頁簽的好幾條：整個頁簽只走一次、只 set 一次 */
+  const patchEntries = (indices: Set<number>, fn: (e: Entry) => Entry) => {
     const s = get();
-    if (!s.project) return;
+    if (!s.project || !indices.size) return;
     const { sheetIdx } = currentOf(s);
     const files = s.project.files.map((f, fi) => fi !== s.file ? f : {
       ...f,
       sheets: f.sheets.map((sh, si) => si !== sheetIdx ? sh : {
-        ...sh, entries: sh.entries.map((e, i) => (i === index ? fn(e) : e)),
+        ...sh, entries: sh.entries.map((e, i) => (indices.has(i) ? fn(e) : e)),
       }),
     });
     set({ project: { ...s.project, files } });
@@ -526,8 +529,12 @@ export const useStore = create<Store>((set, get) => {
     const reported = { ...s.reported };
     entries.forEach((e) => {
       const issues = checkable(e) ? enabledIssues(shownSrc(e), checkText(e), s.checkSettings, effectiveStd(e.lengthStd, fileStd)) : [];
-      if (issues.length) reported[e.uid] = issues.map((i) => i.key);
-      else delete reported[e.uid];
+      if (issues.length) {
+        const keys = issues.map((i) => i.key);
+        reported[e.uid] = keys;
+        // 剛算好的結果直接放進顯示用的快取，畫面不必再檢查一次
+        issueCache.set(e, { keys, settings: s.checkSettings, fileStd, out: issues });
+      } else delete reported[e.uid];
     });
     set({ reported });
   };
@@ -772,7 +779,7 @@ export const useStore = create<Store>((set, get) => {
 
     setEntryMarks(indices, id) {
       pushUndo();
-      indices.forEach((i) => patchEntry(i, (e) => withMark(e, id)));
+      patchEntries(new Set(indices), (e) => withMark(e, id));
     },
 
     beginEdit() {

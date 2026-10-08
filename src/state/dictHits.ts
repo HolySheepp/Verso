@@ -34,18 +34,15 @@ export function useActiveTerms(): GlossaryTerm[] {
  */
 export function findHits(src: string, terms: GlossaryTerm[], current?: string): DictHit[] {
   if (!src) return [];
-  // 同一個原文的詞條放一起；目前專案的字典排前面，再來是共用
-  const groups = new Map<string, GlossaryTerm[]>();
-  for (const g of terms) {
-    if (!g.term || !src.includes(g.term)) continue;
-    const list = groups.get(g.term);
-    if (list) list.push(g); else groups.set(g.term, [g]);
-  }
-  const rank = (g: GlossaryTerm) => (g.proj === current ? 0 : g.proj === SHARED ? 1 : 2);
+  const words = prepared(terms, current);
+  // 同一份字典、同一段原文（工作欄和字典頁同時要）：直接用上次的結果
+  const last = lastHits.get(words);
+  if (last && last.src === src) return last.hits;
   const taken: boolean[] = new Array(src.length).fill(false);
   const hits: DictHit[] = [];
   // 長的詞優先：只用來排除被長詞蓋住的位置
-  for (const word of [...groups.keys()].sort((a, b) => b.length - a.length)) {
+  for (const { word, variants } of words) {
+    if (!src.includes(word)) continue;
     const spans: { start: number; end: number }[] = [];
     for (let at = src.indexOf(word); at >= 0;) {
       const end = at + word.length;
@@ -56,10 +53,32 @@ export function findHits(src: string, terms: GlossaryTerm[], current?: string): 
       at = src.indexOf(word, end);
     }
     if (!spans.length) continue;
-    const variants = [...groups.get(word)!].sort((a, b) => rank(a) - rank(b));
     hits.push({ term: variants[0], terms: variants, spans });
   }
-  return hits.sort((a, b) => a.spans[0].start - b.spans[0].start);
+  const out = hits.sort((a, b) => a.spans[0].start - b.spans[0].start);
+  lastHits.set(words, { src, hits: out });
+  return out;
+}
+
+interface Prepared { word: string; variants: GlossaryTerm[] }
+/** 字典整理好的樣子：同一個原文的詞條放一起，長的詞排前面；字典內容或目前專案變了才重做 */
+const preparedCache = new WeakMap<GlossaryTerm[], { current?: string; words: Prepared[] }>();
+const lastHits = new WeakMap<Prepared[], { src: string; hits: DictHit[] }>();
+function prepared(terms: GlossaryTerm[], current?: string): Prepared[] {
+  const hit = preparedCache.get(terms);
+  if (hit && hit.current === current) return hit.words;
+  const groups = new Map<string, GlossaryTerm[]>();
+  for (const g of terms) {
+    if (!g.term) continue;
+    const list = groups.get(g.term);
+    if (list) list.push(g); else groups.set(g.term, [g]);
+  }
+  // 目前專案的字典排前面，再來是共用
+  const rank = (g: GlossaryTerm) => (g.proj === current ? 0 : g.proj === SHARED ? 1 : 2);
+  const words = [...groups].map(([word, list]) => ({ word, variants: list.sort((a, b) => rank(a) - rank(b)) }))
+    .sort((a, b) => b.word.length - a.word.length);
+  preparedCache.set(terms, { current, words });
+  return words;
 }
 
 /** 目前這一條原文的命中詞 */

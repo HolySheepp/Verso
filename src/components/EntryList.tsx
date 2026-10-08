@@ -1,4 +1,4 @@
-import { memo, useEffect, useRef, useState } from 'react';
+import { memo, useEffect, useMemo, useRef, useState } from 'react';
 import { currentOf, hasPendingUpdate, searchHit, useStorePick, visibleIssues, type Filter } from '../state/store';
 import { effectiveMark, markName, markVisual } from '../model/marks';
 import { columnToClipboard, parseHtmlTable, parseTsv, writeColumn } from '../model/clipboard';
@@ -257,25 +257,33 @@ export function EntryList() {
   // 工具欄開著搜尋頁時，符合搜尋的條目高亮
   const searchQ = s.searchQuery.trim();
   const searchOn = s.side === 'search' && !s.hideSide && !!searchQ;
-  const issuesOf = (e: (typeof sheet.entries)[number]) => visibleIssues(e, s.reported, s.checkSettings, fileStd);
-  const cnt: Record<string, number> = { untranslated: 0, doubt: 0, think: 0, issues: 0, srcupd: 0 };
-  sheet.entries.forEach((e) => {
-    const m = effectiveMark(e);
-    if (m in cnt) cnt[m]++;
-    if (issuesOf(e).length) cnt.issues++;
-  });
+  // 每一條的標記和問題、各篩選的數量：條目、檢查結果、篩選變了才重算（選取、捲動不用重算）
+  const { all, cnt } = useMemo(() => {
+    const cnt: Record<string, number> = { untranslated: 0, doubt: 0, think: 0, issues: 0, srcupd: 0 };
+    const all = sheet.entries.map((e, i) => {
+      const m = effectiveMark(e);
+      const issues = visibleIssues(e, s.reported, s.checkSettings, fileStd);
+      if (m in cnt) cnt[m]++;
+      if (issues.length) cnt.issues++;
+      return { e, i, m, issues };
+    });
+    return { all, cnt };
+  }, [sheet.entries, s.reported, s.checkSettings, fileStd]);
 
   const openMark = (ev: React.MouseEvent<HTMLButtonElement>, i: number) => {
     set({ rowMenu: { index: i, ...rowMenuPos(ev.currentTarget, customs.length) }, stampOpen: false, fileMenuOpen: false });
   };
 
-  const rows = sheet.entries
-    .map((e, i) => ({ e, i, m: effectiveMark(e), issues: issuesOf(e) }))
-    .filter(({ m, issues }) => filter === 'all' || (filter === 'issues' ? issues.length > 0 : m === filter));
-  const visible = rows.map((x) => x.i);
+  const { rows, visible, posOf } = useMemo(() => {
+    const rows = filter === 'all' ? all : all.filter(({ m, issues }) => (filter === 'issues' ? issues.length > 0 : m === filter));
+    const visible = rows.map((x) => x.i);
+    // 條目 → 在畫面上的第幾列
+    const posOf = new Map(visible.map((i, k) => [i, k]));
+    return { rows, visible, posOf };
+  }, [all, filter]);
 
   // 選到的格子；沒有特別選時就是目前這條的譯文格。被篩掉、看不到的格子不算（清除、刪除、貼上都不會動到它們）
-  const visSet = new Set(visible);
+  const visSet = posOf;
   const picked = (s.cellSel?.keys ?? []).filter((k) => visSet.has(parseKey(k).i));
   const keys = picked.length ? picked : [cellKey(sel, TGT_COL)];
   const selected = new Set(keys);
@@ -288,11 +296,16 @@ export function EntryList() {
   const selColsOf = (i: number) => (selByRow.get(i) ?? []).sort().join(',');
   const cols = colsOf(s.colWidths);
   const anchor = s.cellSel?.anchor ?? { i: sel, c: TGT_COL };
-  const order = (a: string, b: string) => {
-    const pa = parseKey(a), pb = parseKey(b);
-    return visible.indexOf(pa.i) - visible.indexOf(pb.i) || pa.c - pb.c;
+  // 畫面上最前面的格子（先比列、再比欄）：直接找最小的，不整個排序
+  const firstKey = (ks: string[]) => {
+    let best = parseKey(ks[0]), bp = posOf.get(best.i) ?? -1;
+    for (let k = 1; k < ks.length; k++) {
+      const c = parseKey(ks[k]), cp = posOf.get(c.i) ?? -1;
+      if (cp < bp || (cp === bp && c.c < best.c)) { best = c; bp = cp; }
+    }
+    return best;
   };
-  const firstOf = (ks: string[]) => parseKey([...ks].sort(order)[0]).i;
+  const firstOf = (ks: string[]) => firstKey(ks).i;
   const pick = (ks: string[], a: Cell) => s.selectCells(ks, a, firstOf(ks));
 
   // 選取（單擊、Shift 延伸、Ctrl 加選、拖動）
@@ -358,7 +371,7 @@ export function EntryList() {
     sink.current?.focus({ preventScroll: true });
     const cell: Cell = { i, c: 0 };
     if (ev.shiftKey) {
-      const a = visible.indexOf(anchor.i), b = visible.indexOf(i);
+      const a = posOf.get(anchor.i) ?? -1, b = posOf.get(i) ?? -1;
       const [p0, p1] = a < b ? [a, b] : [b, a];
       pick(visible.slice(Math.max(0, p0), p1 + 1).flatMap(rowKeys), anchor);
       return;
@@ -427,7 +440,7 @@ export function EntryList() {
   const onRowEnter = (ev: React.MouseEvent, i: number) => {
     const d = rowDrag.current;
     if (!d || !(ev.buttons & 1)) return;
-    const a = visible.indexOf(d.i), b = visible.indexOf(i);
+    const a = posOf.get(d.i) ?? -1, b = posOf.get(i) ?? -1;
     const [p0, p1] = a < b ? [a, b] : [b, a];
     const rows = visible.slice(Math.max(0, p0), p1 + 1).flatMap(rowKeys);
     pick([...new Set([...d.base, ...rows])], { i: d.i, c: 0 });
@@ -447,7 +460,7 @@ export function EntryList() {
     sink.current?.focus({ preventScroll: true });
     if (readOnly) return;
     if (k === 'applySrc') { s.applyAllNewSources(selRows); return; }
-    const first = parseKey([...keys].sort(order)[0]);
+    const first = firstKey(keys);
     // 標記選單出現在滑鼠位置（相對於整個畫面），太靠下時往上移
     const menuAt = (x: number, y: number) => {
       const root = listRef.current?.closest('[data-root]') as HTMLElement | null;
@@ -491,7 +504,7 @@ export function EntryList() {
     const html = ev.clipboardData.getData('text/html');
     const matrix = (html && parseHtmlTable(html)) || parseTsv(ev.clipboardData.getData('text/plain'));
     if (!matrix.length) return;
-    const top = parseKey([...keys].sort(order)[0]);
+    const top = firstKey(keys);
     // 貼上的起點看不到（被篩掉了）就不貼
     if (sheet.entries.length && !visSet.has(top.i)) return;
     // 空的頁簽從第一欄（#）開始貼
@@ -649,7 +662,7 @@ export function EntryList() {
             { key: 'up', label: '上移', disabled: readOnly },
             { key: 'down', label: '下移', disabled: readOnly },
           ] : [
-            { key: 'edit', label: '編輯', disabled: readOnly || !canEdit(parseKey([...keys].sort(order)[0]).c) },
+            { key: 'edit', label: '編輯', disabled: readOnly || !canEdit(firstKey(keys).c) },
             { key: 'clear', label: '清除', disabled: readOnly },
             { key: 'mark', label: '標記', disabled: readOnly },
             ...(selRows.some((i) => sheet.entries[i] && hasPendingUpdate(sheet.entries[i])) ? [{ key: 'applySrc', label: '套用新原文', disabled: readOnly }] : []),

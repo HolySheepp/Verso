@@ -61,56 +61,139 @@ export function arrowOf(oldSrc: string | null, newSrc: string | null): Arrow {
 
 const MATCH_OFFSET = 0.5;
 const GAP = 0.3;
-const BAND = 96;
+/** 帶寬：條目很多時窄一點，算得快 */
+const bandFor = (n: number) => (n > 5000 ? 48 : 96);
 const REORDER = 0.85;
+/** 對齊表格、交叉比對最多算這麼多格 */
+const MAX_CELLS = 30_000_000;
+/** 相似度低於這個就不硬配成一對，兩邊各自留空格 */
+const MIN_PAIR = 0.3;
 
-/** 照順序的全域對齊（Needleman-Wunsch，帶寬限制）。回傳 [舊索引, 新索引] 的配對，缺口是 null */
-function globalAlign(a: string[], b: string[]): [number | null, number | null][] {
+/** 字元出現次數（算相似度上限用） */
+function charCounts(s: string): Map<number, number> {
+  const m = new Map<number, number>();
+  for (let k = 0; k < s.length; k++) { const c = s.charCodeAt(k); m.set(c, (m.get(c) ?? 0) + 1); }
+  return m;
+}
+
+/** 相似度的上限（不跑最長共同子序列）：共同的字元最多就是各字元出現次數取小的加總 */
+function ratioBound(a: string, b: string, ca: Map<number, number>, cb: Map<number, number>, floor: number): number {
+  if (!a.length && !b.length) return 1;
+  // 長度差太多：一定不像
+  const lenBound = (2 * Math.min(a.length, b.length)) / (a.length + b.length);
+  if (lenBound < floor) return lenBound;
+  const [small, big] = ca.size <= cb.size ? [ca, cb] : [cb, ca];
+  let common = 0;
+  small.forEach((n, c) => { common += Math.min(n, big.get(c) ?? 0); });
+  return (2 * common) / (a.length + b.length);
+}
+
+/** 一群比對用字串（已經是 matchKey），附上字元統計，算相似度時先用上限排除 */
+class Keys {
+  private counts: (Map<number, number> | undefined)[] = [];
+  constructor(readonly keys: string[]) {}
+  countsOf(i: number) { return (this.counts[i] ??= charCounts(this.keys[i])); }
+}
+
+/** 相似度；確定低於 floor 時直接回傳 0（不跑最長共同子序列）。比對用字串相同的直接是 1 */
+function simAbove(a: Keys, i: number, b: Keys, j: number, floor: number): number {
+  const x = a.keys[i], y = b.keys[j];
+  if (x === y) return 1;
+  if (ratioBound(x, y, a.countsOf(i), b.countsOf(j), floor) < floor) return 0;
+  return ratio(x, y);
+}
+
+/**
+ * 照順序的全域對齊（Needleman-Wunsch，帶寬限制）。a、b 是舊、新的索引，回傳配對（缺口是 null）。
+ * dp 只配置帶寬內的格子；不夠像的不配成一對。
+ */
+function globalAlign(A: Keys, a: number[], B: Keys, b: number[]): [number | null, number | null][] {
   const n = a.length, m = b.length;
-  const ka = a.map(matchKey), kb = b.map(matchKey);
-  const cache = new Map<number, number>();
-  const sim = (i: number, j: number) => {
-    const k = i * (m + 1) + j;
-    let v = cache.get(k);
-    if (v === undefined) { v = ratio(ka[i], kb[j]); cache.set(k, v); }
-    return v;
-  };
+  if (!n || !m) return [...a.map((i): [number, null] => [i, null]), ...b.map((j): [null, number] => [null, j])];
   // 帶寬：兩邊長度差太多時放寬，確保走得到終點
-  const band = Math.max(BAND, Math.abs(n - m) + 8);
-  const W = m + 1;
+  const band = Math.max(bandFor(Math.max(n, m)), Math.abs(n - m) + 8);
+  const W = 2 * band + 1;
+  // 兩邊條數差太多又找不到錨點：表格會大到記憶體放不下，全部留空格讓使用者自己拖
+  if ((n + 1) * W > MAX_CELLS) return [...a.map((i): [number, null] => [i, null]), ...b.map((j): [null, number] => [null, j])];
+  const at = (i: number, j: number) => i * W + (j - i + band);
+  const ok = (i: number, j: number) => Math.abs(j - i) <= band;
   const dp = new Float32Array((n + 1) * W).fill(-Infinity);
   const back = new Uint8Array((n + 1) * W); // 1 斜、2 上（舊有新沒有）、3 左（新有舊沒有）
-  dp[0] = 0;
+  dp[at(0, 0)] = 0;
   for (let i = 0; i <= n; i++) {
     const jLo = Math.max(0, i - band), jHi = Math.min(m, i + band);
     for (let j = jLo; j <= jHi; j++) {
       if (i === 0 && j === 0) continue;
       let best = -Infinity, from = 0;
-      if (i > 0 && j > 0 && dp[(i - 1) * W + j - 1] > -Infinity) {
-        const c = dp[(i - 1) * W + j - 1] + sim(i - 1, j - 1) - MATCH_OFFSET;
-        if (c > best) { best = c; from = 1; }
+      if (i > 0 && j > 0 && dp[at(i - 1, j - 1)] > -Infinity) {
+        const sc = simAbove(A, a[i - 1], B, b[j - 1], MIN_PAIR);
+        if (sc >= MIN_PAIR) {
+          const c = dp[at(i - 1, j - 1)] + sc - MATCH_OFFSET;
+          if (c > best) { best = c; from = 1; }
+        }
       }
-      if (i > 0 && dp[(i - 1) * W + j] > -Infinity && dp[(i - 1) * W + j] - GAP > best) { best = dp[(i - 1) * W + j] - GAP; from = 2; }
-      if (j > 0 && dp[i * W + j - 1] > -Infinity && dp[i * W + j - 1] - GAP > best) { best = dp[i * W + j - 1] - GAP; from = 3; }
-      dp[i * W + j] = best; back[i * W + j] = from;
+      if (i > 0 && ok(i - 1, j) && dp[at(i - 1, j)] - GAP > best) { best = dp[at(i - 1, j)] - GAP; from = 2; }
+      if (j > 0 && ok(i, j - 1) && dp[at(i, j - 1)] - GAP > best) { best = dp[at(i, j - 1)] - GAP; from = 3; }
+      dp[at(i, j)] = best; back[at(i, j)] = from;
     }
   }
   const out: [number | null, number | null][] = [];
   let i = n, j = m;
   while (i > 0 || j > 0) {
-    const f = back[i * W + j];
-    if (f === 1) { out.push([i - 1, j - 1]); i--; j--; }
-    else if (f === 2) { out.push([i - 1, null]); i--; }
-    else { out.push([null, j - 1]); j--; }
+    const f = back[at(i, j)];
+    if (f === 1) { out.push([a[i - 1], b[j - 1]]); i--; j--; }
+    else if (f === 2) { out.push([a[i - 1], null]); i--; }
+    else { out.push([null, b[j - 1]]); j--; }
   }
   return out.reverse();
 }
 
+/** 最長遞增子序列：回傳留下來的索引 */
+function lis(vals: number[]): number[] {
+  const tails: number[] = [], prev = new Int32Array(vals.length).fill(-1);
+  for (let k = 0; k < vals.length; k++) {
+    let lo = 0, hi = tails.length;
+    while (lo < hi) { const mid = (lo + hi) >> 1; if (vals[tails[mid]] < vals[k]) lo = mid + 1; else hi = mid; }
+    if (lo > 0) prev[k] = tails[lo - 1];
+    tails[lo] = k;
+  }
+  const out: number[] = [];
+  for (let k = tails.length ? tails[tails.length - 1] : -1; k >= 0; k = prev[k]) out.push(k);
+  return out.reverse();
+}
+
 /**
- * 自動比對：有 ID 的先讓 ID 相同的配成一對；其餘照順序全域對齊；
+ * 先用錨點切段再對齊：兩邊都只出現一次、完全相同的句子直接配對；其中順序一致的（最長遞增子序列）當錨點，
+ * 錨點之間的每一段再做全域對齊。順序不一致的那些就是被搬動的句子，一樣直接配對。
+ */
+function alignByAnchors(A: Keys, a: number[], B: Keys, b: number[]): [number | null, number | null][] {
+  const count = (K: Keys, xs: number[]) => { const m = new Map<string, number>(); xs.forEach((x) => { const k = K.keys[x]; if (k) m.set(k, (m.get(k) ?? 0) + 1); }); return m; };
+  const ca = count(A, a), cb = count(B, b);
+  const posB = new Map<string, number>();
+  b.forEach((j, q) => { const k = B.keys[j]; if (k && cb.get(k) === 1) posB.set(k, q); });
+  // [在 a 的位置, 在 b 的位置]，照 a 的順序
+  const uniq: [number, number][] = [];
+  a.forEach((i, p) => { const k = A.keys[i]; const q = k && ca.get(k) === 1 ? posB.get(k) : undefined; if (q !== undefined) uniq.push([p, q]); });
+  const anchors = lis(uniq.map((u) => u[1])).map((k) => uniq[k]);
+  const pairedA = new Set(uniq.map((u) => u[0])), pairedB = new Set(uniq.map((u) => u[1]));
+  const out: [number | null, number | null][] = uniq.map(([p, q]) => [a[p], b[q]]);
+  let pa = 0, pb = 0;
+  for (const [p, q] of [...anchors, [a.length, b.length] as [number, number]]) {
+    const segA: number[] = [], segB: number[] = [];
+    for (let x = pa; x < p; x++) if (!pairedA.has(x)) segA.push(a[x]);
+    for (let y = pb; y < q; y++) if (!pairedB.has(y)) segB.push(b[y]);
+    out.push(...globalAlign(A, segA, B, segB));
+    pa = p + 1; pb = q + 1;
+  }
+  return out;
+}
+
+/**
+ * 自動比對：有 ID 的先讓 ID 相同的配成一對；其餘先用錨點切段、再照順序全域對齊；
  * 剩下兩邊都沒配到的再交叉比對，夠像的就是順序換過的條目。
  */
 export function autoAlign(old: { id: string; src: string }[], next: NewRow[]): AlignRow[] {
+  const A = new Keys(old.map((o) => matchKey(o.src))), B = new Keys(next.map((r) => matchKey(r.src)));
   const pairOf = new Map<number, number | null>(); // 舊 → 新
   const newUsed = new Set<number>();
   // 1. ID 相同（兩邊都只出現一次的 ID 才算）
@@ -125,27 +208,27 @@ export function autoAlign(old: { id: string; src: string }[], next: NewRow[]): A
   });
   // ID 配好、內容卻幾乎不一樣（低於 0.3），而別處有很像的句子（0.85 以上）：ID 可能貼錯了，不信 ID，改用內容對齊
   if (pairOf.size) {
-    const ko = old.map((o) => matchKey(o.src)), kn = next.map((r) => matchKey(r.src));
     for (const [i, j] of [...pairOf]) {
-      if (j === null || ratio(ko[i], kn[j]) >= 0.3) continue;
-      const elsewhere = kn.some((k, jj) => jj !== j && ratio(ko[i], k) >= 0.85) || ko.some((k, ii) => ii !== i && ratio(k, kn[j]) >= 0.85);
+      if (j === null || simAbove(A, i, B, j, 0.3) >= 0.3) continue;
+      let elsewhere = false;
+      for (let jj = 0; jj < next.length && !elsewhere; jj++) elsewhere = jj !== j && simAbove(A, i, B, jj, REORDER) >= REORDER;
+      for (let ii = 0; ii < old.length && !elsewhere; ii++) elsewhere = ii !== i && simAbove(A, ii, B, j, REORDER) >= REORDER;
       if (elsewhere) { pairOf.delete(i); newUsed.delete(j); }
     }
   }
-  // 2. 其餘照順序全域對齊
+  // 2. 其餘先用錨點切段，再照順序全域對齊
   const restOld = old.map((_, i) => i).filter((i) => !pairOf.has(i));
   const restNew = next.map((_, j) => j).filter((j) => !newUsed.has(j));
-  const aligned = globalAlign(restOld.map((i) => old[i].src), restNew.map((j) => next[j].src));
   const freeOld: number[] = [], freeNew: number[] = [];
-  for (const [a, b] of aligned) {
-    if (a !== null && b !== null) { pairOf.set(restOld[a], restNew[b]); newUsed.add(restNew[b]); }
-    else if (a !== null) freeOld.push(restOld[a]);
-    else if (b !== null) freeNew.push(restNew[b]);
+  for (const [a, b] of alignByAnchors(A, restOld, B, restNew)) {
+    if (a !== null && b !== null) { pairOf.set(a, b); newUsed.add(b); }
+    else if (a !== null) freeOld.push(a);
+    else if (b !== null) freeNew.push(b);
   }
   // 3. 剩下的交叉比對，抓順序換過的
   const cands: [number, number, number][] = [];
-  for (const i of freeOld) for (const j of freeNew) {
-    const sc = similarity(old[i].src, next[j].src);
+  if (freeOld.length * freeNew.length <= MAX_CELLS) for (const i of freeOld) for (const j of freeNew) {
+    const sc = simAbove(A, i, B, j, REORDER);
     if (sc >= REORDER) cands.push([sc, i, j]);
   }
   cands.sort((x, y) => y[0] - x[0]);
@@ -170,14 +253,22 @@ export function sequentialRows(nOld: number, nNew: number): AlignRow[] {
  */
 export function orderRows(rows: AlignRow[]): AlignRow[] {
   const withNew = rows.filter((r) => r.new !== null).sort((a, b) => a.new! - b.new!);
-  const removed = rows.filter((r) => r.new === null && r.old !== null).sort((a, b) => a.old! - b.old!);
-  const out = [...withNew];
-  for (const r of removed) {
-    // 找前一條（舊順序）已經放好的位置
-    let at = -1;
-    for (let k = r.old! - 1; k >= 0 && at < 0; k--) at = out.findIndex((x) => x.old === k);
-    out.splice(at + 1, 0, r);
+  const removed = new Map<number, AlignRow>();
+  rows.forEach((r) => { if (r.new === null && r.old !== null) removed.set(r.old, r); });
+  const posOfOld = new Map<number, number>();
+  withNew.forEach((r, k) => { if (r.old !== null) posOfOld.set(r.old, k); });
+  // 照舊的順序走一遍：新版沒有的，接在前一條（舊順序）新版還有的條目後面
+  const after = new Map<number, AlignRow[]>();
+  let cur = -1;
+  const maxOld = rows.reduce((m, r) => (r.old !== null && r.old > m ? r.old : m), -1);
+  for (let i = 0; i <= maxOld; i++) {
+    const p = posOfOld.get(i);
+    if (p !== undefined) { cur = p; continue; }
+    const r = removed.get(i);
+    if (r) { const list = after.get(cur); if (list) list.push(r); else after.set(cur, [r]); }
   }
+  const out: AlignRow[] = [...(after.get(-1) ?? [])];
+  withNew.forEach((r, k) => { out.push(r); const list = after.get(k); if (list) out.push(...list); });
   return out;
 }
 
@@ -299,8 +390,10 @@ export interface RowInfo {
   elsewhere: number | null;
 }
 
-export function rowInfos(oldSrc: string[], newSrc: string[], rows: AlignRow[]): RowInfo[] {
+/** findElsewhere：要不要找「高相似：第幾條」（照順序對應、還在比對時不找，太花時間） */
+export function rowInfos(oldSrc: string[], newSrc: string[], rows: AlignRow[], findElsewhere = true): RowInfo[] {
   const ko = oldSrc.map(matchKey), kn = newSrc.map(matchKey);
+  const A = new Keys(ko), B = new Keys(kn);
   const rowOfOld = new Map<number, number>();
   rows.forEach((r, k) => { if (r.old !== null) rowOfOld.set(r.old, k); });
   return rows.map((r, k) => {
@@ -309,10 +402,15 @@ export function rowInfos(oldSrc: string[], newSrc: string[], rows: AlignRow[]): 
     const arrow = arrowOf(o, n);
     const sim = r.old !== null && r.new !== null ? ratio(ko[r.old], kn[r.new]) : null;
     let elsewhere: number | null = null;
-    if (arrow === 'red' && r.new !== null) {
-      // 拿這列的新原文，去其他列的舊原文找最像的
+    if (findElsewhere && arrow === 'red' && r.new !== null) {
+      // 拿這列的新原文，去其他列的舊原文找最像的（先用上限排除一定不夠像的）
       let best = ELSEWHERE;
-      ko.forEach((key, i) => { const rk = rowOfOld.get(i); if (rk === undefined || rk === k) return; const v = ratio(key, kn[r.new!]); if (v >= best) { best = v; elsewhere = rk + 1; } });
+      for (let i = 0; i < ko.length; i++) {
+        const rk = rowOfOld.get(i);
+        if (rk === undefined || rk === k) continue;
+        const v = simAbove(A, i, B, r.new, best);
+        if (v >= best) { best = v; elsewhere = rk + 1; }
+      }
     }
     return { arrow, sim, elsewhere };
   });

@@ -5,7 +5,7 @@ import { SHARED, dictKey, type DictInfo, type FileDoc, type GlossaryTerm } from 
 import { fz } from '../model/fonts';
 import { enabledIssues } from '../model/checks';
 import { effectiveStd } from '../model/length';
-import { findHits } from '../state/dictHits';
+import { findHits, useActiveTerms } from '../state/dictHits';
 import { leaveFile } from '../state/saver';
 import { ContextMenu } from './ContextMenu';
 import { sideFieldKey } from './Shortcuts';
@@ -85,6 +85,8 @@ function DictTab() {
   // 只查啟用中的字典；字典內容或開關變了才重算
   const on = useMemo(() => new Set(dicts.filter(isOn).map((d) => dictKey(d.project, d.name))), [dicts, overrides, current]);
   const active = useMemo(() => glossary.filter((g) => on.has(dictKey(g.proj, g.dict))), [glossary, on]);
+  // 命中：和工作欄共用同一份啟用中的詞條，字典整理和命中結果都只算一次
+  const hitTerms = useActiveTerms();
   const results = useMemo(() => (!ql ? [] : active.filter((g) => g.term.includes(q) || g.en.toLowerCase().includes(ql))), [active, q]);
   // 搜尋結果先顯示 50 筆，捲到底再顯示下一批
   const [shown, setShown] = useState(DICT_BATCH);
@@ -107,7 +109,7 @@ function DictTab() {
   }, [uid, src]);
   const matchSrc = uid !== srcNow.uid ? src : srcNow.src;
   // 同一個原文在好幾本字典有不同譯名時，全部列出來
-  const matches = useMemo(() => findHits(matchSrc, active, current).flatMap((h) => h.terms), [active, matchSrc, current]);
+  const matches = useMemo(() => findHits(matchSrc, hitTerms, current).flatMap((h) => h.terms), [hitTerms, matchSrc, current]);
   // 目前專案的字典排最前面，再來是共用，其他照原本順序
   const rank = (d: DictInfo) => (d.project === current ? 0 : d.project === SHARED ? 1 : 2);
   const sorted = [...dicts].sort((a, b) => rank(a) - rank(b));

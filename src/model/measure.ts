@@ -55,16 +55,50 @@ function layout(el: HTMLDivElement, text: string): { lines: number; remain: numb
   return { lines, remain: text.endsWith('\n') ? right - content.left - CELL_PADDING : Math.max(0, right - lastRight) };
 }
 
-const cache = new Map<string, Measure>();
-const MAX_CACHE = 2000;
+/**
+ * 最近用過的量測結果（LRU）：Map 會記住放進去的順序，用到的移到最後，滿了就丟最前面的。
+ * 大小要放得下一整個大頁簽，整頁檢查時才不會一直重量。
+ */
+class Lru<V> {
+  private map = new Map<string, V>();
+  constructor(private max: number) {}
+  get(k: string): V | undefined {
+    const v = this.map.get(k);
+    if (v !== undefined) { this.map.delete(k); this.map.set(k, v); }
+    return v;
+  }
+  set(k: string, v: V) {
+    this.map.delete(k);
+    this.map.set(k, v);
+    if (this.map.size > this.max) this.map.delete(this.map.keys().next().value!);
+  }
+}
+const MAX_CACHE = 20000;
+const cache = new Lru<Measure>(MAX_CACHE);
+/** 只算行數的結果（檢查超框用） */
+const lineCache = new Lru<number>(MAX_CACHE);
+const layoutKey = (text: string, std: LengthStd) => `${std.family}|${std.size}|${std.width}\u0000${text}`;
+
+/** 排出來幾行：只排版一次，不量 10 個字的寬度、也不找能放進上限的長度 */
+export function lineCount(text: string, std: LengthStd): number | null {
+  const key = layoutKey(text, std);
+  const hit = lineCache.get(key);
+  if (hit !== undefined) return hit;
+  const el = cell(std);
+  if (!el) return null;
+  const { lines } = layout(el, text);
+  lineCache.set(key, lines);
+  return lines;
+}
 
 export function measure(text: string, std: LengthStd): Measure | null {
-  const key = `${std.family}|${std.size}|${std.width}|${std.lines}\u0000${text}`;
+  const key = `${std.lines}|` + layoutKey(text, std);
   const hit = cache.get(key);
   if (hit) return hit;
   const el = cell(std);
   if (!el) return null;
   const { lines, remain } = layout(el, text);
+  lineCache.set(layoutKey(text, std), lines);
   el.textContent = '0000000000';
   const tenChars = (el.firstChild && (() => { const r = document.createRange(); r.selectNodeContents(el.firstChild!); return r.getBoundingClientRect().width; })()) || ptToPx(std.size) * 5;
   let fitLen = text.length;
@@ -78,15 +112,14 @@ export function measure(text: string, std: LengthStd): Measure | null {
     fitLen = lo;
   }
   const out = { lines, remain, tenChars, fitLen };
-  if (cache.size >= MAX_CACHE) cache.clear();
   cache.set(key, out);
   return out;
 }
 
 /** 超過行數上限 */
 export function overflows(text: string, std: LengthStd): boolean {
-  const m = measure(text, std);
-  return !!m && m.lines > std.lines;
+  const n = lineCount(text, std);
+  return n !== null && n > std.lines;
 }
 
 /** 某段文字在指定字型字級下的寬度（px），換算欄寬用 */

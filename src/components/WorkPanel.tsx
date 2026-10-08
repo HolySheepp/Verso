@@ -68,6 +68,9 @@ export function WorkPanel({ height, maxH }: { height: number; maxH: number }) {
   return <WorkPanelInner height={height} maxH={maxH} />;
 }
 
+/** 每個框上次量到的高度，和量的時候的內容、寬度、字體 */
+const measured = new WeakMap<HTMLTextAreaElement, { key: string; h: number }>();
+
 function WorkPanelInner({ height, maxH }: { height: number; maxH: number }) {
   // 只訂閱這個區塊用到的資料（包含 currentOf 等輔助函式間接用到的）
   const s = useStorePick('project', 'file', 'sheetBy', 'selBy', 'mode', 'finishLine', 'beginEdit', 'endEdit', 'stampOpen', 'stamps', 'viewOn', 'peek', 'history', 'shortcuts', 'reported', 'checkSettings', 'set', 'updateEntry', 'record', 'useShownSlot', 'stampNext', 'skipCheck', 'prev', 'pickSlot', 'next', 'mainNext', 'setVerify', 'applyNewSource');
@@ -133,15 +136,22 @@ function WorkPanelInner({ height, maxH }: { height: number; maxH: number }) {
   const sectionRef = useRef<HTMLElement>(null);
   const [boxH, setBoxH] = useState({ src: 42, tgt: 42, mod: 42 });
   const [actualH, setActualH] = useState(height);
-  const [, bump] = useState(0);
+  const [widthVer, bump] = useState(0);
+  const fonts = useStore((st) => st.fonts);
   useLayoutEffect(() => {
+    // 只量內容、寬度或字體有變的框：每次都量會強制整頁重新排版，打字會卡
+    const layoutKey = widthVer + '|' + JSON.stringify(fonts) + '|';
     const m = (ta: HTMLTextAreaElement | null) => {
       if (!ta) return 42;
+      const key = layoutKey + ta.value;
+      const known = measured.get(ta);
+      if (known && known.key === key) return known.h;
       const prev = ta.style.height;
       ta.style.height = '0px';
       const cs = getComputedStyle(ta);
       const h = ta.scrollHeight + parseFloat(cs.borderTopWidth) + parseFloat(cs.borderBottomWidth);
       ta.style.height = prev;
+      measured.set(ta, { key, h: Math.ceil(h) });
       return Math.ceil(h);
     };
     const next = { src: m(srcEl), tgt: m(tgtEl), mod: m(modEl) };

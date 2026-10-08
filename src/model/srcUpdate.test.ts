@@ -115,3 +115,30 @@ describe('原文更新：ID 不可信', () => {
     expect(matchKey('……')).toBe('……');
   });
 });
+
+describe('對齊：錨點切段', () => {
+  const words = ['sword', 'dawn', 'castle', 'river', 'dragon', 'king', 'shadow', 'light', 'storm', 'gold'];
+  const line = (i: number) => `Line ${i}: the ${words[i % 10]} of ${words[(i * 7) % 10]} waits ${i * 13}`;
+  it('2000 條裡搬動 100 條一段：全部配對正確', () => {
+    const old = Array.from({ length: 2000 }, (_, i) => ({ id: '', src: line(i) }));
+    const order = Array.from({ length: 2000 }, (_, i) => i);
+    const block = order.splice(500, 100);
+    order.splice(1500, 0, ...block);
+    const next = order.map((i) => ({ id: '', speaker: '', src: line(i) }));
+    const rows = autoAlign(old, next);
+    const wrong = rows.filter((r) => r.old === null || r.new === null || order[r.new] !== r.old);
+    expect(wrong.length).toBe(0);
+  });
+  it('完全不像的句子不硬配，留空格', () => {
+    const rows = autoAlign([{ id: '', src: 'Bring me the sword' }], [{ id: '', speaker: '', src: 'xyz qq' }]);
+    expect(rows).toEqual([{ old: 0, new: null }, { old: null, new: 0 }]);
+  });
+  it('2 萬條有改有刪也很快算完', () => {
+    const old = Array.from({ length: 20000 }, (_, i) => ({ id: '', src: line(i) }));
+    const next = old.filter((_, i) => i % 50 !== 7).map((o, k) => ({ id: '', speaker: '', src: k % 30 === 3 ? o.src + ' now' : o.src }));
+    const t = Date.now();
+    const rows = autoAlign(old, next);
+    expect(Date.now() - t).toBeLessThan(5000);
+    expect(rows.filter((r) => r.old !== null && r.new !== null).length).toBe(next.length);
+  });
+});

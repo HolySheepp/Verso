@@ -56,7 +56,7 @@ function SrcUpdate({ sheetIdx }: { sheetIdx: number }) {
     old: r.old !== null && r.old < entries.length ? r.old : null,
     new: r.new !== null && r.new < next.length ? r.new : null,
   })) : []), [step, rows, entries.length, next.length]);
-  const infos = useMemo(() => rowInfos(entries.map((e) => e.src), next.map((n) => n.src), safeRows), [safeRows, entries, next]);
+  const infos = useMemo(() => rowInfos(entries.map((e) => e.src), next.map((n) => n.src), safeRows, !busy), [safeRows, entries, next, busy]);
   const summary = useMemo(() => summarize(entries, next, safeRows), [entries, next, safeRows]);
 
   if (!sheet) return null;
