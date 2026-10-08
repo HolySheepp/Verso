@@ -16,7 +16,8 @@ import { emptyHistory } from '../model/history';
 import { editsOf, verifyToText } from '../model/verify';
 import { dictKey, newFileId, type CustomMark, type DictInfo, type FileDoc, type GlossaryTerm, type ProjectData } from '../model/types';
 import { currentOf, showToast, useStore, type SaveError } from './store';
-import { applyLang, systemLang } from '../i18n/lang';
+import { applyLang, setPacks, systemLang } from '../i18n/lang';
+import { readLangPacks } from '../data/langpacks';
 import { checkAtStartup } from './updater';
 import type { RootConflict } from '../data/persist';
 
@@ -328,6 +329,18 @@ function restorePosition(p: ProjectData, last?: LastPosition) {
 }
 
 /** 啟動：讀設定、載入存檔資料夾裡所有專案的檔案和字典 */
+/**
+ * 重新掃描「語言」資料夾裡的語言包（開軟體、打開語言選單、換存檔資料夾時）。
+ * 正在用的語言包內容變了就重新套用；讀不了的語言包不跳錯誤，全部用英文補。
+ */
+export async function refreshLangPacks() {
+  const found = await readLangPacks(useStore.getState().saveRoot).catch(() => new Map<string, [string, string][] | null>());
+  const lang = useStore.getState().uiLang;
+  const changed = setPacks(found, lang);
+  useStore.setState({ langPacks: [...found.keys()].sort((a, b) => a.localeCompare(b)) });
+  if (changed) { applyLang(lang); useStore.setState((st) => ({ langStamp: st.langStamp + 1 })); }
+}
+
 export async function startApp() {
   // 先檢查更新：選了更新就會裝好並重開，不必繼續啟動
   if (await checkAtStartup()) return;
@@ -363,6 +376,7 @@ export async function startApp() {
   let newIds: string[] = [];
   try {
     try { localStorage.setItem('verso-boot', JSON.stringify({ theme: useStore.getState().theme, accent: useStore.getState().accent, lang: useStore.getState().uiLang })); } catch { /* 存不下就算了 */ }
+    await refreshLangPacks();
     step(0.12, tx('save.012'));
     const r = await loadWorkspace(saveRoot, step);
     project = r.data; last = r.last; migrated = r.remapped; newIds = r.newIds;
@@ -403,6 +417,8 @@ function watch() {
 
   // 換語言：之後的文字都用新語言（畫面由 App 整個重畫）
   useStore.subscribe((s, prev) => { if (s.uiLang !== prev.uiLang) applyLang(s.uiLang); });
+  // 換存檔資料夾：語言包也換成新資料夾裡的
+  useStore.subscribe((s, prev) => { if (s.saveRoot !== prev.saveRoot) void refreshLangPacks(); });
   // 內容一有變動就標成未存
   let dictTimer: ReturnType<typeof setTimeout> | undefined;
   useStore.subscribe((s, prev) => {

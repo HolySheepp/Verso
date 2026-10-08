@@ -481,6 +481,10 @@ FunctionEnd
 {{#each language_files}}
   !include "{{this}}"
 {{/each}}
+; Verso：自訂步驟（解除安裝時的詢問）的中英文字句，要在載入語言之後才能定義
+!ifmacrodef VERSO_LANGSTRINGS
+  !insertmacro VERSO_LANGSTRINGS
+!endif
 
 Function .onInit
   ${GetOptions} $CMDLINE "/P" $PassiveMode

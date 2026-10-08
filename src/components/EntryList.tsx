@@ -654,7 +654,7 @@ export function EntryList() {
       <div style={{ height: 44, flexShrink: 0, display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '0 12px 0 16px', borderBottom: '1px solid var(--line)' }}>
         <div style={{ display: 'flex', alignItems: 'baseline', gap: 10 }}>
           <span className="sec-label">{tx('list.017')}</span>
-          <span style={{ fontSize: fz(12), color: 'var(--mute)' }}>{tx('list.018')}{' '}{sheet.entries.length}{' '}{tx('list.019')}</span>
+          <span style={{ fontSize: fz(12), color: 'var(--mute)' }}>{tx('list.018', { n: sheet.entries.length })}</span>
         </div>
         <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
         <button type="button" className="ib" aria-label={tx('list.020')} title={tx('list.021', { v1: stdLabel(fileStd) })} onClick={() => s.set({ lengthDialog: 'file' })}

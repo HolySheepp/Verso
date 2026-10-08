@@ -11,7 +11,7 @@ import { defaultBindings, type ActionId, type Bindings, type ShortcutContext } f
 import { defaultCheckSettings, enabledIssues, type CheckId, type CheckSettings, type Issue } from '../model/checks';
 import { SHARED, dictKey, newFileId, type CustomMark, type DictInfo, type Entry, type FileDoc, type GlossaryTerm, type MarkId, type Mode, type ProjectData, type Sheet } from '../model/types';
 import { sortProjects, type RootConflict } from '../data/persist';
-import { DICT_DIR, safeName, sameName, sheetNameError } from '../model/names';
+import { DICT_DIR, LANG_DIR, safeName, sameName, sheetNameError } from '../model/names';
 import { compose, editsOf, type VEdit } from '../model/verify';
 import { maxOf, minOf } from '../model/num';
 
@@ -201,6 +201,10 @@ interface State {
   finishLine: boolean;
   /** 介面語言：zh、en，或語言包的名稱 */
   uiLang: string;
+  /** 存檔資料夾「語言」資料夾裡的語言包（檔名） */
+  langPacks: string[];
+  /** 目前用的語言包內容變了就加一，整個畫面重畫 */
+  langStamp: number;
   /** 存起來的常用長度標準 */
   lengthPresets: { name: string; std: LengthStd }[];
   /** 長度標準設定視窗：設定檔案的標準，或只設定目前這一條 */
@@ -619,6 +623,8 @@ export const useStore = create<Store>((set, get) => {
     checkSettings: defaultCheckSettings(),
     finishLine: true,
     uiLang: bootLang(),
+    langPacks: [],
+    langStamp: 0,
     lengthPresets: [],
     lengthDialog: null,
     shortcuts: defaultBindings(),
@@ -1064,7 +1070,7 @@ export const useStore = create<Store>((set, get) => {
 
     renameProject(from, to) {
       const p = get().project;
-      if (!p || from === SHARED || !to || from === to || sameName(to, DICT_DIR) || p.projects.some((x) => x !== from && sameName(x, to))) return;
+      if (!p || from === SHARED || !to || from === to || sameName(to, DICT_DIR) || sameName(to, LANG_DIR) || p.projects.some((x) => x !== from && sameName(x, to))) return;
       const r = (x: string) => (x === from ? to : x);
       // 字典開關：「在哪個專案」和「哪本字典」兩邊的專案名稱都要跟著改
       set({ dictOverrides: remapOverrides(get().dictOverrides, (cur, dp, dn) => [r(cur), r(dp), dn]) });

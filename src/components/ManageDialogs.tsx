@@ -351,7 +351,7 @@ function FileEditor({ file, index, onDirty, onSaved }: { file: FileDoc; index: n
     draft.commit(draft.current.current.map((sh, j) => (j === i ? { ...sh, cols: { ...sh.cols, ...cols } } : sh)));
   const results = sheets.map((sh) => (isEmpty(sh.cols) ? { ok: true, msg: '' } : checkColumns(sh.cols)));
   const bad = results.findIndex((r) => !r.ok);
-  const error = bad < 0 ? '' : (sheets.length > 1 ? `「${sheets[bad].name}」` : '') + results[bad].msg;
+  const error = bad < 0 ? '' : (sheets.length > 1 ? tx('common.sheetError', { name: sheets[bad].name, msg: results[bad].msg }) : results[bad].msg);
   const total = sheets.reduce((n, sh) => n + (sh.cols.src?.rows.length ?? 0), 0);
 
   const save = () => {

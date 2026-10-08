@@ -167,7 +167,7 @@ function LengthForm({ target }: { target: 'file' | 'entry' }) {
               <label htmlFor="verso-len-cl" style={{ ...label, marginLeft: 16 }}>{tx('length.018')}</label>
               <NumField id="verso-len-cl" value={cjkLines} onChange={setCjkLines} />
             </div>
-            <div style={{ fontSize: fz(12.5), color: 'var(--mute)' }}>{tx('length.021')}{' '}{cjkWidth}px</div>
+            <div style={{ fontSize: fz(12.5), color: 'var(--mute)' }}>{tx('length.021', { px: cjkWidth })}</div>
             {fontRow}
           </>}
 
@@ -175,7 +175,7 @@ function LengthForm({ target }: { target: 'file' | 'entry' }) {
             <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
               <label htmlFor="verso-len-v" style={{ ...label, width: 64 }}>{tx('length.022')}</label>
               <NumField id="verso-len-v" value={visCount} onChange={setVisCount} />
-              <span style={{ ...label, marginLeft: 16 }}>{tx('length.017')}{' '}{visWidth}px・{visLines}{' '}{tx('length.023')}</span>
+              <span style={{ ...label, marginLeft: 16 }}>{tx('length.023', { px: visWidth, lines: visLines })}</span>
             </div>
             <div data-nodrag style={{ overflowX: 'auto', paddingBottom: 4 }}>
               <div style={{

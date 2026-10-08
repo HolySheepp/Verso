@@ -12,12 +12,14 @@ interface Props {
   ariaLabel?: string;
   style?: React.CSSProperties;
   disabled?: boolean;
+  /** 打開選單時（例如重新讀取選項） */
+  onOpen?(): void;
 }
 
 const MAX_H = 280;
 
 /** 下拉選單：外觀跟檔案選單一樣，套用主題色（系統內建的下拉清單由 Windows 畫，套不到） */
-export function Select({ value, options, onChange, id, ariaLabel, style, disabled }: Props) {
+export function Select({ value, options, onChange, id, ariaLabel, style, disabled, onOpen }: Props) {
   const [open, setOpen] = useState(false);
   const [hi, setHi] = useState(0);
   const btn = useRef<HTMLButtonElement>(null);
@@ -26,6 +28,7 @@ export function Select({ value, options, onChange, id, ariaLabel, style, disable
 
   const show = () => {
     if (!btn.current) return;
+    onOpen?.();
     // 用 fixed 定位，避免被視窗的捲動區域裁掉；下面放不下就往上開
     const r = btn.current.getBoundingClientRect();
     const h = Math.min(MAX_H, options.length * 32 + 14);

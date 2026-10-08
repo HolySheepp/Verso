@@ -21,7 +21,9 @@ applyLang(useStore.getState().uiLang);
 /** 換語言時整個畫面重畫一次，每個地方的文字都換成新語言 */
 function Root() {
   const lang = useStore((s) => s.uiLang);
-  return <App key={lang} />;
+  // 語言包內容改了（例如重新掃描讀到新版）也整個重畫
+  const stamp = useStore((s) => s.langStamp);
+  return <App key={lang + ':' + stamp} />;
 }
 
 // 檔案拖進軟體視窗：打開匯入視窗讀這個檔案（不讓視窗直接打開檔案）

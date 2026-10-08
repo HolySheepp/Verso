@@ -175,7 +175,7 @@ export function FileNav({ tabW }: { tabW: number }) {
           <span style={{ flexGrow: 1, minWidth: 0, overflow: 'hidden', whiteSpace: 'nowrap', textOverflow: 'ellipsis', fontSize: fz(12.5), color: noFiles ? 'var(--accent2)' : 'var(--textsoft)' }}>{noFiles ? tx('nav.007') : fileDoc.name}</span>
           {!noFiles && fileDone(fileDoc) && <Done label={tx('nav.008')} />}
           <span style={{ flexShrink: 0, display: 'flex', alignItems: 'center', gap: 5, fontSize: fz(11), color: 'var(--text2)', padding: '2px 8px', borderRadius: 10, background: 'var(--chip)' }}>
-            {tx('nav.009')}<span role="img" aria-label={tx('nav.010')} style={{ display: 'flex' }}><IconArrowR size={10} sw={2.4} /></span>EN
+            {tx('nav.009')}<span role="img" aria-label={tx('nav.010')} style={{ display: 'flex' }}><IconArrowR size={10} sw={2.4} /></span>{tx('nav.targetLang')}
           </span>
           <IconChevD size={14} stroke="var(--mute)" style={{ flexShrink: 0 }} />
         </button>
@@ -201,7 +201,7 @@ export function FileNav({ tabW }: { tabW: number }) {
                           onContextMenu={(ev) => { ev.preventDefault(); setFileMenu({ i, x: ev.clientX, y: ev.clientY }); }}
                           style={{ ...menuItem, gap: 10, paddingLeft: 27, color: undefined, background: i === s.file ? 'var(--sel)' : 'transparent' }}>
                           <span style={{ flexGrow: 1, display: 'flex', alignItems: 'center', gap: 6, fontSize: fz(12.5) }}>{f.name}{fileDone(f) && <Done label={tx('nav.008')} />}</span>
-                          <span style={{ fontSize: fz(11.5), color: 'var(--mute)' }}>{f.sheets.length}{' '}{tx('nav.011')}</span>
+                          <span style={{ fontSize: fz(11.5), color: 'var(--mute)' }}>{tx('nav.011', { n: f.sheets.length })}</span>
                           <span style={{ fontSize: fz(11.5), color: 'var(--text2)' }}>{fileProgress(f, s.mode).done} / {fileProgress(f, s.mode).total}</span>
                         </button>
                       );

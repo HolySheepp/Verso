@@ -6,7 +6,7 @@
 import { tx } from '../i18n';
 import { io } from './fsio';
 import { dictToXlsxAsync, fileToXlsxAsync } from './xlsxAsync';
-import { DICT_DIR, safeName } from '../model/names';
+import { DICT_DIR, LANG_DIR, safeName } from '../model/names';
 export { DICT_DIR, safeName };
 import { isVersoDictData, isVersoFileData, readDictBook, xlsxToVersoFile } from './xlsxio';
 import type { CheckSettings } from '../model/checks';
@@ -158,7 +158,7 @@ export async function loadWorkspace(root: string, onProgress?: (p: number, text:
   try { await migrateDicts(root); } catch { /* 搬不動就照舊讀 */ }
 
   const projectNames = (await io.exists(root))
-    ? (await io.list(root)).filter((e) => e.dir && e.name !== DICT_DIR && !e.name.startsWith('.')).map((e) => e.name)
+    ? (await io.list(root)).filter((e) => e.dir && e.name !== DICT_DIR && e.name !== LANG_DIR && !e.name.startsWith('.')).map((e) => e.name)
     : [];
 
   // 自訂標記不分專案：舊版各專案各有一組，合併時同名的視為同一個，其他重新編號
@@ -280,7 +280,8 @@ export async function scanFolder(root: string): Promise<{ projects: string[]; fi
   if (!(await io.exists(root))) return out;
   for (const e of await io.list(root)) {
     // 「.」開頭的是軟體自己用的資料夾（例如暫存復原），不是專案
-    if (!e.dir || e.name.startsWith('.')) continue;
+    // 「語言」資料夾放介面語言包，不是專案
+    if (!e.dir || e.name.startsWith('.') || e.name === LANG_DIR) continue;
     if (e.name === DICT_DIR) {
       for (const p of (await io.list(io.join(root, DICT_DIR))).filter((x) => x.dir)) {
         out.projects.push(p.name);
@@ -459,7 +460,7 @@ export async function readFolderMeta(root: string): Promise<{ customMarks: Custo
   const orders = new Map<string, string[]>();
   if (await io.exists(root)) {
     for (const e of await io.list(root)) {
-      if (!e.dir || e.name === DICT_DIR || e.name.startsWith('.')) continue;
+      if (!e.dir || e.name === DICT_DIR || e.name === LANG_DIR || e.name.startsWith('.')) continue;
       try {
         const meta = JSON.parse(await io.readText(io.join(root, e.name, META))) as ProjectMeta;
         if (Array.isArray(meta.fileOrder)) orders.set(e.name, meta.fileOrder);

@@ -168,7 +168,7 @@ export function ImportDialog() {
           {book.sheets.map((sh, i) => (
             <div key={i} style={{ display: 'flex', justifyContent: 'space-between', padding: '6px 10px', borderRadius: 6, background: i % 2 ? 'transparent' : 'var(--ov1)', fontSize: fz(12.5) }}>
               <span>{sh.name}</span>
-              <span style={{ color: 'var(--mute)' }}>{Math.max(0, sh.rows.length - 1)}{' '}{tx('import.011')}</span>
+              <span style={{ color: 'var(--mute)' }}>{tx('import.011', { n: Math.max(0, sh.rows.length - 1) })}</span>
             </div>
           ))}
         </div>
@@ -186,8 +186,8 @@ export function ImportDialog() {
   const badName = sheets.findIndex((sh, i) => sheetNameError(sh.name, sheets.filter((_, j) => j !== i).map((x) => x.name)));
   const firstBad = results.findIndex((r) => !r.ok);
   const sheetErr = badName >= 0
-    ? `「${sheets[badName].name}」` + sheetNameError(sheets[badName].name, sheets.filter((_, j) => j !== badName).map((x) => x.name))
-    : firstBad >= 0 ? (sheets.length > 1 ? `「${sheets[firstBad].name}」` : '') + results[firstBad].msg : '';
+    ? tx('common.sheetError', { name: sheets[badName].name, msg: sheetNameError(sheets[badName].name, sheets.filter((_, j) => j !== badName).map((x) => x.name)) })
+    : firstBad >= 0 ? (sheets.length > 1 ? tx('common.sheetError', { name: sheets[firstBad].name, msg: results[firstBad].msg }) : results[firstBad].msg) : '';
   const error = projError || fileError || sheetErr;
   const blocked = !!error || !projName;
   const ok = () => {
@@ -352,7 +352,7 @@ function Preview({ sheet, onFields }: { sheet: DraftSheet; onFields(f: FieldMap)
             <div key={c.key} className={'imp-chip imp-f-' + c.key} data-set={f ? '' : undefined}>
               <button type="button" className="imp-chip-btn" title={tx('import.021', { label: c.label })} onClick={() => assign(c.key)}>
                 <span style={{ fontWeight: 600 }}>{c.label}</span>
-                <span style={{ color: f ? 'var(--text2)' : 'var(--mute)' }}>{f ? `${fieldLabel(f)}（${f.rows.length}）` : tx('import.022')}</span>
+                <span style={{ color: f ? 'var(--text2)' : 'var(--mute)' }}>{f ? tx('import.fieldRange', { range: fieldLabel(f), n: f.rows.length }) : tx('import.022')}</span>
               </button>
               {f && (
                 <button type="button" className="ib" aria-label={tx('import.023', { label: c.label })} title={tx('import.024')} onClick={() => clear(c.key)}

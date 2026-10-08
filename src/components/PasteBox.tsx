@@ -173,7 +173,7 @@ function PasteBoxImpl({ label, col, onPaste, onChange, selected, onSelect, fontS
           {label}{required && <span style={{ marginLeft: 6, fontSize: fz(11), color: 'var(--warntx)' }}>{tx('pastebox.002')}</span>}
         </span>
         <span style={{ display: 'flex', alignItems: 'center', gap: 4, fontSize: fz(11.5), color: 'var(--mute)' }}>
-          {rows && <>{rows.length}{' '}{tx('pastebox.003')}
+          {rows && <>{tx('pastebox.003', { n: rows.length })}
             <button type="button" className="ib" aria-label={tx('pastebox.004', { label })} title={tx('pastebox.005')} onClick={() => onChange(null)}
               style={{ width: 22, height: 22, display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 0, background: 'transparent', border: 0, borderRadius: 5, color: 'var(--mute)' }}>
               <IconWinClose size={10} sw={1.4} />

@@ -314,7 +314,7 @@ const AlignRowView = memo(function AlignRowView({ k, info, o, n, onOld, onNew, d
       <div><AlignCell side="new" k={k} text={n ? n.src : null} id={n?.id ?? ''} on={onNew} drop={dropNew} /></div>
       <div style={{ paddingTop: 6, fontSize: fz(12), lineHeight: 1.4, color: a === 'same' ? 'var(--mute)' : a === 'yellow' ? YELLOW : RED }}>
         {info.sim === null ? '—' : Math.round(info.sim * 100) + '%'}
-        {info.elsewhere !== null && <div style={{ color: 'var(--accent2)' }}>{tx('srcupd.025')}{' '}{info.elsewhere}{' '}{tx('srcupd.026')}</div>}
+        {info.elsewhere !== null && <div style={{ color: 'var(--accent2)' }}>{tx('srcupd.025', { n: info.elsewhere })}</div>}
       </div>
     </div>
   );

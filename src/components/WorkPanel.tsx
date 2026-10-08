@@ -514,7 +514,7 @@ function WorkPanelInner({ height, maxH }: { height: number; maxH: number }) {
                 </span>
               )}
             </span>
-            <span style={meta}>{cur.id && <span className="mono">#{cur.id}</span>}<span>{cur.speaker}</span><span>{(showNewSrc ? newSrc! : cur.src).length}{' '}{tx('work.024')}</span></span>
+            <span style={meta}>{cur.id && <span className="mono">#{cur.id}</span>}<span>{cur.speaker}</span><span>{tx('work.024', { n: (showNewSrc ? newSrc! : cur.src).length })}</span></span>
           </div>
           <div style={boxStyle('src')}>
           <textarea maxLength={MAX_CELL_CHARS} id="verso-source" ref={setSrcEl} value={showNewSrc ? newSrc : cur.src} readOnly={!srcEditable || showNewSrc} onFocus={editFocus} onBlur={editBlur}
@@ -566,7 +566,7 @@ function WorkPanelInner({ height, maxH }: { height: number; maxH: number }) {
             </span>
             <span style={{ ...meta, flexShrink: 0 }}>
               <span>{!verify && texts.length ? tx('work.030', { length: texts.length }) : ''}</span>
-              <span>{cur.tgt.length}{' '}{tx('work.031')}</span>
+              <span>{tx('work.031', { n: cur.tgt.length })}</span>
             </span>
           </div>
           <div style={boxStyle('tgt')}>
@@ -598,8 +598,8 @@ function WorkPanelInner({ height, maxH }: { height: number; maxH: number }) {
                 <span style={{ ...meta, flexShrink: 0, alignItems: 'center' }}>
                   <button type="button" className="ib" disabled={!edits.length} onClick={() => asStep(() => s.setVerify([], modText))} title={tx('work.033')}
                     style={{ ...smallBtn, opacity: edits.length ? 1 : 0.5 }}>{tx('work.034')}</button>
-                  {verify && texts.length > 0 && <span>{tx('work.035')}{' '}{texts.length} / 3</span>}
-                  <span>{modText.length}{' '}{tx('work.031')}</span>
+                  {verify && texts.length > 0 && <span>{tx('work.035', { n: texts.length })}</span>}
+                  <span>{tx('work.031', { n: modText.length })}</span>
                 </span>
               </div>
               <div style={boxStyle('mod')}>
@@ -669,7 +669,7 @@ function WorkPanelInner({ height, maxH }: { height: number; maxH: number }) {
 
       <div style={{ height: 40, flexShrink: 0, display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
         <span style={{ display: 'flex', gap: 14, fontSize: fz(12), color: 'var(--mute)' }}>
-          <span>{tx('work.049')}{' '}{sel + 1} / {total}{' '}{tx('work.050')}</span><span>{MODE_HINTS[mode]}</span>
+          <span>{tx('work.049', { n: sel + 1, total })}</span><span>{MODE_HINTS[mode]}</span>
           <button type="button" className="ib" aria-label={tx('work.051')} title={tx('work.052')} onClick={() => s.set({ lengthDialog: 'entry' })}
             style={{ height: 24, display: 'flex', alignItems: 'center', gap: 5, padding: '0 6px', margin: '-4px 0', background: 'transparent', border: 0, borderRadius: 6, color: cur.lengthStd !== undefined ? 'var(--accent2)' : 'var(--mute)', fontSize: fz(12) }}>
             <IconRuler size={14} />{cur.lengthStd !== undefined && tx('work.053')}

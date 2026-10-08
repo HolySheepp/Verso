@@ -15,7 +15,7 @@ function Logo({ color }: { color: string }) {
 export function UpdateAsk({ version, onPick }: { version: string; onPick(yes: boolean): void }) {
   return (
     <div role="alertdialog" aria-label={tx('splash.001')} style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 12 }} data-nodrag>
-      <div style={{ fontSize: fz(13.5), color: 'var(--text)' }}>{tx('splash.001')}{' '}{version}{tx('splash.002')}</div>
+      <div style={{ fontSize: fz(13.5), color: 'var(--text)' }}>{tx('splash.002', { version })}</div>
       <div style={{ display: 'flex', gap: 8 }}>
         <button type="button" className="btn btn-ghost" onClick={() => onPick(false)}
           style={{ height: 34, padding: '0 16px', background: 'var(--btn)', border: '1px solid var(--line4)', borderRadius: 8, fontSize: fz(13) }}>{tx('splash.003')}</button>

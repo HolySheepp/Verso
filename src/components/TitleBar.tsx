@@ -52,14 +52,14 @@ export function TitleBar() {
         <IconLogo size={20} stroke="var(--accent)" />
         <span data-tauri-drag-region style={{ fontSize: fz(15), fontWeight: 600, letterSpacing: 0.3 }}>Verso</span>
         <span data-tauri-drag-region className="proj" style={{ color: 'var(--mute)', fontSize: fz(12), marginLeft: 6 }}>{projectName}</span>
-        <span data-tauri-drag-region title={status === 'error' ? errors.map((x) => x.target + '：' + x.reason).join('\n') : undefined}
+        <span data-tauri-drag-region title={status === 'error' ? errors.map((x) => tx('common.errorReason', { target: x.target, reason: x.reason })).join('\n') : undefined}
           style={{ display: 'flex', alignItems: 'center', gap: 5, minWidth: 0, maxWidth: 420, overflow: 'hidden', whiteSpace: 'nowrap', textOverflow: 'ellipsis', fontSize: fz(11.5), color: status === 'error' ? 'var(--errtx)' : 'var(--mute)', marginLeft: 4 }}>
           {status === 'saved' ? <><IconCheck size={11} sw={2.4} stroke="var(--accent2)" />{tx('title.007')}</>
             : status === 'saving' ? tx('title.008')
             : status === 'error' ? (errors[0] ? (errors.length > 1 ? tx('title.009', { target: errors[0].target, reason: errors[0].reason, v1: errors.length - 1 }) : tx('title.010', { target: errors[0].target, reason: errors[0].reason })) : tx('title.011'))
             : tx('title.012')}
         </span>
-        <button type="button" className="ib" aria-label={tx('title.013')} title={tx('title.014', { v1: saveKey ? `（${saveKey}）` : '' })} onClick={() => void manualSave()}
+        <button type="button" className="ib" aria-label={tx('title.013')} title={saveKey ? tx('title.014', { key: saveKey }) : tx('title.013')} onClick={() => void manualSave()}
           style={{ width: 26, height: 26, display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 0, background: 'transparent', border: 0, borderRadius: 6, color: 'var(--text2)' }}>
           <IconSave size={14} />
         </button>

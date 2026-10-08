@@ -1,7 +1,7 @@
 import { tx } from '../i18n';
 import { useStore } from '../state/store';
 import { Select } from './Select';
-import { DICT_DIR, sameName } from '../model/names';
+import { DICT_DIR, LANG_DIR, sameName } from '../model/names';
 
 /** 下拉選單裡「新增」那一項的值 */
 export const NEW = '__new__';
@@ -68,7 +68,9 @@ export function nameError(kind: 'project' | 'dict' | 'file', sel: string, newNam
   if (/^(con|prn|aux|nul|com[1-9]|lpt[1-9])(\..*)?$/i.test(n)) return tx('picker.011', { n });
   // 專案資料夾和字典資料夾放在一起，不能同名
   if (kind === 'project' && sameName(n, DICT_DIR)) return tx('picker.012', { DICT_DIR });
+  if (kind === 'project' && sameName(n, LANG_DIR)) return tx('picker.012', { DICT_DIR: LANG_DIR });
   // 大小寫不同、或存檔後會變成同一個檔名的，都算同名
-  if (existing.some((x) => sameName(x, n))) return tx('picker.013', { label });
+  // 句中的名稱：英文等語言要小寫（中文不受影響）
+  if (existing.some((x) => sameName(x, n))) return tx('picker.013', { label: label.charAt(0).toLowerCase() + label.slice(1) });
   return '';
 }

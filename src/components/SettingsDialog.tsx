@@ -1,5 +1,5 @@
-import { tx } from '../i18n';
-import { BUILTIN_LANGS } from '../i18n/lang';
+import { tx, txSplit } from '../i18n';
+import { BUILTIN_LANGS, PACK } from '../i18n/lang';
 import { useEffect, useState, useRef } from 'react';
 import { useStore } from '../state/store';
 import { BUILTIN_MARKS, MARK_COLORS, markColorCss, SYMBOLS, checkMarkText, markVisual, type MarkVisual } from '../model/marks';
@@ -8,7 +8,7 @@ import { MarkIcon } from './MarkIcon';
 import { IconPlus, IconTrash, IconWinClose } from './icons';
 import { CHECKS } from '../model/checks';
 import { ConfirmDialog } from './ConfirmDialog';
-import { pickSaveRoot } from '../state/saver';
+import { pickSaveRoot, refreshLangPacks } from '../state/saver';
 import { ColorPicker } from './ColorPicker';
 import { FontSelect } from './FontSelect';
 import { Select } from './Select';
@@ -349,6 +349,7 @@ function ShortcutsSection() {
 function GeneralSection() {
   const saveRoot = useStore((s) => s.saveRoot);
   const uiLang = useStore((s) => s.uiLang);
+  const langPacks = useStore((s) => s.langPacks);
   const autosaveMin = useStore((s) => s.autosaveMin);
   const set = useStore((s) => s.set);
   const [min, setMin] = useState(String(autosaveMin));
@@ -358,12 +359,21 @@ function GeneralSection() {
     setMin(String(v));
     set({ autosaveMin: v });
   };
+  // 「每 [ ] 分鐘」：輸入框夾在句子中間，照語言把句子切成前後兩段
+  const minParts = txSplit('settings.048', { n: Number(min) || autosaveMin });
   return (
     <div style={{ display: 'flex', flexDirection: 'column', gap: 22 }}>
       <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
         <h3 style={h3}>{tx('settings.language')}</h3>
         {/* 語言名稱用各自的語言寫，不翻 */}
-        <Select id="verso-lang" value={uiLang} style={{ width: 240 }} options={BUILTIN_LANGS.map((l) => ({ value: l.id, label: l.label }))}
+        {/* 外部語言包用檔名顯示；打開選單時重新掃描「語言」資料夾 */}
+        <Select id="verso-lang" value={uiLang} style={{ width: 240 }} onOpen={() => void refreshLangPacks()}
+          options={[
+            ...BUILTIN_LANGS.map((l) => ({ value: l.id, label: l.label })),
+            ...langPacks.map((n) => ({ value: PACK + n, label: n })),
+            // 用中的語言包已經不在資料夾裡：仍列出名稱（內容用英文補）
+            ...(uiLang.startsWith(PACK) && !langPacks.includes(uiLang.slice(PACK.length)) ? [{ value: uiLang, label: uiLang.slice(PACK.length) }] : []),
+          ]}
           onChange={(v) => set({ uiLang: v })} />
       </div>
       <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
@@ -381,11 +391,11 @@ function GeneralSection() {
       <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
         <h3 style={h3}>{tx('settings.047')}</h3>
         <label style={{ display: 'flex', alignItems: 'center', gap: 8, fontSize: fz(13) }}>
-          {tx('settings.048')}
+          {minParts[0]}
           <input type="number" min={1} max={60} className="field" value={min} aria-label={tx('settings.049')}
             onChange={(e) => setMin(e.target.value)} onBlur={commitMin} onKeyDown={(e) => { if (e.key === 'Enter') commitMin(); }}
             style={{ width: 72, textAlign: 'center' }} />
-          {tx('settings.050')}
+          {minParts[1]}
         </label>
       </div>
     </div>

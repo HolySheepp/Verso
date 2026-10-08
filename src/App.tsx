@@ -146,7 +146,7 @@ function StatusBar() {
       background: 'var(--bar)', borderTop: '1px solid var(--line)', fontSize: fz(11.5), color: 'var(--mute)',
     }}>
       <div style={{ display: 'flex', gap: 18 }}>
-        {file && <span>{tx('app.017')}{' '}{done} / {total}{' '}{tx('app.018')}</span>}
+        {file && <span>{tx('app.017', { done, total })}</span>}
         <span>{tx('app.019')}{MODES.find((m) => m.id === mode)!.label}</span>
       </div>
     </footer>

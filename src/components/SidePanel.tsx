@@ -170,14 +170,14 @@ function DictTab() {
       </div>
       {dq && (
         <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
-          <div style={{ fontSize: fz(11.5), color: 'var(--mute)' }}>{tx('side.018')}{' '}{results.length}{' '}{tx('side.019')}</div>
+          <div style={{ fontSize: fz(11.5), color: 'var(--mute)' }}>{tx('side.018', { n: results.length })}</div>
           {results.slice(0, shown).map((g) => <TermCard key={g.id} g={g} />)}
           {results.length > shown && <div ref={moreRef} style={{ height: 1 }} />}
-          {results.length === 0 && <div className="empty" style={{ padding: '20px 12px' }}>{tx('side.020')}{dq}」</div>}
+          {results.length === 0 && <div className="empty" style={{ padding: '20px 12px' }}>{tx('side.020', { q: dq })}</div>}
           <div style={{ height: 1, background: 'var(--line)', margin: '4px 0' }} />
         </div>
       )}
-      <div style={{ fontSize: fz(11.5), color: 'var(--mute)' }}>{tx('side.021')}{' '}{matches.length}{' '}{tx('side.022')}</div>
+      <div style={{ fontSize: fz(11.5), color: 'var(--mute)' }}>{tx('side.021', { n: matches.length })}</div>
       {matches.map((g, i) => <TermCard key={g.id} g={g} altKey={i < 9 ? i + 1 : undefined} />)}
       {matches.length === 0 && <div className="empty" style={{ padding: '32px 12px' }}>{tx('side.023')}</div>}
       {dictMenu && (
@@ -263,7 +263,7 @@ function SearchTab() {
         </button>
       ))}
       {!res.done && <div ref={sentinel} style={{ height: 1 }} />}
-      {res.q && res.q === dq && results.length === 0 && <div style={{ padding: '24px 8px', textAlign: 'center', color: 'var(--mute)' }}>{tx('side.020')}{res.q}」</div>}
+      {res.q && res.q === dq && results.length === 0 && <div style={{ padding: '24px 8px', textAlign: 'center', color: 'var(--mute)' }}>{tx('side.020', { q: res.q })}</div>}
     </div>
   );
 }
@@ -357,7 +357,7 @@ function NotesSectionInner() {
                   style={{ flexShrink: 0, height: 20, padding: '0 8px', background: 'transparent', border: '1px solid var(--line4)', borderRadius: 5, color: 'var(--text2)', fontSize: fz(11) }}>{tx('side.036')}</button>
               </span>
             )}
-            {cur.sugg && <span style={{ flexShrink: 0, flexGrow: suggIssues.length ? 0 : 1, textAlign: 'right', fontSize: fz(11.5), color: 'var(--mute)' }}>{cur.sugg.length}{' '}{tx('side.037')}</span>}
+            {cur.sugg && <span style={{ flexShrink: 0, flexGrow: suggIssues.length ? 0 : 1, textAlign: 'right', fontSize: fz(11.5), color: 'var(--mute)' }}>{tx('side.037', { n: cur.sugg.length })}</span>}
             {mode === 'translate' && cur.sugg && (
               <span style={{ display: 'flex', gap: 6 }}>
                 <button type="button" className="btn btn-ghost" title={tx('side.038')} onClick={() => s.updateEntry({ sugg: '' })}

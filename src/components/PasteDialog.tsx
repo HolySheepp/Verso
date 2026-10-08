@@ -104,7 +104,7 @@ export function PasteDialog() {
   const projError = insert ? '' : nameError('project', projSel, newProj, projects);
   // 同一個專案裡不能有同名檔案（大小寫、存檔後會變成同一個檔名的都算）
   const fileError = insert || !name.trim() ? '' : nameError('file', NEW, name, allFiles.filter((f) => f.project === projName).map((f) => f.name));
-  const error = projError || fileError || (firstBad < 0 ? '' : (sheets.length > 1 ? `「${sheets[firstBad].name}」` : '') + results[firstBad].msg);
+  const error = projError || fileError || (firstBad < 0 ? '' : (sheets.length > 1 ? tx('common.sheetError', { name: sheets[firstBad].name, msg: results[firstBad].msg }) : results[firstBad].msg));
   // 新增專案但還沒打名稱時不能建立
   const blocked = !!error || (!insert && !projName);
   // 還沒貼東西時不顯示錯誤，只擋下建立
