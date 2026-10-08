@@ -33,10 +33,10 @@ export function SettingsDialog() {
   const [sym, setSym] = useState<SymbolId>('star');
   const [text, setText] = useState('');
   const [color, setColor] = useState('#4fb3a9');
-  const [section, setSection] = useState('標記');
+  const [section, setSection] = useState('一般');
   // 開色盤時設定視窗先收起來，讓使用者直接在主畫面上看顏色
   const [picking, setPicking] = useState(false);
-  useEffect(() => { if (open) { setSection('標記'); setPicking(false); } }, [open]);
+  useEffect(() => { if (open) { setSection('一般'); setPicking(false); } }, [open]);
 
   if (!open) return null;
   if (picking) return <AccentPicker onDone={() => setPicking(false)} />;
