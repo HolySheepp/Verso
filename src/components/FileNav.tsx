@@ -40,6 +40,8 @@ export function FileNav({ tabW }: { tabW: number }) {
   // 頁簽右鍵選單、改名、清除／刪除前的確認
   const [tabMenu, setTabMenu] = useState<{ i: number; x: number; y: number } | null>(null);
   const [renaming, setRenaming] = useState<{ i: number; name: string } | null>(null);
+  // 最近兩下點的頁簽：雙擊改名必須兩下都點在同一個頁簽上（頁簽列會滑動，快速點兩個不同頁簽時瀏覽器可能誤判為雙擊）
+  const lastClicks = useRef<number[]>([]);
   const [ask, setAsk] = useState<{ kind: 'clear' | 'delete'; i: number } | null>(null);
   const [fileMenu, setFileMenu] = useState<{ i: number; x: number; y: number } | null>(null);
   const onTabMenu = (k: string, i: number) => {
@@ -114,8 +116,8 @@ export function FileNav({ tabW }: { tabW: number }) {
               .filter((k) => k.n > 0);
             const tip = kinds.map((k) => markName(project.customMarks, k.id) + ' ' + k.n).join('、');
             return (
-              <button key={s.file + ':' + i} type="button" className="tb" aria-current={on ? 'page' : undefined} onClick={() => s.setSheet(i)}
-                onDoubleClick={() => setRenaming({ i, name: sh.name })}
+              <button key={s.file + ':' + i} type="button" className="tb" aria-current={on ? 'page' : undefined} onClick={() => { lastClicks.current = [...lastClicks.current.slice(-1), i]; s.setSheet(i); }}
+                onDoubleClick={() => { const c = lastClicks.current; if (c.length === 2 && c[0] === i && c[1] === i) setRenaming({ i, name: sh.name }); }}
                 onContextMenu={(ev) => { ev.preventDefault(); s.setSheet(i); setTabMenu({ i, x: ev.clientX, y: ev.clientY }); }}
                 tabIndex={on || near ? 0 : -1}
                 style={{
