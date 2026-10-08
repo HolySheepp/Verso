@@ -78,12 +78,24 @@ const NO_ISSUES: Issue[] = [];
 /** 檢查結果快取：條目是不可變更新，條目沒改參照就不變；報過的問題或檢查設定換了就重算 */
 const issueCache = new WeakMap<Entry, { keys: string[]; settings: CheckSettings; fileStd?: StdValue; out: Issue[] }>();
 
+/**
+ * 全形符號、重複標點、中文引號這三種會把好幾個字元合成一個問題：改掉其中一個字元時，
+ * 問題的內容變了，但剩下的字元還是之前報過的問題，要繼續顯示。
+ */
+const MULTI_CHECKS = new Set(['fullwidth', 'repeatPunct', 'curlyQuotes']);
+function stillReported(key: string, reported: string[]): boolean {
+  const i = key.indexOf(':');
+  const check = key.slice(0, i), detail = key.slice(i + 1);
+  if (!MULTI_CHECKS.has(check) || !detail) return false;
+  return reported.some((r) => r.startsWith(check + ':') && Array.from(detail).every((ch) => r.slice(check.length + 1).includes(ch)));
+}
+
 export function visibleIssues(e: Entry, reported: Record<string, string[]>, settings: CheckSettings, fileStd?: StdValue): Issue[] {
   const keys = reported[e.uid];
   if (!keys || !checkable(e)) return NO_ISSUES;
   const hit = issueCache.get(e);
   if (hit && hit.keys === keys && hit.settings === settings && hit.fileStd === fileStd) return hit.out;
-  const found = enabledIssues(shownSrc(e), checkText(e), settings, effectiveStd(e.lengthStd, fileStd)).filter((i) => keys.includes(i.key));
+  const found = enabledIssues(shownSrc(e), checkText(e), settings, effectiveStd(e.lengthStd, fileStd)).filter((i) => keys.includes(i.key) || stillReported(i.key, keys));
   // 沒有問題時回傳同一個空陣列，條目欄的行元件才不會因為「新的空陣列」重畫
   const out = found.length ? found : NO_ISSUES;
   issueCache.set(e, { keys, settings, fileStd, out });
@@ -315,6 +327,21 @@ export function dedupeGlossary(glossary: GlossaryTerm[]): GlossaryTerm[] {
     return true;
   });
   return out.length === glossary.length ? glossary : out;
+}
+
+/**
+ * 修改都沒了：自動標上的疑慮取消，回到原本的標記（建議翻譯還有內容時保留疑慮）。
+ * 拿掉修改記錄。
+ */
+function revertAutoDoubt(e: Entry): Entry {
+  const next: Entry = { ...e };
+  const v = e.ver;
+  if (v?.prev !== undefined && e.mark === 'doubt' && !e.sugg.trim()) {
+    next.mark = v.prev;
+    next.keptMark = v.prevKept;
+  }
+  delete next.ver;
+  return next;
 }
 
 /** 有還沒套用的原文更新：暫存的新原文，或新版已移除 */
@@ -692,11 +719,13 @@ export const useStore = create<Store>((set, get) => {
         set({ history: recordText(get().history, entry.uid, entry.tgt) });
       }
       patchEntry(cur().sel, (e) => {
-        const next = { ...e, ...patch };
+        let next = { ...e, ...patch };
         if (patch.tgt !== undefined && patch.tgt !== e.tgt) {
           next.pending = false;
           // 套用新原文之後改了譯文：原文更新算處理完了
           if (e.upd?.applied) delete next.upd;
+          // 譯者直接改掉了所有修改：跟清除修改一樣，自動標的疑慮取消
+          if (e.ver && editsOf(e).length && !editsOf(next).length) next = revertAutoDoubt(next);
         }
         return next;
       });
@@ -770,13 +799,13 @@ export const useStore = create<Store>((set, get) => {
         const next: Entry = { ...e, tgt: text, pending: false };
         if (edits.length) {
           let prev = e.ver?.prev;
-          // 第一次修改：自動標上疑慮，記下原本的標記
-          if (!had && e.mark !== 'doubt') { prev = e.mark; next.mark = 'doubt'; next.keptMark = undefined; }
-          next.ver = { base: text, edits, ...(prev !== undefined ? { prev } : {}) };
+          let prevKept = e.ver?.prevKept;
+          // 第一次修改：自動標上疑慮，記下原本的標記（連同暫存的「認不得的自訂標記」）
+          if (!had && e.mark !== 'doubt') { prev = e.mark; prevKept = e.keptMark; next.mark = 'doubt'; next.keptMark = undefined; }
+          next.ver = { base: text, edits, ...(prev !== undefined ? { prev } : {}), ...(prevKept ? { prevKept } : {}) };
         } else {
           // 修改全部套用或清除：自動標的疑慮取消，回到原本的標記
-          if (e.ver?.prev !== undefined && e.mark === 'doubt') next.mark = e.ver.prev;
-          delete next.ver;
+          return revertAutoDoubt(next);
         }
         return next;
       });
@@ -869,7 +898,12 @@ export const useStore = create<Store>((set, get) => {
         ...f,
         sheets: f.sheets.map((sh) => ({
           ...sh,
-          entries: sh.entries.map((e) => (e.mark !== mid ? e : clear ? { ...e, mark: '' as const } : { ...e, mark: '' as const, keptMark: mid })),
+          entries: sh.entries.map((e) => {
+            // 自動疑慮前記著的就是這個標記：一起改掉，之後還原時才不會冒出已刪除的標記
+            const ver = e.ver?.prev === mid ? { ...e.ver, prev: '' as const, ...(clear ? {} : { prevKept: mid }) } : e.ver;
+            const out = ver === e.ver ? e : { ...e, ver };
+            return out.mark !== mid ? out : clear ? { ...out, mark: '' as const } : { ...out, mark: '' as const, keptMark: mid };
+          }),
         })),
       }));
       set({ project: { ...project, files, customMarks: project.customMarks.filter((c) => c.id !== id) }, askDeleteMark: null });

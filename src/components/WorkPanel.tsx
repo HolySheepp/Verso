@@ -113,7 +113,7 @@ function WorkPanelInner({ height, maxH }: { height: number; maxH: number }) {
   const [modEl, setModEl] = useState<HTMLTextAreaElement | null>(null);
   // 滑鼠停在哪一組上、正在編輯哪一組（用這組在譯文的起點認）
   const [vHover, setVHover] = useState<number | null>(null);
-  const [vActive, setVActive] = useState<number | null>(null);
+  const [vActive, setVActive] = useState<string | null>(null);
   const [vMenu, setVMenu] = useState<{ x: number; y: number; i: number } | null>(null);
   const dirty = useRef(false);
 
@@ -237,7 +237,7 @@ function WorkPanelInner({ height, maxH }: { height: number; maxH: number }) {
     const ed = editsOf(e);
     const r = applyChange(e.tgt, ed, compose(e.tgt, ed), value, caret);
     dirty.current = true; verifySession.dirty = true;
-    setVActive(r.active >= 0 ? r.active : null);
+    setVActive(r.active || null);
     s.setVerify(r.edits);
   };
 
@@ -247,7 +247,7 @@ function WorkPanelInner({ height, maxH }: { height: number; maxH: number }) {
     if (!sp || !modEl) return;
     modEl.focus();
     modEl.setSelectionRange(sp.ms, sp.me);
-    setVActive(sp.s);
+    setVActive(sp.id);
   };
   /**
    * 套用、忽略、全部套用這類一次完成的動作：自己算一步，不併進正在輸入的那段編輯。
@@ -268,7 +268,7 @@ function WorkPanelInner({ height, maxH }: { height: number; maxH: number }) {
   const applyGroup = (i: number) => {
     const sp = spans[i];
     if (!sp) return;
-    asStep(() => { const r = applyOne(cur.tgt, edits, sp.s); s.setVerify(r.edits, r.tgt); });
+    asStep(() => { const r = applyOne(cur.tgt, edits, sp.id); s.setVerify(r.edits, r.tgt); });
   };
   /** 驗證模式「使用此內容」：把記錄的內容當成修改套進修改框 */
   const useSlotAsEdit = () => {
@@ -277,7 +277,7 @@ function WorkPanelInner({ height, maxH }: { height: number; maxH: number }) {
     asStep(() => { const r = applyChange(cur.tgt, edits, modText, t); s.setVerify(r.edits); });
     s.set({ viewOn: false, peek: false });
   };
-  const removeGroup = (i: number) => { const sp = spans[i]; if (sp) asStep(() => s.setVerify(removeOne(edits, sp.s))); };
+  const removeGroup = (i: number) => { const sp = spans[i]; if (sp) asStep(() => s.setVerify(removeOne(edits, sp.id))); };
 
   // 滑鼠移到任一框的修改上：兩邊對應的部分一起高亮
   const vFrame = useRef(0);
@@ -307,7 +307,7 @@ function WorkPanelInner({ height, maxH }: { height: number; maxH: number }) {
     if (ev.button === 0 && verify) commitEdit();
     if (ev.button !== 0 || vHover === null || !spans[vHover]) return;
     if (!verify) { ev.preventDefault(); applyGroup(vHover); setVHover(null); return; }
-    setVActive(spans[vHover].s);
+    setVActive(spans[vHover].id);
   };
   const onVMenu = (ev: React.MouseEvent) => {
     if (!showEdits || vHover === null) return;
@@ -315,7 +315,7 @@ function WorkPanelInner({ height, maxH }: { height: number; maxH: number }) {
     commitEdit();
     setVMenu({ x: ev.clientX, y: ev.clientY, i: vHover });
   };
-  const isOn = (i: number) => vHover === i || (vActive !== null && spans[i].s === vActive);
+  const isOn = (i: number) => vHover === i || (vActive !== null && spans[i].id === vActive);
   const tgtEditRanges: MarkRange[] = spans.map((sp, i) => ({ start: sp.s, end: sp.e, kind: 'edit', ref: i, on: isOn(i) }));
   const modRanges: MarkRange[] = spans.map((sp, i) => ({ start: sp.ms, end: sp.me, kind: 'edit', ref: i, on: isOn(i) }));
 

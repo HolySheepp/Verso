@@ -12,6 +12,7 @@ import {
   type AppConfig, type LastPosition, type RecoveryState,
 } from '../data/persist';
 import { emptyHistory } from '../model/history';
+import { editsOf, verifyToText } from '../model/verify';
 import { dictKey, newFileId, type CustomMark, type DictInfo, type FileDoc, type GlossaryTerm, type ProjectData } from '../model/types';
 import { currentOf, useStore, type SaveError } from './store';
 import { checkAtStartup } from './updater';
@@ -128,7 +129,9 @@ export function saveReason(e: unknown): string {
 function longCellsOf(f: FileDoc): string[] {
   const out: string[] = [];
   f.sheets.forEach((sh) => sh.entries.forEach((e, i) => {
-    const cells = [e.id, e.speaker, e.src, e.tgt, e.note, e.sugg, e.src0, e.tgt0];
+    // 程式用的欄位（驗證修改、原文更新）也會寫進格子，一樣有字數上限
+    const cells = [e.id, e.speaker, e.src, e.tgt, e.note, e.sugg, e.src0, e.tgt0,
+      e.ver ? verifyToText({ ...e.ver, base: e.tgt, edits: editsOf(e) }) : '', e.upd ? JSON.stringify(e.upd) : ''];
     if (cells.some((c) => c.length > MAX_CELL_CHARS)) out.push(`${f.project} / ${f.name} / ${sh.name} #${e.id || i + 1}`);
   }));
   return out;

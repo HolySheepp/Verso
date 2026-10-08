@@ -2,8 +2,16 @@
 // 修改框的內容 = 譯文套上這些修改；底線、高亮、套用、忽略都靠這份記錄。
 import type { Entry, StoredMark } from './types';
 
-/** 一組修改：譯文 [s, e) 這一段改成 t（s === e 是插入，t 為空是刪除） */
-export interface VEdit { s: number; e: number; t: string }
+/**
+ * 一組修改：譯文 [s, e) 這一段改成 t（s === e 是插入，t 為空是刪除）。
+ * id 是這組修改自己的編號：套用、忽略、高亮都用它認，不靠位置（位置會因為別組套用而改變）。
+ */
+export interface VEdit { s: number; e: number; t: string; id?: string }
+
+let editSeq = 0;
+export const newEditId = () => 'v' + Date.now().toString(36) + (editSeq++).toString(36);
+/** 沒有編號的修改補上編號（讀檔、舊資料） */
+export const withIds = (edits: VEdit[]): VEdit[] => (edits.every((d) => d.id) ? edits : edits.map((d) => (d.id ? d : { ...d, id: newEditId() })));
 
 export interface VerifyData {
   /** 做這些修改時的譯文；譯文後來被改了，就用它重新對位置 */
@@ -11,20 +19,27 @@ export interface VerifyData {
   edits: VEdit[];
   /** 自動標上疑慮前的標記；undefined 代表不是自動標的 */
   prev?: StoredMark;
+  /** 自動標上疑慮前，暫存的「認不得的自訂標記」，還原時一起放回去 */
+  prevKept?: string;
 }
 
 /** 一組修改在兩個框裡的位置 */
-export interface VSpan { s: number; e: number; ms: number; me: number; t: string }
+export interface VSpan { s: number; e: number; ms: number; me: number; t: string; id: string }
 
 const commonPrefix = (a: string, b: string) => {
   const n = Math.min(a.length, b.length);
   let i = 0;
   while (i < n && a.charCodeAt(i) === b.charCodeAt(i)) i++;
+  // 停在代理對（例如 emoji）的中間：往前退一格，整個字算在改動裡
+  if (i > 0 && i < a.length && isHigh(a.charCodeAt(i - 1)) && isLow(a.charCodeAt(i))) i--;
   return i;
 };
+const isHigh = (c: number) => c >= 0xd800 && c <= 0xdbff;
+const isLow = (c: number) => c >= 0xdc00 && c <= 0xdfff;
 const commonSuffix = (a: string, b: string, max: number) => {
   let i = 0;
   while (i < max && a.charCodeAt(a.length - 1 - i) === b.charCodeAt(b.length - 1 - i)) i++;
+  if (i > 0 && i < a.length && isLow(a.charCodeAt(a.length - i)) && isHigh(a.charCodeAt(a.length - i - 1))) i--;
   return i;
 };
 
@@ -43,7 +58,7 @@ export function diffRange(before: string, after: string, caret?: number) {
 export function spansOf(edits: VEdit[]): VSpan[] {
   let shift = 0;
   return [...edits].sort((a, b) => a.s - b.s).map((d) => {
-    const sp = { s: d.s, e: d.e, ms: d.s + shift, me: d.s + shift + d.t.length, t: d.t };
+    const sp = { s: d.s, e: d.e, ms: d.s + shift, me: d.s + shift + d.t.length, t: d.t, id: d.id ?? '' };
     shift += d.t.length - (d.e - d.s);
     return sp;
   });
@@ -79,19 +94,21 @@ export function editsOf(e: Entry): VEdit[] {
   const v = e.ver;
   if (!v) return [];
   let r = live.get(e);
-  if (!r) { r = rebase(v.base, e.tgt, v.edits); live.set(e, r); }
+  if (!r) { r = withIds(rebase(v.base, e.tgt, v.edits)); live.set(e, r); }
   return r;
 }
 
 /**
  * 在修改框把 oldMod 改成 newMod：改到（或碰到）已有修改的部分就併進那一組，否則是新的一組。
- * 回傳新的修改清單，以及這次改到的那一組在譯文的起點（找不到時是 -1，例如改回原樣）。
+ * 回傳新的修改清單，以及這次改到的那一組的編號（找不到時是空字串，例如改回原樣）。
  */
-export function applyChange(tgt: string, edits: VEdit[], oldMod: string, newMod: string, caret?: number): { edits: VEdit[]; active: number } {
+export function applyChange(tgt: string, edits: VEdit[], oldMod: string, newMod: string, caret?: number): { edits: VEdit[]; active: string } {
   const { p, q } = diffRange(oldMod, newMod, caret);
   const a = p, b = oldMod.length - q;
-  const spans = spansOf(edits);
+  const spans = spansOf(withIds(edits));
   const hit = spans.filter((sp) => sp.ms <= b && sp.me >= a);
+  // 併進已有的組時沿用那組的編號，新的一組給新編號
+  let id = hit[0]?.id || newEditId();
   const keep = spans.filter((sp) => !hit.includes(sp));
   const A = Math.min(a, ...hit.map((h) => h.ms));
   const B = Math.max(b, ...hit.map((h) => h.me));
@@ -105,21 +122,23 @@ export function applyChange(tgt: string, edits: VEdit[], oldMod: string, newMod:
   let s = hit.length ? Math.min(...hit.map((h) => h.s), toTgt(A)) : toTgt(A);
   let e = hit.length ? Math.max(...hit.map((h) => h.e), toTgt(B)) : toTgt(B);
   let t = newMod.slice(A, B + newMod.length - oldMod.length);
-  let rest = keep.map(({ s: ks, e: ke, t: kt }) => ({ s: ks, e: ke, t: kt }));
+  let rest: VEdit[] = keep.map(({ s: ks, e: ke, t: kt, id: kid }) => ({ s: ks, e: ke, t: kt, id: kid }));
   // 以單詞為單位：改到一個詞的一部分，就算整個詞都改了（例如 stupid → steward 整個詞畫底線）
   const w = toWords(tgt, s, e, t);
   s = w.s; e = w.e; t = w.t;
   // 擴大後碰到別組就合併
   for (;;) {
-    const touch = rest.filter((x) => (x.s < e && x.e > s) || (x.s === x.e && x.s > s && x.s < e));
+    // 重疊的，或插入點落在範圍裡（包含正好在起點、終點）的，都併成一組
+    const touch = rest.filter((x) => (x.s < e && x.e > s) || (x.s === x.e && x.s >= s && x.s <= e) || (s === e && x.s <= s && x.e >= e));
     if (!touch.length) break;
+    if (!hit.length) id = touch[0].id || id;
     const S = Math.min(s, ...touch.map((x) => x.s)), E = Math.max(e, ...touch.map((x) => x.e));
     t = compose(tgt.slice(S, E), [...touch, { s, e, t }].map((x) => ({ s: x.s - S, e: x.e - S, t: x.t })));
     s = S; e = E;
     rest = rest.filter((x) => !touch.includes(x));
   }
-  if (t === tgt.slice(s, e)) return { edits: rest, active: -1 };
-  return { edits: [...rest, { s, e, t }].sort((x, y) => x.s - y.s), active: s };
+  if (t === tgt.slice(s, e)) return { edits: rest, active: '' };
+  return { edits: [...rest, { s, e, t, id }].sort((x, y) => x.s - y.s), active: id };
 }
 
 // 會被併成一個詞的字：英文字母、數字之類（中日韓文字一個字就是一個詞，不往外擴）
@@ -140,8 +159,8 @@ function toWords(tgt: string, s: number, e: number, t: string): { s: number; e: 
 }
 
 /** 套用一組修改：譯文那段換成修改後的內容，這組移除，後面的移位置 */
-export function applyOne(tgt: string, edits: VEdit[], s: number): { tgt: string; edits: VEdit[] } {
-  const d = edits.find((x) => x.s === s);
+export function applyOne(tgt: string, edits: VEdit[], id: string): { tgt: string; edits: VEdit[] } {
+  const d = edits.find((x) => x.id === id);
   if (!d) return { tgt, edits };
   const delta = d.t.length - (d.e - d.s);
   return {
@@ -151,25 +170,41 @@ export function applyOne(tgt: string, edits: VEdit[], s: number): { tgt: string;
 }
 
 /** 移除一組修改（修改框那段回到原譯文） */
-export const removeOne = (edits: VEdit[], s: number) => edits.filter((x) => x.s !== s);
+export const removeOne = (edits: VEdit[], id: string) => edits.filter((x) => x.id !== id);
 
 /** 存進 xlsx 的文字 */
 export function verifyToText(v: VerifyData | undefined): string {
-  if (!v || !v.edits.length) return '';
-  return JSON.stringify({ b: v.base, d: v.edits.map((d) => [d.s, d.e, d.t]), ...(v.prev !== undefined ? { m: v.prev } : {}) });
+  // 修改清空了但還記著自動疑慮前的標記：也要存，之後才還原得回去
+  if (!v || (!v.edits.length && v.prev === undefined)) return '';
+  return JSON.stringify({
+    b: v.base, d: v.edits.map((d) => [d.s, d.e, d.t]),
+    ...(v.prev !== undefined ? { m: v.prev } : {}), ...(v.prevKept ? { k: v.prevKept } : {}),
+  });
 }
+
+/** 存得進檔案的標記（自動疑慮前的標記只接受這些） */
+const VALID_MARK = /^(|verified|doubt|think|ignore|c:.+)$/;
 
 export function textToVerify(text: string): VerifyData | undefined {
   if (!text) return undefined;
   try {
-    const o = JSON.parse(text) as { b?: unknown; d?: unknown; m?: unknown };
+    const o = JSON.parse(text) as { b?: unknown; d?: unknown; m?: unknown; k?: unknown };
     if (typeof o.b !== 'string' || !Array.isArray(o.d)) return undefined;
-    const edits = (o.d as unknown[]).flatMap((x): VEdit[] => {
-      if (!Array.isArray(x) || typeof x[0] !== 'number' || typeof x[1] !== 'number' || typeof x[2] !== 'string') return [];
+    const base = o.b;
+    // 位置要是整數、在範圍內；排好順序，跟前一組重疊的丟掉
+    const raw = (o.d as unknown[]).flatMap((x): VEdit[] => {
+      if (!Array.isArray(x) || !Number.isInteger(x[0]) || !Number.isInteger(x[1]) || typeof x[2] !== 'string') return [];
       const [s, e, t] = x as [number, number, string];
-      return s >= 0 && e >= s && e <= (o.b as string).length ? [{ s, e, t }] : [];
-    });
-    if (!edits.length) return undefined;
-    return { base: o.b, edits, ...(typeof o.m === 'string' ? { prev: o.m as StoredMark } : {}) };
+      return s >= 0 && e >= s && e <= base.length ? [{ s, e, t, id: newEditId() }] : [];
+    }).sort((a, b) => a.s - b.s || a.e - b.e);
+    const edits: VEdit[] = [];
+    for (const d of raw) {
+      const last = edits[edits.length - 1];
+      if (last && (d.s < last.e || (d.s === last.s && d.s === d.e))) continue;
+      edits.push(d);
+    }
+    const prev = typeof o.m === 'string' && VALID_MARK.test(o.m) ? (o.m as StoredMark) : undefined;
+    if (!edits.length && prev === undefined) return undefined;
+    return { base, edits, ...(prev !== undefined ? { prev } : {}), ...(typeof o.k === 'string' && o.k ? { prevKept: o.k } : {}) };
   } catch { return undefined; }
 }

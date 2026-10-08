@@ -36,9 +36,12 @@ export interface Issue {
 }
 
 /** {0}、{name}、%s、%1$s、<color=#fff>、</color>、字面的 \n */
-const TOKEN = /\{[^{}\s]*\}|%(?:\d+\$)?[sdif]|<\/?[A-Za-z][^<>]*>|\\n/g;
+// 標籤、變數：{name}、printf 格式（%s、%5.2f、%1$d…；%% 是百分號本身）、<b>／<color=#fff>、字面的 \n。
+// 標籤名稱後面直接接中文或空白的不算標籤（例如「<這>」「< 3」）。
+const TOKEN_SRC = String.raw`\{[^{}\s]*\}|%%|%(?:\d+\$)?[-+0#]*\d*(?:\.\d+)?[sdifcxXeEgG]|<\/?[A-Za-z][\w-]*(?:=[^<>\s]+)?\/?>|\\n`;
+const TOKEN = new RegExp(TOKEN_SRC, 'g');
 
-const tokens = (s: string) => s.match(TOKEN) ?? [];
+const tokens = (s: string) => (s.match(TOKEN) ?? []).filter((t) => t !== '%%');
 
 function countOf(list: string[]) {
   const m = new Map<string, number>();
@@ -50,6 +53,17 @@ const ENDINGS = ['."', '—"', '?"', '!"', '~"', '♡"', '.', '—', '?', '!', '
 
 /** 句尾：指定標點，後面可以再接右括號，例如 .) */
 const endsWell = (s: string) => ENDINGS.some((e) => s.endsWith(e) || s.endsWith(e + ')'));
+
+// 句首、句尾的判斷先拿掉前後的標籤、變數、字面的 \n（例如 Hello.<br> 或 {name} hello）
+const EDGE_TOKEN = `(?:${TOKEN_SRC}|\\s)+`;
+const TRAIL = new RegExp(EDGE_TOKEN + '$');
+const LEAD = new RegExp('^' + EDGE_TOKEN);
+/** 句尾要看的部分：去掉結尾的標籤；還是沒有標點時，再去掉最後的引號看一次 */
+const trimEnd = (s: string) => {
+  const t = s.replace(TRAIL, '');
+  if (endsWell(t)) return t;
+  return t.replace(/["'”’]+$/, '').replace(TRAIL, '');
+};
 
 /** 檢查一條譯文，回傳所有問題（不看開關） */
 export function runChecks(src: string, tgt: string): Issue[] {
@@ -81,7 +95,7 @@ export function runChecks(src: string, tgt: string): Issue[] {
   if (dots && dots[1].length !== 6) add('ellipsis', String(dots[1].length), `刪節號要 6 個句點（目前 ${dots[1].length} 個）`);
 
   // 句尾標點
-  const end = tgt.trimEnd();
+  const end = trimEnd(tgt);
   if (end && !endsWell(end)) add('ending', '', '句尾缺少標點');
 
   // 全形符號
@@ -107,7 +121,7 @@ export function runChecks(src: string, tgt: string): Issue[] {
   if (curly.length) add('curlyQuotes', curly.join(''), '有中文引號 ' + curly.join(' '));
 
   // 大小寫：句首、句號/問號/驚嘆號後要大寫；破折號後要小寫（I 除外）
-  const firstLetter = tgt.match(/^[\s"'(\[.]*([A-Za-z])/);
+  const firstLetter = tgt.replace(LEAD, '').match(/^[\s"'(\[.]*([A-Za-z])/);
   if (firstLetter && /[a-z]/.test(firstLetter[1])) add('capital', 'start', '句首要大寫');
   // 刪節號後不檢查（例如 Are you... are you mad?），只有整句以刪節號開頭時，刪節號後的字算句首
   if (/(?:^|[^.])[.?!]["')]*\s+["'(]*[a-z]/.test(tgt)) add('capital', 'sentence', '句號、問號、驚嘆號後要大寫');

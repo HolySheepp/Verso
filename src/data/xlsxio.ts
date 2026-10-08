@@ -101,7 +101,8 @@ function readUpd(text: string): SrcUpdate | undefined {
   return undefined;
 }
 
-const str = (v: unknown) => (v == null ? '' : String(v));
+/** 格子的文字；Windows 的換行（\r\n）統一成 \n */
+const str = (v: unknown) => (v == null ? '' : String(v).replace(/\r\n?/g, '\n'));
 const truthy = (v: string) => v !== '' && v !== '0' && v.toLowerCase() !== 'false';
 
 /** 依標題找欄位；找不到標題時照預設順序 */

@@ -53,7 +53,7 @@ export function parseHtmlTable(html: string): string[][] | null {
     Array.from(tr.querySelectorAll('td,th')).map((cell) => {
       const c = cell.cloneNode(true) as HTMLElement;
       c.querySelectorAll('br').forEach((br) => br.replaceWith('\n'));
-      return (c.textContent ?? '').replace(/ /g, ' ');
+      return (c.textContent ?? '').replace(/ /g, ' ').replace(/\r\n?/g, '\n');
     }),
   );
 }

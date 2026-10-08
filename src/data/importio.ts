@@ -34,7 +34,8 @@ function sheetRows(ws: XLSX.WorkSheet): string[][] {
   const rows = XLSX.utils.sheet_to_json<unknown[]>(ws, {
     header: 1, raw: false, defval: '', blankrows: true, range: { s: { r: 0, c: 0 }, e: range.e },
   });
-  return rows.map((r) => r.map((v) => (v == null ? '' : String(v))));
+  // Windows 的換行（\r\n）統一成 \n
+  return rows.map((r) => r.map((v) => (v == null ? '' : String(v).replace(/\r\n?/g, '\n'))));
 }
 
 const hasContent = (rows: string[][]) => rows.some((r) => r.some((v) => v.trim()));
