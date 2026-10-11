@@ -1,7 +1,7 @@
 // 匯入檔案：讀進外部的表格或文字檔，給匯入視窗預覽
 import { tx } from '../i18n';
 import * as XLSX from 'xlsx';
-import { SETTINGS_SHEET } from '../model/names';
+import { SETTINGS_SHEET, hasTooLongCell } from '../model/names';
 import { isVersoHeader } from '../model/importSel';
 
 export const IMPORT_EXTS = ['xlsx', 'xlsm', 'xls', 'ods', 'csv', 'tsv', 'txt'];
@@ -59,5 +59,7 @@ export function readImport(fileName: string, data: Uint8Array): ImportBook | str
   }
   sheets = sheets.filter((sh) => hasContent(sh.rows));
   if (!sheets.length) return tx('importfile.003');
+  // 有一格超過 Excel 的上限：匯入之後會存不進去，先擋下
+  if (sheets.some((sh) => hasTooLongCell(sh.rows))) return tx('importfile.tooLong');
   return { name, verso, sheets, data };
 }

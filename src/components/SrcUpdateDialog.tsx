@@ -3,11 +3,12 @@ import { memo, useEffect, useMemo, useRef, useState } from 'react';
 import { currentOf, showToast, useStore } from '../state/store';
 import { checkColumns, emptyColumns, pasteColumns, type ColKey, type Columns } from '../model/paste';
 import {
-  applyUpdate, autoAlign, deleteBlank, insertBlank, moveCells, rowInfos, sequentialRows, summarize,
+  applyUpdate, autoAlign, deleteBlank, seedCandidates, insertBlank, moveCells, rowInfos, sequentialRows, summarize,
   type AlignRow, type NewRow, type RowInfo, type Side,
 } from '../model/srcUpdate';
 import type { Entry } from '../model/types';
 import { AlignCancelled, autoAlignAsync, cancelAlign } from '../model/alignAsync';
+import { entryFits } from '../model/cellLimit';
 import { PasteBox, type BoxSel } from './PasteBox';
 import { ConfirmDialog } from './ConfirmDialog';
 import { ContextMenu } from './ContextMenu';
@@ -64,7 +65,12 @@ function SrcUpdate({ sheetIdx }: { sheetIdx: number }) {
     old: r.old !== null && r.old < entries.length ? r.old : null,
     new: r.new !== null && r.new < next.length ? r.new : null,
   })) : []), [step, rows, entries.length, next.length]);
-  const infos = useMemo(() => rowInfos(entries.map((e) => e.src), next.map((n) => n.src), safeRows, !busy), [safeRows, entries, next, busy]);
+  // 舊、新原文的陣列固定下來：rowInfos 靠它沿用算過的結果
+  const oldSrc = useMemo(() => entries.map((e) => e.src), [entries]);
+  const newSrc = useMemo(() => next.map((n) => n.src), [next]);
+  // 「高相似」的候選在背景算好才顯示（在主畫面一句一句找太慢）
+  const [candsReady, setCandsReady] = useState(false);
+  const infos = useMemo(() => rowInfos(oldSrc, newSrc, safeRows, !busy && candsReady), [safeRows, oldSrc, newSrc, busy, candsReady]);
   const summary = useMemo(() => summarize(entries, next, safeRows), [entries, next, safeRows]);
 
   if (!sheet) return null;
@@ -77,17 +83,27 @@ function SrcUpdate({ sheetIdx }: { sheetIdx: number }) {
     // 在背景執行緒算，畫面不會卡住；算完前按了「上一步」就丟掉結果
     const run = ++alignRun.current;
     const old = entries.map((e) => ({ id: e.id, src: e.src }));
-    autoAlignAsync(old, next)
+    setCandsReady(false);
+    const onCands = (c: [number, [number, number][]][] | null) => {
+      if (run !== alignRun.current || !c) return;
+      seedCandidates(oldSrc, newSrc, c);
+      setCandsReady(true);
+    };
+    autoAlignAsync(old, next, onCands)
       // 背景執行緒失敗：在這裡直接再算一次；還是失敗就留在照順序對應，並告訴使用者
       .catch((err) => (err instanceof AlignCancelled || run !== alignRun.current ? null : new Promise<AlignRow[]>((resolve, reject) => {
-        setTimeout(() => { try { resolve(autoAlign(old, next)); } catch (e) { reject(e); } }, 0);
+        setTimeout(() => { try { resolve(autoAlign(old, next)); setCandsReady(true); } catch (e) { reject(e); } }, 0);
       })))
       .then((r) => { if (r && run === alignRun.current) commit(r); })
       .catch(() => { if (run === alignRun.current) showToast(tx('srcupd.alignFailed')); })
       .finally(() => { if (run === alignRun.current) setBusy(false); });
   };
   const apply = () => {
-    applySrcUpdate(sheetIdx, applyUpdate(entries, next, safeRows, { id: !!cols.id, speaker: !!cols.speaker }));
+    const out = applyUpdate(entries, next, safeRows, { id: !!cols.id, speaker: !!cols.speaker });
+    // 新原文跟舊的記錄一起存進同一格：超過 Excel 一格的上限就不套用
+    const bad = out.findIndex((e) => !entryFits(e));
+    if (bad >= 0) { showToast(tx('srcupd.tooLong', { n: bad + 1 })); return; }
+    applySrcUpdate(sheetIdx, out);
   };
 
   const onKeyDown = (ev: React.KeyboardEvent) => {

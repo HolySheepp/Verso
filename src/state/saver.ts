@@ -6,14 +6,14 @@ import { isTauri } from '@tauri-apps/api/core';
 import { getCurrentWindow } from '@tauri-apps/api/window';
 import { io } from '../data/fsio';
 import { withFontDefaults } from '../model/fonts';
-import { LANG_DIR, MAX_CELL_CHARS, nameKey, sameName } from '../model/names';
+import { LANG_DIR, nameKey, sameName } from '../model/names';
+import { entryFits } from '../model/cellLimit';
 import { migrateList, migrateSheets } from '../model/shortcuts';
 import {
   clearRecovery, findRootConflicts, saveRootFor, mergeMarks, readFolderMeta, safeName as safeFileName, scanFolder, loadConfig, loadWorkspace, readDict, readDictFull, readRecovery, reloadFile, saveConfig, sortProjects, foreignFileAt, trashDict, trashFile, trashProject, writeDict, writeFile, writeMeta, writeRecovery,
   type AppConfig, type LastPosition, type RecoveryState,
 } from '../data/persist';
 import { emptyHistory } from '../model/history';
-import { editsOf, verifyToText } from '../model/verify';
 import { dictKey, newFileId, type CustomMark, type DictInfo, type FileDoc, type GlossaryTerm, type ProjectData } from '../model/types';
 import { currentOf, showToast, useStore, type SaveError } from './store';
 import { applyLang, setPacks, systemLang } from '../i18n/lang';
@@ -115,8 +115,6 @@ function markSaved(p: ProjectData, withDicts = false) {
   };
 }
 
-const warnedLong = new Set<string>();
-
 /** 存檔失敗的原因，翻成看得懂的話（Windows 的錯誤代碼） */
 export function saveReason(e: unknown): string {
   const m = String((e as { message?: string })?.message ?? e);
@@ -129,13 +127,11 @@ export function saveReason(e: unknown): string {
 }
 
 /** Excel 一格最多 32767 字；超過的格子列出位置 */
+/** 存檔時會超過 Excel 一格上限的條目（給人看的位置）；有的話這個檔案存不進去 */
 function longCellsOf(f: FileDoc): string[] {
   const out: string[] = [];
   f.sheets.forEach((sh) => sh.entries.forEach((e, i) => {
-    // 程式用的欄位（驗證修改、原文更新）也會寫進格子，一樣有字數上限
-    const cells = [e.id, e.speaker, e.src, e.tgt, e.note, e.sugg, e.src0, e.tgt0,
-      e.ver ? verifyToText({ ...e.ver, base: e.tgt, edits: editsOf(e) }) : '', e.upd ? JSON.stringify(e.upd) : ''];
-    if (cells.some((c) => c.length > MAX_CELL_CHARS)) out.push(`${f.project} / ${f.name} / ${sh.name} #${e.id || i + 1}`);
+    if (!entryFits(e)) out.push(tx('save.longAt', { project: f.project, file: f.name, sheet: sh.name, n: i + 1 }));
   }));
   return out;
 }
@@ -280,7 +276,9 @@ async function saveAll(): Promise<boolean> {
             p = useStore.getState().project!;
           }
         }
-        long.push(...longCellsOf(f));
+        // 有格子超過 Excel 的上限：這個檔案存不進去，跳過（其他照存），請使用者縮短
+        const tooLong = longCellsOf(f);
+        if (tooLong.length) { long.push(...tooLong); cancelled = true; continue; }
         await writeFile(s.saveRoot, f, p.customMarks);
         done.files.set(fileKey(f), f);
         // 改了名稱或搬了專案：記下舊位置（只差大小寫時是同一個檔案，不用移）
@@ -293,10 +291,8 @@ async function saveAll(): Promise<boolean> {
       if (taken.has(diskKey(old.project, old.name))) continue;
       await trashFile(s.saveRoot, old.project, old.name).catch(() => undefined);
     }
-    // 新出現的超長格子才提示，同一格不重複提示
-    const fresh = long.filter((x) => !warnedLong.has(x));
-    fresh.forEach((x) => warnedLong.add(x));
-    if (fresh.length) useStore.setState({ longCells: fresh });
+    // 有檔案因為格子太長存不進去：每次存檔都提示（不然使用者不知道為什麼沒存）
+    if (long.length) useStore.setState({ longCells: long });
     try { await writeMeta(s.saveRoot, p, lastPosition()); if (ok) { done.customs = p.customMarks; done.projects = p.projects; } } catch (e) { fail(tx('save.009'), e); }
   }
   const ids = dictIds(p);

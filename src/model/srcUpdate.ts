@@ -436,29 +436,165 @@ export interface RowInfo {
   elsewhere: number | null;
 }
 
-/** findElsewhere：要不要找「高相似：第幾條」（照順序對應、還在比對時不找，太花時間） */
+/** 每句新原文最多記幾個高相似的舊原文：只有同一列那句要跳過，留 3 個一定夠 */
+const CAND_KEEP = 3;
+
+/**
+ * 找高相似用的索引（前綴過濾）：把每句拆成相鄰兩字的記號（同樣的兩字出現第幾次也分開記）。
+ * 相似度 0.8 以上的兩句，共同的記號至少有「新句長度 ÷ 3 − 1」個；所以只看新句裡最少見的那些記號，
+ * 一定會碰到所有夠像的舊句，不必跟每一句舊原文比。很短的句子（保證不了共同記號）就每句都看。
+ */
+class CandIndex {
+  private post = new Map<number, number[]>();
+  private empties: number[] = [];
+  private all: number[];
+  private stamp: Int32Array;
+  private round = 0;
+  /** 每句舊原文的字分成 64 組的出現次數：先用它粗估共同字數的上限（同組的字合在一起算，只會估多） */
+  readonly hist: Uint16Array;
+  constructor(readonly A: Keys) {
+    this.hist = new Uint16Array(A.keys.length * 64);
+    this.stamp = new Int32Array(A.keys.length);
+    this.all = A.keys.map((_, i) => i);
+    A.keys.forEach((k, i) => {
+      if (!k) { this.empties.push(i); return; }
+      for (const t of pairTokens(k)) { const l = this.post.get(t); if (l) l.push(i); else this.post.set(t, [i]); }
+      fillHist(k, this.hist, i * 64);
+    });
+  }
+  /** 可能跟新句子相似度到 0.8 的舊句（之後還要真的算） */
+  near(key: string): number[] {
+    if (!key) return this.empties;
+    const need = Math.ceil(key.length / 3 - 1 - 1e-9);
+    if (need < 1) return this.all;
+    const toks = pairTokens(key).sort((x, y) => (this.post.get(x)?.length ?? 0) - (this.post.get(y)?.length ?? 0));
+    // 共同的記號至少要 need 個；前面 toks.length - need + 1 個裡一定有一個
+    const r = ++this.round, out: number[] = [];
+    for (let k = 0; k < toks.length - need + 1; k++) {
+      for (const i of this.post.get(toks[k]) ?? []) if (this.stamp[i] !== r) { this.stamp[i] = r; out.push(i); }
+    }
+    return out;
+  }
+}
+
+function fillHist(k: string, h: Uint16Array, at: number) {
+  for (let x = 0; x < k.length; x++) { const b = at + (k.charCodeAt(x) & 63); if (h[b] < 65535) h[b]++; }
+}
+
+/** 相鄰兩字的記號：(前字, 後字, 第幾次出現)；出現超過 63 次的算同一個，只會多找不會漏 */
+function pairTokens(k: string): number[] {
+  const seen = new Map<number, number>(), out: number[] = [];
+  for (let x = 0; x + 1 < k.length; x++) {
+    const pair = k.charCodeAt(x) * 65536 + k.charCodeAt(x + 1);
+    const n = Math.min((seen.get(pair) ?? 0) + 1, 63);
+    seen.set(pair, n);
+    out.push(pair * 64 + n);
+  }
+  return out;
+}
+
+/**
+ * 新原文第 j 句的高相似舊原文（0.8 以上）：最像的排前面，一樣像時編號大的在前（跟一句一句比時挑到的一樣），
+ * 最多 CAND_KEEP 個。回傳 [舊的編號, 相似度]。
+ */
+function candidatesOf(idx: CandIndex, B: Keys, j: number): [number, number][] {
+  const A = idx.A, key = B.keys[j], L = key.length;
+  const hb = new Uint16Array(64);
+  fillHist(key, hb, 0);
+  const out: [number, number][] = [];
+  for (const i of idx.near(key)) {
+    const floor = out.length >= CAND_KEEP ? out[out.length - 1][1] : ELSEWHERE;
+    // 先用長度、分組次數粗篩：一定不到 floor 的不必細算
+    const la = A.keys[i].length, sum = la + L;
+    if (sum && (2 * Math.min(la, L)) / sum < floor) continue;
+    if (sum) {
+      let common = 0;
+      for (let b = 0, at = i * 64; b < 64; b++) { const x = idx.hist[at + b], y = hb[b]; common += x < y ? x : y; }
+      if ((2 * common) / sum < floor) continue;
+    }
+    const v = simAbove(A, i, B, j, floor);
+    if (v < floor || v < ELSEWHERE) continue;
+    out.push([i, v]);
+    out.sort((x, y) => y[1] - x[1] || y[0] - x[0]);
+    if (out.length > CAND_KEEP) out.pop();
+  }
+  return out;
+}
+
+/**
+ * 背景比對時先算好：每句新原文的高相似候選（拖動後哪一列變成紅色箭頭都用得到）。
+ * 回傳 [新的編號, 候選][]，交給 seedCandidates 放進快取。
+ */
+export function allCandidates(old: { src: string }[], next: { src: string }[]): [number, [number, number][]][] {
+  const A = new Keys(old.map((o) => matchKey(o.src))), B = new Keys(next.map((n) => matchKey(n.src)));
+  const idx = new CandIndex(A);
+  return next.map((_, j) => [j, candidatesOf(idx, B, j)]);
+}
+
+/** 同一組舊原文、新原文的計算結果：拖動、復原時不必重算沒變的部分 */
+interface InfoCache {
+  newSrc: string[];
+  A: Keys; B: Keys;
+  idx: CandIndex | null;
+  /** 新舊配對 → 箭頭、相似度 */
+  pairs: Map<string, { arrow: Arrow; sim: number | null }>;
+  /** 新句子 → 高相似候選 */
+  cands: Map<number, [number, number][]>;
+  /** 新舊配對＋高相似 → 同一個 info 物件（列的 memo 才會生效） */
+  infos: Map<string, RowInfo>;
+}
+const infoCaches = new WeakMap<string[], InfoCache>();
+function infoCacheOf(oldSrc: string[], newSrc: string[]): InfoCache {
+  let c = infoCaches.get(oldSrc);
+  if (!c || c.newSrc !== newSrc) {
+    c = { newSrc, A: new Keys(oldSrc.map(matchKey)), B: new Keys(newSrc.map(matchKey)), idx: null, pairs: new Map(), cands: new Map(), infos: new Map() };
+    infoCaches.set(oldSrc, c);
+  }
+  return c;
+}
+
+/** 背景比對算好的高相似候選放進快取（oldSrc、newSrc 要是之後傳給 rowInfos 的同一個陣列） */
+export function seedCandidates(oldSrc: string[], newSrc: string[], cands: [number, [number, number][]][]) {
+  const c = infoCacheOf(oldSrc, newSrc);
+  for (const [j, list] of cands) c.cands.set(j, list);
+}
+
+/**
+ * findElsewhere：要不要找「高相似：第幾條」（照順序對應、還在比對時不找，太花時間）。
+ * oldSrc、newSrc 每次傳同一個陣列，算過的就沿用。
+ */
 export function rowInfos(oldSrc: string[], newSrc: string[], rows: AlignRow[], findElsewhere = true): RowInfo[] {
-  const ko = oldSrc.map(matchKey), kn = newSrc.map(matchKey);
-  const A = new Keys(ko), B = new Keys(kn);
+  const c = infoCacheOf(oldSrc, newSrc);
   const rowOfOld = new Map<number, number>();
   rows.forEach((r, k) => { if (r.old !== null) rowOfOld.set(r.old, k); });
   return rows.map((r, k) => {
-    const o = r.old === null ? null : oldSrc[r.old];
-    const n = r.new === null ? null : newSrc[r.new];
-    const arrow = arrowOf(o, n);
-    const sim = r.old !== null && r.new !== null ? ratio(ko[r.old], kn[r.new]) : null;
+    const pk = r.old + '|' + r.new;
+    let p = c.pairs.get(pk);
+    if (!p) {
+      // 跟 arrowOf 一樣，只是比對用字串已經有了，不必再算一次
+      if (r.old === null || r.new === null) p = { arrow: 'red', sim: null };
+      else {
+        const sim = ratio(c.A.keys[r.old], c.B.keys[r.new]);
+        p = { arrow: oldSrc[r.old].trim() === newSrc[r.new].trim() ? 'same' : sim >= 0.5 ? 'yellow' : 'red', sim };
+      }
+      c.pairs.set(pk, p);
+    }
     let elsewhere: number | null = null;
-    if (findElsewhere && arrow === 'red' && r.new !== null) {
-      // 拿這列的新原文，去其他列的舊原文找最像的（先用上限排除一定不夠像的）
-      let best = ELSEWHERE;
-      for (let i = 0; i < ko.length; i++) {
+    if (findElsewhere && p.arrow === 'red' && r.new !== null) {
+      // 這列的新原文最像的舊原文（不在這一列的）在第幾列
+      let list = c.cands.get(r.new);
+      if (!list) { list = candidatesOf(c.idx ??= new CandIndex(c.A), c.B, r.new); c.cands.set(r.new, list); }
+      for (const [i] of list) {
         const rk = rowOfOld.get(i);
         if (rk === undefined || rk === k) continue;
-        const v = simAbove(A, i, B, r.new, best);
-        if (v >= best) { best = v; elsewhere = rk + 1; }
+        elsewhere = rk + 1;
+        break;
       }
     }
-    return { arrow, sim, elsewhere };
+    const ik = pk + '|' + elsewhere;
+    let info = c.infos.get(ik);
+    if (!info) { info = { arrow: p.arrow, sim: p.sim, elsewhere }; c.infos.set(ik, info); }
+    return info;
   });
 }
 

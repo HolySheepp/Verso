@@ -1,5 +1,5 @@
 import { tx } from '../i18n';
-import { MAX_CELL_CHARS } from '../model/names';
+import { MAX_CELL_CHARS, fitsCell } from '../model/names';
 import { useState } from 'react';
 import { useStore, type TermDraft } from '../state/store';
 import { DictPicker, NEW, ProjectPicker, firstDict, nameError, picked } from './Pickers';
@@ -32,7 +32,8 @@ function TermForm({ init }: { init: TermDraft }) {
   const dictName = picked(dictSel, newDict);
   const pickProject = (v: string) => { setProjSel(v); setDictSel(v === NEW ? NEW : firstDict(v)); };
   const error = nameError('project', projSel, newProj, project.projects)
-    || nameError('dict', dictSel, newDict, project.dicts.filter((x) => x.project === projName).map((x) => x.name));
+    || nameError('dict', dictSel, newDict, project.dicts.filter((x) => x.project === projName).map((x) => x.name))
+    || ([d.term, d.en, d.note].every(fitsCell) ? '' : tx('term.tooLong'));
   const saveOff = !d.term.trim() || !d.en.trim() || !projName || !dictName || !!error;
 
   return (
@@ -49,11 +50,11 @@ function TermForm({ init }: { init: TermDraft }) {
           <div style={two}>
             <div style={col}>
               <label htmlFor="verso-g-term" style={labelS}>{tx('term.004')}</label>
-              <input id="verso-g-term" type="text" className="field" value={d.term} onChange={(e) => patch({ term: e.target.value })} placeholder={tx('term.005')} />
+              <input id="verso-g-term" type="text" className="field" maxLength={MAX_CELL_CHARS} value={d.term} onChange={(e) => patch({ term: e.target.value })} placeholder={tx('term.005')} />
             </div>
             <div style={col}>
               <label htmlFor="verso-g-en" style={labelS}>{tx('term.006')}</label>
-              <input id="verso-g-en" type="text" className="field" value={d.en} onChange={(e) => patch({ en: e.target.value })} placeholder={tx('term.007')} />
+              <input id="verso-g-en" type="text" className="field" maxLength={MAX_CELL_CHARS} value={d.en} onChange={(e) => patch({ en: e.target.value })} placeholder={tx('term.007')} />
             </div>
           </div>
           <div style={col}>

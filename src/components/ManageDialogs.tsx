@@ -1,7 +1,8 @@
 import { tx } from '../i18n';
 import { NO_SPEAKER, defaultSheetName } from '../model/names';
 import { useEffect, useState } from 'react';
-import { useStore, type MoveTarget } from '../state/store';
+import { showToast, useStore, type MoveTarget } from '../state/store';
+import { entryFits } from '../model/cellLimit';
 import { requestAutosave, saveNow } from '../state/saver';
 import { SHARED, type Entry, type FileDoc, type Sheet } from '../model/types';
 import { COLS, COLS_GRID, appendNote, checkColumns, fitsRows, newUid, pasteColumns, type Col, type Columns } from '../model/paste';
@@ -357,6 +358,11 @@ function FileEditor({ file, index, onDirty, onSaved }: { file: FileDoc; index: n
   const save = () => {
     if (error) return;
     const next = fromDraft(file, draft.current.current);
+    // 備註合併之類會讓格子變長：超過 Excel 一格的上限就不存
+    for (const sh of next) {
+      const bad = sh.entries.findIndex((e) => !entryFits(e));
+      if (bad >= 0) { showToast(tx('manage.tooLong', { sheet: sh.name, n: bad + 1 })); return; }
+    }
     setFileSheets(index, next);
     commit();
     const d = toDraft({ ...file, sheets: next });

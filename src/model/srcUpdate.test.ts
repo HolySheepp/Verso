@@ -188,3 +188,59 @@ describe('原文更新：同位置只剩一句（夜間檢查 41）', () => {
     expect(r2.filter((x) => x.old !== null && x.new !== null).length).toBe(2);
   });
 });
+
+describe('原文更新：高相似用算好的候選（夜間檢查 3）', () => {
+  const rand = (seed: number) => () => { seed = (seed * 1103515245 + 12345) % 2147483648; return seed / 2147483648; };
+  const words = ['sword', 'dawn', 'castle', 'river', 'dragon', 'king', 'shadow', 'light', 'storm', 'gold', 'wolf', 'tower'];
+  const sentence = (r: () => number) => Array.from({ length: 4 + Math.floor(r() * 6) }, () => words[Math.floor(r() * words.length)]).join(' ');
+
+  it('結果和一句一句比的一樣', async () => {
+    const { rowInfos, allCandidates, seedCandidates, matchKey, ratio, arrowOf, moveCells } = await import('./srcUpdate');
+    const r = rand(11);
+    const zh = () => Array.from({ length: 1 + Math.floor(r() * 12) }, () => '我你他的是了不在有'[Math.floor(r() * 9)]).join('');
+    for (const gen of [() => sentence(r), zh]) {
+    const oldSrc = Array.from({ length: 120 }, gen);
+    const newSrc = oldSrc.map((s) => (r() < 0.3 ? gen() : r() < 0.3 ? s + '了' : s));
+    const brute = (rows: { old: number | null; new: number | null }[]) => {
+      const rowOfOld = new Map<number, number>();
+      rows.forEach((x, k) => { if (x.old !== null) rowOfOld.set(x.old, k); });
+      return rows.map((x, k) => {
+        const arrow = arrowOf(x.old === null ? null : oldSrc[x.old], x.new === null ? null : newSrc[x.new]);
+        let best = 0.8, elsewhere: number | null = null;
+        if (arrow === 'red' && x.new !== null) oldSrc.forEach((o, i) => {
+          const rk = rowOfOld.get(i);
+          if (rk === undefined || rk === k) return;
+          const v = ratio(matchKey(o), matchKey(newSrc[x.new!]));
+          if (v >= best) { best = v; elsewhere = rk + 1; }
+        });
+        return { arrow, sim: x.old !== null && x.new !== null ? ratio(matchKey(oldSrc[x.old]), matchKey(newSrc[x.new])) : null, elsewhere };
+      });
+    };
+    let rows = autoAlign(oldSrc.map((src) => ({ id: '', src })), newSrc.map((src) => ({ id: '', speaker: '', src })));
+    seedCandidates(oldSrc, newSrc, allCandidates(oldSrc.map((src) => ({ src })), newSrc.map((src) => ({ src }))));
+    expect(rowInfos(oldSrc, newSrc, rows)).toEqual(brute(rows));
+    for (let t = 0; t < 10; t++) {
+      const a = Math.floor(r() * rows.length);
+      rows = moveCells(rows, r() < 0.5 ? 'old' : 'new', a, a, Math.floor(r() * rows.length));
+      expect(rowInfos(oldSrc, newSrc, rows)).toEqual(brute(rows));
+    }
+    }
+  });
+
+  it('1 萬對 3 萬條：拖動一次 0.1 秒內', async () => {
+    const { rowInfos, allCandidates, seedCandidates, moveCells, sequentialRows } = await import('./srcUpdate');
+    const r = rand(5);
+    const vocab = Array.from({ length: 800 }, () => Array.from({ length: 3 + Math.floor(r() * 6) }, () => String.fromCharCode(97 + Math.floor(r() * 26))).join(''));
+    const line = () => Array.from({ length: 4 + Math.floor(r() * 10) }, () => vocab[Math.floor(r() * vocab.length)]).join(' ');
+    const oldSrc = Array.from({ length: 10000 }, line);
+    const newSrc = [...oldSrc, ...Array.from({ length: 20000 }, line)];
+    // 舊的 1 萬條照順序配到新的前 1 萬條，後面 2 萬條是新句子
+    let rows = sequentialRows(oldSrc.length, newSrc.length);
+    seedCandidates(oldSrc, newSrc, allCandidates(oldSrc.map((src) => ({ src })), newSrc.map((src) => ({ src }))));
+    rowInfos(oldSrc, newSrc, rows);
+    rows = moveCells(rows, 'new', 5000, 5000, 12000);
+    const t = performance.now();
+    rowInfos(oldSrc, newSrc, rows);
+    expect(performance.now() - t).toBeLessThan(100);
+  }, 120000);
+});

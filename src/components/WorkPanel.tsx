@@ -7,7 +7,8 @@ import { TextMarks, type MarkRange } from './TextMarks';
 import { useCurrentHits } from '../state/dictHits';
 import { locateIssues } from '../model/checks';
 import { effectiveStd } from '../model/length';
-import { STAMP_EXCLUDE, currentOf, currentStamp, useStore, useStorePick, visibleIssues } from '../state/store';
+import { STAMP_EXCLUDE, currentOf, currentStamp, showToast, useStore, useStorePick, visibleIssues } from '../state/store';
+import { entryFits } from '../model/cellLimit';
 import { markName, markVisual } from '../model/marks';
 import { keyOf, type ActionId } from '../model/shortcuts';
 import type { Mode } from '../model/types';
@@ -248,6 +249,8 @@ function WorkPanelInner({ height, maxH }: { height: number; maxH: number }) {
     if (!e) return;
     const ed = editsOf(e);
     const r = applyChange(e.tgt, ed, compose(e.tgt, ed), value, caret);
+    // 譯文和修改會一起存進同一格：超過 Excel 一格的上限就不收這次輸入
+    if (r.edits.length && !entryFits({ ...e, ver: { ...e.ver, base: e.tgt, edits: r.edits } })) { showToast(tx('work.tooLong')); return; }
     dirty.current = true; verifySession.dirty = true;
     setVActive(r.active || null);
     s.setVerify(r.edits);

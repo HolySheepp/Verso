@@ -39,6 +39,14 @@ export const NO_SPEAKER = '無';
 
 export const MAX_CELL_CHARS = 32767;
 
+/**
+ * 存檔時實際寫進格子的長度：文字裡本來就有的 _xHHHH_ 會跳脫成 _x005F_xHHHH_，每個多 6 字
+ * （見 xlsxio.ts textSheet）
+ */
+export const savedLength = (s: string) => (s.includes('_') ? s.length + 6 * (s.match(/_(?=[xX][0-9A-Fa-f]{4}_)/g)?.length ?? 0) : s.length);
+/** 存得進 Excel 的一格 */
+export const fitsCell = (s: string) => savedLength(s) <= MAX_CELL_CHARS;
+
 /** 貼入的內容裡有沒有一格超過 Excel 的上限 */
-export const hasTooLongCell = (cells: string[][]) => cells.some((r) => r.some((v) => v.length > MAX_CELL_CHARS));
+export const hasTooLongCell = (cells: string[][]) => cells.some((r) => r.some((v) => !fitsCell(v)));
 export const tooLongMsg = () => tx('name.007');

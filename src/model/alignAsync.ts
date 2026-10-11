@@ -7,24 +7,43 @@ export class AlignCancelled extends Error {
   constructor() { super('cancelled'); this.name = 'AlignCancelled'; }
 }
 
+/** 每句新原文的高相似候選：[新的編號, [舊的編號, 相似度][]][] */
+export type Cands = [number, [number, number][]][];
+
 let worker: Worker | null = null;
 let seq = 0;
-const waiting = new Map<number, { resolve(r: AlignRow[]): void; reject(e: Error): void }>();
+interface Waiting {
+  resolve(r: AlignRow[]): void;
+  reject(e: Error): void;
+  /** 比對結果先回來，高相似候選隨後才到；算不出來時是 null */
+  onCands?(c: Cands | null): void;
+  done: boolean;
+}
+const waiting = new Map<number, Waiting>();
 
 function getWorker(): Worker | null {
   if (worker) return worker;
   if (typeof Worker === 'undefined') return null;
   try {
     worker = new Worker(new URL('./alignWorker.ts', import.meta.url), { type: 'module' });
-    worker.onmessage = (ev: MessageEvent<{ id: number; rows?: AlignRow[]; error?: string }>) => {
+    worker.onmessage = (ev: MessageEvent<{ id: number; rows?: AlignRow[]; cands?: Cands | null; error?: string }>) => {
       const w = waiting.get(ev.data.id);
       if (!w) return;
-      waiting.delete(ev.data.id);
-      if (ev.data.rows) w.resolve(ev.data.rows); else w.reject(new Error(ev.data.error ?? tx('align.001')));
+      if (ev.data.rows) {
+        w.done = true;
+        w.resolve(ev.data.rows);
+        if (!w.onCands) waiting.delete(ev.data.id);
+      } else if ('cands' in ev.data) {
+        waiting.delete(ev.data.id);
+        w.onCands?.(ev.data.cands ?? null);
+      } else {
+        waiting.delete(ev.data.id);
+        w.reject(new Error(ev.data.error ?? tx('align.001')));
+      }
     };
     const me = worker;
     worker.onerror = () => {
-      waiting.forEach((w) => w.reject(new Error(tx('align.001'))));
+      waiting.forEach((w) => { if (w.done) w.onCands?.(null); else w.reject(new Error(tx('align.001'))); });
       waiting.clear();
       me.terminate();
       if (worker === me) worker = null;
@@ -35,12 +54,12 @@ function getWorker(): Worker | null {
   }
 }
 
-export function autoAlignAsync(old: { id: string; src: string }[], next: NewRow[]): Promise<AlignRow[]> {
+export function autoAlignAsync(old: { id: string; src: string }[], next: NewRow[], onCands?: (c: Cands | null) => void): Promise<AlignRow[]> {
   const w = getWorker();
   if (!w) return Promise.resolve(autoAlign(old, next));
   const id = ++seq;
   return new Promise((resolve, reject) => {
-    waiting.set(id, { resolve, reject });
+    waiting.set(id, { resolve, reject, onCands, done: false });
     w.postMessage({ id, old, next });
   });
 }
@@ -49,6 +68,6 @@ export function autoAlignAsync(old: { id: string; src: string }[], next: NewRow[
 export function cancelAlign() {
   worker?.terminate();
   worker = null;
-  waiting.forEach((w) => w.reject(new AlignCancelled()));
+  waiting.forEach((w) => { if (!w.done) w.reject(new AlignCancelled()); });
   waiting.clear();
 }
