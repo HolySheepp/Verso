@@ -266,6 +266,9 @@ async function saveAll(): Promise<boolean> {
       if (saved.files.get(fileKey(f)) === f && !customsChanged) continue;
       const old = saved.files.get(fileKey(f));
       try {
+        // 有格子超過 Excel 的上限：這個檔案存不進去，跳過（其他照存），請使用者縮短。先檢查這個，免得先問了同名衝突、甚至丟掉外部檔，結果還是存不進去
+        const tooLong = longCellsOf(f);
+        if (tooLong.length) { long.push(...tooLong); cancelled = true; continue; }
         // 寫到新位置（新檔案、改名、搬專案）而那裡已經有別的檔案：問使用者
         if ((!old || diskKey(old.project, old.name) !== diskKey(f.project, f.name)) && await foreignFileAt(s.saveRoot, f.project, f.name, ours)) {
           const choice = await askClash(f.project, f.name);
@@ -276,9 +279,6 @@ async function saveAll(): Promise<boolean> {
             p = useStore.getState().project!;
           }
         }
-        // 有格子超過 Excel 的上限：這個檔案存不進去，跳過（其他照存），請使用者縮短
-        const tooLong = longCellsOf(f);
-        if (tooLong.length) { long.push(...tooLong); cancelled = true; continue; }
         await writeFile(s.saveRoot, f, p.customMarks);
         done.files.set(fileKey(f), f);
         // 改了名稱或搬了專案：記下舊位置（只差大小寫時是同一個檔案，不用移）
@@ -305,7 +305,7 @@ async function saveAll(): Promise<boolean> {
   // 刪掉、改名的專案：新位置都寫好了才把舊資料夾移走，寫失敗時舊的還留著（下次存檔再移）。
   // 只改大小寫時新舊是同一個資料夾，不移
   const left = gone.filter((x) => !p.projects.some((y) => sameName(x, y)));
-  if (!ok && left.length) done.projects = saved.projects;
+  if ((!ok || cancelled) && left.length) done.projects = saved.projects;
   else {
     for (const x of left) {
       try { await trashProject(s.saveRoot, x); } catch (e) { fail(tx('save.008', { x }), e); done.projects = saved.projects; }
@@ -426,6 +426,14 @@ export async function startApp() {
   // 先記下已存的內容再換專案，避免監聽到變動時誤判成未存
   markSaved(project, true);
   useStore.setState({ project, file: 0, sheetBy: {}, selBy: {}, history: emptyHistory(), saveStatus: 'saved' });
+  // 上次沒有正常關閉，留下了暫存復原：進主畫面後問要不要恢復。
+  // 要在排程 saveNow 之前讀好、設好 pendingRecovery，saveNowInner 才看得到，不會在使用者決定前就把暫存復原清掉
+  try {
+    const r = await readRecovery(saveRoot);
+    // 暫存的內容跟正式檔一模一樣（例如存好之後沒來得及清掉）：不用問，直接清掉
+    if (r && sameAsOfficial(r, project)) await clearRecovery(saveRoot).catch(warnClear);
+    else if (r) { pendingRecovery = r; useStore.setState({ recoveryAsk: true }); }
+  } catch { /* 讀不到就當沒有 */ }
   // 舊版的自訂標記合併後要重寫一次（檔案裡的標記編號、工作區設定檔）
   // 格式轉換，不是使用者的修改：直接寫回正式檔
   if (migrated) { saved = { ...saved, files: new Map(), customs: null }; useStore.setState({ saveStatus: 'dirty' }); setTimeout(() => { void saveNow(); }, 0); }
@@ -437,13 +445,6 @@ export async function startApp() {
     setTimeout(() => { void saveNow(); }, 0);
   }
   restorePosition(project, last);
-  // 上次沒有正常關閉，留下了暫存復原：進主畫面後問要不要恢復
-  try {
-    const r = await readRecovery(saveRoot);
-    // 暫存的內容跟正式檔一模一樣（例如存好之後沒來得及清掉）：不用問，直接清掉
-    if (r && sameAsOfficial(r, project)) await clearRecovery(saveRoot).catch(warnClear);
-    else if (r) { pendingRecovery = r; useStore.setState({ recoveryAsk: true }); }
-  } catch { /* 讀不到就當沒有 */ }
   step(1, tx('save.013'));
   startFolderWatch();
   // 舊的「語言」專案改了名：字典開關、收合狀態跟著改，進主畫面後告訴使用者
@@ -727,9 +728,14 @@ async function switchRootNow(root: string) {
     const remap = (mark: string) => (mark.startsWith('c:') && m.idMap.has(mark.slice(2)) ? 'c:' + m.idMap.get(mark.slice(2)) : mark);
     const files = m.idMap.size ? cur.files.map((f) => ({ ...f, sheets: f.sheets.map((sh) => ({ ...sh, entries: sh.entries.map((e) => {
       const mark = remap(e.mark), kept = e.keptMark ? remap(e.keptMark) : e.keptMark;
-      return mark === e.mark && kept === e.keptMark ? e : { ...e, mark: mark as typeof e.mark, keptMark: kept };
+      // 驗證模式自動疑慮前記著的標記（ver.prev、ver.prevKept）也是標記編號，要一起換
+      const prev = e.ver?.prev ? remap(e.ver.prev) : e.ver?.prev, prevKept = e.ver?.prevKept ? remap(e.ver.prevKept) : e.ver?.prevKept;
+      const ver = e.ver && (prev !== e.ver.prev || prevKept !== e.ver.prevKept) ? { ...e.ver, prev: prev as typeof e.ver.prev, ...(prevKept ? { prevKept } : {}) } : e.ver;
+      return mark === e.mark && kept === e.keptMark && ver === e.ver ? e : { ...e, mark: mark as typeof e.mark, keptMark: kept, ver };
     }) })) })) : cur.files;
-    useStore.setState({ project: { ...cur, files, customMarks: m.customs, nextMarkId: m.nextMarkId } });
+    // 各模式「標記並下一條」留下的標記也是編號
+    const stamps = Object.fromEntries(Object.entries(useStore.getState().stamps).map(([k, v]) => [k, v ? remap(v) : v]));
+    useStore.setState({ project: { ...cur, files, customMarks: m.customs, nextMarkId: m.nextMarkId }, stamps });
   }
   useStore.setState({ saveRoot: root });
   saved = { files: new Map(), customs: null, dicts: new Map(), projects: [] };
@@ -744,7 +750,15 @@ async function switchRootNow(root: string) {
       const first = new Map<string, number>();
       p.files.forEach((f, i) => { if (!first.has(f.project)) first.set(f.project, i); });
       const files = p.files.map((f, i) => ({ f, i })).sort((a, b) => first.get(a.f.project)! - first.get(b.f.project)! || rank(a.f) - rank(b.f) || a.i - b.i).map((x) => x.f);
-      useStore.setState({ project: { ...p, files } });
+      // 檔案換了位置：目前檔案、各檔案的頁簽和選到的條目跟著換（做法同 deleteFile）
+      const st = useStore.getState();
+      const to = new Map(p.files.map((f, i) => [i, files.indexOf(f)]));
+      const map = (i: number) => to.get(i) ?? i;
+      const sheetBy: Record<number, number> = {};
+      Object.entries(st.sheetBy).forEach(([k, v]) => { sheetBy[map(Number(k))] = v; });
+      const selBy: Record<string, number> = {};
+      Object.entries(st.selBy).forEach(([k, v]) => { const [fi, sh] = k.split(':').map(Number); selBy[map(fi) + ':' + sh] = v; });
+      useStore.setState({ project: { ...p, files }, file: map(st.file), sheetBy, selBy });
       await saveNowInner();
     }
   }

@@ -25,11 +25,15 @@ interface TabDrag { from: number; to: number; dx: number; lefts: number[]; width
 const MAX_UNDO = 100;
 
 /** 手動貼入：建立一個檔案，底下有一或多個頁簽，每個頁簽貼入 id、發話者、原文、譯文四欄 */
+const NO_SHEETS: never[] = [];
+
 export function PasteDialog() {
   const open = useStore((s) => s.pasteOpen);
   // 從頁簽右鍵「插入」打開時，是在目前的檔案插入頁簽，不建立新檔案
   const insert = useStore((s) => s.pasteInsert);
-  const existingSheets = useStore((s) => (s.project && s.pasteInsert ? currentOf(s).fileDoc.sheets.length : 0));
+  // 插入頁簽：檔案原有的頁簽（取陣列本身，參照不變就不會一直重畫）
+  const existing = useStore((s) => (s.project && s.pasteInsert ? currentOf(s).fileDoc.sheets : NO_SHEETS));
+  const existingSheets = existing.length;
   const { set, addFile, insertSheets } = useStore.getState();
   const close = () => set({ pasteOpen: false, pasteInsert: null });
   const [name, setName] = useState('');
@@ -261,7 +265,7 @@ export function PasteDialog() {
                 }}>
                   {renaming === i ? (
                     <RenameInput initial={sh.name} label={tx('paste.010')}
-                      validate={(v) => sheetNameError(v, sheets.filter((_, j) => j !== i).map((x) => x.name))}
+                      validate={(v) => sheetNameError(v, [...(insert ? existing.map((x) => x.name) : []), ...sheets.filter((_, j) => j !== i).map((x) => x.name)])}
                       onDone={(v) => { if (v) patchSheet(i, () => ({ name: v })); setRenaming(null); }}
                       style={{ height: 28, width: 140, margin: '4px 0', padding: '0 8px' }} />
                   ) : (

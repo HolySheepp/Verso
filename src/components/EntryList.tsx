@@ -78,6 +78,8 @@ interface RowHandlers {
   /** refocus：結束後把焦點交回條目欄 */
   commitEdit(refocus: boolean): void;
   cancelEdit(): void;
+  /** 現在正在編輯的就是這一條的這一欄嗎（舊編輯框的卸載計時器用，免得關掉新開的編輯） */
+  isEditing(uid: string, c: CellCol): boolean;
 }
 
 interface RowProps {
@@ -104,13 +106,13 @@ interface RowProps {
 }
 
 /** 格子裡的編輯框：被捲出畫面、換頁簽而消失時，已打的內容直接確定 */
-function CellEditor({ text, h }: { text: string; h: React.RefObject<RowHandlers> }) {
+function CellEditor({ text, h, uid, c }: { text: string; h: React.RefObject<RowHandlers>; uid: string; c: CellCol }) {
   const alive = useRef(false);
   useEffect(() => {
     alive.current = true;
     // 等一下再看：開發模式會先卸載再立刻掛回去，那不算消失
-    return () => { alive.current = false; setTimeout(() => { if (!alive.current) h.current.commitEdit(false); }, 0); };
-  }, [h]);
+    return () => { alive.current = false; setTimeout(() => { if (!alive.current && h.current.isEditing(uid, c)) h.current.commitEdit(false); }, 0); };
+  }, [h, uid, c]);
   return (
     <textarea className="cell-edit" ref={focusOnMount} value={text} spellCheck={false} maxLength={MAX_CELL_CHARS}
       rows={Math.max(1, text.split('\n').length)}
@@ -141,7 +143,7 @@ const EntryRow = memo(function EntryRow({ e, i, k, m, issues, on, hit, selCols, 
       className: 'cell' + (isSel ? ' cell-sel' : ''),
     };
   };
-  const editor = (c: CellCol) => (editing && editing.c === c ? <CellEditor text={editing.text} h={h} /> : null);
+  const editor = (c: CellCol) => (editing && editing.c === c ? <CellEditor text={editing.text} h={h} uid={e.uid} c={c} /> : null);
   return (
     <div key={e.uid} className="rw" data-uid={e.uid} data-k={k} aria-current={on ? 'true' : undefined} style={{
       display: 'grid', gridTemplateColumns: '24px 16px minmax(0, 1fr)', padding: '0 12px 0 4px',
@@ -668,6 +670,7 @@ export function EntryList() {
     editText: (text) => { if (editRef.current) setEditing({ ...editRef.current, text }); },
     commitEdit: (refocus) => { commitEdit(); if (refocus) sink.current?.focus({ preventScroll: true }); },
     cancelEdit: () => { setEditing(null); sink.current?.focus({ preventScroll: true }); },
+    isEditing: (uid, c) => editRef.current?.uid === uid && editRef.current.c === c,
   };
 
   return (

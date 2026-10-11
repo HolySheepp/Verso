@@ -90,11 +90,13 @@ function DictTab() {
   // 命中：和工作欄共用同一份啟用中的詞條，字典整理和命中結果都只算一次
   const hitTerms = useActiveTerms();
   // 不分大小寫、全形半形（跟原文比對的規則一樣）
+  // 每個詞條的 foldText 只在啟用中的詞條變了才算（10 萬條時每次搜尋都重算要 180ms）
+  const folded = useMemo(() => active.map((g) => [foldText(g.term), foldText(g.en)] as const), [active]);
   const results = useMemo(() => {
     if (!ql) return [];
     const fq = foldText(q);
-    return active.filter((g) => foldText(g.term).includes(fq) || foldText(g.en).includes(fq));
-  }, [active, q]);
+    return active.filter((_, i) => folded[i][0].includes(fq) || folded[i][1].includes(fq));
+  }, [active, folded, q]);
   // 搜尋結果先顯示 50 筆，捲到底再顯示下一批
   const [shown, setShown] = useState(DICT_BATCH);
   useEffect(() => { setShown(DICT_BATCH); }, [q]);

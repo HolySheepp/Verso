@@ -43,3 +43,17 @@ describe('補零、百分比格式用顯示的文字（夜間檢查 39）', () =
     expect(cellText({ t: 'n', v: 7, z: '000' })).toBe('007');
   });
 });
+
+describe('夜間檢查 2026-10-12', () => {
+  it('第 1 項：格式 "0" 不算補零，"0000" 才算', async () => {
+    const { cellText } = await import('./xlsxio');
+    expect(cellText({ t: 'n', v: 12.7, z: '0' })).toBe('12.7');
+    expect(cellText({ t: 'n', v: 12, z: '0000' })).toBe('0012');
+  });
+  it('第 12 項：頁簽名稱不分大小寫去重', () => {
+    const e = mk('x');
+    const doc = { fid: 'f1', name: 'a', project: 'P', sheets: [{ name: 'Sheet', entries: [e] }, { name: 'sheet', entries: [e] }] };
+    const wb = XLSX.read(fileToXlsx(doc, []), { type: 'array' });
+    expect(wb.SheetNames.slice(0, 2)).toEqual(['Sheet', 'sheet (2)']);
+  });
+});

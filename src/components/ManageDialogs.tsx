@@ -1,5 +1,5 @@
 import { tx } from '../i18n';
-import { NO_SPEAKER, defaultSheetName } from '../model/names';
+import { NO_SPEAKER, defaultSheetName, fitsCell, tooLongMsg } from '../model/names';
 import { useEffect, useState } from 'react';
 import { showToast, useStore, type MoveTarget } from '../state/store';
 import { entryFits } from '../model/cellLimit';
@@ -265,7 +265,7 @@ function ManageProjects() {
         <div style={{ flexGrow: 1, minWidth: 0, display: 'flex', flexDirection: 'column' }}>
           {curIdx < 0
             ? <div className="empty" style={{ margin: 20, flexGrow: 1, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>{tx('manage.029')}</div>
-            : <FileEditor key={String(curIdx) + '/' + project.files.length} file={project.files[curIdx]} index={curIdx}
+            : <FileEditor key={project.files[curIdx].fid ?? project.files[curIdx].project + '/' + project.files[curIdx].name} file={project.files[curIdx]} index={curIdx}
                 onDirty={setDirty} onSaved={(sheets) => { setCurSheets(sheets); setDirty(false); }} />}
         </div>
         </div>
@@ -477,6 +477,8 @@ function ManageDicts() {
     if (!cur || error) return;
     const rows = (term?.rows ?? []).map((t, i) => ({ term: t.trim(), en: (en?.rows[i] ?? '').trim(), note: (note?.rows[i] ?? '').trim() }))
       .filter((r) => r.term && r.en);
+    // 超過 Excel 一格的上限（32767 字）存不進去：不存
+    if (rows.some((r) => ![r.term, r.en, r.note].every(fitsCell))) { showToast(tooLongMsg()); return; }
     setDictTerms(cur.project, cur.name, rows);
     commit();
     const v = { term: rows.length ? { rows: rows.map((r) => r.term), extra: 0 } : null, en: rows.length ? { rows: rows.map((r) => r.en), extra: 0 } : null, note: rows.length ? { rows: rows.map((r) => r.note), extra: 0 } : null };

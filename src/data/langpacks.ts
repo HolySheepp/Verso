@@ -8,7 +8,7 @@ const isPack = (n: string) => n.toLowerCase().endsWith('.xlsx') && !n.startsWith
 
 /** 一個語言包裡的（代號, 譯文）；讀不了時丟出錯誤 */
 export function readPackData(data: Uint8Array): [string, string][] {
-  const wb = XLSX.read(data, { type: 'array' });
+  const wb = XLSX.read(data, { type: 'array', cellNF: true });
   const out: [string, string][] = [];
   for (const sn of wb.SheetNames) {
     const rows = sheetRows(wb.Sheets[sn]);

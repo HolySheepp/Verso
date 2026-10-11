@@ -47,12 +47,13 @@ export function SettingsDialog() {
 
   const tc = checkMarkText(text);
   const preview: MarkVisual | null = type === 'sym' ? { kind: 'sym', sym, color } : tc.ok ? { kind: 'text', text, color } : null;
-  const addOff = !preview || !name;
+  const nameT = name.trim();
+  const addOff = !preview || !nameT || customs.some((c) => c.name === nameT);
 
   const add = () => {
     if (addOff) return;
     const id = 'u' + Date.now();
-    const c: CustomMark = type === 'sym' ? { id, name, kind: 'sym', sym, color } : { id, name, kind: 'text', text, color };
+    const c: CustomMark = type === 'sym' ? { id, name: nameT, kind: 'sym', sym, color } : { id, name: nameT, kind: 'text', text, color };
     addCustomMark(c);
     setName('');
     setText('');

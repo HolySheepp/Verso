@@ -30,7 +30,7 @@ function markLabel(mark: string, customs: CustomMark[]) {
 export function cellText(cell: XLSX.CellObject | undefined): string {
   if (!cell || cell.v == null) return '';
   const z = typeof cell.z === 'string' ? cell.z : '';
-  const shown = cell.t === 'd' || (cell.t === 'n' && !!z && (XLSX.SSF.is_date(z) || /^0+$/.test(z) || z.includes('%')));
+  const shown = cell.t === 'd' || (cell.t === 'n' && !!z && (XLSX.SSF.is_date(z) || /^0{2,}$/.test(z) || z.includes('%')));
   const text = () => cell.w ?? (z && typeof cell.v === 'number' ? XLSX.SSF.format(z, cell.v) : String(cell.v));
   const raw = cell.t === 'n' && !shown ? String(cell.v) : String(text());
   return raw.replace(/\r\n?/g, '\n');
@@ -78,8 +78,9 @@ function textSheet(rows: string[][]): XLSX.WorkSheet {
 const sheetName = (name: string, used: Set<string>) => {
   let n = name.replace(/[\\/?*[\]:]/g, '_').slice(0, 31) || '頁簽';
   let k = 2;
-  while (used.has(n)) n = (name.slice(0, 27) || '頁簽') + ` (${k++})`;
-  used.add(n);
+  // Excel 的工作表名稱不分大小寫："Sheet" 和 "sheet" 視為重複
+  while (used.has(n.toLowerCase())) n = (name.slice(0, 27) || '頁簽') + ` (${k++})`;
+  used.add(n.toLowerCase());
   return n;
 };
 
