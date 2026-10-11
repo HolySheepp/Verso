@@ -406,7 +406,7 @@ function WorkPanelInner({ height, maxH }: { height: number; maxH: number }) {
   useEffect(() => {
     const onKey = (ev: KeyboardEvent) => {
       if (!ev.altKey || ev.ctrlKey || ev.metaKey || ev.shiftKey || !/^Digit[1-9]$/.test(ev.code)) return;
-      if (shortcutsBlocked()) return;
+      if (shortcutsBlocked(ev.key)) return;
       const hit = altRef.current.hits[Number(ev.code.slice(5)) - 1];
       ev.preventDefault();
       if (hit) insertTerm(hit.term.en);

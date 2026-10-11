@@ -31,3 +31,11 @@ describe('字典比對不分大小寫、全形半形', () => {
     expect(hits[0].spans).toEqual([{ start: 2, end: 7 }, { start: 12, end: 17 }]);
   });
 });
+
+describe('activeTermsOf 共用同一個陣列（第 27 項）', () => {
+  it('輸入相同回傳同一個陣列物件', async () => {
+    const { activeTermsOf } = await import('./dictHits');
+    const g = [t('a', 'A')], dicts = [{ project: 'p', name: 'd' }], ov = {};
+    expect(activeTermsOf(g, dicts as never, ov, 'p')).toBe(activeTermsOf(g, dicts as never, ov, 'p'));
+  });
+});

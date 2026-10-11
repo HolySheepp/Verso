@@ -38,10 +38,19 @@ export function cellText(cell: XLSX.CellObject | undefined): string {
 export function sheetRows(ws: XLSX.WorkSheet): string[][] {
   if (!ws || !ws['!ref']) return [];
   const range = XLSX.utils.decode_range(ws['!ref']);
+  // 有些外部工具把範圍記成 A1:XFD1048576（約 170 億格），迴圈會卡死：範圍縮到實際有格子的大小
+  let maxR = -1, maxC = -1;
+  for (const k of Object.keys(ws)) {
+    if (k[0] === '!') continue;
+    const a = XLSX.utils.decode_cell(k);
+    if (a.r > maxR) maxR = a.r;
+    if (a.c > maxC) maxC = a.c;
+  }
+  const endR = Math.min(range.e.r, maxR), endC = Math.min(range.e.c, maxC);
   const out: string[][] = [];
-  for (let r = 0; r <= range.e.r; r++) {
+  for (let r = 0; r <= endR; r++) {
     const row: string[] = [];
-    for (let c = 0; c <= range.e.c; c++) row.push(cellText(ws[XLSX.utils.encode_cell({ r, c })] as XLSX.CellObject | undefined));
+    for (let c = 0; c <= endC; c++) row.push(cellText(ws[XLSX.utils.encode_cell({ r, c })] as XLSX.CellObject | undefined));
     out.push(row);
   }
   return out;

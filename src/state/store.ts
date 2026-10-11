@@ -1,4 +1,4 @@
-import { tx } from '../i18n';
+import { tx, dictVersion } from '../i18n';
 import { bootLang } from '../i18n/lang';
 import { create } from 'zustand';
 import { useShallow } from 'zustand/react/shallow';
@@ -78,7 +78,7 @@ export function checkText(e: Entry): string {
  */
 const NO_ISSUES: Issue[] = [];
 /** 檢查結果快取：條目是不可變更新，條目沒改參照就不變；報過的問題或檢查設定換了就重算 */
-const issueCache = new WeakMap<Entry, { keys: string[]; settings: CheckSettings; fileStd?: StdValue; out: Issue[] }>();
+const issueCache = new WeakMap<Entry, { keys: string[]; settings: CheckSettings; fileStd?: StdValue; lang: number; out: Issue[] }>();
 
 /**
  * 全形符號、重複標點、中文引號這三種會把好幾個字元合成一個問題：改掉其中一個字元時，
@@ -96,11 +96,11 @@ export function visibleIssues(e: Entry, reported: Record<string, string[]>, sett
   const keys = reported[e.uid];
   if (!keys || !checkable(e)) return NO_ISSUES;
   const hit = issueCache.get(e);
-  if (hit && hit.keys === keys && hit.settings === settings && hit.fileStd === fileStd) return hit.out;
+  if (hit && hit.keys === keys && hit.settings === settings && hit.fileStd === fileStd && hit.lang === dictVersion()) return hit.out;
   const found = enabledIssues(shownSrc(e), checkText(e), settings, effectiveStd(e.lengthStd, fileStd)).filter((i) => keys.includes(i.key) || stillReported(i.key, keys));
   // 沒有問題時回傳同一個空陣列，條目欄的行元件才不會因為「新的空陣列」重畫
   const out = found.length ? found : NO_ISSUES;
-  issueCache.set(e, { keys, settings, fileStd, out });
+  issueCache.set(e, { keys, settings, fileStd, lang: dictVersion(), out });
   return out;
 }
 
@@ -551,7 +551,7 @@ export const useStore = create<Store>((set, get) => {
         const keys = issues.map((i) => i.key);
         reported[e.uid] = keys;
         // 剛算好的結果直接放進顯示用的快取，畫面不必再檢查一次
-        issueCache.set(e, { keys, settings: s.checkSettings, fileStd, out: issues });
+        issueCache.set(e, { keys, settings: s.checkSettings, fileStd, lang: dictVersion(), out: issues });
       } else delete reported[e.uid];
     });
     set({ reported });

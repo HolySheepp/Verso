@@ -1,5 +1,5 @@
 import { tx } from '../i18n';
-import { memo, useMemo, useRef, useState } from 'react';
+import { memo, useEffect, useMemo, useRef, useState } from 'react';
 import { currentOf, useStore } from '../state/store';
 import { checkColumns, emptyColumns, pasteColumns, type ColKey, type Columns } from '../model/paste';
 import {
@@ -7,7 +7,7 @@ import {
   type AlignRow, type NewRow, type RowInfo, type Side,
 } from '../model/srcUpdate';
 import type { Entry } from '../model/types';
-import { autoAlignAsync } from '../model/alignAsync';
+import { autoAlignAsync, cancelAlign } from '../model/alignAsync';
 import { PasteBox, type BoxSel } from './PasteBox';
 import { ConfirmDialog } from './ConfirmDialog';
 import { ContextMenu } from './ContextMenu';
@@ -32,6 +32,9 @@ const YELLOW = '#e8b93a';
 const btn: React.CSSProperties = { height: 36, padding: '0 16px', background: 'var(--btn)', border: '1px solid var(--line4)', borderRadius: 8, fontSize: fz(13) };
 const primary: React.CSSProperties = { height: 36, padding: '0 18px', background: 'var(--primary)', border: 0, borderRadius: 8, color: '#ffffff', fontSize: fz(13), fontWeight: 600 };
 
+/** 比對進行中：表格不接受修改，免得背景算完後把使用者剛拖的蓋掉 */
+const ignoreChange = () => undefined;
+
 function SrcUpdate({ sheetIdx }: { sheetIdx: number }) {
   const { set, applySrcUpdate } = useStore.getState();
   const sheet = useStore((s) => currentOf(s).fileDoc.sheets[sheetIdx]);
@@ -49,6 +52,8 @@ function SrcUpdate({ sheetIdx }: { sheetIdx: number }) {
   const redo = () => setHist((h) => (h.future.length ? { rows: h.future[0], past: [...h.past, h.rows], future: h.future.slice(1) } : h));
   const [busy, setBusy] = useState(false);
   const alignRun = useRef(0);
+  // 關掉視窗時，還在算的比對不必再算下去
+  useEffect(() => () => { alignRun.current++; cancelAlign(); }, []);
   const [confirm, setConfirm] = useState(false);
 
   const check = checkColumns(cols);
@@ -112,7 +117,7 @@ function SrcUpdate({ sheetIdx }: { sheetIdx: number }) {
             ))}
           </div>
         ) : (
-          <AlignGrid rows={safeRows} entries={entries} next={next} infos={infos} onChange={commit} />
+          <AlignGrid rows={safeRows} entries={entries} next={next} infos={infos} onChange={busy ? ignoreChange : commit} />
         )}
 
         <div style={{ flexShrink: 0, display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 12, padding: '12px 20px 16px', borderTop: '1px solid var(--line)' }}>
@@ -129,7 +134,7 @@ function SrcUpdate({ sheetIdx }: { sheetIdx: number }) {
               </>
             ) : (
               <>
-                <button type="button" className="btn btn-ghost" onClick={() => { alignRun.current++; setBusy(false); resetAlign(); setStep('paste'); }} style={btn}>{tx('srcupd.011')}</button>
+                <button type="button" className="btn btn-ghost" onClick={() => { alignRun.current++; cancelAlign(); setBusy(false); resetAlign(); setStep('paste'); }} style={btn}>{tx('srcupd.011')}</button>
                 <button type="button" className="btn btn-primary" disabled={busy} onClick={() => setConfirm(true)} style={primary}>{tx('srcupd.012')}</button>
               </>
             )}

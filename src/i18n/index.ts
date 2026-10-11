@@ -12,7 +12,12 @@ let active: Dict | null = null;
 let backup: Dict = {};
 
 /** 換語言：中文、內建英文，或外部語言包（缺字用英文補） */
+/** 每換一次語言（或語言包內容）就加一：依文字算出來的快取靠它知道要重算 */
+let version = 0;
+export const dictVersion = () => version;
+
 export function useDictionary(lang: 'zh' | 'en' | Dict) {
+  version++;
   if (lang === 'zh') { active = null; backup = {}; }
   else if (lang === 'en') { active = EN; backup = {}; }
   else { active = lang; backup = EN; }

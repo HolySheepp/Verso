@@ -64,7 +64,7 @@ function revealFocus() {
 }
 
 /**
- * 有對話框或選單開著，或焦點在按鈕上（條目欄的按鈕除外）：條目欄和工作欄的快捷鍵都不處理。
+ * 有對話框或選單開著，或焦點在按鈕上按 Enter／空白鍵（條目欄的按鈕除外）：條目欄和工作欄的快捷鍵都不處理。
  * 例如「有未儲存的修改」焦點在「儲存」時按 Enter，要按到那個按鈕，而不是跳下一條。
  */
 /** 選到的格子裡目前篩選下看得到的；都看不到時就是目前這條的譯文格 */
@@ -74,7 +74,7 @@ function visibleKeys(s: ReturnType<typeof useStore.getState>, sel: number): stri
   return keys.length ? keys : [cellKey(sel, TGT_COL)];
 }
 
-export function shortcutsBlocked(): boolean {
+export function shortcutsBlocked(key?: string): boolean {
   const s = useStore.getState();
   if (s.settingsOpen || s.termDraft || s.pasteOpen || s.srcUpdate !== null || s.recoveryAsk || s.importOpen || s.dictPasteOpen
     || s.manageProjectsOpen || s.manageDictsOpen || s.moveTarget || s.lengthDialog || s.askSave || s.updatePrompt || s.rootConflicts
@@ -82,7 +82,8 @@ export function shortcutsBlocked(): boolean {
   // 檔案欄的刪除確認、複製前的確認、右鍵選單這些只存在畫面上的對話框
   if (document.querySelector('[role="dialog"], [role="alertdialog"], [role="menu"]')) return true;
   const el = document.activeElement as HTMLElement | null;
-  return !!el?.closest('button') && !el.closest('.rw');
+  // 焦點在按鈕上（點過按鈕之後焦點會留在那裡）：只有 Enter、空白鍵是留給按鈕自己的，其他快捷鍵照常
+  return !!el?.closest('button') && !el.closest('.rw') && (key === 'Enter' || key === ' ');
 }
 
 /** 把游標放進工作用的輸入框最後面 */
@@ -155,13 +156,13 @@ export function Shortcuts() {
       const combo = comboOf(ev, tab.held());
       if (!combo) return;
       if (tab.held()) { tab.markUsed(); ev.preventDefault(); }
-      if (handle(combo)) ev.preventDefault();
+      if (handle(combo, ev.key)) ev.preventDefault();
     };
 
     /** 依目前焦點的情境執行快捷鍵，有執行就回傳 true */
-    const handle = (combo: string) => {
+    const handle = (combo: string, key?: string) => {
       const s = useStore.getState();
-      if (!s.project || shortcutsBlocked()) return false;
+      if (!s.project || shortcutsBlocked(key)) return false;
       const el = document.activeElement;
       const inWork = isWorkInput(el, s.mode);
       // 在備註、搜尋框之類的地方，只有存檔快捷鍵有效
@@ -217,7 +218,7 @@ export function Shortcuts() {
         if (released === holding.key || holding.mods.includes(modReleased)) stopHold();
       }
       const combo = tab.up(ev);
-      if (combo) handle(combo);
+      if (combo) handle(combo, ev.key);
     };
     const onBlur = () => { tab.reset(); stopHold(); };
 

@@ -2,7 +2,7 @@
 // 只算目前選中的這一條，其他條目不比對。
 import { useMemo } from 'react';
 import { useShallow } from 'zustand/react/shallow';
-import { SHARED, dictKey, type GlossaryTerm } from '../model/types';
+import { SHARED, dictKey, type DictInfo, type GlossaryTerm } from '../model/types';
 import { currentOf, shownSrc, currentProjectOf, dictEnabledIn, useStore } from './store';
 
 export interface DictHit {
@@ -14,6 +14,20 @@ export interface DictHit {
   spans: { start: number; end: number }[];
 }
 
+let lastActive: { glossary: GlossaryTerm[]; dicts: DictInfo[]; overrides: Record<string, boolean>; current: string; out: GlossaryTerm[] } | null = null;
+/**
+ * 啟用中的詞條。輸入的參照都一樣就回傳同一個陣列：
+ * 工作欄和字典側欄各自呼叫時拿到同一個，以陣列為 key 的整理快取才能共用，不必各做一次。
+ */
+export function activeTermsOf(glossary: GlossaryTerm[], dicts: DictInfo[], overrides: Record<string, boolean>, current: string): GlossaryTerm[] {
+  const l = lastActive;
+  if (l && l.glossary === glossary && l.dicts === dicts && l.overrides === overrides && l.current === current) return l.out;
+  const on = new Set(dicts.filter((d) => dictEnabledIn(current, overrides, d)).map((d) => dictKey(d.project, d.name)));
+  const out = glossary.filter((g) => g.term && on.has(dictKey(g.proj, g.dict)));
+  lastActive = { glossary, dicts, overrides, current, out };
+  return out;
+}
+
 /** 啟用中的字典詞條；字典內容或開關變了才重算 */
 export function useActiveTerms(): GlossaryTerm[] {
   const { glossary, dicts, overrides, current } = useStore(useShallow((s) => ({
@@ -22,10 +36,7 @@ export function useActiveTerms(): GlossaryTerm[] {
     overrides: s.dictOverrides,
     current: currentProjectOf(s),
   })));
-  return useMemo(() => {
-    const on = new Set(dicts.filter((d) => dictEnabledIn(current, overrides, d)).map((d) => dictKey(d.project, d.name)));
-    return glossary.filter((g) => g.term && on.has(dictKey(g.proj, g.dict)));
-  }, [glossary, dicts, overrides, current]);
+  return useMemo(() => activeTermsOf(glossary, dicts, overrides, current), [glossary, dicts, overrides, current]);
 }
 
 /**
