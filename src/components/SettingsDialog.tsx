@@ -367,7 +367,7 @@ function GeneralSection() {
         <h3 style={h3}>{tx('settings.language')}</h3>
         {/* 語言名稱用各自的語言寫，不翻 */}
         {/* 外部語言包用檔名顯示；打開選單時重新掃描「語言」資料夾 */}
-        <Select id="verso-lang" value={uiLang} style={{ width: 240 }} onOpen={() => void refreshLangPacks()}
+        <Select id="verso-lang" value={uiLang} style={{ width: 240 }} onOpen={() => void refreshLangPacks().catch(() => undefined)}
           options={[
             ...BUILTIN_LANGS.map((l) => ({ value: l.id, label: l.label })),
             ...langPacks.map((n) => ({ value: PACK + n, label: n })),

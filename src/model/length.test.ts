@@ -43,3 +43,14 @@ describe('檔案、字典 ID', () => {
     expect(d.terms.map((t) => t.en)).toEqual(['Dragon']);
   });
 });
+
+describe('Lru.clear（第 16 項）', () => {
+  it('clear 之後同樣的輸入查不到', async () => {
+    const { Lru } = await import('./measure');
+    const c = new Lru<number>(10);
+    c.set('a', 1);
+    expect(c.get('a')).toBe(1);
+    c.clear();
+    expect(c.get('a')).toBeUndefined();
+  });
+});

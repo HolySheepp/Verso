@@ -60,8 +60,9 @@ export function txSplit(key: TextKey, vars?: Vars): [string, string] {
 export function cleanPack(pairs: [string, string][]): Dict {
   const out: Dict = {};
   for (const [key, value] of pairs) {
+    // 用 hasOwnProperty：語言包裡寫 toString、constructor 這類代號時不能拿到物件原型上的東西
+    if (!Object.prototype.hasOwnProperty.call(ZH, key) || typeof value !== 'string' || !value.trim()) continue;
     const zh = (ZH as Record<string, string>)[key];
-    if (zh === undefined || !value.trim()) continue;
     const need = placeholders(zh), have = placeholders(value);
     if ([...need].some((n) => !have.has(n))) continue;
     out[key] = value;

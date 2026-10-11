@@ -59,7 +59,7 @@ function layout(el: HTMLDivElement, text: string): { lines: number; remain: numb
  * 最近用過的量測結果（LRU）：Map 會記住放進去的順序，用到的移到最後，滿了就丟最前面的。
  * 大小要放得下一整個大頁簽，整頁檢查時才不會一直重量。
  */
-class Lru<V> {
+export class Lru<V> {
   private map = new Map<string, V>();
   constructor(private max: number) {}
   get(k: string): V | undefined {
@@ -72,11 +72,14 @@ class Lru<V> {
     this.map.set(k, v);
     if (this.map.size > this.max) this.map.delete(this.map.keys().next().value!);
   }
+  clear() { this.map.clear(); }
 }
 const MAX_CACHE = 20000;
 const cache = new Lru<Measure>(MAX_CACHE);
 /** 只算行數的結果（檢查超框用） */
 const lineCache = new Lru<number>(MAX_CACHE);
+// 字型晚一點才載入完成時（內建字型是非同步、分段載入），之前量的結果可能不準，清掉重量
+if (typeof document !== 'undefined' && document.fonts) document.fonts.addEventListener('loadingdone', () => { cache.clear(); lineCache.clear(); });
 const layoutKey = (text: string, std: LengthStd) => `${std.family}|${std.size}|${std.width}\u0000${text}`;
 
 /** 排出來幾行：只排版一次，不量 10 個字的寬度、也不找能放進上限的長度 */

@@ -97,3 +97,21 @@ describe('標點檢測', () => {
     expect(ids('……', '"........"')).toEqual(['ellipsis']);
   });
 });
+
+describe('夜間檢查 2026-10-09', () => {
+  it('第 19 項：句首小寫前面有標籤時，標色位置指向字母', async () => {
+    const { locateIssues } = await import('./checks');
+    const a = '<i>hello</i> there.';
+    expect(locateIssues(a, new Set(['capital'] as never))[0].start).toBe(a.indexOf('h'));
+    const b = '{name} hello.';
+    expect(locateIssues(b, new Set(['capital'] as never))[0].start).toBe(b.indexOf('h'));
+  });
+  it('第 21 項：一長串空白或標籤不會卡住，結果不變', () => {
+    const t0 = Date.now();
+    runChecks('他說。', 'He said.' + ' '.repeat(30000));
+    runChecks('他說。', 'He said.' + '<b>'.repeat(10000));
+    expect(Date.now() - t0).toBeLessThan(500);
+    expect(ids('他說。', 'He said.<br> ')).not.toContain('ending');
+    expect(ids('他說。', 'He said <b> ')).toContain('ending');
+  });
+});

@@ -187,8 +187,11 @@ async function saveNowInner(): Promise<boolean> {
     if (ok && !isDirty()) {
       // 正式檔已經是最新的：記下這個版本（含檔案順序），刪掉暫存復原
       if (s.project) markSaved(s.project);
-      await clearRecovery(s.saveRoot).catch(warnClear);
-      resetRec();
+      // 「要不要恢復」的詢問還開著時不能刪暫存復原（使用者可能要按恢復）
+      if (!pendingRecovery) {
+        await clearRecovery(s.saveRoot).catch(warnClear);
+        resetRec();
+      }
     } else {
       // 還有沒存進去的修改：暫存復原馬上改成只剩這些
       requestAutosave();
@@ -376,7 +379,8 @@ export async function startApp() {
   let newIds: string[] = [];
   try {
     try { localStorage.setItem('verso-boot', JSON.stringify({ theme: useStore.getState().theme, accent: useStore.getState().accent, lang: useStore.getState().uiLang })); } catch { /* 存不下就算了 */ }
-    await refreshLangPacks();
+    // 語言包出錯絕不能擋住載入工作區
+    await refreshLangPacks().catch(() => undefined);
     step(0.12, tx('save.012'));
     const r = await loadWorkspace(saveRoot, step);
     project = r.data; last = r.last; migrated = r.remapped; newIds = r.newIds;
@@ -418,7 +422,7 @@ function watch() {
   // 換語言：之後的文字都用新語言（畫面由 App 整個重畫）
   useStore.subscribe((s, prev) => { if (s.uiLang !== prev.uiLang) applyLang(s.uiLang); });
   // 換存檔資料夾：語言包也換成新資料夾裡的
-  useStore.subscribe((s, prev) => { if (s.saveRoot !== prev.saveRoot) void refreshLangPacks(); });
+  useStore.subscribe((s, prev) => { if (s.saveRoot !== prev.saveRoot) void refreshLangPacks().catch(() => undefined); });
   // 內容一有變動就標成未存
   let dictTimer: ReturnType<typeof setTimeout> | undefined;
   useStore.subscribe((s, prev) => {
@@ -533,8 +537,8 @@ async function discardChanges(target: string | null) {
   markSaved(next);
   // 復原紀錄是退回之前的內容，已經對不上了
   useStore.getState().clearUndo();
-  await clearRecovery(s.saveRoot).catch(warnClear);
-  resetRec();
+  // 跟自動存檔排隊：自動存檔正在寫的時候不能先清掉、再被它寫回已捨棄的內容
+  await serial(async () => { await clearRecovery(s.saveRoot).catch(warnClear); resetRec(); });
 }
 
 // ---- 開啟時的暫存復原 ----
@@ -567,7 +571,7 @@ export async function resolveRecovery(choice: 'restore' | 'discard') {
   useStore.setState({ recoveryAsk: false });
   const s = useStore.getState();
   if (!r || !s.project) return;
-  if (choice === 'discard') { await clearRecovery(s.saveRoot).catch(warnClear); resetRec(); return; }
+  if (choice === 'discard') { await serial(async () => { await clearRecovery(s.saveRoot).catch(warnClear); resetRec(); }); return; }
   const official = new Map(s.project.files.map((f) => [fileKey(f), f]));
   const files = r.state.files.map((x) => r.files.get(x.key) ?? official.get(x.key)).filter((f): f is FileDoc => !!f);
   const next: ProjectData = {
@@ -581,8 +585,10 @@ export async function resolveRecovery(choice: 'restore' | 'discard') {
   const idx = Math.max(0, files.findIndex((f) => fileKey(f) === curKey));
   useStore.setState({ project: next, file: idx, cellSel: null, reported: {} });
   useStore.getState().clearUndo();
-  // 暫存復原裡已經是這些內容，不必馬上重寫
-  rec = { files: new Map([...r.files].filter(([k]) => files.some((f) => fileKey(f) === k))), state: '' };
+  // 啟動時可能已經因為別的原因把暫存復原資料夾清掉了：不能假設裡面還有這些檔案，
+  // 一律當成沒有暫存過，讓下一次自動存檔把恢復的內容全部重新寫進去
+  rec = { files: new Map(), state: '' };
+  requestAutosave();
 }
 
 /** 詢問對話框的選擇 */

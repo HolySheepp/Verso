@@ -131,12 +131,14 @@ export const sortProjects = (names: Iterable<string>) =>
 /**
  * 存到一半中斷時留下的檔案：原檔不見但有備份（.bak）就把備份放回去；暫存檔（.tmp）刪掉。
  */
-async function recoverBackups(dir: string) {
+export async function recoverBackups(dir: string) {
   let entries: { name: string; dir: boolean }[] = [];
   try { entries = await io.list(dir); } catch { return; }
   const names = new Set(entries.map((e) => e.name));
   for (const e of entries) {
     if (e.dir) continue;
+    // 只處理 safeWrite 自己留下的檔名；使用者放在資料夾裡的 .tmp、.bak 檔不能動
+    if (!/\.(xlsx|json)\.(bak|tmp)$/i.test(e.name)) continue;
     if (e.name.endsWith('.bak')) {
       const orig = e.name.slice(0, -4);
       try {

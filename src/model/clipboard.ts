@@ -47,14 +47,16 @@ export function parseTsv(text: string): string[][] {
 /** 從剪貼簿的 HTML 表格取出每一列的格子；沒有表格時回傳 null */
 export function parseHtmlTable(html: string): string[][] | null {
   const doc = new DOMParser().parseFromString(html, 'text/html');
-  const trs = doc.querySelectorAll('tr');
+  // 只取最外層的表格：裡面巢狀的表格若也抓進來，格子會重複、錯位
+  const table = Array.from(doc.querySelectorAll('table')).find((t) => !t.parentElement?.closest('table'));
+  const trs = table ? table.rows : doc.querySelectorAll('tr');
   if (!trs.length) return null;
   // 合併的格子（rowspan、colspan）展開成網格，被佔掉的位置補空字串，後面的格子才不會往左跑
   const grid: string[][] = [];
   Array.from(trs).forEach((tr, r) => {
     const row = (grid[r] ??= []);
     let c = 0;
-    for (const cell of Array.from(tr.querySelectorAll('td,th'))) {
+    for (const cell of Array.from(tr.cells)) {
       while (row[c] !== undefined) c++;
       const el = cell.cloneNode(true) as HTMLElement;
       el.querySelectorAll('br').forEach((br) => br.replaceWith('\n'));

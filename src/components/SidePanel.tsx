@@ -111,7 +111,7 @@ function DictTab() {
   }, [uid, src]);
   const matchSrc = uid !== srcNow.uid ? src : srcNow.src;
   // 同一個原文在好幾本字典有不同譯名時，全部列出來
-  const matches = useMemo(() => findHits(matchSrc, hitTerms, current).flatMap((h) => h.terms), [hitTerms, matchSrc, current]);
+  const matches = useMemo(() => findHits(matchSrc, hitTerms, current).flatMap((h, k) => h.terms.map((g, j) => ({ g, alt: j === 0 && k < 9 ? k + 1 : undefined }))), [hitTerms, matchSrc, current]);
   // 目前專案的字典排最前面，再來是共用，其他照原本順序
   const rank = (d: DictInfo) => (d.project === current ? 0 : d.project === SHARED ? 1 : 2);
   const sorted = [...dicts].sort((a, b) => rank(a) - rank(b));
@@ -178,7 +178,7 @@ function DictTab() {
         </div>
       )}
       <div style={{ fontSize: fz(11.5), color: 'var(--mute)' }}>{tx('side.021', { n: matches.length })}</div>
-      {matches.map((g, i) => <TermCard key={g.id} g={g} altKey={i < 9 ? i + 1 : undefined} />)}
+      {matches.map(({ g, alt }) => <TermCard key={g.id} g={g} altKey={alt} />)}
       {matches.length === 0 && <div className="empty" style={{ padding: '32px 12px' }}>{tx('side.023')}</div>}
       {dictMenu && (
         <ContextMenu x={dictMenu.x} y={dictMenu.y} label={tx('side.024', { name: dictMenu.d.name })} items={[{ key: 'move', label: tx('side.025') }]}

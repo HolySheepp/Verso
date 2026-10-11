@@ -145,7 +145,7 @@ function WorkPanelInner({ height, maxH }: { height: number; maxH: number }) {
     const layoutKey = widthVer + '|' + JSON.stringify(fonts) + '|';
     const m = (ta: HTMLTextAreaElement | null) => {
       if (!ta) return 42;
-      const key = layoutKey + ta.value;
+      const key = layoutKey + ta.style.padding + '|' + ta.value;
       const known = measured.get(ta);
       if (known && known.key === key) return known.h;
       const prev = ta.style.height;

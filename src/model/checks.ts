@@ -57,13 +57,25 @@ const endsWell = (s: string) => ENDINGS.some((e) => s.endsWith(e) || s.endsWith(
 
 // 句首、句尾的判斷先拿掉前後的標籤、變數、字面的 \n（例如 Hello.<br> 或 {name} hello）
 const EDGE_TOKEN = `(?:${TOKEN_SRC}|\\s)+`;
-const TRAIL = new RegExp(EDGE_TOKEN + '$');
 const LEAD = new RegExp('^' + EDGE_TOKEN);
+/** 去掉結尾連續的標籤、變數、空白：從尾巴往回掃（用 (?:標籤|空白)+$ 比對，遇到一長串空白或標籤會大量回溯而凍住） */
+const stripTail = (s: string) => {
+  const endAt = new Map<number, number>();
+  for (const m of s.matchAll(TOKEN)) endAt.set(m.index! + m[0].length, m.index!);
+  let pos = s.length;
+  for (;;) {
+    if (pos > 0 && /\s/.test(s[pos - 1])) { pos--; continue; }
+    const st = endAt.get(pos);
+    if (st === undefined) break;
+    pos = st;
+  }
+  return s.slice(0, pos);
+};
 /** 句尾要看的部分：去掉結尾的標籤；還是沒有標點時，再去掉最後的引號看一次 */
 const trimEnd = (s: string) => {
-  const t = s.replace(TRAIL, '');
+  const t = stripTail(s);
   if (endsWell(t)) return t;
-  return t.replace(/["'”’]+$/, '').replace(TRAIL, '');
+  return stripTail(t.replace(/["'”’]+$/, ''));
 };
 
 /** 檢查一條譯文，回傳所有問題（不看開關） */
@@ -180,8 +192,10 @@ export function locateIssues(tgt: string, checks: Set<CheckId>): { start: number
   if (checks.has('ellipsis')) { const m = tgt.match(/\.+/); if (m && /^"?\.+"?$/.test(tgt.trim())) out.push({ start: m.index!, end: m.index! + m[0].length }); }
   if (checks.has('capital')) {
     // 句首小寫、句號問號驚嘆號後小寫、破折號後大寫：標出那個字母
-    const first = tgt.match(/^[\s"'(\[.]*([a-z])/);
-    if (first) { const i = first[0].length - 1; out.push({ start: i, end: i + 1 }); }
+    // 判斷時先去掉開頭的標籤、變數（LEAD），標色的位置要加回去
+    const lead = tgt.match(LEAD)?.[0].length ?? 0;
+    const first = tgt.slice(lead).match(/^[\s"'(\[.]*([a-z])/);
+    if (first) { const i = lead + first[0].length - 1; out.push({ start: i, end: i + 1 }); }
     for (const m of tgt.matchAll(/(?:^|[^.])[.?!]["')]*\s+["'(]*([a-z])/g)) { const i = m.index! + m[0].length - 1; out.push({ start: i, end: i + 1 }); }
     for (const i of dashCapitals(tgt)) out.push({ start: i, end: i + 1 });
   }

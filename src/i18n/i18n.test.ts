@@ -59,3 +59,10 @@ describe('fill 不吃原型上的屬性（第 5 項）', () => {
     expect(fill('{constructor}', {})).toBe('{constructor}');
   });
 });
+
+describe('cleanPack 不吃原型上的代號（第 15 項）', () => {
+  it('toString、__proto__、constructor 被略過而不丟錯', async () => {
+    const { cleanPack } = await import('./index');
+    expect(cleanPack([['toString', 'x'], ['__proto__', 'x'], ['constructor', 'x']])).toEqual({});
+  });
+});
