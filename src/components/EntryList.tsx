@@ -369,7 +369,7 @@ export function EntryList() {
     let changed = false, above = 0;
     const firstK = rowAt(offsetsRef.current, el.scrollTop - LIST_PAD);
     el.querySelectorAll<HTMLElement>('.rw[data-uid]').forEach((row) => {
-      const uid = row.dataset.uid!, k = Number(row.dataset.k), h = row.offsetHeight;
+      const uid = row.dataset.uid!, k = Number(row.dataset.k), h = row.getBoundingClientRect().height;
       const known = heights.current.get(uid);
       if (known !== undefined && Math.abs(known - h) < 0.5) return;
       heights.current.set(uid, h);

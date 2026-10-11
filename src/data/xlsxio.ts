@@ -58,7 +58,7 @@ function textSheet(rows: string[][]): XLSX.WorkSheet {
     c.t = 's';
     // 文字裡本來就有「_x0041_」這種寫法時，Excel 會把它當成跳脫字元換掉：先跳脫成 _x005F_，讀回來才是原字
     // （要配合共用字串表 bookSST 寫入，這種寫法 Excel 和讀檔都只解一次）
-    c.v = String(c.v).replace(/_x([0-9A-Fa-f]{4})_/g, '_x005F_x$1_');
+    c.v = String(c.v).replace(/_(?=[xX][0-9A-Fa-f]{4}_)/g, '_x005F_');
   });
   return ws;
 }
@@ -183,12 +183,12 @@ export function isVersoDictData(data: Uint8Array): boolean {
 
 /** 讀 Verso 的檔案；不是 Verso 的檔案回傳 null */
 export function xlsxToVersoFile(name: string, project: string, data: Uint8Array, customs: CustomMark[]): FileDoc | null {
-  const wb = XLSX.read(data, { type: 'array' });
+  const wb = XLSX.read(data, { type: 'array', cellNF: true });
   return isVersoBook(wb) ? bookToFile(wb, name, project, customs) : null;
 }
 
 export function xlsxToFile(name: string, project: string, data: Uint8Array, customs: CustomMark[]): FileDoc {
-  return bookToFile(XLSX.read(data, { type: 'array' }), name, project, customs);
+  return bookToFile(XLSX.read(data, { type: 'array', cellNF: true }), name, project, customs);
 }
 
 function bookToFile(wb: XLSX.WorkBook, name: string, project: string, customs: CustomMark[]): FileDoc {
@@ -248,7 +248,7 @@ export function xlsxToDict(project: string, dict: string, data: Uint8Array): Glo
 
 /** 讀字典：詞條與字典 ID */
 export function readDictBook(project: string, dict: string, data: Uint8Array): { terms: GlossaryTerm[]; did: string } {
-  const wb = XLSX.read(data, { type: 'array' });
+  const wb = XLSX.read(data, { type: 'array', cellNF: true });
   return { terms: dictTerms(wb, project, dict), did: readSetting(wb, '字典ID') };
 }
 

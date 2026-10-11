@@ -181,7 +181,7 @@ export function ImportDialog() {
   const patch = (i: number, p: Partial<DraftSheet>) => setSheets((all) => all.map((sh, j) => (j === i ? { ...sh, ...p } : sh)));
   const results = sheets.map((sh) => {
     const r = checkColumns(fieldsToColumns(sh.rows, sh.fields));
-    return r.ok ? r : { ok: false, msg: r.msg.replace(tx('import.012'), tx('import.013')) };
+    return r.ok ? r : { ok: false, msg: r.msg === tx('pastecol.005') ? tx('import.013') : r.msg };
   });
   const badName = sheets.findIndex((sh, i) => sheetNameError(sh.name, sheets.filter((_, j) => j !== i).map((x) => x.name)));
   const firstBad = results.findIndex((r) => !r.ok);

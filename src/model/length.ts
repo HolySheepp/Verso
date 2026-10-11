@@ -44,7 +44,7 @@ export function textToStd(t: string): StdValue | undefined {
 /** 給人看的簡短說明 */
 export function stdLabel(v: StdValue | undefined): string {
   if (!v) return tx('len.001');
-  if (v === 'none') return NONE_TEXT;
+  if (v === 'none') return tx('length.027');
   return tx('len.002', { family: v.family, size: v.size, width: v.width, lines: v.lines });
 }
 

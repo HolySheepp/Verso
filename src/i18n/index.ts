@@ -22,9 +22,9 @@ export function useDictionary(lang: 'zh' | 'en' | Dict) {
  * 把 {名稱} 換成 vars 裡的值。
  * 單複數寫成 {名稱|單數|複數}：值是 1 時用單數，其他用複數，例如 {n} {n|entry|entries}。
  */
-const fill = (s: string, vars?: Vars) => (vars
+export const fill = (s: string, vars?: Vars) => (vars
   ? s.replace(/\{(\w+)(?:\|([^|{}]*)\|([^|{}]*))?\}/g, (m, k: string, one?: string, many?: string) => {
-    if (!(k in vars)) return m;
+    if (!Object.prototype.hasOwnProperty.call(vars, k)) return m;
     if (one === undefined) return String(vars[k]);
     return Number(vars[k]) === 1 ? one : many!;
   })

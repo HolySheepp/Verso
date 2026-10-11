@@ -52,3 +52,10 @@ describe('介面語言', () => {
     expect(tx('app.032')).toBe('儲存');
   });
 });
+
+describe('fill 不吃原型上的屬性（第 5 項）', () => {
+  it('{constructor} 原樣保留', async () => {
+    const { fill } = await import('./index');
+    expect(fill('{constructor}', {})).toBe('{constructor}');
+  });
+});

@@ -14,9 +14,12 @@ import { ErrorBoundary } from './components/ErrorBoundary';
 import { useStore } from './state/store';
 import { startApp } from './state/saver';
 import { applyLang } from './i18n/lang';
+import { tx } from './i18n';
 
 // 介面語言：一開始就套用上次的語言（啟動畫面的字也要對）
 applyLang(useStore.getState().uiLang);
+// store 模組載入時算好的第一句「啟動中」是舊語言，套完語言後補上（只在還沒有別的進度時）
+if (useStore.getState().loading?.p === 0) useStore.setState({ loading: { p: 0, text: tx('store.001') } });
 
 /** 換語言時整個畫面重畫一次，每個地方的文字都換成新語言 */
 function Root() {

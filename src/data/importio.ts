@@ -49,7 +49,7 @@ export function readImport(fileName: string, data: Uint8Array): ImportBook | str
     } else {
       const wb = ext === 'csv' || ext === 'tsv'
         ? XLSX.read(decodeText(data), { type: 'string', raw: true, ...(ext === 'tsv' ? { FS: '\t' } : {}) })
-        : XLSX.read(data, { type: 'array' });
+        : XLSX.read(data, { type: 'array', cellNF: true });
       const names = wb.SheetNames.filter((n) => n !== SETTINGS_SHEET);
       sheets = names.map((n) => ({ name: ext === 'csv' || ext === 'tsv' ? name : n, rows: sheetRows(wb.Sheets[n]) }));
       verso = (ext === 'xlsx' && sheets.length > 0 && isVersoHeader(sheets[0].rows[0] ?? []));

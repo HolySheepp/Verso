@@ -752,8 +752,7 @@ export const useStore = create<Store>((set, get) => {
     },
 
     prev() {
-      const { sheetIdx, sel } = cur();
-      if (sel > 0) { get().select(get().file, sheetIdx, sel - 1); set({ moveSeq: get().moveSeq + 1, moveDir: -1 }); }
+      get().step(-1);
     },
 
     updateEntry(patch) {
@@ -953,6 +952,8 @@ export const useStore = create<Store>((set, get) => {
         })),
       }));
       set({ project: { ...project, files, customMarks: project.customMarks.filter((c) => c.id !== id) }, askDeleteMark: null });
+      // 復原紀錄裡可能還有這個標記：清掉，免得 Ctrl+Z 把已刪除的標記復原出來
+      get().clearUndo();
     },
 
     addFile(f) {
@@ -1035,6 +1036,7 @@ export const useStore = create<Store>((set, get) => {
       set({
         project: { ...q, projects: q.projects.filter((x) => x !== name) },
         collapsedProjects: get().collapsedProjects.filter((x) => x !== name),
+        dictOverrides: remapOverrides(get().dictOverrides, (cur, dp, dn) => (cur === name || dp === name ? null : [cur, dp, dn])),
       });
     },
 
@@ -1233,7 +1235,10 @@ export const useStore = create<Store>((set, get) => {
           if (t === undefined || t === i) return;
           i = t;
         } else {
-          const p = pos < 0 ? (d > 0 ? visible.findIndex((x) => x > i) : visible.length - 1) : pos + d;
+          let p: number;
+          if (pos >= 0) p = pos + d;
+          else if (d > 0) p = visible.findIndex((x) => x > i);
+          else { p = visible.length - 1; while (p >= 0 && visible[p] >= i) p--; }
           if (p < 0 || p >= visible.length) return;
           i = visible[p];
         }
