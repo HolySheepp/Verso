@@ -6,7 +6,7 @@ import { isTauri } from '@tauri-apps/api/core';
 import { getCurrentWindow } from '@tauri-apps/api/window';
 import { io } from '../data/fsio';
 import { withFontDefaults } from '../model/fonts';
-import { MAX_CELL_CHARS, nameKey } from '../model/names';
+import { LANG_DIR, MAX_CELL_CHARS, nameKey, sameName } from '../model/names';
 import { migrateList, migrateSheets } from '../model/shortcuts';
 import {
   clearRecovery, findRootConflicts, saveRootFor, mergeMarks, readFolderMeta, safeName as safeFileName, scanFolder, loadConfig, loadWorkspace, readDict, readDictFull, readRecovery, reloadFile, saveConfig, sortProjects, trashDict, trashFile, trashProject, writeDict, writeFile, writeMeta, writeRecovery,
@@ -239,9 +239,8 @@ async function saveAll(): Promise<boolean> {
   const errors: SaveError[] = [];
   const fail = (target: string, e: unknown) => { ok = false; errors.push({ target, reason: saveReason(e) }); };
   const done = { files: new Map(saved.files), customs: saved.customs, dicts: new Map(saved.dicts), projects: saved.projects };
-  // 刪掉（或搬走）的專案、檔案、字典移到資源回收筒
+  // 刪掉（或搬走）的專案、檔案、字典移到資源回收筒（專案資料夾等全部寫好才移，見最後）
   const gone = saved.projects.filter((x) => !p.projects.includes(x));
-  for (const x of gone) { try { await trashProject(s.saveRoot, x); } catch (e) { fail(tx('save.008', { x }), e); } }
   const byKey = new Map(p.files.map((f) => [fileKey(f), f]));
   for (const [k, f] of saved.files) {
     if (byKey.has(k)) continue;
@@ -289,6 +288,15 @@ async function saveAll(): Promise<boolean> {
     if (saved.dicts.get(k) === sig) continue;
     const i = k.indexOf('/');
     try { await writeDict(s.saveRoot, k.slice(0, i), k.slice(i + 1), terms, ids.get(k)); done.dicts.set(k, sig); } catch (e) { fail(tx('save.007', { k }), e); }
+  }
+  // 刪掉、改名的專案：新位置都寫好了才把舊資料夾移走，寫失敗時舊的還留著（下次存檔再移）。
+  // 只改大小寫時新舊是同一個資料夾，不移
+  const left = gone.filter((x) => !p.projects.some((y) => sameName(x, y)));
+  if (!ok && left.length) done.projects = saved.projects;
+  else {
+    for (const x of left) {
+      try { await trashProject(s.saveRoot, x); } catch (e) { fail(tx('save.008', { x }), e); done.projects = saved.projects; }
+    }
   }
   saved = done;
   const dirty = isDirty();
@@ -377,13 +385,14 @@ export async function startApp() {
   let last: LastPosition | undefined;
   let migrated = false;
   let newIds: string[] = [];
+  let langRenamed: string | null = null;
   try {
     try { localStorage.setItem('verso-boot', JSON.stringify({ theme: useStore.getState().theme, accent: useStore.getState().accent, lang: useStore.getState().uiLang })); } catch { /* 存不下就算了 */ }
     // 語言包出錯絕不能擋住載入工作區
     await refreshLangPacks().catch(() => undefined);
     step(0.12, tx('save.012'));
     const r = await loadWorkspace(saveRoot, step);
-    project = r.data; last = r.last; migrated = r.remapped; newIds = r.newIds;
+    project = r.data; last = r.last; migrated = r.remapped; newIds = r.newIds; langRenamed = r.langRenamed;
     if (r.unreadable.length) useStore.setState({ unreadable: r.unreadable });
   } catch { /* 讀不到就從空的開始 */ }
   // 先記下已存的內容再換專案，避免監聽到變動時誤判成未存
@@ -409,6 +418,18 @@ export async function startApp() {
   } catch { /* 讀不到就當沒有 */ }
   step(1, tx('save.013'));
   startFolderWatch();
+  // 舊的「語言」專案改了名：字典開關、收合狀態跟著改，進主畫面後告訴使用者
+  if (langRenamed) {
+    const to = langRenamed, r = (x: string) => (x === LANG_DIR ? to : x);
+    const st = useStore.getState();
+    const overrides: Record<string, boolean> = {};
+    for (const [k, v] of Object.entries(st.dictOverrides)) {
+      const gt = k.indexOf('>'), dk = k.slice(gt + 1), sl = dk.indexOf('/');
+      overrides[gt < 0 || sl < 0 ? k : r(k.slice(0, gt)) + '>' + r(dk.slice(0, sl)) + dk.slice(sl)] = v;
+    }
+    useStore.setState({ dictOverrides: overrides, collapsedProjects: st.collapsedProjects.map(r) });
+    setTimeout(() => showToast(tx('save.langRenamed', { name: to })), 400);
+  }
   // 讓進度條停在填滿的樣子一下再進主畫面
   setTimeout(() => useStore.setState({ loading: null }), 220);
   watch();

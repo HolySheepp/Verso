@@ -103,6 +103,28 @@ interface RowProps {
   h: React.RefObject<RowHandlers>;
 }
 
+/** 格子裡的編輯框：被捲出畫面、換頁簽而消失時，已打的內容直接確定 */
+function CellEditor({ text, h }: { text: string; h: React.RefObject<RowHandlers> }) {
+  const alive = useRef(false);
+  useEffect(() => {
+    alive.current = true;
+    // 等一下再看：開發模式會先卸載再立刻掛回去，那不算消失
+    return () => { alive.current = false; setTimeout(() => { if (!alive.current) h.current.commitEdit(false); }, 0); };
+  }, [h]);
+  return (
+    <textarea className="cell-edit" ref={focusOnMount} value={text} spellCheck={false} maxLength={MAX_CELL_CHARS}
+      rows={Math.max(1, text.split('\n').length)}
+      onMouseDown={(ev) => ev.stopPropagation()}
+      onChange={(ev) => h.current.editText(ev.target.value)}
+      onKeyDown={(ev) => {
+        ev.stopPropagation();
+        if (ev.key === 'Enter' && !ev.shiftKey) { ev.preventDefault(); h.current.commitEdit(true); }
+        if (ev.key === 'Escape') { ev.preventDefault(); h.current.cancelEdit(); }
+      }}
+      onBlur={() => h.current.commitEdit(false)} />
+  );
+}
+
 /** 條目欄的一行：只有自己的內容、選取、標記等變了才重畫 */
 const EntryRow = memo(function EntryRow({ e, i, k, m, issues, on, hit, selCols, editing, customs, cols, fitId, fitSpk, fitSrc, fitTgt, fontId, fontSpk, fontSrc, fontTgt, ovfId, ovfSpk, ovfSrc, ovfTgt, h }: RowProps) {
   const doubt = m === 'doubt', ver = m === 'verified', ign = m === 'ignore';
@@ -119,18 +141,7 @@ const EntryRow = memo(function EntryRow({ e, i, k, m, issues, on, hit, selCols, 
       className: 'cell' + (isSel ? ' cell-sel' : ''),
     };
   };
-  const editor = (c: CellCol) => (editing && editing.c === c ? (
-    <textarea className="cell-edit" ref={focusOnMount} value={editing.text} spellCheck={false} maxLength={MAX_CELL_CHARS}
-      rows={Math.max(1, editing.text.split('\n').length)}
-      onMouseDown={(ev) => ev.stopPropagation()}
-      onChange={(ev) => h.current.editText(ev.target.value)}
-      onKeyDown={(ev) => {
-        ev.stopPropagation();
-        if (ev.key === 'Enter' && !ev.shiftKey) { ev.preventDefault(); h.current.commitEdit(true); }
-        if (ev.key === 'Escape') { ev.preventDefault(); h.current.cancelEdit(); }
-      }}
-      onBlur={() => h.current.commitEdit(false)} />
-  ) : null);
+  const editor = (c: CellCol) => (editing && editing.c === c ? <CellEditor text={editing.text} h={h} /> : null);
   return (
     <div key={e.uid} className="rw" data-uid={e.uid} data-k={k} aria-current={on ? 'true' : undefined} style={{
       display: 'grid', gridTemplateColumns: '24px 16px minmax(0, 1fr)', padding: '0 12px 0 4px',
@@ -227,7 +238,12 @@ export function EntryList() {
   /** 右鍵選單：格子、整列（選了整列，或在列最左邊右鍵）、整欄（欄標題右鍵） */
   const [menu, setMenu] = useState<{ x: number; y: number; kind: 'cell' | 'row' | 'col'; col?: number } | null>(null);
   const [insertCount, setInsertCount] = useState(1);
-  const [editing, setEditing] = useState<{ i: number; c: CellCol; text: string } | null>(null);
+  // 格子裡正在編輯的內容：記條目的 uid 和所在的檔案、頁簽，條目移動或換頁簽後還找得回來
+  type Editing = { uid: string; file: number; sheet: number; c: CellCol; text: string };
+  const [editing, setEditingState] = useState<Editing | null>(null);
+  // 同一份放在 ref：確定、取消後立刻清掉，編輯框消失時才不會再寫一次
+  const editRef = useRef<Editing | null>(null);
+  const setEditing = (ed: Editing | null) => { editRef.current = ed; setEditingState(ed); };
   const readOnly = s.mode === 'view';
   const ovf = { id: overflowOf(s.fonts, 'id'), speaker: overflowOf(s.fonts, 'speaker'), src: overflowOf(s.fonts, 'src'), tgt: overflowOf(s.fonts, 'tgt') };
 
@@ -285,12 +301,11 @@ export function EntryList() {
   }, [all, filter]);
 
   // ---- 虛擬捲動 ----
-  // 量過的條目記住實際高度（依條目），沒量過的先用估的；欄寬、字體、模式變了，記住的高度全部作廢
+  // 量過的條目記住實際高度（依條目），沒量過的先用估的；
+  // 欄寬、字體、模式變了，舊高度留著當估計值（畫出來的列會重新量），捲動位置才不會跳走
   const heights = useRef(new Map<string, number>());
   const [hVer, setHVer] = useState(0);
   const layoutKey = colPx.map(Math.round).join(',') + '|' + JSON.stringify(s.fonts) + '|' + s.mode;
-  const lastLayout = useRef(layoutKey);
-  if (lastLayout.current !== layoutKey) { lastLayout.current = layoutKey; heights.current.clear(); }
   const offsets = useMemo(() => {
     const o = new Float64Array(rows.length + 1);
     rows.forEach((r, k) => { o[k + 1] = o[k] + (heights.current.get(r.e.uid) ?? EST_ROW); });
@@ -367,14 +382,16 @@ export function EntryList() {
     const el = listRef.current;
     if (!el) return;
     let changed = false, above = 0;
-    const firstK = rowAt(offsetsRef.current, el.scrollTop - LIST_PAD);
+    const o = offsetsRef.current;
+    const firstK = rowAt(o, el.scrollTop - LIST_PAD);
     el.querySelectorAll<HTMLElement>('.rw[data-uid]').forEach((row) => {
       const uid = row.dataset.uid!, k = Number(row.dataset.k), h = row.getBoundingClientRect().height;
       const known = heights.current.get(uid);
       if (known !== undefined && Math.abs(known - h) < 0.5) return;
       heights.current.set(uid, h);
       const old = known ?? EST_ROW;
-      if (Math.abs(old - h) >= 0.5) { changed = true; if (k < firstK) above += h - old; }
+      // 頂端在畫面上緣之上的列（包含只露出下半截的第一列）變高變矮：捲動位置跟著補，看得到的內容不動
+      if (Math.abs(old - h) >= 0.5) { changed = true; if (k < firstK || (k === firstK && LIST_PAD + o[k] < el.scrollTop - 0.5)) above += h - old; }
     });
     if (above && !pending.current) el.scrollTop += above;
     if (changed) setHVer((v) => v + 1);
@@ -458,7 +475,7 @@ export function EntryList() {
       }, 0);
       return;
     }
-    setEditing({ i, c, text: getCell(sheet.entries[i], c) });
+    setEditing({ uid: sheet.entries[i].uid, file: s.file, sheet: sheetIdx, c, text: getCell(sheet.entries[i], c) });
   };
 
   // 點條目最左邊（標記右邊那一小格）選整條；Shift、Ctrl 一樣可以延伸或加選
@@ -545,14 +562,21 @@ export function EntryList() {
     pick([...new Set([...d.base, ...rows])], { i: d.i, c: 0 });
   };
   const commitEdit = () => {
-    const ed = editing;
+    const ed = editRef.current;
+    if (!ed) return;
     setEditing(null);
-    if (!ed || !sheet.entries[ed.i] || getCell(sheet.entries[ed.i], ed.c) === ed.text) return;
-    s.editSheet((es) => ({
-      entries: es.map((e, j) => (j !== ed.i ? e : { ...setCell(e, ed.c, ed.text), ...(ed.c === TGT_COL ? { pending: false } : {}) })),
-      keys: [cellKey(ed.i, ed.c)],
-    }));
+    // 用 uid 找回這一條；換了頁簽、檔案也寫回原本那一頁
+    s.editSheet((es) => {
+      const j = es.findIndex((e) => e.uid === ed.uid);
+      if (j < 0 || getCell(es[j], ed.c) === ed.text) return { entries: es };
+      return {
+        entries: es.map((e, k) => (k !== j ? e : { ...setCell(e, ed.c, ed.text), ...(ed.c === TGT_COL ? { pending: false } : {}) })),
+        keys: [cellKey(j, ed.c)],
+      };
+    }, { file: ed.file, sheet: ed.sheet });
   };
+  // 換檔案、換頁簽、換篩選：編輯中的內容先確定
+  useEffect(() => { commitEdit(); }, [s.file, sheetIdx, filter]); // eslint-disable-line react-hooks/exhaustive-deps
 
   const menuAct = (k: string) => {
     setMenu(null);
@@ -641,7 +665,7 @@ export function EntryList() {
     openMark,
     rowPick: onRowPick,
     rowEnter: onRowEnter,
-    editText: (text) => setEditing((ed) => (ed ? { ...ed, text } : ed)),
+    editText: (text) => { if (editRef.current) setEditing({ ...editRef.current, text }); },
     commitEdit: (refocus) => { commitEdit(); if (refocus) sink.current?.focus({ preventScroll: true }); },
     cancelEdit: () => { setEditing(null); sink.current?.focus({ preventScroll: true }); },
   };
@@ -733,7 +757,7 @@ export function EntryList() {
           })}
         </div>
       </div>
-      <div ref={listRef} onScroll={syncView} onMouseDown={(ev) => { if (ev.target === ev.currentTarget || !(ev.target as HTMLElement).closest('.rw')) { ev.preventDefault(); sink.current?.focus({ preventScroll: true }); } }} style={{ position: 'relative', flexGrow: 1, overflowY: 'auto', scrollbarGutter: 'stable', padding: '4px 0', userSelect: 'none' }}>
+      <div ref={listRef} onScroll={syncView} onMouseDown={(ev) => { if (ev.target === ev.currentTarget || !(ev.target as HTMLElement).closest('.rw')) { ev.preventDefault(); sink.current?.focus({ preventScroll: true }); } }} style={{ position: 'relative', flexGrow: 1, overflowY: 'auto', overflowAnchor: 'none', scrollbarGutter: 'stable', padding: '4px 0', userSelect: 'none' }}>
         <textarea ref={sink} className="list-sink" aria-label={tx('list.028')} value="" onChange={() => {}}
           onCopy={onCopy} onPaste={onPaste} onKeyDown={onSinkKey}
           style={{ position: 'absolute', left: 0, top: 0, width: 1, height: 1, padding: 0, border: 0, opacity: 0, resize: 'none', pointerEvents: 'none' }} />
@@ -741,7 +765,7 @@ export function EntryList() {
         {start > 0 && <div aria-hidden="true" style={{ height: offsets[start] }} />}
         {rows.slice(start, end).map(({ e, i, m, issues }, j) => (
           <EntryRow key={e.uid} e={e} i={i} k={start + j} m={m} issues={issues} on={i === sel} hit={searchOn && searchHit(e, searchQ)}
-            selCols={selColsOf(i)} editing={editing && editing.i === i ? editing : null}
+            selCols={selColsOf(i)} editing={editing && editing.uid === e.uid ? editing : null}
             customs={customs} cols={cols} fitId={colPx[0] - 2} fitSpk={colPx[1] - 12} fitSrc={colPx[2] - 16} fitTgt={colPx[3] - 32}
             fontId={cellFontCss(s.fonts, 'id')} fontSpk={cellFontCss(s.fonts, 'speaker')} fontSrc={cellFontCss(s.fonts, 'src')} fontTgt={cellFontCss(s.fonts, 'tgt')}
             ovfId={ovf.id} ovfSpk={ovf.speaker} ovfSrc={ovf.src} ovfTgt={ovf.tgt} h={handlers} />

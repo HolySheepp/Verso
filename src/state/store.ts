@@ -302,7 +302,8 @@ interface Actions {
   /** 選取格子；工作欄顯示選取範圍的第一條 */
   selectCells(keys: string[], anchor: Cell, first: number, focus?: Cell): void;
   /** 修改目前頁簽的條目（可用 Ctrl+Z 復原） */
-  editSheet(fn: (entries: Entry[]) => { entries: Entry[]; keys?: string[] }): void;
+  /** 改目前頁簽的條目（at：改指定檔案的指定頁簽，不動選取） */
+  editSheet(fn: (entries: Entry[]) => { entries: Entry[]; keys?: string[] }, at?: { file: number; sheet: number }): void;
   undoSheet(): void;
   /** 清空條目欄的復原／重做紀錄（不儲存、恢復暫存、換存檔資料夾時，舊紀錄已經對不上） */
   clearUndo(): void;
@@ -675,9 +676,18 @@ export const useStore = create<Store>((set, get) => {
       set({ cellSel: { keys, anchor, ...(focus ? { focus } : {}) } });
     },
 
-    editSheet(fn) {
+    editSheet(fn, at) {
       const s = get();
       if (!s.project) return;
+      if (at && (at.file !== s.file || at.sheet !== cur().sheetIdx)) {
+        const f = s.project.files[at.file], sh = f?.sheets[at.sheet];
+        if (!sh) return;
+        const r = fn(sh.entries);
+        if (r.entries === sh.entries) return;
+        pushSnap({ file: at.file, id: docId(f), doc: f, sheet: at.sheet, keys: [] });
+        replaceSheet(at.file, at.sheet, r.entries);
+        return;
+      }
       const { sheetIdx, sheet } = cur();
       const r = fn(sheet.entries);
       if (r.entries === sheet.entries) return;

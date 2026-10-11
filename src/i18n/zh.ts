@@ -9,6 +9,7 @@ export const ZH = {
   'common.errorReason': '{target}：{reason}', // 存檔失敗的項目與原因
   'import.fieldRange': '{range}（{n}）', // 匯入視窗：欄位選到的範圍和行數
   'save.sameRoot': '已經是目前的存檔資料夾', // 設定 > 一般：換存檔資料夾時選到同一個
+  'save.langRenamed': '專案「語言」已改名為「{name}」', // 開啟存檔資料夾：「語言」資料夾現在放介面語言包，舊的同名專案改名
   'check.fullwidthSpace': '全形空格', // 檢查項目與訊息
   'app.001': 'Excel 一格最多 32767 字，貼上後會超過，沒有貼上', // 主畫面
   'app.002': '有格子超過 Excel 的單格上限', // 主畫面
@@ -546,6 +547,7 @@ export const ZH = {
   'load.003': '讀取字典', // 讀取訊息
   'xlsx.001': '轉檔失敗', // 存檔轉檔
   'align.001': '比對失敗', // 原文更新比對
+  'srcupd.alignFailed': '自動比對失敗，目前照順序對應', // 原文更新比對
   'check.001': '標籤與變數', // 檢查項目與訊息
   'check.002': '數字', // 檢查項目與訊息
   'check.003': '句尾標點', // 檢查項目與訊息

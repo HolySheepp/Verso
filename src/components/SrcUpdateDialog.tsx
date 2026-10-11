@@ -1,13 +1,13 @@
 import { tx } from '../i18n';
 import { memo, useEffect, useMemo, useRef, useState } from 'react';
-import { currentOf, useStore } from '../state/store';
+import { currentOf, showToast, useStore } from '../state/store';
 import { checkColumns, emptyColumns, pasteColumns, type ColKey, type Columns } from '../model/paste';
 import {
-  applyUpdate, deleteBlank, insertBlank, moveCells, rowInfos, sequentialRows, summarize,
+  applyUpdate, autoAlign, deleteBlank, insertBlank, moveCells, rowInfos, sequentialRows, summarize,
   type AlignRow, type NewRow, type RowInfo, type Side,
 } from '../model/srcUpdate';
 import type { Entry } from '../model/types';
-import { autoAlignAsync, cancelAlign } from '../model/alignAsync';
+import { AlignCancelled, autoAlignAsync, cancelAlign } from '../model/alignAsync';
 import { PasteBox, type BoxSel } from './PasteBox';
 import { ConfirmDialog } from './ConfirmDialog';
 import { ContextMenu } from './ContextMenu';
@@ -76,9 +76,14 @@ function SrcUpdate({ sheetIdx }: { sheetIdx: number }) {
     setBusy(true);
     // 在背景執行緒算，畫面不會卡住；算完前按了「上一步」就丟掉結果
     const run = ++alignRun.current;
-    autoAlignAsync(entries.map((e) => ({ id: e.id, src: e.src })), next)
-      .then((r) => { if (run === alignRun.current) commit(r); })
-      .catch(() => { /* 比對失敗：留在照順序對應 */ })
+    const old = entries.map((e) => ({ id: e.id, src: e.src }));
+    autoAlignAsync(old, next)
+      // 背景執行緒失敗：在這裡直接再算一次；還是失敗就留在照順序對應，並告訴使用者
+      .catch((err) => (err instanceof AlignCancelled || run !== alignRun.current ? null : new Promise<AlignRow[]>((resolve, reject) => {
+        setTimeout(() => { try { resolve(autoAlign(old, next)); } catch (e) { reject(e); } }, 0);
+      })))
+      .then((r) => { if (r && run === alignRun.current) commit(r); })
+      .catch(() => { if (run === alignRun.current) showToast(tx('srcupd.alignFailed')); })
       .finally(() => { if (run === alignRun.current) setBusy(false); });
   };
   const apply = () => {

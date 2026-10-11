@@ -1,12 +1,13 @@
 ﻿代號	中文	畫面區域	程式位置
 settings.language	語言	設定 > 一般	components/SettingsDialog.tsx:367
-common.sep	、	列出好幾個名稱時的分隔符號	App.tsx:85 App.tsx:96 App.tsx:107 components/CopyConfirm.tsx:19 components/EntryList.tsx:177 components/EntryList.tsx:177 components/FileNav.tsx:123 components/ManageDialogs.tsx:170 components/SidePanel.tsx:338 components/WorkPanel.tsx:95 model/importSel.ts:59 model/importSel.ts:59 model/paste.ts:79 state/saver.ts:847 state/saver.ts:847
+common.sep	、	列出好幾個名稱時的分隔符號	App.tsx:85 App.tsx:96 App.tsx:107 components/CopyConfirm.tsx:19 components/EntryList.tsx:188 components/EntryList.tsx:188 components/FileNav.tsx:123 components/ManageDialogs.tsx:170 components/SidePanel.tsx:338 components/WorkPanel.tsx:95 model/importSel.ts:59 model/importSel.ts:59 model/paste.ts:79 state/saver.ts:868 state/saver.ts:868
 common.moreEntries	 等 {n} 條	列表太長時接在後面	App.tsx:85
-common.moreItems	 等 {n} 個	列表太長時接在後面	App.tsx:96 App.tsx:107 state/saver.ts:847 state/saver.ts:847
+common.moreItems	 等 {n} 個	列表太長時接在後面	App.tsx:96 App.tsx:107 state/saver.ts:868 state/saver.ts:868
 common.sheetError	「{name}」{msg}	某個頁簽有錯誤時，頁簽名稱接錯誤訊息	components/ImportDialog.tsx:189 components/ImportDialog.tsx:190 components/ManageDialogs.tsx:354 components/PasteDialog.tsx:107
 common.errorReason	{target}：{reason}	存檔失敗的項目與原因	components/TitleBar.tsx:55
 import.fieldRange	{range}（{n}）	匯入視窗：欄位選到的範圍和行數	components/ImportDialog.tsx:355
-save.sameRoot	已經是目前的存檔資料夾	設定 > 一般：換存檔資料夾時選到同一個	state/saver.ts:616
+save.sameRoot	已經是目前的存檔資料夾	設定 > 一般：換存檔資料夾時選到同一個	state/saver.ts:637
+save.langRenamed	專案「語言」已改名為「{name}」	開啟存檔資料夾：「語言」資料夾現在放介面語言包，舊的同名專案改名	state/saver.ts:431
 check.fullwidthSpace	全形空格	檢查項目與訊息	model/checks.ts:139
 app.001	Excel 一格最多 32767 字，貼上後會超過，沒有貼上	主畫面	App.tsx:54
 app.002	有格子超過 Excel 的單格上限	主畫面	App.tsx:84
@@ -69,37 +70,37 @@ list.006	疑慮	條目欄	components/EntryList.tsx:61
 list.007	待思考	條目欄	components/EntryList.tsx:62
 list.008	有問題	條目欄	components/EntryList.tsx:63
 list.009	原文更新	條目欄	components/EntryList.tsx:64
-list.010	標記：{v1}，點擊變更	條目欄	components/EntryList.tsx:109
-list.011	特殊長度標準	條目欄	components/EntryList.tsx:148
-list.012	特殊標準：{v1}	條目欄	components/EntryList.tsx:148
-list.013	有備註	條目欄	components/EntryList.tsx:151 components/EntryList.tsx:152
-list.014	(新原文已移除)	條目欄	components/EntryList.tsx:166
-list.015	不需翻譯	條目欄	components/EntryList.tsx:175 components/EntryList.tsx:182
-list.016	尚未翻譯	條目欄	components/EntryList.tsx:175 components/EntryList.tsx:182
-list.017	文本條目	條目欄	components/EntryList.tsx:650 components/EntryList.tsx:656
-list.018	共 {n} 條	條目欄	components/EntryList.tsx:657
-list.020	設定檔案的長度標準	條目欄	components/EntryList.tsx:660
-list.021	長度標準：{v1}	條目欄	components/EntryList.tsx:660
-list.022	套用全部新原文	條目欄	components/EntryList.tsx:665 components/EntryList.tsx:665
-list.023	全部檢查	條目欄	components/EntryList.tsx:670 components/EntryList.tsx:670
-list.024	複製譯文欄	條目欄	components/EntryList.tsx:674 components/EntryList.tsx:674
-list.025	複製備註	條目欄	components/EntryList.tsx:678 components/EntryList.tsx:678
-list.026	篩選條目	條目欄	components/EntryList.tsx:682
-list.027	調整「{h}」欄寬	條目欄	components/EntryList.tsx:727
-list.028	條目欄	條目欄	components/EntryList.tsx:737
-list.029	目前沒有檔案，請新增檔案	條目欄	components/EntryList.tsx:752
-list.030	這個頁簽沒有條目	條目欄	components/EntryList.tsx:752
-list.031	這個篩選條件下沒有條目	條目欄	components/EntryList.tsx:752
-list.032	條目	條目欄	components/EntryList.tsx:757
-list.033	清除整欄	條目欄	components/EntryList.tsx:759
-list.034	標記	條目欄	components/EntryList.tsx:761 components/EntryList.tsx:771
-list.035	套用新原文	條目欄	components/EntryList.tsx:762 components/EntryList.tsx:772
-list.036	清除	條目欄	components/EntryList.tsx:763 components/EntryList.tsx:770
-list.037	刪除 {length} 列	條目欄	components/EntryList.tsx:764
-list.038	在下方插入	條目欄	components/EntryList.tsx:765
-list.039	上移	條目欄	components/EntryList.tsx:766 components/EntryList.tsx:773
-list.040	下移	條目欄	components/EntryList.tsx:767 components/EntryList.tsx:774
-list.041	編輯	條目欄	components/EntryList.tsx:769
+list.010	標記：{v1}，點擊變更	條目欄	components/EntryList.tsx:131
+list.011	特殊長度標準	條目欄	components/EntryList.tsx:159
+list.012	特殊標準：{v1}	條目欄	components/EntryList.tsx:159
+list.013	有備註	條目欄	components/EntryList.tsx:162 components/EntryList.tsx:163
+list.014	(新原文已移除)	條目欄	components/EntryList.tsx:177
+list.015	不需翻譯	條目欄	components/EntryList.tsx:186 components/EntryList.tsx:193
+list.016	尚未翻譯	條目欄	components/EntryList.tsx:186 components/EntryList.tsx:193
+list.017	文本條目	條目欄	components/EntryList.tsx:674 components/EntryList.tsx:680
+list.018	共 {n} 條	條目欄	components/EntryList.tsx:681
+list.020	設定檔案的長度標準	條目欄	components/EntryList.tsx:684
+list.021	長度標準：{v1}	條目欄	components/EntryList.tsx:684
+list.022	套用全部新原文	條目欄	components/EntryList.tsx:689 components/EntryList.tsx:689
+list.023	全部檢查	條目欄	components/EntryList.tsx:694 components/EntryList.tsx:694
+list.024	複製譯文欄	條目欄	components/EntryList.tsx:698 components/EntryList.tsx:698
+list.025	複製備註	條目欄	components/EntryList.tsx:702 components/EntryList.tsx:702
+list.026	篩選條目	條目欄	components/EntryList.tsx:706
+list.027	調整「{h}」欄寬	條目欄	components/EntryList.tsx:751
+list.028	條目欄	條目欄	components/EntryList.tsx:761
+list.029	目前沒有檔案，請新增檔案	條目欄	components/EntryList.tsx:776
+list.030	這個頁簽沒有條目	條目欄	components/EntryList.tsx:776
+list.031	這個篩選條件下沒有條目	條目欄	components/EntryList.tsx:776
+list.032	條目	條目欄	components/EntryList.tsx:781
+list.033	清除整欄	條目欄	components/EntryList.tsx:783
+list.034	標記	條目欄	components/EntryList.tsx:785 components/EntryList.tsx:795
+list.035	套用新原文	條目欄	components/EntryList.tsx:786 components/EntryList.tsx:796
+list.036	清除	條目欄	components/EntryList.tsx:787 components/EntryList.tsx:794
+list.037	刪除 {length} 列	條目欄	components/EntryList.tsx:788
+list.038	在下方插入	條目欄	components/EntryList.tsx:789
+list.039	上移	條目欄	components/EntryList.tsx:790 components/EntryList.tsx:797
+list.040	下移	條目欄	components/EntryList.tsx:791 components/EntryList.tsx:798
+list.041	編輯	條目欄	components/EntryList.tsx:793
 error.001	Verso 發生錯誤	錯誤畫面	components/ErrorBoundary.tsx:17
 error.002	發生錯誤	錯誤畫面	components/ErrorBoundary.tsx:25
 error.003	目前的內容已經存進暫存，重新載入後可以恢復。	錯誤畫面	components/ErrorBoundary.tsx:26
@@ -418,29 +419,29 @@ splash.004	更新	啟動畫面	components/Splash.tsx:23
 splash.005	取消	啟動畫面	components/Splash.tsx:52
 srcupd.001	發話者	更新原文視窗	components/SrcUpdateDialog.tsx:19
 srcupd.002	原文	更新原文視窗	components/SrcUpdateDialog.tsx:19
-srcupd.003	更新原文：	更新原文視窗	components/SrcUpdateDialog.tsx:101
-srcupd.004	實驗性功能	更新原文視窗	components/SrcUpdateDialog.tsx:101
-srcupd.005	關閉	更新原文視窗	components/SrcUpdateDialog.tsx:103
-srcupd.006	新版 {length} 條，目前 {v1} 條	更新原文視窗	components/SrcUpdateDialog.tsx:126
-srcupd.007	比對中…	更新原文視窗	components/SrcUpdateDialog.tsx:127
-srcupd.008	沒變 {same}、改了 {changed}、新增 {added}、移除 {removed}	更新原文視窗	components/SrcUpdateDialog.tsx:127
-srcupd.009	取消	更新原文視窗	components/SrcUpdateDialog.tsx:132 components/SrcUpdateDialog.tsx:147
-srcupd.010	下一步	更新原文視窗	components/SrcUpdateDialog.tsx:133
-srcupd.011	上一步	更新原文視窗	components/SrcUpdateDialog.tsx:137
-srcupd.012	確定	更新原文視窗	components/SrcUpdateDialog.tsx:138
-srcupd.013	套用新版原文？	更新原文視窗	components/SrcUpdateDialog.tsx:145
-srcupd.014	沒變 {same}、改了 {changed}、新增 {added}、移除 {removed}。套用後可以在條目欄按 Ctrl+Z 退回。	更新原文視窗	components/SrcUpdateDialog.tsx:146
-srcupd.015	套用	更新原文視窗	components/SrcUpdateDialog.tsx:147
-srcupd.016	目前的原文	更新原文視窗	components/SrcUpdateDialog.tsx:264
-srcupd.017	新版原文	更新原文視窗	components/SrcUpdateDialog.tsx:264
-srcupd.018	相似度	更新原文視窗	components/SrcUpdateDialog.tsx:264
-srcupd.019	對齊	更新原文視窗	components/SrcUpdateDialog.tsx:278
-srcupd.020	插入空格	更新原文視窗	components/SrcUpdateDialog.tsx:279
-srcupd.021	刪除空格	更新原文視窗	components/SrcUpdateDialog.tsx:279
-srcupd.022	（空格）	更新原文視窗	components/SrcUpdateDialog.tsx:295
-srcupd.023	有改	更新原文視窗	components/SrcUpdateDialog.tsx:314
-srcupd.024	差很多或對面是空格	更新原文視窗	components/SrcUpdateDialog.tsx:314
-srcupd.025	高相似：第 {n} 條	更新原文視窗	components/SrcUpdateDialog.tsx:322
+srcupd.003	更新原文：	更新原文視窗	components/SrcUpdateDialog.tsx:106
+srcupd.004	實驗性功能	更新原文視窗	components/SrcUpdateDialog.tsx:106
+srcupd.005	關閉	更新原文視窗	components/SrcUpdateDialog.tsx:108
+srcupd.006	新版 {length} 條，目前 {v1} 條	更新原文視窗	components/SrcUpdateDialog.tsx:131
+srcupd.007	比對中…	更新原文視窗	components/SrcUpdateDialog.tsx:132
+srcupd.008	沒變 {same}、改了 {changed}、新增 {added}、移除 {removed}	更新原文視窗	components/SrcUpdateDialog.tsx:132
+srcupd.009	取消	更新原文視窗	components/SrcUpdateDialog.tsx:137 components/SrcUpdateDialog.tsx:152
+srcupd.010	下一步	更新原文視窗	components/SrcUpdateDialog.tsx:138
+srcupd.011	上一步	更新原文視窗	components/SrcUpdateDialog.tsx:142
+srcupd.012	確定	更新原文視窗	components/SrcUpdateDialog.tsx:143
+srcupd.013	套用新版原文？	更新原文視窗	components/SrcUpdateDialog.tsx:150
+srcupd.014	沒變 {same}、改了 {changed}、新增 {added}、移除 {removed}。套用後可以在條目欄按 Ctrl+Z 退回。	更新原文視窗	components/SrcUpdateDialog.tsx:151
+srcupd.015	套用	更新原文視窗	components/SrcUpdateDialog.tsx:152
+srcupd.016	目前的原文	更新原文視窗	components/SrcUpdateDialog.tsx:269
+srcupd.017	新版原文	更新原文視窗	components/SrcUpdateDialog.tsx:269
+srcupd.018	相似度	更新原文視窗	components/SrcUpdateDialog.tsx:269
+srcupd.019	對齊	更新原文視窗	components/SrcUpdateDialog.tsx:283
+srcupd.020	插入空格	更新原文視窗	components/SrcUpdateDialog.tsx:284
+srcupd.021	刪除空格	更新原文視窗	components/SrcUpdateDialog.tsx:284
+srcupd.022	（空格）	更新原文視窗	components/SrcUpdateDialog.tsx:300
+srcupd.023	有改	更新原文視窗	components/SrcUpdateDialog.tsx:319
+srcupd.024	差很多或對面是空格	更新原文視窗	components/SrcUpdateDialog.tsx:319
+srcupd.025	高相似：第 {n} 條	更新原文視窗	components/SrcUpdateDialog.tsx:327
 term.001	編輯詞條	新增詞條視窗	components/TermDialog.tsx:42
 term.002	新增詞條	新增詞條視窗	components/TermDialog.tsx:42
 term.003	關閉	新增詞條視窗	components/TermDialog.tsx:43
@@ -540,10 +541,11 @@ importfile.001	不支援這種檔案	匯入檔案訊息	data/importio.ts:39
 importfile.002	無法讀取這個檔案	匯入檔案訊息	data/importio.ts:58
 importfile.003	檔案裡沒有內容	匯入檔案訊息	data/importio.ts:61
 load.001	字典 / {name} / {v1}	讀取訊息	data/persist.ts:121
-load.002	讀取專案「{name}」	讀取訊息	data/persist.ts:175
-load.003	讀取字典	讀取訊息	data/persist.ts:217
+load.002	讀取專案「{name}」	讀取訊息	data/persist.ts:207
+load.003	讀取字典	讀取訊息	data/persist.ts:249
 xlsx.001	轉檔失敗	存檔轉檔	data/xlsxAsync.ts:19 data/xlsxAsync.ts:23
 align.001	比對失敗	原文更新比對	model/alignAsync.ts:23 model/alignAsync.ts:27
+srcupd.alignFailed	自動比對失敗，目前照順序對應	原文更新比對	components/SrcUpdateDialog.tsx:86
 check.001	標籤與變數	檢查項目與訊息	model/checks.ts:12
 check.002	數字	檢查項目與訊息	model/checks.ts:13
 check.003	句尾標點	檢查項目與訊息	model/checks.ts:14
@@ -669,18 +671,18 @@ save.003	沒有寫入權限	存檔訊息	state/saver.ts:124
 save.004	名稱不合法	存檔訊息	state/saver.ts:125
 save.005	磁碟空間不足	存檔訊息	state/saver.ts:126
 save.006	找不到存檔資料夾	存檔訊息	state/saver.ts:127
-save.007	字典 {k}	存檔訊息	state/saver.ts:217 state/saver.ts:224 state/saver.ts:254 state/saver.ts:291
-save.008	專案資料夾「{x}」	存檔訊息	state/saver.ts:244
-save.009	專案設定檔	存檔訊息	state/saver.ts:284
-save.010	已儲存	存檔訊息	state/saver.ts:302
-save.011	讀取設定	存檔訊息	state/saver.ts:351
-save.012	讀取專案	存檔訊息	state/saver.ts:384
-save.013	完成	存檔訊息	state/saver.ts:410
-save.014	資料夾裡有其他東西，改存到裡面的「Verso」資料夾	存檔訊息	state/saver.ts:630
-save.015	已載入：{v1}{v2}	存檔訊息	state/saver.ts:847
-save.016	已改名：{v1}{v2}	存檔訊息	state/saver.ts:847
-save.017	字典 / {project} / {name}	存檔訊息	state/saver.ts:849
-store.001	啟動中	狀態訊息	main.tsx:22 state/store.ts:613
+save.007	字典 {k}	存檔訊息	state/saver.ts:217 state/saver.ts:224 state/saver.ts:253 state/saver.ts:290
+save.008	專案資料夾「{x}」	存檔訊息	state/saver.ts:298
+save.009	專案設定檔	存檔訊息	state/saver.ts:283
+save.010	已儲存	存檔訊息	state/saver.ts:310
+save.011	讀取設定	存檔訊息	state/saver.ts:359
+save.012	讀取專案	存檔訊息	state/saver.ts:393
+save.013	完成	存檔訊息	state/saver.ts:419
+save.014	資料夾裡有其他東西，改存到裡面的「Verso」資料夾	存檔訊息	state/saver.ts:651
+save.015	已載入：{v1}{v2}	存檔訊息	state/saver.ts:868
+save.016	已改名：{v1}{v2}	存檔訊息	state/saver.ts:868
+save.017	字典 / {project} / {name}	存檔訊息	state/saver.ts:870
+store.001	啟動中	狀態訊息	main.tsx:22 state/store.ts:614
 update.001	檢查更新	自動更新	state/updater.ts:33
 update.002	下載太久沒有進度	自動更新	state/updater.ts:57 state/updater.ts:58
 update.003	下載更新 0%	自動更新	state/updater.ts:60
