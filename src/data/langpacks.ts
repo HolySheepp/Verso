@@ -25,6 +25,12 @@ export function readPackData(data: Uint8Array): [string, string][] {
   return out;
 }
 
+/** 超過這個大小的語言包不讀、不列出（太大的檔案讀起來會卡） */
+export const MAX_PACK_BYTES = 5 * 1024 * 1024;
+
+/** 讀過的語言包：大小、修改時間都沒變就不重讀 */
+const packCache = new Map<string, { size: number; mtime: number; pairs: [string, string][] | null }>();
+
 /** 「語言」資料夾裡的語言包：檔名（不含 .xlsx）→ 內容；讀不了的是 null */
 export async function readLangPacks(root: string): Promise<Map<string, [string, string][] | null>> {
   const out = new Map<string, [string, string][] | null>();
@@ -32,9 +38,16 @@ export async function readLangPacks(root: string): Promise<Map<string, [string, 
   if (!(await io.exists(dir))) return out;
   for (const e of await io.list(dir)) {
     if (e.dir || !isPack(e.name)) continue;
-    const name = e.name.slice(0, -5);
-    try { out.set(name, readPackData(await io.readBinary(io.join(dir, e.name)))); }
-    catch { out.set(name, null); }
+    const name = e.name.slice(0, -5), path = io.join(dir, e.name);
+    let st: { size: number; mtime: number | null } | null = null;
+    try { st = await io.stat(path); } catch { /* 查不到就照樣讀 */ }
+    if (st && st.size > MAX_PACK_BYTES) continue;
+    const hit = packCache.get(path);
+    if (st && st.mtime !== null && hit && hit.size === st.size && hit.mtime === st.mtime) { out.set(name, hit.pairs); continue; }
+    let pairs: [string, string][] | null;
+    try { pairs = readPackData(await io.readBinary(path)); } catch { pairs = null; }
+    out.set(name, pairs);
+    if (st && st.mtime !== null) packCache.set(path, { size: st.size, mtime: st.mtime, pairs });
   }
   return out;
 }

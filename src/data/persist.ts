@@ -300,7 +300,8 @@ export async function findRootConflicts(root: string, data: ProjectData): Promis
  */
 export async function saveRootFor(folder: string): Promise<string> {
   if (!(await io.exists(folder))) return folder;
-  const items = (await io.list(folder)).filter((e) => !e.name.startsWith('.'));
+  // 只有「語言」資料夾（放介面語言包）也算空的：直接存在這裡
+  const items = (await io.list(folder)).filter((e) => !e.name.startsWith('.') && !(e.dir && e.name === LANG_DIR));
   if (!items.length) return folder;
   if (items.some((e) => !e.dir && e.name === WORKSPACE)) return folder;
   const scan = await scanFolder(folder).catch(() => null);

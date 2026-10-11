@@ -893,7 +893,7 @@ async function syncFolder() {
   });
   const names = [...files.map((f) => f.name), ...copies.map((f) => f.name), ...dicts.map((d) => d.info.name)];
   const renames = [...renamed.map((r) => `${r.from.name} → ${r.to.name}`), ...renamedDicts.map((r) => `${r.from.name} → ${r.to.name}`)];
-  const toastText = [names.length ? tx('save.015', { v1: names.slice(0, 3).join(tx('common.sep')), v2: names.length > 3 ? tx('common.moreItems', { n: names.length }) : '' }) : '', renames.length ? tx('save.016', { v1: renames.slice(0, 2).join(tx('common.sep')), v2: renames.length > 2 ? tx('common.moreItems', { n: renames.length }) : '' }) : ''].filter(Boolean).join('；');
+  const toastText = [names.length ? tx('save.015', { v1: names.slice(0, 3).join(tx('common.sep')), v2: names.length > 3 ? tx('common.moreItems', { n: names.length }) : '' }) : '', renames.length ? tx('save.016', { v1: renames.slice(0, 2).join(tx('common.sep')), v2: renames.length > 2 ? tx('common.moreItems', { n: renames.length }) : '' }) : ''].filter(Boolean).join(tx('common.join'));
   if (toastText) useStore.setState((st) => ({ toast: { text: toastText, k: (st.toast?.k ?? 0) + 1 } }));
   const goneNames = [...gone.map((f) => `${f.project} / ${f.name}`), ...goneDicts.map((d) => tx('save.017', { project: d.project, name: d.name }))];
   if (goneNames.length) useStore.setState((st) => ({ goneFiles: [...new Set([...(st.goneFiles ?? []), ...goneNames])] }));

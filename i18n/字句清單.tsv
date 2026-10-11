@@ -1,6 +1,7 @@
 ﻿代號	中文	畫面區域	程式位置
 settings.language	語言	設定 > 一般	components/SettingsDialog.tsx:367
 common.sep	、	列出好幾個名稱時的分隔符號	App.tsx:85 App.tsx:96 App.tsx:107 components/CopyConfirm.tsx:19 components/EntryList.tsx:188 components/EntryList.tsx:188 components/FileNav.tsx:123 components/ManageDialogs.tsx:171 components/SidePanel.tsx:338 components/WorkPanel.tsx:96 model/importSel.ts:59 model/importSel.ts:59 model/paste.ts:79 state/saver.ts:896 state/saver.ts:896
+common.join	；	把兩段提示接成一句時的分隔符號（英文用「; 」）	state/saver.ts:896
 common.moreEntries	 等 {n} 條	列表太長時接在後面	App.tsx:85
 common.moreItems	 等 {n} 個	列表太長時接在後面	App.tsx:96 App.tsx:107 state/saver.ts:896 state/saver.ts:896
 common.sheetError	「{name}」{msg}	某個頁簽有錯誤時，頁簽名稱接錯誤訊息	components/ImportDialog.tsx:189 components/ImportDialog.tsx:190 components/ManageDialogs.tsx:355 components/PasteDialog.tsx:107
@@ -544,7 +545,7 @@ work.057	選擇按鈕要留下的標記	工作欄	components/WorkPanel.tsx:698
 work.058	疑慮並下一條	工作欄	components/WorkPanel.tsx:706
 work.059	驗證並下一條	工作欄	components/WorkPanel.tsx:706
 work.060	下一條	工作欄	components/WorkPanel.tsx:711
-fs.001	寫入的檔案不完整	檔案讀寫	data/fsio.ts:43
+fs.001	寫入的檔案不完整	檔案讀寫	data/fsio.ts:45
 importfile.001	不支援這種檔案	匯入檔案訊息	data/importio.ts:39
 importfile.002	無法讀取這個檔案	匯入檔案訊息	data/importio.ts:58
 importfile.003	檔案裡沒有內容	匯入檔案訊息	data/importio.ts:61

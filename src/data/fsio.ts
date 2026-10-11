@@ -8,6 +8,8 @@ export interface FileIO {
   readText(path: string): Promise<string>;
   writeText(path: string, text: string): Promise<void>;
   exists(path: string): Promise<boolean>;
+  /** 檔案大小（位元組）和修改時間（毫秒；不知道時是 null） */
+  stat(path: string): Promise<{ size: number; mtime: number | null }>;
   mkdir(path: string): Promise<void>;
   /** 列出資料夾裡的項目名稱 */
   list(path: string): Promise<{ name: string; dir: boolean }[]>;
@@ -67,6 +69,7 @@ const tauriIO = (): FileIO => {
     async writeText(p, t) { await safeWrite(await fsp, p, new TextEncoder().encode(t)); },
     async rename(a, b) { await (await fsp).rename(a, b); },
     async exists(p) { return (await fsp).exists(p); },
+    async stat(p) { const st = await (await fsp).stat(p); return { size: st.size, mtime: st.mtime ? st.mtime.getTime() : null }; },
     async mkdir(p) { await (await fsp).mkdir(p, { recursive: true }); },
     async list(p) { return (await (await fsp).readDir(p)).map((e) => ({ name: e.name, dir: e.isDirectory })); },
     async remove(p, opts) { await (await fsp).remove(p, opts?.recursive ? { recursive: true } : undefined); },
@@ -104,6 +107,7 @@ const browserIO = (): FileIO => {
     async readText(p) { const v = get(p); if (v == null) throw new Error('not found'); return v; },
     async writeText(p, t) { put(p, t); },
     async exists(p) { return get(p) != null || keys().some((k) => k.startsWith(p + '/')); },
+    async stat(p) { const v = get(p); if (v == null) throw new Error('not found'); return { size: Math.floor((v.length * 3) / 4), mtime: null }; },
     async mkdir() {},
     async list(p) {
       const out = new Map<string, boolean>();

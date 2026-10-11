@@ -3,6 +3,7 @@
 export const ZH = {
   'settings.language': '語言', // 設定 > 一般
   'common.sep': '、', // 列出好幾個名稱時的分隔符號
+  'common.join': '；', // 把兩段提示接成一句時的分隔符號（英文用「; 」）
   'common.moreEntries': ' 等 {n} 條', // 列表太長時接在後面
   'common.moreItems': ' 等 {n} 個', // 列表太長時接在後面
   'common.sheetError': '「{name}」{msg}', // 某個頁簽有錯誤時，頁簽名稱接錯誤訊息
