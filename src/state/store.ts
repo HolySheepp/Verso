@@ -1005,6 +1005,7 @@ export const useStore = create<Store>((set, get) => {
     setEntryStd(std) {
       const { sel, entry } = cur();
       if (!entry) return;
+      pushUndo();
       patchEntry(sel, (e) => {
         const { lengthStd: _drop, ...rest } = e;
         void _drop;
@@ -1100,6 +1101,8 @@ export const useStore = create<Store>((set, get) => {
       const s = get();
       const f = s.project?.files[i];
       if (!f || !sheets.length) return;
+      // 管理專案裡改的內容存回來算一步：Ctrl+Z 先退回這次，不會連前面的修改一起退
+      pushSnap({ file: i, id: docId(f), doc: f, sheet: s.sheetBy[i] ?? 0, keys: [] });
       replaceFile(i, { ...f, sheets });
       // 頁簽變少了：目前停的頁簽、選的條目夾回有效範圍
       const sh = Math.min(s.sheetBy[i] ?? 0, sheets.length - 1);

@@ -611,9 +611,18 @@ export async function resolveAskSave(choice: 'save' | 'discard' | 'cancel') {
 
 /** 更換存檔資料夾：之後的存檔都存到新資料夾，目前的內容馬上存一份過去 */
 export async function changeSaveRoot(root: string) {
+  // 選到的就是目前的存檔資料夾（換算成實際存放的位置後比，不分大小寫）：提示一下，什麼都不做
+  const target = await saveRootFor(root).catch(() => root);
+  if (samePath(target, useStore.getState().saveRoot)) { showToast(tx('save.sameRoot')); return; }
   // 有未儲存的修改：先問「儲存／不儲存／取消」，選好了才換
   askSaveThen(() => { void changeSaveRootNow(root); }, 'root');
 }
+
+/** 兩個資料夾路徑是不是同一個：不分大小寫、斜線方向，結尾的斜線不算 */
+const samePath = (a: string, b: string) => {
+  const norm = (p: string) => p.replace(/\\/g, '/').replace(/\/+$/, '').toLowerCase();
+  return norm(a) === norm(b);
+};
 
 async function changeSaveRootNow(picked: string) {
   // 選的資料夾裡有別的東西：改存到裡面的「Verso」資料夾

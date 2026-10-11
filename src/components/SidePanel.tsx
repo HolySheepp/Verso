@@ -7,7 +7,7 @@ import { SHARED, dictKey, type DictInfo, type FileDoc, type GlossaryTerm } from 
 import { fz } from '../model/fonts';
 import { enabledIssues } from '../model/checks';
 import { effectiveStd } from '../model/length';
-import { findHits, useActiveTerms } from '../state/dictHits';
+import { findHits, foldText, useActiveTerms } from '../state/dictHits';
 import { leaveFile } from '../state/saver';
 import { ContextMenu } from './ContextMenu';
 import { sideFieldKey } from './Shortcuts';
@@ -89,7 +89,12 @@ function DictTab() {
   const active = useMemo(() => glossary.filter((g) => on.has(dictKey(g.proj, g.dict))), [glossary, on]);
   // 命中：和工作欄共用同一份啟用中的詞條，字典整理和命中結果都只算一次
   const hitTerms = useActiveTerms();
-  const results = useMemo(() => (!ql ? [] : active.filter((g) => g.term.includes(q) || g.en.toLowerCase().includes(ql))), [active, q]);
+  // 不分大小寫、全形半形（跟原文比對的規則一樣）
+  const results = useMemo(() => {
+    if (!ql) return [];
+    const fq = foldText(q);
+    return active.filter((g) => foldText(g.term).includes(fq) || foldText(g.en).includes(fq));
+  }, [active, q]);
   // 搜尋結果先顯示 50 筆，捲到底再顯示下一批
   const [shown, setShown] = useState(DICT_BATCH);
   useEffect(() => { setShown(DICT_BATCH); }, [q]);

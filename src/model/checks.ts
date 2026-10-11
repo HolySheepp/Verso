@@ -50,6 +50,30 @@ function countOf(list: string[]) {
   return m;
 }
 
+/**
+ * 整句只有刪節號時的句點：頭尾的標籤、變數、括號、引號、空白先拿掉再看，例如 <i>......</i>、(......)。
+ * 不是只有句點時回傳 null；start 是句點在原字串裡的位置。
+ */
+export function onlyDots(tgt: string): { dots: string; start: number } | null {
+  // 先粗篩：拿掉標籤後只剩句點、括號、引號、空白才細看
+  if (!tgt.includes('.') || !/^[\s"'()[\]（）［］【】「」『』〔〕〈〉《》.]*$/.test(tgt.replace(TOKEN, ''))) return null;
+  let a = 0, b = tgt.length;
+  const tokenAt = (from: number) => { const re = new RegExp(TOKEN_SRC, 'y'); re.lastIndex = from; const m = re.exec(tgt); return m && m.index + m[0].length <= b ? m[0].length : 0; };
+  for (let moved = true; moved && a < b;) {
+    moved = false;
+    if (/[\s"'(\[（［【「『〔〈《]/.test(tgt[a])) { a++; moved = true; continue; }
+    const t = tokenAt(a);
+    if (t) { a += t; moved = true; continue; }
+    if (/[\s"')\]）］】」』〕〉》]/.test(tgt[b - 1])) { b--; moved = true; continue; }
+    // 結尾的標籤：找最後一個剛好在 b 結束的
+    for (const m of tgt.slice(a, b).matchAll(TOKEN)) {
+      if (a + m.index! + m[0].length === b) { b = a + m.index!; moved = true; break; }
+    }
+  }
+  const core = tgt.slice(a, b);
+  return /^\.+$/.test(core) ? { dots: core, start: a } : null;
+}
+
 const ENDINGS = ['."', '—"', '?"', '!"', '~"', '♡"', '.', '—', '?', '!', '~', '♡'];
 
 /** 句尾：指定標點，後面可以再接右括號，例如 .) */
@@ -102,10 +126,9 @@ export function runChecks(src: string, tgt: string): Issue[] {
     if (!re.test(plainTgt)) add('numbers', n, tx('check.016', { n }));
   }
 
-  // 只有刪節號：必須剛好 6 個半形句點，可以包在引號裡
-  const bare = tgt.trim();
-  const dots = bare.match(/^"?(\.+)"?$/);
-  if (dots && dots[1].length !== 6) add('ellipsis', String(dots[1].length), tx('check.017', { length: dots[1].length }));
+  // 只有刪節號：必須剛好 6 個半形句點，可以包在引號、括號、標籤裡
+  const dots = onlyDots(tgt);
+  if (dots && dots.dots.length !== 6) add('ellipsis', String(dots.dots.length), tx('check.017', { length: dots.dots.length }));
 
   // 句尾標點
   const end = trimEnd(tgt);
@@ -185,11 +208,11 @@ export function locateIssues(tgt: string, checks: Set<CheckId>): { start: number
   if (checks.has('edgeSpace')) all(/^\s+|\s+$/g);
   if (checks.has('repeatPunct')) {
     all(/([,;:—-])\1+/g);
-    if (!/^"?\.+"?$/.test(tgt.trim())) for (const m of badDots(tgt)) out.push({ start: m.index, end: m.index + m.text.length });
+    if (!onlyDots(tgt)) for (const m of badDots(tgt)) out.push({ start: m.index, end: m.index + m.text.length });
   }
   if (checks.has('curlyQuotes')) all(/[“”‘’]/g);
   if (checks.has('cjk')) all(/[㐀-䶿一-鿿]+/g);
-  if (checks.has('ellipsis')) { const m = tgt.match(/\.+/); if (m && /^"?\.+"?$/.test(tgt.trim())) out.push({ start: m.index!, end: m.index! + m[0].length }); }
+  if (checks.has('ellipsis')) { const d = onlyDots(tgt); if (d && d.dots.length !== 6) out.push({ start: d.start, end: d.start + d.dots.length }); }
   if (checks.has('capital')) {
     // 句首小寫、句號問號驚嘆號後小寫、破折號後大寫：標出那個字母
     // 判斷時先去掉開頭的標籤、變數（LEAD），標色的位置要加回去

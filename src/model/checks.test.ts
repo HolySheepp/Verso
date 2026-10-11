@@ -96,6 +96,14 @@ describe('標點檢測', () => {
     expect(ids('……', '...')).toEqual(['ellipsis']);
     expect(ids('……', '"........"')).toEqual(['ellipsis']);
   });
+
+  it('只有刪節號時，頭尾的標籤、變數、括號不算', () => {
+    const dotIds = (t: string) => ids('', t).filter((c) => c === 'ellipsis' || c === 'repeatPunct');
+    for (const t of ['<i>......</i>', '(......)', '（......）', '{0}......', '"<i>(......)</i>"']) expect(dotIds(t)).toEqual([]);
+    expect(dotIds('<i>....</i>')).toEqual(['ellipsis']);
+    expect(dotIds('(........)')).toEqual(['ellipsis']);
+    expect(dotIds('Hi <i>......</i>')).toEqual(['repeatPunct']);
+  });
 });
 
 describe('夜間檢查 2026-10-09', () => {

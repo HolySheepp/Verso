@@ -25,12 +25,14 @@ function markLabel(mark: string, customs: CustomMark[]) {
 
 /**
  * 一個格子的文字：數字用原本的值（不要被欄寬或格式變成「1.23E+5」「1,234」），
- * 日期之類有日期格式的才用顯示的文字。換行統一成 \n。
+ * 日期、補零（0000）、百分比這類格式才用顯示的文字。換行統一成 \n。
  */
 export function cellText(cell: XLSX.CellObject | undefined): string {
   if (!cell || cell.v == null) return '';
-  const isDate = cell.t === 'd' || (cell.t === 'n' && typeof cell.z === 'string' && XLSX.SSF.is_date(cell.z));
-  const raw = cell.t === 'n' && !isDate ? String(cell.v) : String(cell.w ?? cell.v);
+  const z = typeof cell.z === 'string' ? cell.z : '';
+  const shown = cell.t === 'd' || (cell.t === 'n' && !!z && (XLSX.SSF.is_date(z) || /^0+$/.test(z) || z.includes('%')));
+  const text = () => cell.w ?? (z && typeof cell.v === 'number' ? XLSX.SSF.format(z, cell.v) : String(cell.v));
+  const raw = cell.t === 'n' && !shown ? String(cell.v) : String(text());
   return raw.replace(/\r\n?/g, '\n');
 }
 

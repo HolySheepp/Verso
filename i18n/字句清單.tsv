@@ -1,12 +1,13 @@
 ﻿代號	中文	畫面區域	程式位置
 settings.language	語言	設定 > 一般	components/SettingsDialog.tsx:367
-common.sep	、	列出好幾個名稱時的分隔符號	App.tsx:85 App.tsx:96 App.tsx:107 components/CopyConfirm.tsx:19 components/EntryList.tsx:177 components/EntryList.tsx:177 components/FileNav.tsx:123 components/ManageDialogs.tsx:170 components/SidePanel.tsx:333 components/WorkPanel.tsx:95 model/importSel.ts:59 model/importSel.ts:59 model/paste.ts:79 state/saver.ts:832 state/saver.ts:832
+common.sep	、	列出好幾個名稱時的分隔符號	App.tsx:85 App.tsx:96 App.tsx:107 components/CopyConfirm.tsx:19 components/EntryList.tsx:177 components/EntryList.tsx:177 components/FileNav.tsx:123 components/ManageDialogs.tsx:170 components/SidePanel.tsx:338 components/WorkPanel.tsx:95 model/importSel.ts:59 model/importSel.ts:59 model/paste.ts:79 state/saver.ts:847 state/saver.ts:847
 common.moreEntries	 等 {n} 條	列表太長時接在後面	App.tsx:85
-common.moreItems	 等 {n} 個	列表太長時接在後面	App.tsx:96 App.tsx:107 state/saver.ts:832 state/saver.ts:832
+common.moreItems	 等 {n} 個	列表太長時接在後面	App.tsx:96 App.tsx:107 state/saver.ts:847 state/saver.ts:847
 common.sheetError	「{name}」{msg}	某個頁簽有錯誤時，頁簽名稱接錯誤訊息	components/ImportDialog.tsx:189 components/ImportDialog.tsx:190 components/ManageDialogs.tsx:354 components/PasteDialog.tsx:107
 common.errorReason	{target}：{reason}	存檔失敗的項目與原因	components/TitleBar.tsx:55
 import.fieldRange	{range}（{n}）	匯入視窗：欄位選到的範圍和行數	components/ImportDialog.tsx:355
-check.fullwidthSpace	全形空格	檢查項目與訊息	model/checks.ts:104
+save.sameRoot	已經是目前的存檔資料夾	設定 > 一般：換存檔資料夾時選到同一個	state/saver.ts:616
+check.fullwidthSpace	全形空格	檢查項目與訊息	model/checks.ts:139
 app.001	Excel 一格最多 32767 字，貼上後會超過，沒有貼上	主畫面	App.tsx:54
 app.002	有格子超過 Excel 的單格上限	主畫面	App.tsx:84
 app.003	Excel 一格最多 32767 字，下列條目超過了，用 Excel 開啟時會被截斷：{v1}{v2}	主畫面	App.tsx:85
@@ -146,7 +147,7 @@ import.008	專案	匯入視窗	components/ImportDialog.tsx:135
 import.009	取消	匯入視窗	components/ImportDialog.tsx:145
 import.010	匯入	匯入視窗	components/ImportDialog.tsx:147
 import.011	{n} 條	匯入視窗	components/ImportDialog.tsx:171
-import.012	還沒貼原文	匯入視窗	components/ImportDialog.tsx:184
+import.012	還沒貼原文	匯入視窗	
 import.013	還沒選原文	匯入視窗	components/ImportDialog.tsx:184
 import.014	頁簽	匯入視窗	components/ImportDialog.tsx:209
 import.015	頁簽名稱	匯入視窗	components/ImportDialog.tsx:216
@@ -187,7 +188,7 @@ length.023	欄寬 {px}px・{lines} 行	長度標準視窗	components/LengthDialo
 length.024	拖動調整欄寬	長度標準視窗	components/LengthDialog.tsx:187
 length.025	常用標準名稱	長度標準視窗	components/LengthDialog.tsx:195 components/LengthDialog.tsx:195
 length.026	存成常用標準	長度標準視窗	components/LengthDialog.tsx:196
-length.027	無上限	長度標準視窗	components/LengthDialog.tsx:202
+length.027	無上限	長度標準視窗	components/LengthDialog.tsx:202 model/length.ts:47
 length.028	改回檔案標準	長度標準視窗	components/LengthDialog.tsx:205
 length.029	取消	長度標準視窗	components/LengthDialog.tsx:209
 length.030	套用	長度標準視窗	components/LengthDialog.tsx:211
@@ -377,39 +378,39 @@ side.008	編輯詞條	工具欄	components/SidePanel.tsx:56
 side.009	複製譯文「{en}」	工具欄	components/SidePanel.tsx:61
 side.010	已複製	工具欄	components/SidePanel.tsx:61
 side.011	複製譯文	工具欄	components/SidePanel.tsx:61
-side.012	搜尋詞條	工具欄	components/SidePanel.tsx:129
-side.013	搜尋專有名詞或譯名	工具欄	components/SidePanel.tsx:134
-side.014	新增詞條	工具欄	components/SidePanel.tsx:136 components/SidePanel.tsx:136
-side.015	貼入字典	工具欄	components/SidePanel.tsx:141 components/SidePanel.tsx:141
-side.016	管理字典	工具欄	components/SidePanel.tsx:145 components/SidePanel.tsx:145
-side.017	啟用的字典	工具欄	components/SidePanel.tsx:154 components/SidePanel.tsx:158
-side.018	搜尋結果 {n} 筆	工具欄	components/SidePanel.tsx:173
-side.020	找不到「{q}」	工具欄	components/SidePanel.tsx:176 components/SidePanel.tsx:266
-side.021	這一條命中 {n} 個詞條	工具欄	components/SidePanel.tsx:180
-side.023	這一條沒有符合的詞條	工具欄	components/SidePanel.tsx:182
-side.024	字典「{name}」	工具欄	components/SidePanel.tsx:184
-side.025	更改專案	工具欄	components/SidePanel.tsx:184
-side.026	尚未翻譯	工具欄	components/SidePanel.tsx:207
-side.027	搜尋所有檔案	工具欄	components/SidePanel.tsx:254 components/SidePanel.tsx:256
-side.028	上一頁	工具欄	components/SidePanel.tsx:277
-side.029	下一頁	工具欄	components/SidePanel.tsx:278
-side.030	重新整理	工具欄	components/SidePanel.tsx:279
-side.031	網址	工具欄	components/SidePanel.tsx:280
-side.032	輸入網址或關鍵字	工具欄	components/SidePanel.tsx:281
-side.033	專案參照文件	工具欄	components/SidePanel.tsx:295
-side.034	備註	工具欄	components/SidePanel.tsx:340
-side.035	建議翻譯	工具欄	components/SidePanel.tsx:350 components/SidePanel.tsx:376
-side.036	略過	工具欄	components/SidePanel.tsx:357
-side.037	{n} 字元	工具欄	components/SidePanel.tsx:360
-side.038	刪除建議翻譯	工具欄	components/SidePanel.tsx:363
-side.039	刪除	工具欄	components/SidePanel.tsx:365
-side.040	記錄目前譯文，並把建議翻譯套用到譯文框	工具欄	components/SidePanel.tsx:367
-side.041	套用	工具欄	components/SidePanel.tsx:369
-side.042	我的備註	工具欄	components/SidePanel.tsx:395 components/SidePanel.tsx:400
-side.043	其他功能	工具欄	components/SidePanel.tsx:415
-side.044	功能分頁	工具欄	components/SidePanel.tsx:418
-side.045	新增分頁	工具欄	components/SidePanel.tsx:434 components/SidePanel.tsx:434
-side.046	隱藏右側欄	工具欄	components/SidePanel.tsx:437 components/SidePanel.tsx:437
+side.012	搜尋詞條	工具欄	components/SidePanel.tsx:134
+side.013	搜尋專有名詞或譯名	工具欄	components/SidePanel.tsx:139
+side.014	新增詞條	工具欄	components/SidePanel.tsx:141 components/SidePanel.tsx:141
+side.015	貼入字典	工具欄	components/SidePanel.tsx:146 components/SidePanel.tsx:146
+side.016	管理字典	工具欄	components/SidePanel.tsx:150 components/SidePanel.tsx:150
+side.017	啟用的字典	工具欄	components/SidePanel.tsx:159 components/SidePanel.tsx:163
+side.018	搜尋結果 {n} 筆	工具欄	components/SidePanel.tsx:178
+side.020	找不到「{q}」	工具欄	components/SidePanel.tsx:181 components/SidePanel.tsx:271
+side.021	這一條命中 {n} 個詞條	工具欄	components/SidePanel.tsx:185
+side.023	這一條沒有符合的詞條	工具欄	components/SidePanel.tsx:187
+side.024	字典「{name}」	工具欄	components/SidePanel.tsx:189
+side.025	更改專案	工具欄	components/SidePanel.tsx:189
+side.026	尚未翻譯	工具欄	components/SidePanel.tsx:212
+side.027	搜尋所有檔案	工具欄	components/SidePanel.tsx:259 components/SidePanel.tsx:261
+side.028	上一頁	工具欄	components/SidePanel.tsx:282
+side.029	下一頁	工具欄	components/SidePanel.tsx:283
+side.030	重新整理	工具欄	components/SidePanel.tsx:284
+side.031	網址	工具欄	components/SidePanel.tsx:285
+side.032	輸入網址或關鍵字	工具欄	components/SidePanel.tsx:286
+side.033	專案參照文件	工具欄	components/SidePanel.tsx:300
+side.034	備註	工具欄	components/SidePanel.tsx:345
+side.035	建議翻譯	工具欄	components/SidePanel.tsx:355 components/SidePanel.tsx:381
+side.036	略過	工具欄	components/SidePanel.tsx:362
+side.037	{n} 字元	工具欄	components/SidePanel.tsx:365
+side.038	刪除建議翻譯	工具欄	components/SidePanel.tsx:368
+side.039	刪除	工具欄	components/SidePanel.tsx:370
+side.040	記錄目前譯文，並把建議翻譯套用到譯文框	工具欄	components/SidePanel.tsx:372
+side.041	套用	工具欄	components/SidePanel.tsx:374
+side.042	我的備註	工具欄	components/SidePanel.tsx:400 components/SidePanel.tsx:405
+side.043	其他功能	工具欄	components/SidePanel.tsx:420
+side.044	功能分頁	工具欄	components/SidePanel.tsx:423
+side.045	新增分頁	工具欄	components/SidePanel.tsx:439 components/SidePanel.tsx:439
+side.046	隱藏右側欄	工具欄	components/SidePanel.tsx:442 components/SidePanel.tsx:442
 splash.001	檢測到新版本	啟動畫面	components/Splash.tsx:17
 splash.002	檢測到新版本 {version}，是否更新？	啟動畫面	components/Splash.tsx:18
 splash.003	稍後	啟動畫面	components/Splash.tsx:21
@@ -417,29 +418,29 @@ splash.004	更新	啟動畫面	components/Splash.tsx:23
 splash.005	取消	啟動畫面	components/Splash.tsx:52
 srcupd.001	發話者	更新原文視窗	components/SrcUpdateDialog.tsx:19
 srcupd.002	原文	更新原文視窗	components/SrcUpdateDialog.tsx:19
-srcupd.003	更新原文：	更新原文視窗	components/SrcUpdateDialog.tsx:96
-srcupd.004	實驗性功能	更新原文視窗	components/SrcUpdateDialog.tsx:96
-srcupd.005	關閉	更新原文視窗	components/SrcUpdateDialog.tsx:98
-srcupd.006	新版 {length} 條，目前 {v1} 條	更新原文視窗	components/SrcUpdateDialog.tsx:121
-srcupd.007	比對中…	更新原文視窗	components/SrcUpdateDialog.tsx:122
-srcupd.008	沒變 {same}、改了 {changed}、新增 {added}、移除 {removed}	更新原文視窗	components/SrcUpdateDialog.tsx:122
-srcupd.009	取消	更新原文視窗	components/SrcUpdateDialog.tsx:127 components/SrcUpdateDialog.tsx:142
-srcupd.010	下一步	更新原文視窗	components/SrcUpdateDialog.tsx:128
-srcupd.011	上一步	更新原文視窗	components/SrcUpdateDialog.tsx:132
-srcupd.012	確定	更新原文視窗	components/SrcUpdateDialog.tsx:133
-srcupd.013	套用新版原文？	更新原文視窗	components/SrcUpdateDialog.tsx:140
-srcupd.014	沒變 {same}、改了 {changed}、新增 {added}、移除 {removed}。套用後可以在條目欄按 Ctrl+Z 退回。	更新原文視窗	components/SrcUpdateDialog.tsx:141
-srcupd.015	套用	更新原文視窗	components/SrcUpdateDialog.tsx:142
-srcupd.016	目前的原文	更新原文視窗	components/SrcUpdateDialog.tsx:259
-srcupd.017	新版原文	更新原文視窗	components/SrcUpdateDialog.tsx:259
-srcupd.018	相似度	更新原文視窗	components/SrcUpdateDialog.tsx:259
-srcupd.019	對齊	更新原文視窗	components/SrcUpdateDialog.tsx:273
-srcupd.020	插入空格	更新原文視窗	components/SrcUpdateDialog.tsx:274
-srcupd.021	刪除空格	更新原文視窗	components/SrcUpdateDialog.tsx:274
-srcupd.022	（空格）	更新原文視窗	components/SrcUpdateDialog.tsx:290
-srcupd.023	有改	更新原文視窗	components/SrcUpdateDialog.tsx:309
-srcupd.024	差很多或對面是空格	更新原文視窗	components/SrcUpdateDialog.tsx:309
-srcupd.025	高相似：第 {n} 條	更新原文視窗	components/SrcUpdateDialog.tsx:317
+srcupd.003	更新原文：	更新原文視窗	components/SrcUpdateDialog.tsx:101
+srcupd.004	實驗性功能	更新原文視窗	components/SrcUpdateDialog.tsx:101
+srcupd.005	關閉	更新原文視窗	components/SrcUpdateDialog.tsx:103
+srcupd.006	新版 {length} 條，目前 {v1} 條	更新原文視窗	components/SrcUpdateDialog.tsx:126
+srcupd.007	比對中…	更新原文視窗	components/SrcUpdateDialog.tsx:127
+srcupd.008	沒變 {same}、改了 {changed}、新增 {added}、移除 {removed}	更新原文視窗	components/SrcUpdateDialog.tsx:127
+srcupd.009	取消	更新原文視窗	components/SrcUpdateDialog.tsx:132 components/SrcUpdateDialog.tsx:147
+srcupd.010	下一步	更新原文視窗	components/SrcUpdateDialog.tsx:133
+srcupd.011	上一步	更新原文視窗	components/SrcUpdateDialog.tsx:137
+srcupd.012	確定	更新原文視窗	components/SrcUpdateDialog.tsx:138
+srcupd.013	套用新版原文？	更新原文視窗	components/SrcUpdateDialog.tsx:145
+srcupd.014	沒變 {same}、改了 {changed}、新增 {added}、移除 {removed}。套用後可以在條目欄按 Ctrl+Z 退回。	更新原文視窗	components/SrcUpdateDialog.tsx:146
+srcupd.015	套用	更新原文視窗	components/SrcUpdateDialog.tsx:147
+srcupd.016	目前的原文	更新原文視窗	components/SrcUpdateDialog.tsx:264
+srcupd.017	新版原文	更新原文視窗	components/SrcUpdateDialog.tsx:264
+srcupd.018	相似度	更新原文視窗	components/SrcUpdateDialog.tsx:264
+srcupd.019	對齊	更新原文視窗	components/SrcUpdateDialog.tsx:278
+srcupd.020	插入空格	更新原文視窗	components/SrcUpdateDialog.tsx:279
+srcupd.021	刪除空格	更新原文視窗	components/SrcUpdateDialog.tsx:279
+srcupd.022	（空格）	更新原文視窗	components/SrcUpdateDialog.tsx:295
+srcupd.023	有改	更新原文視窗	components/SrcUpdateDialog.tsx:314
+srcupd.024	差很多或對面是空格	更新原文視窗	components/SrcUpdateDialog.tsx:314
+srcupd.025	高相似：第 {n} 條	更新原文視窗	components/SrcUpdateDialog.tsx:322
 term.001	編輯詞條	新增詞條視窗	components/TermDialog.tsx:42
 term.002	新增詞條	新增詞條視窗	components/TermDialog.tsx:42
 term.003	關閉	新增詞條視窗	components/TermDialog.tsx:43
@@ -539,10 +540,10 @@ importfile.001	不支援這種檔案	匯入檔案訊息	data/importio.ts:39
 importfile.002	無法讀取這個檔案	匯入檔案訊息	data/importio.ts:58
 importfile.003	檔案裡沒有內容	匯入檔案訊息	data/importio.ts:61
 load.001	字典 / {name} / {v1}	讀取訊息	data/persist.ts:121
-load.002	讀取專案「{name}」	讀取訊息	data/persist.ts:173
-load.003	讀取字典	讀取訊息	data/persist.ts:215
+load.002	讀取專案「{name}」	讀取訊息	data/persist.ts:175
+load.003	讀取字典	讀取訊息	data/persist.ts:217
 xlsx.001	轉檔失敗	存檔轉檔	data/xlsxAsync.ts:19 data/xlsxAsync.ts:23
-align.001	比對失敗	原文更新比對	model/alignAsync.ts:18 model/alignAsync.ts:21
+align.001	比對失敗	原文更新比對	model/alignAsync.ts:23 model/alignAsync.ts:27
 check.001	標籤與變數	檢查項目與訊息	model/checks.ts:12
 check.002	數字	檢查項目與訊息	model/checks.ts:13
 check.003	句尾標點	檢查項目與訊息	model/checks.ts:14
@@ -556,24 +557,24 @@ check.010	刪節號	檢查項目與訊息	model/checks.ts:21
 check.011	中文引號	檢查項目與訊息	model/checks.ts:22
 check.012	大小寫	檢查項目與訊息	model/checks.ts:23
 check.013	超框	檢查項目與訊息	model/checks.ts:24
-check.014	缺少 {t}	檢查項目與訊息	model/checks.ts:78
-check.015	多出 {t}	檢查項目與訊息	model/checks.ts:82
-check.016	缺少數字 {n}	檢查項目與訊息	model/checks.ts:90
-check.017	刪節號要 6 個句點（目前 {length} 個）	檢查項目與訊息	model/checks.ts:96
-check.018	句尾缺少標點	檢查項目與訊息	model/checks.ts:100
-check.019	有全形符號 {v1}	檢查項目與訊息	model/checks.ts:104
-check.020	括號 ( ) 沒有成對	檢查項目與訊息	model/checks.ts:108
-check.021	括號 [ ] 沒有成對	檢查項目與訊息	model/checks.ts:109
-check.022	引號 " 沒有成對	檢查項目與訊息	model/checks.ts:110
-check.023	開頭或結尾有多餘空白	檢查項目與訊息	model/checks.ts:113
-check.024	有連續兩個空格	檢查項目與訊息	model/checks.ts:114
-check.025	重複標點 {v1}	檢查項目與訊息	model/checks.ts:118
-check.026	有中文引號 {v1}	檢查項目與訊息	model/checks.ts:122
-check.027	句首要大寫	檢查項目與訊息	model/checks.ts:126
-check.028	句號、問號、驚嘆號後要大寫	檢查項目與訊息	model/checks.ts:128
-check.029	破折號後要小寫	檢查項目與訊息	model/checks.ts:129
-check.030	譯文裡有中文字	檢查項目與訊息	model/checks.ts:132
-check.031	超框（超過 {lines} 行）	檢查項目與訊息	model/checks.ts:155
+check.014	缺少 {t}	檢查項目與訊息	model/checks.ts:114
+check.015	多出 {t}	檢查項目與訊息	model/checks.ts:118
+check.016	缺少數字 {n}	檢查項目與訊息	model/checks.ts:126
+check.017	刪節號要 6 個句點（目前 {length} 個）	檢查項目與訊息	model/checks.ts:131
+check.018	句尾缺少標點	檢查項目與訊息	model/checks.ts:135
+check.019	有全形符號 {v1}	檢查項目與訊息	model/checks.ts:139
+check.020	括號 ( ) 沒有成對	檢查項目與訊息	model/checks.ts:143
+check.021	括號 [ ] 沒有成對	檢查項目與訊息	model/checks.ts:144
+check.022	引號 " 沒有成對	檢查項目與訊息	model/checks.ts:145
+check.023	開頭或結尾有多餘空白	檢查項目與訊息	model/checks.ts:148
+check.024	有連續兩個空格	檢查項目與訊息	model/checks.ts:149
+check.025	重複標點 {v1}	檢查項目與訊息	model/checks.ts:153
+check.026	有中文引號 {v1}	檢查項目與訊息	model/checks.ts:157
+check.027	句首要大寫	檢查項目與訊息	model/checks.ts:161
+check.028	句號、問號、驚嘆號後要大寫	檢查項目與訊息	model/checks.ts:163
+check.029	破折號後要小寫	檢查項目與訊息	model/checks.ts:164
+check.030	譯文裡有中文字	檢查項目與訊息	model/checks.ts:167
+check.031	超框（超過 {lines} 行）	檢查項目與訊息	model/checks.ts:190
 colors.001	藍	主題色名稱	model/color.ts:58
 colors.002	綠	主題色名稱	model/color.ts:59
 colors.003	紫	主題色名稱	model/color.ts:60
@@ -637,7 +638,7 @@ pastecol.001	發話者	貼入欄位	model/paste.ts:10
 pastecol.002	原文	貼入欄位	model/paste.ts:11
 pastecol.003	譯文	貼入欄位	model/paste.ts:12
 pastecol.004	備註	貼入欄位	model/paste.ts:13
-pastecol.005	還沒貼原文	貼入欄位	model/paste.ts:74
+pastecol.005	還沒貼原文	貼入欄位	components/ImportDialog.tsx:184 model/paste.ts:74
 pastecol.006	各欄行數不一致：{v1}	貼入欄位	model/paste.ts:79
 shortcut.001	在譯文框裡	快捷鍵	model/shortcuts.ts:7
 shortcut.002	不在輸入框時	快捷鍵	model/shortcuts.ts:8
@@ -668,18 +669,18 @@ save.003	沒有寫入權限	存檔訊息	state/saver.ts:124
 save.004	名稱不合法	存檔訊息	state/saver.ts:125
 save.005	磁碟空間不足	存檔訊息	state/saver.ts:126
 save.006	找不到存檔資料夾	存檔訊息	state/saver.ts:127
-save.007	字典 {k}	存檔訊息	state/saver.ts:214 state/saver.ts:221 state/saver.ts:251 state/saver.ts:288
-save.008	專案資料夾「{x}」	存檔訊息	state/saver.ts:241
-save.009	專案設定檔	存檔訊息	state/saver.ts:281
-save.010	已儲存	存檔訊息	state/saver.ts:299
-save.011	讀取設定	存檔訊息	state/saver.ts:348
-save.012	讀取專案	存檔訊息	state/saver.ts:380
-save.013	完成	存檔訊息	state/saver.ts:406
-save.014	資料夾裡有其他東西，改存到裡面的「Verso」資料夾	存檔訊息	state/saver.ts:615
-save.015	已載入：{v1}{v2}	存檔訊息	state/saver.ts:832
-save.016	已改名：{v1}{v2}	存檔訊息	state/saver.ts:832
-save.017	字典 / {project} / {name}	存檔訊息	state/saver.ts:834
-store.001	啟動中	狀態訊息	state/store.ts:613
+save.007	字典 {k}	存檔訊息	state/saver.ts:217 state/saver.ts:224 state/saver.ts:254 state/saver.ts:291
+save.008	專案資料夾「{x}」	存檔訊息	state/saver.ts:244
+save.009	專案設定檔	存檔訊息	state/saver.ts:284
+save.010	已儲存	存檔訊息	state/saver.ts:302
+save.011	讀取設定	存檔訊息	state/saver.ts:351
+save.012	讀取專案	存檔訊息	state/saver.ts:384
+save.013	完成	存檔訊息	state/saver.ts:410
+save.014	資料夾裡有其他東西，改存到裡面的「Verso」資料夾	存檔訊息	state/saver.ts:630
+save.015	已載入：{v1}{v2}	存檔訊息	state/saver.ts:847
+save.016	已改名：{v1}{v2}	存檔訊息	state/saver.ts:847
+save.017	字典 / {project} / {name}	存檔訊息	state/saver.ts:849
+store.001	啟動中	狀態訊息	main.tsx:22 state/store.ts:613
 update.001	檢查更新	自動更新	state/updater.ts:33
 update.002	下載太久沒有進度	自動更新	state/updater.ts:57 state/updater.ts:58
 update.003	下載更新 0%	自動更新	state/updater.ts:60

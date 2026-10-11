@@ -29,3 +29,17 @@ describe('sheetRows 範圍是假的（第 23 項）', () => {
     expect(Date.now() - t0).toBeLessThan(500);
   });
 });
+
+describe('補零、百分比格式用顯示的文字（夜間檢查 39）', () => {
+  it('0000 → 0012、0% → 50%，一般數字照原值', async () => {
+    const { cellText } = await import('./xlsxio');
+    const ws: XLSX.WorkSheet = {
+      A1: { t: 'n', v: 12, z: '0000' }, B1: { t: 'n', v: 0.5, z: '0%' }, C1: { t: 'n', v: 100000, z: '#,##0' }, D1: { t: 'n', v: 100000, z: '0.00E+00' },
+      '!ref': 'A1:D1',
+    };
+    const wb = XLSX.utils.book_new(); XLSX.utils.book_append_sheet(wb, ws, 'S');
+    const back = XLSX.read(XLSX.write(wb, { type: 'array', bookType: 'xlsx' }), { type: 'array', cellNF: true }).Sheets.S;
+    expect(['A1', 'B1', 'C1', 'D1'].map((a) => cellText(back[a] as XLSX.CellObject))).toEqual(['0012', '50%', '100000', '100000']);
+    expect(cellText({ t: 'n', v: 7, z: '000' })).toBe('007');
+  });
+});
