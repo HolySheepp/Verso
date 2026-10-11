@@ -8,7 +8,7 @@ import { io } from './fsio';
 import { dictToXlsxAsync, fileToXlsxAsync } from './xlsxAsync';
 import { DICT_DIR, LANG_DIR, safeName } from '../model/names';
 export { DICT_DIR, safeName };
-import { isVersoDictData, isVersoFileData, readDictBook, xlsxToVersoFile } from './xlsxio';
+import { isVersoDictData, isVersoFileData, readDictBook, versoFileIdOf, xlsxToVersoFile } from './xlsxio';
 import type { CheckSettings } from '../model/checks';
 import type { FontSettings } from '../model/fonts';
 import type { Bindings } from '../model/shortcuts';
@@ -394,6 +394,18 @@ async function writeUninstallList(root: string, data: ProjectData) {
   for (let i = 0; i < text.length; i++) { const c = text.charCodeAt(i); bytes[2 + i * 2] = c & 0xff; bytes[3 + i * 2] = c >> 8; }
   const cfg = await io.configPath();
   await io.writeBinary(cfg.replace(/[^\\/]*$/, 'versofiles.txt'), bytes);
+}
+
+/**
+ * 要寫入的位置已經有別的檔案（不是 Verso 檔，或是不認得的 Verso 檔）：回傳 true。
+ * ours：軟體裡（和上次存檔時）的檔案 ID，例如兩個檔案互換名稱時，那個位置放的是自己的另一個檔案。
+ */
+export async function foreignFileAt(root: string, project: string, name: string, ours: Set<string>): Promise<boolean> {
+  const path = io.join(root, project, safeName(name) + '.xlsx');
+  if (!(await io.exists(path))) return false;
+  let id: string | null = null;
+  try { id = versoFileIdOf(await io.readBinary(path)); } catch { /* 讀不到就當成別人的 */ }
+  return !id || !ours.has(id);
 }
 
 /** 刪除的檔案、字典、專案都移到資源回收筒 */

@@ -176,6 +176,11 @@ export function isVersoFileData(data: Uint8Array): boolean {
   try { return isVersoBook(XLSX.read(data, { type: 'array', sheetRows: 2 })); } catch { return false; }
 }
 
+/** 外部檔案的 Verso 檔案 ID：不是 Verso 檔回傳 null，沒有 ID 回傳空字串 */
+export function versoFileIdOf(data: Uint8Array): string | null {
+  try { const wb = XLSX.read(data, { type: 'array' }); return isVersoBook(wb) ? readSetting(wb, '檔案ID') : null; } catch { return null; }
+}
+
 let termSeq = 0;
 /** 詞條 ID：隨機、不重複（不用「字典名稱＋列號」，改名或增刪列之後才不會撞到） */
 const newTermId = () => 't' + Date.now().toString(36) + (termSeq++).toString(36) + Math.random().toString(36).slice(2, 6);

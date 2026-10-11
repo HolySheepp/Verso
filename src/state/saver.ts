@@ -9,7 +9,7 @@ import { withFontDefaults } from '../model/fonts';
 import { LANG_DIR, MAX_CELL_CHARS, nameKey, sameName } from '../model/names';
 import { migrateList, migrateSheets } from '../model/shortcuts';
 import {
-  clearRecovery, findRootConflicts, saveRootFor, mergeMarks, readFolderMeta, safeName as safeFileName, scanFolder, loadConfig, loadWorkspace, readDict, readDictFull, readRecovery, reloadFile, saveConfig, sortProjects, trashDict, trashFile, trashProject, writeDict, writeFile, writeMeta, writeRecovery,
+  clearRecovery, findRootConflicts, saveRootFor, mergeMarks, readFolderMeta, safeName as safeFileName, scanFolder, loadConfig, loadWorkspace, readDict, readDictFull, readRecovery, reloadFile, saveConfig, sortProjects, foreignFileAt, trashDict, trashFile, trashProject, writeDict, writeFile, writeMeta, writeRecovery,
   type AppConfig, type LastPosition, type RecoveryState,
 } from '../data/persist';
 import { emptyHistory } from '../model/history';
@@ -229,13 +229,19 @@ export function saveDicts(): Promise<boolean> {
   });
 }
 
+/** 問使用者：新位置已經有別的檔案 */
+const askClash = (project: string, name: string) => new Promise<'overwrite' | 'rename' | 'cancel'>((resolve) => {
+  useStore.setState({ fileClash: { project, name, resolve: (c) => { useStore.setState({ fileClash: null }); resolve(c); } } });
+});
+
 async function saveAll(): Promise<boolean> {
   const s = useStore.getState();
-  const p = s.project;
-  if (!p || !s.saveRoot) return true;
+  if (!s.project || !s.saveRoot) return true;
+  // 存檔途中檔案可能被改名（新位置已經有別的檔案時）：p 跟著換成新的
+  let p: ProjectData = s.project;
   lastAttempt = Date.now();
   useStore.setState({ saveStatus: 'saving' });
-  let ok = true;
+  let ok = true, cancelled = false;
   const errors: SaveError[] = [];
   const fail = (target: string, e: unknown) => { ok = false; errors.push({ target, reason: saveReason(e) }); };
   const done = { files: new Map(saved.files), customs: saved.customs, dicts: new Map(saved.dicts), projects: saved.projects };
@@ -258,12 +264,23 @@ async function saveAll(): Promise<boolean> {
     const long: string[] = [];
     // 改名、搬專案的舊位置：等所有檔案都寫好之後才移走（兩個檔案互換名稱時，舊位置正好是另一個檔案的新位置）
     const moved: FileDoc[] = [];
-    for (const f of p.files) {
+    const ours = new Set([...p.files, ...saved.files.values()].map((f) => f.fid).filter((x): x is string => !!x));
+    for (let f of [...p.files]) {
       // 自訂標記改了名稱也要重寫，因為「標記」欄寫的是名稱
       if (saved.files.get(fileKey(f)) === f && !customsChanged) continue;
-      long.push(...longCellsOf(f));
       const old = saved.files.get(fileKey(f));
       try {
+        // 寫到新位置（新檔案、改名、搬專案）而那裡已經有別的檔案：問使用者
+        if ((!old || diskKey(old.project, old.name) !== diskKey(f.project, f.name)) && await foreignFileAt(s.saveRoot, f.project, f.name, ours)) {
+          const choice = await askClash(f.project, f.name);
+          if (choice === 'cancel') { cancelled = true; continue; }
+          if (choice === 'overwrite') await io.trash(io.join(s.saveRoot, f.project, safeFileName(f.name) + '.xlsx'));
+          else {
+            f = await renameToFree(s.saveRoot, f);
+            p = useStore.getState().project!;
+          }
+        }
+        long.push(...longCellsOf(f));
         await writeFile(s.saveRoot, f, p.customMarks);
         done.files.set(fileKey(f), f);
         // 改了名稱或搬了專案：記下舊位置（只差大小寫時是同一個檔案，不用移）
@@ -301,7 +318,22 @@ async function saveAll(): Promise<boolean> {
   saved = done;
   const dirty = isDirty();
   useStore.setState({ saveStatus: !ok ? 'error' : dirty ? 'dirty' : 'saved', saveErrors: errors });
-  return ok;
+  return ok && !cancelled;
+}
+
+/** 檔案改成「名稱 (2)」這類存檔資料夾和軟體裡都沒用過的名稱；回傳改好名稱的檔案 */
+async function renameToFree(root: string, f: FileDoc): Promise<FileDoc> {
+  const p = useStore.getState().project!;
+  const used = (n: string) => p.files.some((x) => x !== f && x.project === f.project && nameKey(x.name) === nameKey(n));
+  let name = f.name;
+  for (let k = 2; ; k++) {
+    name = `${f.name} (${k})`;
+    if (!used(name) && !(await io.exists(io.join(root, f.project, safeFileName(name) + '.xlsx')))) break;
+  }
+  const renamed = { ...f, name };
+  const cur = useStore.getState().project!;
+  useStore.setState({ project: { ...cur, files: cur.files.map((x) => (x === f || (f.fid && x.fid === f.fid) ? renamed : x)) } });
+  return renamed;
 }
 
 /** 手動存檔（儲存鈕、Ctrl+S）：存好後在畫面中間提示 */

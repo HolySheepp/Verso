@@ -123,6 +123,20 @@ function RecoveryDialog() {
   );
 }
 
+/** 存檔時新位置已經有別的檔案：覆蓋、重新命名或取消 */
+function FileClashDialog() {
+  const clash = useStore((st) => st.fileClash);
+  if (!clash) return null;
+  return (
+    <ConfirmDialog zIndex={70} title={tx('app.clashTitle')} body={tx('app.clashBody', { project: clash.project, name: clash.name })}
+      choices={[
+        { label: tx('app.030'), onClick: () => clash.resolve('cancel') },
+        { label: tx('app.clashOverwrite'), danger: true, onClick: () => clash.resolve('overwrite') },
+        { label: tx('app.clashRename'), primary: true, onClick: () => clash.resolve('rename') },
+      ]} />
+  );
+}
+
 function UpdatePromptDialog() {
   const prompt = useStore((st) => st.updatePrompt);
   if (!prompt) return null;
@@ -271,6 +285,7 @@ export default function App() {
       <UnreadableNotice />
       <GoneNotice />
       <UpdatePromptDialog />
+      <FileClashDialog />
       <RecoveryDialog />
       <RootConflictDialog />
       {s.askSave && (

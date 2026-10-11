@@ -1,13 +1,13 @@
 ﻿代號	中文	畫面區域	程式位置
 settings.language	語言	設定 > 一般	components/SettingsDialog.tsx:367
-common.sep	、	列出好幾個名稱時的分隔符號	App.tsx:85 App.tsx:96 App.tsx:107 components/CopyConfirm.tsx:19 components/EntryList.tsx:188 components/EntryList.tsx:188 components/FileNav.tsx:123 components/ManageDialogs.tsx:170 components/SidePanel.tsx:338 components/WorkPanel.tsx:95 model/importSel.ts:59 model/importSel.ts:59 model/paste.ts:79 state/saver.ts:868 state/saver.ts:868
+common.sep	、	列出好幾個名稱時的分隔符號	App.tsx:85 App.tsx:96 App.tsx:107 components/CopyConfirm.tsx:19 components/EntryList.tsx:188 components/EntryList.tsx:188 components/FileNav.tsx:123 components/ManageDialogs.tsx:170 components/SidePanel.tsx:338 components/WorkPanel.tsx:95 model/importSel.ts:59 model/importSel.ts:59 model/paste.ts:79 state/saver.ts:900 state/saver.ts:900
 common.moreEntries	 等 {n} 條	列表太長時接在後面	App.tsx:85
-common.moreItems	 等 {n} 個	列表太長時接在後面	App.tsx:96 App.tsx:107 state/saver.ts:868 state/saver.ts:868
+common.moreItems	 等 {n} 個	列表太長時接在後面	App.tsx:96 App.tsx:107 state/saver.ts:900 state/saver.ts:900
 common.sheetError	「{name}」{msg}	某個頁簽有錯誤時，頁簽名稱接錯誤訊息	components/ImportDialog.tsx:189 components/ImportDialog.tsx:190 components/ManageDialogs.tsx:354 components/PasteDialog.tsx:107
 common.errorReason	{target}：{reason}	存檔失敗的項目與原因	components/TitleBar.tsx:55
 import.fieldRange	{range}（{n}）	匯入視窗：欄位選到的範圍和行數	components/ImportDialog.tsx:355
-save.sameRoot	已經是目前的存檔資料夾	設定 > 一般：換存檔資料夾時選到同一個	state/saver.ts:637
-save.langRenamed	專案「語言」已改名為「{name}」	開啟存檔資料夾：「語言」資料夾現在放介面語言包，舊的同名專案改名	state/saver.ts:431
+save.sameRoot	已經是目前的存檔資料夾	設定 > 一般：換存檔資料夾時選到同一個	state/saver.ts:669
+save.langRenamed	專案「語言」已改名為「{name}」	開啟存檔資料夾：「語言」資料夾現在放介面語言包，舊的同名專案改名	state/saver.ts:463
 check.fullwidthSpace	全形空格	檢查項目與訊息	model/checks.ts:139
 app.001	Excel 一格最多 32767 字，貼上後會超過，沒有貼上	主畫面	App.tsx:54
 app.002	有格子超過 Excel 的單格上限	主畫面	App.tsx:84
@@ -21,25 +21,29 @@ app.009	上次沒有正常關閉	主畫面	App.tsx:118
 app.010	有自動暫存但還沒儲存的內容。恢復後要按儲存才會寫進檔案。	主畫面	App.tsx:118
 app.011	捨棄	主畫面	App.tsx:120
 app.012	恢復	主畫面	App.tsx:121
-app.013	檢測到新版本 {version}	主畫面	App.tsx:130
-app.014	要現在更新嗎？更新完會自動重新開啟。	主畫面	App.tsx:130
-app.015	稍後	主畫面	App.tsx:132
-app.016	更新	主畫面	App.tsx:133
-app.017	檔案進度 {done} / {total} 條	主畫面	App.tsx:149
-app.019	模式：	主畫面	App.tsx:150
-app.020	變更標記	主畫面	App.tsx:164 App.tsx:164
-app.021	顯示檔案欄	主畫面	App.tsx:230 App.tsx:230
-app.022	調整右側欄寬度	主畫面	App.tsx:242
-app.023	顯示右側欄	主畫面	App.tsx:247 App.tsx:247
-app.024	關閉選單	主畫面	App.tsx:259
-app.025	有未儲存的修改	主畫面	App.tsx:277
-app.026	關閉前要儲存嗎？	主畫面	App.tsx:278
-app.027	更新前要儲存嗎？	主畫面	App.tsx:278
-app.028	換存檔資料夾前要儲存嗎？	主畫面	App.tsx:278
-app.029	離開這個檔案前要儲存嗎？	主畫面	App.tsx:278
-app.030	取消	主畫面	App.tsx:280
-app.031	不儲存	主畫面	App.tsx:281
-app.032	儲存	主畫面	App.tsx:282
+app.013	檢測到新版本 {version}	主畫面	App.tsx:144
+app.014	要現在更新嗎？更新完會自動重新開啟。	主畫面	App.tsx:144
+app.015	稍後	主畫面	App.tsx:146
+app.016	更新	主畫面	App.tsx:147
+app.017	檔案進度 {done} / {total} 條	主畫面	App.tsx:163
+app.019	模式：	主畫面	App.tsx:164
+app.020	變更標記	主畫面	App.tsx:178 App.tsx:178
+app.021	顯示檔案欄	主畫面	App.tsx:244 App.tsx:244
+app.022	調整右側欄寬度	主畫面	App.tsx:256
+app.023	顯示右側欄	主畫面	App.tsx:261 App.tsx:261
+app.024	關閉選單	主畫面	App.tsx:273
+app.025	有未儲存的修改	主畫面	App.tsx:292
+app.026	關閉前要儲存嗎？	主畫面	App.tsx:293
+app.027	更新前要儲存嗎？	主畫面	App.tsx:293
+app.028	換存檔資料夾前要儲存嗎？	主畫面	App.tsx:293
+app.029	離開這個檔案前要儲存嗎？	主畫面	App.tsx:293
+app.030	取消	主畫面	App.tsx:133 App.tsx:295
+app.031	不儲存	主畫面	App.tsx:296
+app.032	儲存	主畫面	App.tsx:297
+app.clashTitle	已經有同名的檔案	存檔時新位置已經有別的檔案	App.tsx:131
+app.clashBody	存檔資料夾裡已經有「{project} / {name}.xlsx」，不是這個檔案。覆蓋會把原本的檔案移到資源回收筒。	存檔時新位置已經有別的檔案	App.tsx:131
+app.clashRename	重新命名	存檔時新位置已經有別的檔案	App.tsx:135
+app.clashOverwrite	覆蓋	存檔時新位置已經有別的檔案	App.tsx:134
 color.001	自訂主題色	色盤	components/ColorPicker.tsx:69 components/ColorPicker.tsx:75
 color.002	色碼	色盤	components/ColorPicker.tsx:98
 color.003	取消	色盤	components/ColorPicker.tsx:105
@@ -671,18 +675,18 @@ save.003	沒有寫入權限	存檔訊息	state/saver.ts:124
 save.004	名稱不合法	存檔訊息	state/saver.ts:125
 save.005	磁碟空間不足	存檔訊息	state/saver.ts:126
 save.006	找不到存檔資料夾	存檔訊息	state/saver.ts:127
-save.007	字典 {k}	存檔訊息	state/saver.ts:217 state/saver.ts:224 state/saver.ts:253 state/saver.ts:290
-save.008	專案資料夾「{x}」	存檔訊息	state/saver.ts:298
-save.009	專案設定檔	存檔訊息	state/saver.ts:283
-save.010	已儲存	存檔訊息	state/saver.ts:310
-save.011	讀取設定	存檔訊息	state/saver.ts:359
-save.012	讀取專案	存檔訊息	state/saver.ts:393
-save.013	完成	存檔訊息	state/saver.ts:419
-save.014	資料夾裡有其他東西，改存到裡面的「Verso」資料夾	存檔訊息	state/saver.ts:651
-save.015	已載入：{v1}{v2}	存檔訊息	state/saver.ts:868
-save.016	已改名：{v1}{v2}	存檔訊息	state/saver.ts:868
-save.017	字典 / {project} / {name}	存檔訊息	state/saver.ts:870
-store.001	啟動中	狀態訊息	main.tsx:22 state/store.ts:614
+save.007	字典 {k}	存檔訊息	state/saver.ts:217 state/saver.ts:224 state/saver.ts:259 state/saver.ts:307
+save.008	專案資料夾「{x}」	存檔訊息	state/saver.ts:315
+save.009	專案設定檔	存檔訊息	state/saver.ts:300
+save.010	已儲存	存檔訊息	state/saver.ts:342
+save.011	讀取設定	存檔訊息	state/saver.ts:391
+save.012	讀取專案	存檔訊息	state/saver.ts:425
+save.013	完成	存檔訊息	state/saver.ts:451
+save.014	資料夾裡有其他東西，改存到裡面的「Verso」資料夾	存檔訊息	state/saver.ts:683
+save.015	已載入：{v1}{v2}	存檔訊息	state/saver.ts:900
+save.016	已改名：{v1}{v2}	存檔訊息	state/saver.ts:900
+save.017	字典 / {project} / {name}	存檔訊息	state/saver.ts:902
+store.001	啟動中	狀態訊息	main.tsx:22 state/store.ts:616
 update.001	檢查更新	自動更新	state/updater.ts:33
 update.002	下載太久沒有進度	自動更新	state/updater.ts:57 state/updater.ts:58
 update.003	下載更新 0%	自動更新	state/updater.ts:60

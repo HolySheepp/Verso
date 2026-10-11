@@ -163,10 +163,31 @@ function lis(vals: number[]): number[] {
 }
 
 /**
+ * 兩個已配好的句子中間，舊版、新版剛好都只剩一句沒配：就算不像也配在一起，當成同一句改寫。
+ * left、right：這一段的開頭、結尾是不是緊接著已配好的句子（檔案開頭、結尾不算）。
+ */
+function pairLoneGaps(seq: [number | null, number | null][], left: boolean, right: boolean): [number | null, number | null][] {
+  const out: [number | null, number | null][] = [];
+  for (let k = 0; k < seq.length;) {
+    if (seq[k][0] !== null && seq[k][1] !== null) { out.push(seq[k++]); continue; }
+    let e = k;
+    while (e < seq.length && (seq[e][0] === null || seq[e][1] === null)) e++;
+    const run = seq.slice(k, e);
+    const olds = run.filter((x) => x[0] !== null), news = run.filter((x) => x[1] !== null);
+    const bounded = (k > 0 || left) && (e < seq.length || right);
+    if (bounded && olds.length === 1 && news.length === 1) out.push([olds[0][0], news[0][1]]);
+    else out.push(...run);
+    k = e;
+  }
+  return out;
+}
+
+/**
  * 先用錨點切段再對齊：兩邊都只出現一次、完全相同的句子直接配對；其中順序一致的（最長遞增子序列）當錨點，
  * 錨點之間的每一段再做全域對齊。順序不一致的那些就是被搬動的句子，一樣直接配對。
+ * lone：兩個已配好的句子中間只剩一對時硬配（見 pairLoneGaps）。
  */
-function alignByAnchors(A: Keys, a: number[], B: Keys, b: number[]): [number | null, number | null][] {
+function alignByAnchors(A: Keys, a: number[], B: Keys, b: number[], lone = true): [number | null, number | null][] {
   const count = (K: Keys, xs: number[]) => { const m = new Map<string, number>(); xs.forEach((x) => { const k = K.keys[x]; if (k) m.set(k, (m.get(k) ?? 0) + 1); }); return m; };
   const ca = count(A, a), cb = count(B, b);
   const posB = new Map<string, number>();
@@ -178,18 +199,47 @@ function alignByAnchors(A: Keys, a: number[], B: Keys, b: number[]): [number | n
   const pairedA = new Set(uniq.map((u) => u[0])), pairedB = new Set(uniq.map((u) => u[1]));
   const out: [number | null, number | null][] = uniq.map(([p, q]) => [a[p], b[q]]);
   let pa = 0, pb = 0;
-  for (const [p, q] of [...anchors, [a.length, b.length] as [number, number]]) {
+  anchors.push([a.length, b.length]);
+  anchors.forEach(([p, q], k) => {
     const segA: number[] = [], segB: number[] = [];
     for (let x = pa; x < p; x++) if (!pairedA.has(x)) segA.push(a[x]);
     for (let y = pb; y < q; y++) if (!pairedB.has(y)) segB.push(b[y]);
-    out.push(...globalAlign(A, segA, B, segB));
+    const seg = globalAlign(A, segA, B, segB);
+    out.push(...(lone ? pairLoneGaps(seg, k > 0, k < anchors.length - 1) : seg));
     pa = p + 1; pb = q + 1;
-  }
+  });
   return out;
 }
 
+/** 只看內容配對（錨點、全域對齊，再交叉比對順序換過的）：回傳 舊 → 新 */
+function alignContent(A: Keys, olds: number[], B: Keys, news: number[], lone = true): Map<number, number> {
+  const pairs = new Map<number, number>();
+  const freeOld: number[] = [], freeNew: number[] = [];
+  for (const [a, b] of alignByAnchors(A, olds, B, news, lone)) {
+    if (a !== null && b !== null) pairs.set(a, b);
+    else if (a !== null) freeOld.push(a);
+    else if (b !== null) freeNew.push(b);
+  }
+  // 剩下的交叉比對，抓順序換過的
+  const cands: [number, number, number][] = [];
+  if (freeOld.length * freeNew.length <= MAX_CELLS) for (const i of freeOld) for (const j of freeNew) {
+    const sc = simAbove(A, i, B, j, REORDER);
+    if (sc >= REORDER) cands.push([sc, i, j]);
+  }
+  cands.sort((x, y) => y[0] - x[0]);
+  const uo = new Set<number>(), un = new Set<number>();
+  for (const [, i, j] of cands) {
+    if (uo.has(i) || un.has(j)) continue;
+    uo.add(i); un.add(j); pairs.set(i, j);
+  }
+  return pairs;
+}
+
+/** 大部分 ID 配對都跟內容比對不合時，整份不看 ID */
+const ID_DISTRUST = 0.3;
+
 /**
- * 自動比對：有 ID 的先讓 ID 相同的配成一對；其餘先用錨點切段、再照順序全域對齊；
+ * 自動比對：有 ID 的先讓 ID 相同的配成一對（跟內容比對不合的 ID 不信）；其餘先用錨點切段、再照順序全域對齊；
  * 剩下兩邊都沒配到的再交叉比對，夠像的就是順序換過的條目。
  */
 export function autoAlign(old: { id: string; src: string }[], next: NewRow[]): AlignRow[] {
@@ -206,37 +256,33 @@ export function autoAlign(old: { id: string; src: string }[], next: NewRow[]): A
     const j = k && co.get(k) === 1 ? newById.get(k) : undefined;
     if (j !== undefined) { pairOf.set(i, j); newUsed.add(j); }
   });
-  // ID 配好、內容卻幾乎不一樣（低於 0.3），而別處有很像的句子（0.85 以上）：ID 可能貼錯了，不信 ID，改用內容對齊
+  // ID 不一定可信（例如 ID 其實是列號，新版插了一行就全部錯開）：先只看內容配一次，跟 ID 配對比較
   if (pairOf.size) {
-    for (const [i, j] of [...pairOf]) {
-      if (j === null || simAbove(A, i, B, j, 0.3) >= 0.3) continue;
-      let elsewhere = false;
-      for (let jj = 0; jj < next.length && !elsewhere; jj++) elsewhere = jj !== j && simAbove(A, i, B, jj, REORDER) >= REORDER;
-      for (let ii = 0; ii < old.length && !elsewhere; ii++) elsewhere = ii !== i && simAbove(A, ii, B, j, REORDER) >= REORDER;
-      if (elsewhere) { pairOf.delete(i); newUsed.delete(j); }
+    const content = alignContent(A, old.map((_, i) => i), B, next.map((_, j) => j), false);
+    const byNew = new Map<number, number>();
+    content.forEach((j, i) => byNew.set(j, i));
+    // 不合：內容把這句舊的配給了別句新的，或把這句新的配給了別句舊的（內容沒配到的不算不合）
+    const clash = [...pairOf].filter(([i, j]) => (content.has(i) && content.get(i) !== j) || (byNew.has(j!) && byNew.get(j!) !== i));
+    if (clash.length > pairOf.size * ID_DISTRUST) { pairOf.clear(); newUsed.clear(); }
+    else {
+      // 個別的：ID 配的兩句不像，而內容配到的那句很像（0.85 以上）、又比 ID 配的像得多（多 0.2 以上）：不信這個 ID
+      const better = (sc: number, other: number | undefined, sim: (x: number) => number) => {
+        if (other === undefined) return false;
+        const o = sim(other);
+        return o >= REORDER && o >= sc + 0.2;
+      };
+      for (const [i, j] of clash) {
+        const sc = simAbove(A, i, B, j!, 0);
+        if (better(sc, content.get(i), (jj) => simAbove(A, i, B, jj, 0)) || better(sc, byNew.get(j!), (ii) => simAbove(A, ii, B, j!, 0))) {
+          pairOf.delete(i); newUsed.delete(j!);
+        }
+      }
     }
   }
-  // 2. 其餘先用錨點切段，再照順序全域對齊
+  // 2. 其餘只看內容：先用錨點切段、照順序全域對齊，再交叉比對順序換過的
   const restOld = old.map((_, i) => i).filter((i) => !pairOf.has(i));
   const restNew = next.map((_, j) => j).filter((j) => !newUsed.has(j));
-  const freeOld: number[] = [], freeNew: number[] = [];
-  for (const [a, b] of alignByAnchors(A, restOld, B, restNew)) {
-    if (a !== null && b !== null) { pairOf.set(a, b); newUsed.add(b); }
-    else if (a !== null) freeOld.push(a);
-    else if (b !== null) freeNew.push(b);
-  }
-  // 3. 剩下的交叉比對，抓順序換過的
-  const cands: [number, number, number][] = [];
-  if (freeOld.length * freeNew.length <= MAX_CELLS) for (const i of freeOld) for (const j of freeNew) {
-    const sc = simAbove(A, i, B, j, REORDER);
-    if (sc >= REORDER) cands.push([sc, i, j]);
-  }
-  cands.sort((x, y) => y[0] - x[0]);
-  const uo = new Set<number>(), un = new Set<number>();
-  for (const [, i, j] of cands) {
-    if (uo.has(i) || un.has(j)) continue;
-    uo.add(i); un.add(j); pairOf.set(i, j); newUsed.add(j);
-  }
+  alignContent(A, restOld, B, restNew).forEach((j, i) => { pairOf.set(i, j); newUsed.add(j); });
   const rows: AlignRow[] = [];
   old.forEach((_, i) => rows.push({ old: i, new: pairOf.get(i) ?? null }));
   next.forEach((_, j) => { if (!newUsed.has(j)) rows.push({ old: null, new: j }); });

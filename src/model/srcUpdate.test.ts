@@ -142,3 +142,49 @@ describe('對齊：錨點切段', () => {
     expect(rows.filter((r) => r.old !== null && r.new !== null).length).toBe(next.length);
   });
 });
+
+describe('原文更新：ID 是列號、新版插了一句（夜間檢查 15）', () => {
+  // 固定的亂數，每次跑結果一樣
+  const rand = (seed: number) => () => { seed = (seed * 1103515245 + 12345) % 2147483648; return seed / 2147483648; };
+  const pool = '我你他的是了不在有這個人們來到去說要';
+  const zh = (r: () => number) => Array.from({ length: 8 + Math.floor(r() * 20) }, () => pool[Math.floor(r() * pool.length)]).join('') + '。';
+  const wrongOf = (old: string[], next: string[], at: number) => {
+    const rows = autoAlign(old.map((src, i) => ({ id: String(i + 1), src })), next.map((src, j) => ({ id: String(j + 1), speaker: '', src })));
+    // 新版第 at 句是插進來的；其他新句 j 應該配到舊句 j（at 之前）或 j-1（at 之後）
+    return rows.filter((r) => r.new !== null && r.new !== at && r.old !== (r.new < at ? r.new : r.new - 1)).length;
+  };
+  it('中文對話 100 條插一句：不配錯', () => {
+    const r = rand(7);
+    const old = Array.from({ length: 100 }, () => zh(r));
+    const next = [...old.slice(0, 40), zh(r), ...old.slice(40)];
+    expect(wrongOf(old, next, 40)).toBe(0);
+  });
+  it('格式相似的英文 200 條插一句：不配錯', () => {
+    const old = Array.from({ length: 200 }, (_, i) => `Restores ${i * 3 + 10} HP to one ally.`);
+    const next = [...old.slice(0, 50), 'Revives one fallen ally.', ...old.slice(50)];
+    expect(wrongOf(old, next, 50)).toBe(0);
+  });
+  it('ID 正確、內容改寫很多時照樣信 ID', () => {
+    const r = rand(3);
+    const old = Array.from({ length: 50 }, (_, i) => ({ id: 'k' + i, src: zh(r) }));
+    // 一半的句子整句重寫（和原本不像），ID 照舊
+    const next = old.map((o, i) => ({ id: o.id, speaker: '', src: i % 2 ? zh(r) : o.src }));
+    const rows = autoAlign(old, next);
+    expect(rows.every((x) => x.old === x.new)).toBe(true);
+  });
+});
+
+describe('原文更新：同位置只剩一句（夜間檢查 41）', () => {
+  it('[A, 是。, C] → [A, 對。, C]：中間配成修改', () => {
+    const A = '我們明天早上出發去王國的首都', C = '記得帶上你的劍和盾牌再走';
+    const rows = autoAlign([A, '是。', C].map((src) => ({ id: '', src })), [A, '對。', C].map((src) => ({ id: '', speaker: '', src })));
+    expect(rows).toEqual([{ old: 0, new: 0 }, { old: 1, new: 1 }, { old: 2, new: 2 }]);
+  });
+  it('開頭、結尾的不硬配；中間剩兩句以上也不硬配', () => {
+    const A = '我們明天早上出發去王國的首都', C = '記得帶上你的劍和盾牌再走';
+    const r1 = autoAlign(['是。', C].map((src) => ({ id: '', src })), ['對。', C].map((src) => ({ id: '', speaker: '', src })));
+    expect(r1.filter((x) => x.old !== null && x.new !== null).length).toBe(1);
+    const r2 = autoAlign([A, '是。', '好。', C].map((src) => ({ id: '', src })), [A, '對。', '行。', C].map((src) => ({ id: '', speaker: '', src })));
+    expect(r2.filter((x) => x.old !== null && x.new !== null).length).toBe(2);
+  });
+});
