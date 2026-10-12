@@ -11,7 +11,7 @@ import { defaultBindings, type ActionId, type Bindings, type ShortcutContext } f
 import { defaultCheckSettings, enabledIssues, type CheckId, type CheckSettings, type Issue } from '../model/checks';
 import { SHARED, dictKey, newFileId, type CustomMark, type DictInfo, type Entry, type FileDoc, type GlossaryTerm, type MarkId, type Mode, type ProjectData, type Sheet } from '../model/types';
 import { sortProjects, type RootConflict } from '../data/persist';
-import { DICT_DIR, LANG_DIR, safeName, sameName, sheetNameError } from '../model/names';
+import { DICT_DIR, safeName, sameName, sheetNameError } from '../model/names';
 import { compose, editsOf, type VEdit } from '../model/verify';
 import { maxOf, minOf } from '../model/num';
 
@@ -1088,7 +1088,7 @@ export const useStore = create<Store>((set, get) => {
 
     renameProject(from, to) {
       const p = get().project;
-      if (!p || from === SHARED || !to || from === to || sameName(to, DICT_DIR) || sameName(to, LANG_DIR) || p.projects.some((x) => x !== from && sameName(x, to))) return;
+      if (!p || from === SHARED || !to || from === to || sameName(to, DICT_DIR) || p.projects.some((x) => x !== from && sameName(x, to))) return;
       const r = (x: string) => (x === from ? to : x);
       // 字典開關：「在哪個專案」和「哪本字典」兩邊的專案名稱都要跟著改
       set({ dictOverrides: remapOverrides(get().dictOverrides, (cur, dp, dn) => [r(cur), r(dp), dn]) });

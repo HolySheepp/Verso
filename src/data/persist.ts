@@ -37,6 +37,8 @@ export interface AppConfig {
   colWidths?: number[];
   finishLine?: boolean;
   lengthPresets?: { name: string; std: import('../model/length').LengthStd }[];
+  /** 舊版存檔資料夾「語言」裡的語言包已經複製到主程式資料夾 */
+  langPacksMoved?: boolean;
   /** 介面語言：zh、en，或語言包的名稱 */
   uiLang?: string;
 }
@@ -152,50 +154,24 @@ export async function recoverBackups(dir: string) {
 }
 
 /**
- * v0.67.0 起「語言」資料夾放介面語言包。之前建的「語言」專案（有 project.json）改名成「語言 (專案)」，
- * 已經有這個名稱就加編號；字典資料夾裡的「字典/語言」一起改。回傳新名稱，沒有要改的回傳 null。
- * 只搬專案自己的東西（project.json 和它記著的檔案），後來放進來的語言包留在原地。
+ * v0.67.0～v0.76.0 的介面語言包放在存檔資料夾的「語言」資料夾；現在改放主程式資料夾。
+ * 舊的那個資料夾（沒有 project.json）不是專案，略過；有 project.json 的就是叫「語言」的一般專案。
  */
-export async function migrateLangProject(root: string): Promise<string | null> {
-  const dir = io.join(root, LANG_DIR);
-  if (!(await io.exists(io.join(dir, META)))) return null;
-  let meta: ProjectMeta = { fileOrder: [] };
-  try { meta = { ...meta, ...JSON.parse(await io.readText(io.join(dir, META))) }; } catch { /* 讀不到就只搬 project.json */ }
-  const taken = async (n: string) => (await io.exists(io.join(root, n))) || (await io.exists(io.join(root, DICT_DIR, n)));
-  // 上次搬到一半（目標資料夾已經有了、但 project.json 還沒搬過去）：接著搬進同一個資料夾，不另開新的
-  const halfDone = async (n: string) => (await io.exists(io.join(root, n))) && !(await io.exists(io.join(root, n, META)));
-  let to = LANG_DIR + ' (專案)';
-  for (let k = 2; (await taken(to)) && !(await halfDone(to)); k++) to = `${LANG_DIR} (專案 ${k})`;
-  const target = io.join(root, to);
-  await io.mkdir(target);
-  const own = new Set((meta.fileOrder ?? []).map((n) => n.toLowerCase() + '.xlsx'));
-  // project.json 最後搬：中途失敗時下次開啟還認得出來，再搬一次
-  const items = (await io.list(dir)).filter((e) => !e.dir && isXlsx(e.name) && own.has(e.name.toLowerCase()));
-  for (const e of items) await io.rename(io.join(dir, e.name), io.join(target, e.name));
-  const dictDir = io.join(root, DICT_DIR, LANG_DIR);
-  if (await io.exists(dictDir)) {
-    const dictTarget = io.join(root, DICT_DIR, to);
-    await io.mkdir(dictTarget);
-    for (const e of await io.list(dictDir)) if (!e.dir) await io.rename(io.join(dictDir, e.name), io.join(dictTarget, e.name));
-    await io.remove(dictDir).catch(() => undefined);
-  }
-  await io.rename(io.join(dir, META), io.join(target, META));
-  return to;
-}
+export const isOldPackDir = async (root: string, name: string) => name === LANG_DIR && !(await io.exists(io.join(root, name, META)).catch(() => false));
 
 /** 載入整個存檔資料夾 */
-export async function loadWorkspace(root: string, onProgress?: (p: number, text: string) => void): Promise<{ data: ProjectData; last?: LastPosition; remapped: boolean; unreadable: string[]; newIds: string[]; langRenamed: string | null }> {
+export async function loadWorkspace(root: string, onProgress?: (p: number, text: string) => void): Promise<{ data: ProjectData; last?: LastPosition; remapped: boolean; unreadable: string[]; newIds: string[] }> {
   const unreadable: string[] = [];
   await recoverBackups(root);
   let ws: WorkspaceMeta | null = null;
   try { ws = JSON.parse(await io.readText(io.join(root, WORKSPACE))); } catch { /* 舊版沒有這個檔 */ }
   try { await migrateDicts(root); } catch { /* 搬不動就照舊讀 */ }
-  let langRenamed: string | null = null;
-  try { langRenamed = await migrateLangProject(root); } catch { /* 搬不動就照舊（不載入「語言」） */ }
-
-  const projectNames = (await io.exists(root))
-    ? (await io.list(root)).filter((e) => e.dir && e.name !== DICT_DIR && e.name !== LANG_DIR && !e.name.startsWith('.')).map((e) => e.name)
-    : [];
+  const projectNames: string[] = [];
+  if (await io.exists(root)) {
+    for (const e of await io.list(root)) {
+      if (e.dir && e.name !== DICT_DIR && !e.name.startsWith('.') && !(await isOldPackDir(root, e.name))) projectNames.push(e.name);
+    }
+  }
 
   // 自訂標記不分專案：舊版各專案各有一組，合併時同名的視為同一個，其他重新編號
   let customs: CustomMark[] = ws?.customMarks ?? [];
@@ -276,7 +252,6 @@ export async function loadWorkspace(root: string, onProgress?: (p: number, text:
     remapped: remapped || (!ws && customs.length > 0),
     unreadable,
     newIds,
-    langRenamed,
   };
 }
 
@@ -302,8 +277,9 @@ export async function findRootConflicts(root: string, data: ProjectData): Promis
  */
 export async function saveRootFor(folder: string): Promise<string> {
   if (!(await io.exists(folder))) return folder;
-  // 只有「語言」資料夾（放介面語言包）也算空的：直接存在這裡
-  const items = (await io.list(folder)).filter((e) => !e.name.startsWith('.') && !(e.dir && e.name === LANG_DIR));
+  // 只有舊版的「語言」資料夾（放介面語言包）也算空的：直接存在這裡
+  const items: { name: string; dir: boolean }[] = [];
+  for (const e of await io.list(folder)) if (!e.name.startsWith('.') && !(e.dir && await isOldPackDir(folder, e.name))) items.push(e);
   if (!items.length) return folder;
   if (items.some((e) => !e.dir && e.name === WORKSPACE)) return folder;
   const scan = await scanFolder(folder).catch(() => null);
@@ -318,8 +294,8 @@ export async function scanFolder(root: string): Promise<{ projects: string[]; fi
   if (!(await io.exists(root))) return out;
   for (const e of await io.list(root)) {
     // 「.」開頭的是軟體自己用的資料夾（例如暫存復原），不是專案
-    // 「語言」資料夾放介面語言包，不是專案
-    if (!e.dir || e.name.startsWith('.') || e.name === LANG_DIR) continue;
+    // 舊版放介面語言包的「語言」資料夾不是專案
+    if (!e.dir || e.name.startsWith('.') || await isOldPackDir(root, e.name)) continue;
     if (e.name === DICT_DIR) {
       for (const p of (await io.list(io.join(root, DICT_DIR))).filter((x) => x.dir)) {
         out.projects.push(p.name);
@@ -510,7 +486,7 @@ export async function readFolderMeta(root: string): Promise<{ customMarks: Custo
   const orders = new Map<string, string[]>();
   if (await io.exists(root)) {
     for (const e of await io.list(root)) {
-      if (!e.dir || e.name === DICT_DIR || e.name === LANG_DIR || e.name.startsWith('.')) continue;
+      if (!e.dir || e.name === DICT_DIR || e.name.startsWith('.')) continue;
       try {
         const meta = JSON.parse(await io.readText(io.join(root, e.name, META))) as ProjectMeta;
         if (Array.isArray(meta.fileOrder)) orders.set(e.name, meta.fileOrder);

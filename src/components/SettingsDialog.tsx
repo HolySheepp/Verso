@@ -1,8 +1,9 @@
 import { tx, txSplit } from '../i18n';
+import { addLangPacks } from '../data/langpacks';
 import { isFixedListCombo } from './Shortcuts';
 import { BUILTIN_LANGS, PACK } from '../i18n/lang';
 import { useEffect, useState, useRef } from 'react';
-import { useStore } from '../state/store';
+import { showToast, useStore } from '../state/store';
 import { BUILTIN_MARKS, MARK_COLORS, markColorCss, SYMBOLS, checkMarkText, markVisual, type MarkVisual } from '../model/marks';
 import type { CustomMark, SymbolId } from '../model/types';
 import { MarkIcon } from './MarkIcon';
@@ -366,10 +367,29 @@ function GeneralSection() {
     setMin(String(v));
     set({ autosaveMin: v });
   };
+  // 添加語言包：選檔案或拖進來，複製到主程式資料夾的 lang；同名的先問要不要取代
+  const fileInput = useRef<HTMLInputElement>(null);
+  const [askReplace, setAskReplace] = useState<{ name: string; done(yes: boolean): void } | null>(null);
+  const addPacks = async (list: FileList | File[] | null) => {
+    const files = Array.from(list ?? []);
+    if (!files.length) return;
+    const data = await Promise.all(files.map(async (f) => ({ name: f.name, data: new Uint8Array(await f.arrayBuffer()) })));
+    try {
+      const r = await addLangPacks(data, (name) => new Promise<boolean>((done) => setAskReplace({ name, done: (yes) => { setAskReplace(null); done(yes); } })));
+      await refreshLangPacks();
+      if (r.added.length) showToast(tx('settings.packsAdded', { names: r.added.join(tx('common.sep')) }));
+      if (r.bad.length) showToast(tx('settings.packsBad', { names: r.bad.join(tx('common.sep')) }));
+    } catch {
+      showToast(tx('settings.packsFailed'));
+    }
+  };
   // 「每 [ ] 分鐘」：輸入框夾在句子中間，照語言把句子切成前後兩段
   const minParts = txSplit('settings.048', { n: Number(min) || autosaveMin });
   return (
-    <div style={{ display: 'flex', flexDirection: 'column', gap: 22 }}>
+    <div style={{ display: 'flex', flexDirection: 'column', gap: 22 }}
+      // 語言包檔案拖進設定視窗：直接加入
+      onDragOver={(e) => { if (e.dataTransfer.types.includes('Files')) e.preventDefault(); }}
+      onDrop={(e) => { if (!e.dataTransfer.files.length) return; e.preventDefault(); e.stopPropagation(); void addPacks(e.dataTransfer.files); }}>
       <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
         <h3 style={h3}>{tx('settings.language')}</h3>
         {/* 語言名稱用各自的語言寫，不翻 */}
@@ -382,6 +402,16 @@ function GeneralSection() {
             ...(uiLang.startsWith(PACK) && !langPacks.includes(uiLang.slice(PACK.length)) ? [{ value: uiLang, label: uiLang.slice(PACK.length) }] : []),
           ]}
           onChange={(v) => set({ uiLang: v })} />
+        <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+          <button type="button" className="btn btn-ghost" onClick={() => { void refreshLangPacks().catch(() => undefined); fileInput.current?.click(); }}
+            style={{ height: 34, padding: '0 14px', background: 'var(--btn)', border: '1px solid var(--line4)', borderRadius: 8, fontSize: fz(12.5) }}>{tx('settings.addPack')}</button>
+          <span style={{ fontSize: fz(12), color: 'var(--mute)' }}>{tx('settings.addPackHint')}</span>
+          <input ref={fileInput} type="file" accept=".xlsx" multiple hidden onChange={(e) => { void addPacks(e.target.files); e.target.value = ''; }} />
+        </div>
+        {askReplace && (
+          <ConfirmDialog zIndex={60} title={tx('settings.packReplace', { name: askReplace.name })}
+            choices={[{ label: tx('settings.packReplaceNo'), onClick: () => askReplace.done(false) }, { label: tx('settings.packReplaceYes'), primary: true, onClick: () => askReplace.done(true) }]} />
+        )}
       </div>
       <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
         <h3 style={h3}>{tx('settings.045')}</h3>

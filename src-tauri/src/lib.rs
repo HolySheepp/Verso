@@ -28,6 +28,13 @@ fn install_kind() -> String {
     if installed { "installed".into() } else { "portable".into() }
 }
 
+/// 主程式所在的資料夾（介面語言包放在這裡的 lang 資料夾）
+#[tauri::command]
+fn app_dir() -> Result<String, String> {
+    let exe = std::env::current_exe().map_err(|e| e.to_string())?;
+    exe.parent().map(|d| d.to_string_lossy().into_owned()).ok_or_else(|| "找不到主程式資料夾".into())
+}
+
 /// 可以打開的網址：只有這幾個，一字不差
 const ALLOWED_URLS: &[&str] = &["https://github.com/HolySheepp/Verso/releases/latest"];
 
@@ -78,7 +85,7 @@ pub fn run() {
         .plugin(tauri_plugin_fs::init())
         .plugin(tauri_plugin_dialog::init())
         .plugin(tauri_plugin_opener::init())
-        .invoke_handler(tauri::generate_handler![list_fonts, move_to_trash, install_kind, open_url, hide_path])
+        .invoke_handler(tauri::generate_handler![list_fonts, move_to_trash, install_kind, app_dir, open_url, hide_path])
         .run(tauri::generate_context!())
         .expect("error while running tauri application");
 }

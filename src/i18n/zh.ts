@@ -2,6 +2,14 @@
 // 存檔裡的名稱（欄位標題、資料夾名稱等）不在這裡，維持中文。
 export const ZH = {
   'settings.language': '語言', // 設定 > 一般
+  'settings.addPack': '添加語言包', // 設定 > 一般：語言選單下面的按鈕
+  'settings.addPackHint': '也可以把語言包檔案拖進這裡', // 設定 > 一般：添加語言包按鈕旁的說明
+  'settings.packsAdded': '已加入語言包：{names}', // 設定 > 一般：加好語言包後的提示
+  'settings.packsBad': '這些檔案不是語言包：{names}', // 設定 > 一般：加入的檔案讀不出語言包內容時
+  'settings.packsFailed': '語言包加不進去，主程式資料夾可能沒有寫入權限', // 設定 > 一般：複製語言包失敗時
+  'settings.packReplace': '已經有語言包「{name}」，要取代嗎？', // 設定 > 一般：加入同名語言包時
+  'settings.packReplaceNo': '取消', // 設定 > 一般：同名語言包的詢問
+  'settings.packReplaceYes': '取代', // 設定 > 一般：同名語言包的詢問
   'common.sep': '、', // 列出好幾個名稱時的分隔符號
   'common.join': '；', // 把兩段提示接成一句時的分隔符號（英文用「; 」）
   'common.moreEntries': ' 等 {n} 條', // 列表太長時接在後面
@@ -12,7 +20,6 @@ export const ZH = {
   'save.longAt': '{project} / {file} / {sheet} 第 {n} 條', // 存檔時格子太長的條目位置
   'work.tooLong': '譯文加上修改會超過 Excel 一格 32767 字的上限，沒有改', // 驗證模式的修改框
   'save.sameRoot': '已經是目前的存檔資料夾', // 設定 > 一般：換存檔資料夾時選到同一個
-  'save.langRenamed': '專案「語言」已改名為「{name}」', // 開啟存檔資料夾：「語言」資料夾現在放介面語言包，舊的同名專案改名
   'check.fullwidthSpace': '全形空格', // 檢查項目與訊息
   'app.001': 'Excel 一格最多 32767 字，貼上後會超過，沒有貼上', // 主畫面
   'app.002': '有格子超過 Excel 的單格上限', // 主畫面

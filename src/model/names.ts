@@ -5,6 +5,8 @@ import { tx } from '../i18n';
 export const DICT_DIR = '字典';
 /** 資料夾名稱：放外部介面語言包的資料夾，專案也不能取這個名字 */
 export const LANG_DIR = '語言';
+/** 介面語言包放在主程式資料夾裡的這個資料夾 */
+export const APP_LANG_DIR = 'lang';
 /** 檔案層級設定（長度標準等）放在 xlsx 的這個隱藏工作表，頁簽不能取這個名字 */
 export const SETTINGS_SHEET = 'Verso設定';
 

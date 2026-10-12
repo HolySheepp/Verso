@@ -1,6 +1,6 @@
 import { describe, it, expect, vi, afterEach } from 'vitest';
 import { io } from './fsio';
-import { migrateLangProject } from './persist';
+import { isOldPackDir } from './persist';
 
 afterEach(() => vi.restoreAllMocks());
 
@@ -22,21 +22,32 @@ function fakeFs(paths: string[]) {
   return files;
 }
 
-describe('舊的「語言」專案（夜間檢查 16）', () => {
-  it('改名成「語言 (專案)」，字典一起搬，語言包留著', async () => {
-    const files = fakeFs(['R/語言/project.json', 'R/語言/劇情.xlsx', 'R/語言/English.xlsx', 'R/字典/語言/詞.xlsx']);
-    expect(await migrateLangProject('R')).toBe('語言 (專案)');
-    expect([...files.keys()].sort()).toEqual(['R/字典/語言 (專案)/詞.xlsx', 'R/語言 (專案)/project.json', 'R/語言 (專案)/劇情.xlsx', 'R/語言/English.xlsx'].sort());
+describe('存檔資料夾的「語言」資料夾', () => {
+  it('舊版放語言包的（沒有 project.json）不是專案；有 project.json 的是一般專案', async () => {
+    fakeFs(['R/語言/English.xlsx', 'S/語言/project.json']);
+    expect(await isOldPackDir('R', '語言')).toBe(true);
+    expect(await isOldPackDir('S', '語言')).toBe(false);
+    expect(await isOldPackDir('R', '劇情')).toBe(false);
   });
-  it('名稱已被用掉就加編號；沒有 project.json 不動', async () => {
-    fakeFs(['R/語言/project.json', 'R/語言 (專案)/project.json']);
-    expect(await migrateLangProject('R')).toBe('語言 (專案 2)');
-    fakeFs(['R/語言/English.xlsx']);
-    expect(await migrateLangProject('R')).toBeNull();
+});
+
+describe('語言包放在主程式資料夾的 lang', () => {
+  it('舊版存檔資料夾「語言」裡的語言包複製過去，同名的不蓋，原檔留著', async () => {
+    const files = fakeFs(['R/語言/English.xlsx', 'R/語言/日本語.xlsx', 'VersoApp/lang/English.xlsx']);
+    files.set('VersoApp/lang/English.xlsx', 'mine');
+    vi.spyOn(io, 'readBinary').mockImplementation(async (p: string) => new TextEncoder().encode(files.get(p) ?? ''));
+    vi.spyOn(io, 'writeBinary').mockImplementation(async (p: string, d: Uint8Array) => { files.set(p, new TextDecoder().decode(d)); });
+    const { copyOldPacks } = await import('./langpacks');
+    await copyOldPacks('R');
+    expect(files.get('VersoApp/lang/English.xlsx')).toBe('mine');
+    expect(files.has('VersoApp/lang/日本語.xlsx')).toBe(true);
+    expect(files.has('R/語言/日本語.xlsx')).toBe(true);
   });
-  it('上次搬到一半：接著搬進同一個「語言 (專案)」，不另開新的', async () => {
-    const files = fakeFs(['R/語言/project.json', 'R/語言 (專案)/劇情.xlsx']);
-    expect(await migrateLangProject('R')).toBe('語言 (專案)');
-    expect([...files.keys()].sort()).toEqual(['R/語言 (專案)/project.json', 'R/語言 (專案)/劇情.xlsx'].sort());
+  it('有 project.json 的「語言」是一般專案，不複製', async () => {
+    const files = fakeFs(['R/語言/project.json', 'R/語言/劇情.xlsx']);
+    vi.spyOn(io, 'writeBinary').mockImplementation(async (p: string) => { files.set(p, 'x'); });
+    const { copyOldPacks } = await import('./langpacks');
+    await copyOldPacks('R');
+    expect([...files.keys()].some((k) => k.startsWith('VersoApp/'))).toBe(false);
   });
 });

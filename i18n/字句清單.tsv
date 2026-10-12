@@ -1,16 +1,23 @@
 ﻿代號	中文	畫面區域	程式位置
-settings.language	語言	設定 > 一般	components/SettingsDialog.tsx:374
-common.sep	、	列出好幾個名稱時的分隔符號	App.tsx:85 App.tsx:96 App.tsx:107 components/CopyConfirm.tsx:19 components/EntryList.tsx:191 components/EntryList.tsx:191 components/FileNav.tsx:123 components/ManageDialogs.tsx:171 components/SidePanel.tsx:340 components/WorkPanel.tsx:96 model/importSel.ts:59 model/importSel.ts:59 model/paste.ts:79 state/saver.ts:922 state/saver.ts:922
-common.join	；	把兩段提示接成一句時的分隔符號（英文用「; 」）	state/saver.ts:922
+settings.language	語言	設定 > 一般	components/SettingsDialog.tsx:394
+settings.addPack	添加語言包	設定 > 一般：語言選單下面的按鈕	components/SettingsDialog.tsx:407
+settings.addPackHint	也可以把語言包檔案拖進這裡	設定 > 一般：添加語言包按鈕旁的說明	components/SettingsDialog.tsx:408
+settings.packsAdded	已加入語言包：{names}	設定 > 一般：加好語言包後的提示	components/SettingsDialog.tsx:380
+settings.packsBad	這些檔案不是語言包：{names}	設定 > 一般：加入的檔案讀不出語言包內容時	components/SettingsDialog.tsx:381
+settings.packsFailed	語言包加不進去，主程式資料夾可能沒有寫入權限	設定 > 一般：複製語言包失敗時	components/SettingsDialog.tsx:383
+settings.packReplace	已經有語言包「{name}」，要取代嗎？	設定 > 一般：加入同名語言包時	components/SettingsDialog.tsx:412
+settings.packReplaceNo	取消	設定 > 一般：同名語言包的詢問	components/SettingsDialog.tsx:413
+settings.packReplaceYes	取代	設定 > 一般：同名語言包的詢問	components/SettingsDialog.tsx:413
+common.sep	、	列出好幾個名稱時的分隔符號	App.tsx:85 App.tsx:96 App.tsx:107 components/CopyConfirm.tsx:19 components/EntryList.tsx:191 components/EntryList.tsx:191 components/FileNav.tsx:123 components/ManageDialogs.tsx:171 components/SettingsDialog.tsx:380 components/SettingsDialog.tsx:381 components/SidePanel.tsx:340 components/WorkPanel.tsx:96 model/importSel.ts:59 model/importSel.ts:59 model/paste.ts:79 state/saver.ts:912 state/saver.ts:912
+common.join	；	把兩段提示接成一句時的分隔符號（英文用「; 」）	state/saver.ts:912
 common.moreEntries	 等 {n} 條	列表太長時接在後面	App.tsx:85
-common.moreItems	 等 {n} 個	列表太長時接在後面	App.tsx:96 App.tsx:107 state/saver.ts:922 state/saver.ts:922
+common.moreItems	 等 {n} 個	列表太長時接在後面	App.tsx:96 App.tsx:107 state/saver.ts:912 state/saver.ts:912
 common.sheetError	「{name}」{msg}	某個頁簽有錯誤時，頁簽名稱接錯誤訊息	components/ImportDialog.tsx:189 components/ImportDialog.tsx:190 components/ManageDialogs.tsx:358 components/PasteDialog.tsx:112
 common.errorReason	{target}：{reason}	存檔失敗的項目與原因	components/TitleBar.tsx:55
 import.fieldRange	{range}（{n}）	匯入視窗：欄位選到的範圍和行數	components/ImportDialog.tsx:355
 save.longAt	{project} / {file} / {sheet} 第 {n} 條	存檔時格子太長的條目位置	state/saver.ts:134
 work.tooLong	譯文加上修改會超過 Excel 一格 32767 字的上限，沒有改	驗證模式的修改框	components/WorkPanel.tsx:253 components/WorkPanel.tsx:343
-save.sameRoot	已經是目前的存檔資料夾	設定 > 一般：換存檔資料夾時選到同一個	state/saver.ts:675
-save.langRenamed	專案「語言」已改名為「{name}」	開啟存檔資料夾：「語言」資料夾現在放介面語言包，舊的同名專案改名	state/saver.ts:469
+save.sameRoot	已經是目前的存檔資料夾	設定 > 一般：換存檔資料夾時選到同一個	state/saver.ts:665
 check.fullwidthSpace	全形空格	檢查項目與訊息	model/checks.ts:139
 app.001	Excel 一格最多 32767 字，貼上後會超過，沒有貼上	主畫面	App.tsx:54
 app.002	有格子超過 Excel 的單格上限	主畫面	App.tsx:84
@@ -304,8 +311,8 @@ picker.008	{label}名稱不能有 \ / : * ? " < > |	專案／字典選單	compon
 picker.009	{label}名稱不能用「.」開頭	專案／字典選單	components/Pickers.tsx:66
 picker.010	{label}名稱結尾不能是「.」	專案／字典選單	components/Pickers.tsx:67
 picker.011	「{n}」是 Windows 保留的名稱	專案／字典選單	components/Pickers.tsx:68
-picker.012	「{DICT_DIR}」是保留名稱	專案／字典選單	components/Pickers.tsx:70 components/Pickers.tsx:71
-picker.013	已有同名{label}	專案／字典選單	components/Pickers.tsx:74
+picker.012	「{DICT_DIR}」是保留名稱	專案／字典選單	components/Pickers.tsx:70
+picker.013	已有同名{label}	專案／字典選單	components/Pickers.tsx:73
 rename.001	名稱	改名輸入框	components/RenameInput.tsx:20
 rootconflict.001	新資料夾裡已經有同名的內容	換存檔資料夾的同名衝突視窗	components/RootConflictDialog.tsx:30
 rootconflict.002	每一項選要用哪一份。沒選到的那一份會被覆蓋。	換存檔資料夾的同名衝突視窗	components/RootConflictDialog.tsx:31
@@ -315,69 +322,69 @@ rootconflict.005	軟體裡的	換存檔資料夾的同名衝突視窗	components
 rootconflict.006	資料夾裡原有的	換存檔資料夾的同名衝突視窗	components/RootConflictDialog.tsx:44
 rootconflict.007	取消	換存檔資料夾的同名衝突視窗	components/RootConflictDialog.tsx:52
 rootconflict.008	換到這個資料夾	換存檔資料夾的同名衝突視窗	components/RootConflictDialog.tsx:54
-settings.001	一般	設定	components/SettingsDialog.tsx:26
-settings.002	工作模式	設定	components/SettingsDialog.tsx:26
-settings.003	標記	設定	components/SettingsDialog.tsx:26
-settings.004	檢查	設定	components/SettingsDialog.tsx:26
-settings.005	快捷鍵	設定	components/SettingsDialog.tsx:26
-settings.006	外觀	設定	components/SettingsDialog.tsx:26
-settings.007	設定	設定	components/SettingsDialog.tsx:73
-settings.008	關閉設定	設定	components/SettingsDialog.tsx:74
-settings.009	設定分類	設定	components/SettingsDialog.tsx:80
-settings.010	內建標記	設定	components/SettingsDialog.tsx:95
-settings.011	自訂標記	設定	components/SettingsDialog.tsx:110
-settings.012	符號	設定	components/SettingsDialog.tsx:115
-settings.013	文字	設定	components/SettingsDialog.tsx:115
-settings.014	刪除標記「{name}」	設定	components/SettingsDialog.tsx:116
-settings.015	刪除	設定	components/SettingsDialog.tsx:116
-settings.016	還沒有自訂標記	設定	components/SettingsDialog.tsx:126
-settings.017	新增自訂標記	設定	components/SettingsDialog.tsx:130
-settings.018	名稱	設定	components/SettingsDialog.tsx:133
-settings.019	例如：需問企劃	設定	components/SettingsDialog.tsx:134
-settings.020	標記樣式	設定	components/SettingsDialog.tsx:136
-settings.021	符號庫	設定	components/SettingsDialog.tsx:137 components/SettingsDialog.tsx:143
-settings.022	自行輸入	設定	components/SettingsDialog.tsx:138
-settings.023	標記文字	設定	components/SettingsDialog.tsx:158
-settings.024	例如 TM、長、?	設定	components/SettingsDialog.tsx:159
-settings.025	顏色	設定	components/SettingsDialog.tsx:166
-settings.026	標記顏色	設定	components/SettingsDialog.tsx:167
-settings.027	預覽	設定	components/SettingsDialog.tsx:180
-settings.028	未命名標記	設定	components/SettingsDialog.tsx:185
-settings.029	新增標記	設定	components/SettingsDialog.tsx:190
-settings.030	要一起清掉條目上的這個標記嗎？	設定	components/SettingsDialog.tsx:199
-settings.031	選「保留」的話，標記會留在檔案裡，但畫面上不會顯示。	設定	components/SettingsDialog.tsx:200
-settings.032	取消	設定	components/SettingsDialog.tsx:202 components/SettingsDialog.tsx:326
-settings.033	保留	設定	components/SettingsDialog.tsx:203
-settings.034	一起清掉	設定	components/SettingsDialog.tsx:204
-settings.035	標點與機器驗證	設定	components/SettingsDialog.tsx:218
-settings.036	句子長度	設定	components/SettingsDialog.tsx:230
-settings.037	超框	設定	components/SettingsDialog.tsx:233
-settings.038	終點線	設定	components/SettingsDialog.tsx:237
-settings.039	「{combo}」已被「{v1}」使用	設定	components/SettingsDialog.tsx:271
-settings.comboReserved	「{combo}」已被佔用	設定 > 快捷鍵：錄到條目欄固定的組合（復原、重做、方向鍵）時	components/SettingsDialog.tsx:266
-settings.040	情境	設定	components/SettingsDialog.tsx:318
-settings.041	還原預設	設定	components/SettingsDialog.tsx:322 components/SettingsDialog.tsx:540
-settings.042	把「{v1}」的快捷鍵還原成預設？	設定	components/SettingsDialog.tsx:325
-settings.043	還原	設定	components/SettingsDialog.tsx:326
-settings.044	按下新的組合鍵	設定	components/SettingsDialog.tsx:342
-settings.045	存檔資料夾	設定	components/SettingsDialog.tsx:387
-settings.046	更改…	設定	components/SettingsDialog.tsx:395
-settings.047	自動存檔	設定	components/SettingsDialog.tsx:399
-settings.048	每 {input} 分鐘	設定	components/SettingsDialog.tsx:370
-settings.049	自動存檔間隔（分鐘）	設定	components/SettingsDialog.tsx:402
-settings.051	色彩模式	設定	components/SettingsDialog.tsx:467 components/SettingsDialog.tsx:468
-settings.052	深色	設定	components/SettingsDialog.tsx:469
-settings.053	淺色	設定	components/SettingsDialog.tsx:469
-settings.054	跟隨系統	設定	components/SettingsDialog.tsx:469
-settings.055	主題色	設定	components/SettingsDialog.tsx:476 components/SettingsDialog.tsx:477
-settings.056	迷幻	設定	components/SettingsDialog.tsx:483 components/SettingsDialog.tsx:483
-settings.057	自訂主題色	設定	components/SettingsDialog.tsx:498 components/SettingsDialog.tsx:498
-settings.058	迷幻主題色會不停重繪畫面，比較舊的電腦或開著很大的檔案時，可能會稍微變慢、比較耗電。	設定	components/SettingsDialog.tsx:505
-settings.059	字體	設定	components/SettingsDialog.tsx:525
-settings.060	{label}字型大小	設定	components/SettingsDialog.tsx:537
-settings.061	跟隨系統字	設定	components/SettingsDialog.tsx:548
-settings.062	超框時	設定	components/SettingsDialog.tsx:552
-settings.063	{label}超框時	設定	components/SettingsDialog.tsx:553
+settings.001	一般	設定	components/SettingsDialog.tsx:27
+settings.002	工作模式	設定	components/SettingsDialog.tsx:27
+settings.003	標記	設定	components/SettingsDialog.tsx:27
+settings.004	檢查	設定	components/SettingsDialog.tsx:27
+settings.005	快捷鍵	設定	components/SettingsDialog.tsx:27
+settings.006	外觀	設定	components/SettingsDialog.tsx:27
+settings.007	設定	設定	components/SettingsDialog.tsx:74
+settings.008	關閉設定	設定	components/SettingsDialog.tsx:75
+settings.009	設定分類	設定	components/SettingsDialog.tsx:81
+settings.010	內建標記	設定	components/SettingsDialog.tsx:96
+settings.011	自訂標記	設定	components/SettingsDialog.tsx:111
+settings.012	符號	設定	components/SettingsDialog.tsx:116
+settings.013	文字	設定	components/SettingsDialog.tsx:116
+settings.014	刪除標記「{name}」	設定	components/SettingsDialog.tsx:117
+settings.015	刪除	設定	components/SettingsDialog.tsx:117
+settings.016	還沒有自訂標記	設定	components/SettingsDialog.tsx:127
+settings.017	新增自訂標記	設定	components/SettingsDialog.tsx:131
+settings.018	名稱	設定	components/SettingsDialog.tsx:134
+settings.019	例如：需問企劃	設定	components/SettingsDialog.tsx:135
+settings.020	標記樣式	設定	components/SettingsDialog.tsx:137
+settings.021	符號庫	設定	components/SettingsDialog.tsx:138 components/SettingsDialog.tsx:144
+settings.022	自行輸入	設定	components/SettingsDialog.tsx:139
+settings.023	標記文字	設定	components/SettingsDialog.tsx:159
+settings.024	例如 TM、長、?	設定	components/SettingsDialog.tsx:160
+settings.025	顏色	設定	components/SettingsDialog.tsx:167
+settings.026	標記顏色	設定	components/SettingsDialog.tsx:168
+settings.027	預覽	設定	components/SettingsDialog.tsx:181
+settings.028	未命名標記	設定	components/SettingsDialog.tsx:186
+settings.029	新增標記	設定	components/SettingsDialog.tsx:191
+settings.030	要一起清掉條目上的這個標記嗎？	設定	components/SettingsDialog.tsx:200
+settings.031	選「保留」的話，標記會留在檔案裡，但畫面上不會顯示。	設定	components/SettingsDialog.tsx:201
+settings.032	取消	設定	components/SettingsDialog.tsx:203 components/SettingsDialog.tsx:327
+settings.033	保留	設定	components/SettingsDialog.tsx:204
+settings.034	一起清掉	設定	components/SettingsDialog.tsx:205
+settings.035	標點與機器驗證	設定	components/SettingsDialog.tsx:219
+settings.036	句子長度	設定	components/SettingsDialog.tsx:231
+settings.037	超框	設定	components/SettingsDialog.tsx:234
+settings.038	終點線	設定	components/SettingsDialog.tsx:238
+settings.039	「{combo}」已被「{v1}」使用	設定	components/SettingsDialog.tsx:272
+settings.comboReserved	「{combo}」已被佔用	設定 > 快捷鍵：錄到條目欄固定的組合（復原、重做、方向鍵）時	components/SettingsDialog.tsx:267
+settings.040	情境	設定	components/SettingsDialog.tsx:319
+settings.041	還原預設	設定	components/SettingsDialog.tsx:323 components/SettingsDialog.tsx:570
+settings.042	把「{v1}」的快捷鍵還原成預設？	設定	components/SettingsDialog.tsx:326
+settings.043	還原	設定	components/SettingsDialog.tsx:327
+settings.044	按下新的組合鍵	設定	components/SettingsDialog.tsx:343
+settings.045	存檔資料夾	設定	components/SettingsDialog.tsx:417
+settings.046	更改…	設定	components/SettingsDialog.tsx:425
+settings.047	自動存檔	設定	components/SettingsDialog.tsx:429
+settings.048	每 {input} 分鐘	設定	components/SettingsDialog.tsx:387
+settings.049	自動存檔間隔（分鐘）	設定	components/SettingsDialog.tsx:432
+settings.051	色彩模式	設定	components/SettingsDialog.tsx:497 components/SettingsDialog.tsx:498
+settings.052	深色	設定	components/SettingsDialog.tsx:499
+settings.053	淺色	設定	components/SettingsDialog.tsx:499
+settings.054	跟隨系統	設定	components/SettingsDialog.tsx:499
+settings.055	主題色	設定	components/SettingsDialog.tsx:506 components/SettingsDialog.tsx:507
+settings.056	迷幻	設定	components/SettingsDialog.tsx:513 components/SettingsDialog.tsx:513
+settings.057	自訂主題色	設定	components/SettingsDialog.tsx:528 components/SettingsDialog.tsx:528
+settings.058	迷幻主題色會不停重繪畫面，比較舊的電腦或開著很大的檔案時，可能會稍微變慢、比較耗電。	設定	components/SettingsDialog.tsx:535
+settings.059	字體	設定	components/SettingsDialog.tsx:555
+settings.060	{label}字型大小	設定	components/SettingsDialog.tsx:567
+settings.061	跟隨系統字	設定	components/SettingsDialog.tsx:578
+settings.062	超框時	設定	components/SettingsDialog.tsx:582
+settings.063	{label}超框時	設定	components/SettingsDialog.tsx:583
 side.001	字典	工具欄	components/SidePanel.tsx:19
 side.002	搜尋	工具欄	components/SidePanel.tsx:20
 side.003	瀏覽器	工具欄	components/SidePanel.tsx:21
@@ -551,9 +558,9 @@ importfile.001	不支援這種檔案	匯入檔案訊息	data/importio.ts:39
 importfile.002	無法讀取這個檔案	匯入檔案訊息	data/importio.ts:58
 importfile.003	檔案裡沒有內容	匯入檔案訊息	data/importio.ts:61
 importfile.tooLong	Excel 一格最多 32767 字，檔案裡有一格超過了，沒有匯入	匯入檔案訊息	data/importio.ts:63
-load.001	字典 / {name} / {v1}	讀取訊息	data/persist.ts:121
-load.002	讀取專案「{name}」	讀取訊息	data/persist.ts:209
-load.003	讀取字典	讀取訊息	data/persist.ts:251
+load.001	字典 / {name} / {v1}	讀取訊息	data/persist.ts:123
+load.002	讀取專案「{name}」	讀取訊息	data/persist.ts:185
+load.003	讀取字典	讀取訊息	data/persist.ts:227
 xlsx.001	轉檔失敗	存檔轉檔	data/xlsxAsync.ts:19 data/xlsxAsync.ts:23
 align.001	比對失敗	原文更新比對	model/alignAsync.ts:41 model/alignAsync.ts:46
 srcupd.alignFailed	自動比對失敗，目前照順序對應	原文更新比對	components/SrcUpdateDialog.tsx:99
@@ -641,13 +648,13 @@ mark.032	原文更新	標記	model/marks.ts:78
 mark.033	英文字母最多 2 個	標記	model/marks.ts:86
 mark.034	中文、日文、韓文最多 1 個字	標記	model/marks.ts:90
 mark.035	只能輸入 1 到 2 個英文字母、1 個中日韓文字，或 1 個 emoji	標記	model/marks.ts:96
-name.001	頁簽名稱不能空白	名稱檢查	model/names.ts:21
-name.002	頁簽名稱不能有 \ / ? * [ ] :	名稱檢查	model/names.ts:22
-name.003	頁簽名稱最多 31 個字	名稱檢查	model/names.ts:23
-name.004	頁簽名稱開頭、結尾不能是 '	名稱檢查	model/names.ts:24
-name.005	「{SETTINGS_SHEET}」是保留名稱	名稱檢查	model/names.ts:26
-name.006	已有同名頁簽	名稱檢查	model/names.ts:27
-name.007	Excel 一格最多 32767 字，有一格超過了，沒有貼上	名稱檢查	model/names.ts:59
+name.001	頁簽名稱不能空白	名稱檢查	model/names.ts:23
+name.002	頁簽名稱不能有 \ / ? * [ ] :	名稱檢查	model/names.ts:24
+name.003	頁簽名稱最多 31 個字	名稱檢查	model/names.ts:25
+name.004	頁簽名稱開頭、結尾不能是 '	名稱檢查	model/names.ts:26
+name.005	「{SETTINGS_SHEET}」是保留名稱	名稱檢查	model/names.ts:28
+name.006	已有同名頁簽	名稱檢查	model/names.ts:29
+name.007	Excel 一格最多 32767 字，有一格超過了，沒有貼上	名稱檢查	model/names.ts:61
 pastecol.001	發話者	貼入欄位	model/paste.ts:10
 pastecol.002	原文	貼入欄位	model/paste.ts:11
 pastecol.003	譯文	貼入欄位	model/paste.ts:12
@@ -688,12 +695,12 @@ save.008	專案資料夾「{x}」	存檔訊息	state/saver.ts:320
 save.009	專案設定檔	存檔訊息	state/saver.ts:305
 save.010	已儲存	存檔訊息	state/saver.ts:347
 save.011	讀取設定	存檔訊息	state/saver.ts:396
-save.012	讀取專案	存檔訊息	state/saver.ts:430
-save.013	完成	存檔訊息	state/saver.ts:457
-save.014	資料夾裡有其他東西，改存到裡面的「Verso」資料夾	存檔訊息	state/saver.ts:689
-save.015	已載入：{v1}{v2}	存檔訊息	state/saver.ts:922
-save.016	已改名：{v1}{v2}	存檔訊息	state/saver.ts:922
-save.017	字典 / {project} / {name}	存檔訊息	state/saver.ts:924
+save.012	讀取專案	存檔訊息	state/saver.ts:433
+save.013	完成	存檔訊息	state/saver.ts:460
+save.014	資料夾裡有其他東西，改存到裡面的「Verso」資料夾	存檔訊息	state/saver.ts:679
+save.015	已載入：{v1}{v2}	存檔訊息	state/saver.ts:912
+save.016	已改名：{v1}{v2}	存檔訊息	state/saver.ts:912
+save.017	字典 / {project} / {name}	存檔訊息	state/saver.ts:914
 store.001	啟動中	狀態訊息	main.tsx:22 state/store.ts:618
 update.001	檢查更新	自動更新	state/updater.ts:33
 update.002	下載太久沒有進度	自動更新	state/updater.ts:57 state/updater.ts:58

@@ -6,7 +6,7 @@ import { isTauri } from '@tauri-apps/api/core';
 import { getCurrentWindow } from '@tauri-apps/api/window';
 import { io } from '../data/fsio';
 import { withFontDefaults } from '../model/fonts';
-import { LANG_DIR, nameKey, sameName } from '../model/names';
+import { nameKey, sameName } from '../model/names';
 import { entryFits } from '../model/cellLimit';
 import { migrateList, migrateSheets } from '../model/shortcuts';
 import {
@@ -17,7 +17,7 @@ import { emptyHistory } from '../model/history';
 import { dictKey, newFileId, type CustomMark, type DictInfo, type FileDoc, type GlossaryTerm, type ProjectData } from '../model/types';
 import { currentOf, showToast, useStore, type SaveError } from './store';
 import { applyLang, setPacks, systemLang } from '../i18n/lang';
-import { readLangPacks } from '../data/langpacks';
+import { appLangDir, copyOldPacks, readLangPacks } from '../data/langpacks';
 import { checkAtStartup } from './updater';
 import type { RootConflict } from '../data/persist';
 
@@ -378,11 +378,11 @@ function restorePosition(p: ProjectData, last?: LastPosition) {
 
 /** 啟動：讀設定、載入存檔資料夾裡所有專案的檔案和字典 */
 /**
- * 重新掃描「語言」資料夾裡的語言包（開軟體、打開語言選單、換存檔資料夾時）。
+ * 重新掃描主程式資料夾 lang 裡的語言包（開軟體、打開語言選單、按「添加語言包」時）。
  * 正在用的語言包內容變了就重新套用；讀不了的語言包不跳錯誤，全部用英文補。
  */
 export async function refreshLangPacks() {
-  const found = await readLangPacks(useStore.getState().saveRoot).catch(() => new Map<string, [string, string][] | null>());
+  const found = await appLangDir().then(readLangPacks).catch(() => new Map<string, [string, string][] | null>());
   const lang = useStore.getState().uiLang;
   const changed = setPacks(found, lang);
   useStore.setState({ langPacks: [...found.keys()].sort((a, b) => a.localeCompare(b)) });
@@ -422,14 +422,17 @@ export async function startApp() {
   let last: LastPosition | undefined;
   let migrated = false;
   let newIds: string[] = [];
-  let langRenamed: string | null = null;
   try {
     try { localStorage.setItem('verso-boot', JSON.stringify({ theme: useStore.getState().theme, accent: useStore.getState().accent, lang: useStore.getState().uiLang })); } catch { /* 存不下就算了 */ }
     // 語言包出錯絕不能擋住載入工作區
+    if (!config.langPacksMoved) {
+      // 舊版放在存檔資料夾「語言」裡的語言包，複製到主程式資料夾的 lang（原檔不動），之後不再做
+      try { await copyOldPacks(saveRoot); config = { ...config, langPacksMoved: true }; await saveConfig(config); } catch { /* 下次再試 */ }
+    }
     await refreshLangPacks().catch(() => undefined);
     step(0.12, tx('save.012'));
     const r = await loadWorkspace(saveRoot, step);
-    project = r.data; last = r.last; migrated = r.remapped; newIds = r.newIds; langRenamed = r.langRenamed;
+    project = r.data; last = r.last; migrated = r.remapped; newIds = r.newIds;
     if (r.unreadable.length) useStore.setState({ unreadable: r.unreadable });
   } catch { /* 讀不到就從空的開始 */ }
   // 先記下已存的內容再換專案，避免監聽到變動時誤判成未存
@@ -456,18 +459,6 @@ export async function startApp() {
   restorePosition(project, last);
   step(1, tx('save.013'));
   startFolderWatch();
-  // 舊的「語言」專案改了名：字典開關、收合狀態跟著改，進主畫面後告訴使用者
-  if (langRenamed) {
-    const to = langRenamed, r = (x: string) => (x === LANG_DIR ? to : x);
-    const st = useStore.getState();
-    const overrides: Record<string, boolean> = {};
-    for (const [k, v] of Object.entries(st.dictOverrides)) {
-      const gt = k.indexOf('>'), dk = k.slice(gt + 1), sl = dk.indexOf('/');
-      overrides[gt < 0 || sl < 0 ? k : r(k.slice(0, gt)) + '>' + r(dk.slice(0, sl)) + dk.slice(sl)] = v;
-    }
-    useStore.setState({ dictOverrides: overrides, collapsedProjects: st.collapsedProjects.map(r) });
-    setTimeout(() => showToast(tx('save.langRenamed', { name: to })), 400);
-  }
   // 讓進度條停在填滿的樣子一下再進主畫面
   setTimeout(() => useStore.setState({ loading: null }), 220);
   watch();
@@ -481,7 +472,6 @@ function watch() {
   // 換語言：之後的文字都用新語言（畫面由 App 整個重畫）
   useStore.subscribe((s, prev) => { if (s.uiLang !== prev.uiLang) applyLang(s.uiLang); });
   // 換存檔資料夾：語言包也換成新資料夾裡的
-  useStore.subscribe((s, prev) => { if (s.saveRoot !== prev.saveRoot) void refreshLangPacks().catch(() => undefined); });
   // 內容一有變動就標成未存
   let dictTimer: ReturnType<typeof setTimeout> | undefined;
   useStore.subscribe((s, prev) => {
