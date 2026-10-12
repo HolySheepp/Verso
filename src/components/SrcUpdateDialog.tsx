@@ -303,6 +303,14 @@ function AlignGrid({ rows, entries, next, infos, onChange }: {
   );
 }
 
+/**
+ * 相似度百分比：無條件捨去，不四捨五入；兩邊不完全一樣（例如只差一個標點，比對時忽略標點算出 1）時最多 99%
+ */
+function simPercent(sim: number, arrow: string): number {
+  const p = Math.floor(sim * 100);
+  return arrow === 'same' ? p : Math.min(99, p);
+}
+
 /** 對齊表格的一格 */
 function AlignCell({ side, k, text, id, on, drop }: { side: Side; k: number; text: string | null; id: string; on: boolean; drop: 'top' | 'bottom' | null }) {
   return (
@@ -339,7 +347,7 @@ const AlignRowView = memo(function AlignRowView({ k, info, o, n, onOld, onNew, d
       </div>
       <div><AlignCell side="new" k={k} text={n ? n.src : null} id={n?.id ?? ''} on={onNew} drop={dropNew} /></div>
       <div style={{ paddingTop: 6, fontSize: fz(12), lineHeight: 1.4, color: a === 'same' ? 'var(--mute)' : a === 'yellow' ? YELLOW : RED }}>
-        {info.sim === null ? '—' : Math.round(info.sim * 100) + '%'}
+        {info.sim === null ? '—' : simPercent(info.sim, a) + '%'}
         {info.elsewhere !== null && <div style={{ color: 'var(--accent2)' }}>{tx('srcupd.025', { n: info.elsewhere })}</div>}
       </div>
     </div>
