@@ -397,7 +397,8 @@ function GeneralSection() {
         <Select id="verso-lang" value={uiLang} style={{ width: 240 }} onOpen={() => void refreshLangPacks().catch(() => undefined)}
           options={[
             ...BUILTIN_LANGS.map((l) => ({ value: l.id, label: l.label })),
-            ...langPacks.map((n) => ({ value: PACK + n, label: n })),
+            // 語言包跟內建語言同名（例如 English）：後面標「語言包」，選單裡才分得出來
+            ...langPacks.map((n) => ({ value: PACK + n, label: BUILTIN_LANGS.some((l) => l.label.toLowerCase() === n.trim().toLowerCase()) ? tx('settings.packLabel', { name: n }) : n })),
             // 用中的語言包已經不在資料夾裡：仍列出名稱（內容用英文補）
             ...(uiLang.startsWith(PACK) && !langPacks.includes(uiLang.slice(PACK.length)) ? [{ value: uiLang, label: uiLang.slice(PACK.length) }] : []),
           ]}

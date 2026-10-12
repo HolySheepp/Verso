@@ -3,6 +3,7 @@
 export const ZH = {
   'settings.language': '語言', // 設定 > 一般
   'settings.addPack': '添加語言包', // 設定 > 一般：語言選單下面的按鈕
+  'settings.packLabel': '{name}（語言包）', // 設定 > 一般：語言包跟內建語言同名時，選單裡這樣顯示
   'settings.addPackHint': '也可以把語言包檔案拖進這裡', // 設定 > 一般：添加語言包按鈕旁的說明
   'settings.packsAdded': '已加入語言包：{names}', // 設定 > 一般：加好語言包後的提示
   'settings.packsBad': '這些檔案不是語言包：{names}', // 設定 > 一般：加入的檔案讀不出語言包內容時

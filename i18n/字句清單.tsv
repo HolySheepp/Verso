@@ -1,13 +1,14 @@
 ﻿代號	中文	畫面區域	程式位置
 settings.language	語言	設定 > 一般	components/SettingsDialog.tsx:394
-settings.addPack	添加語言包	設定 > 一般：語言選單下面的按鈕	components/SettingsDialog.tsx:407
-settings.addPackHint	也可以把語言包檔案拖進這裡	設定 > 一般：添加語言包按鈕旁的說明	components/SettingsDialog.tsx:408
+settings.addPack	添加語言包	設定 > 一般：語言選單下面的按鈕	components/SettingsDialog.tsx:408
+settings.packLabel	{name}（語言包）	設定 > 一般：語言包跟內建語言同名時，選單裡這樣顯示	components/SettingsDialog.tsx:401
+settings.addPackHint	也可以把語言包檔案拖進這裡	設定 > 一般：添加語言包按鈕旁的說明	components/SettingsDialog.tsx:409
 settings.packsAdded	已加入語言包：{names}	設定 > 一般：加好語言包後的提示	components/SettingsDialog.tsx:380
 settings.packsBad	這些檔案不是語言包：{names}	設定 > 一般：加入的檔案讀不出語言包內容時	components/SettingsDialog.tsx:381
 settings.packsFailed	語言包加不進去，主程式資料夾可能沒有寫入權限	設定 > 一般：複製語言包失敗時	components/SettingsDialog.tsx:383
-settings.packReplace	已經有語言包「{name}」，要取代嗎？	設定 > 一般：加入同名語言包時	components/SettingsDialog.tsx:412
-settings.packReplaceNo	取消	設定 > 一般：同名語言包的詢問	components/SettingsDialog.tsx:413
-settings.packReplaceYes	取代	設定 > 一般：同名語言包的詢問	components/SettingsDialog.tsx:413
+settings.packReplace	已經有語言包「{name}」，要取代嗎？	設定 > 一般：加入同名語言包時	components/SettingsDialog.tsx:413
+settings.packReplaceNo	取消	設定 > 一般：同名語言包的詢問	components/SettingsDialog.tsx:414
+settings.packReplaceYes	取代	設定 > 一般：同名語言包的詢問	components/SettingsDialog.tsx:414
 common.sep	、	列出好幾個名稱時的分隔符號	App.tsx:85 App.tsx:96 App.tsx:107 components/CopyConfirm.tsx:19 components/EntryList.tsx:191 components/EntryList.tsx:191 components/FileNav.tsx:123 components/ManageDialogs.tsx:171 components/SettingsDialog.tsx:380 components/SettingsDialog.tsx:381 components/SidePanel.tsx:340 components/WorkPanel.tsx:96 model/importSel.ts:59 model/importSel.ts:59 model/paste.ts:79 state/saver.ts:912 state/saver.ts:912
 common.join	；	把兩段提示接成一句時的分隔符號（英文用「; 」）	state/saver.ts:912
 common.moreEntries	 等 {n} 條	列表太長時接在後面	App.tsx:85
@@ -363,28 +364,28 @@ settings.038	終點線	設定	components/SettingsDialog.tsx:238
 settings.039	「{combo}」已被「{v1}」使用	設定	components/SettingsDialog.tsx:272
 settings.comboReserved	「{combo}」已被佔用	設定 > 快捷鍵：錄到條目欄固定的組合（復原、重做、方向鍵）時	components/SettingsDialog.tsx:267
 settings.040	情境	設定	components/SettingsDialog.tsx:319
-settings.041	還原預設	設定	components/SettingsDialog.tsx:323 components/SettingsDialog.tsx:570
+settings.041	還原預設	設定	components/SettingsDialog.tsx:323 components/SettingsDialog.tsx:571
 settings.042	把「{v1}」的快捷鍵還原成預設？	設定	components/SettingsDialog.tsx:326
 settings.043	還原	設定	components/SettingsDialog.tsx:327
 settings.044	按下新的組合鍵	設定	components/SettingsDialog.tsx:343
-settings.045	存檔資料夾	設定	components/SettingsDialog.tsx:417
-settings.046	更改…	設定	components/SettingsDialog.tsx:425
-settings.047	自動存檔	設定	components/SettingsDialog.tsx:429
+settings.045	存檔資料夾	設定	components/SettingsDialog.tsx:418
+settings.046	更改…	設定	components/SettingsDialog.tsx:426
+settings.047	自動存檔	設定	components/SettingsDialog.tsx:430
 settings.048	每 {input} 分鐘	設定	components/SettingsDialog.tsx:387
-settings.049	自動存檔間隔（分鐘）	設定	components/SettingsDialog.tsx:432
-settings.051	色彩模式	設定	components/SettingsDialog.tsx:497 components/SettingsDialog.tsx:498
-settings.052	深色	設定	components/SettingsDialog.tsx:499
-settings.053	淺色	設定	components/SettingsDialog.tsx:499
-settings.054	跟隨系統	設定	components/SettingsDialog.tsx:499
-settings.055	主題色	設定	components/SettingsDialog.tsx:506 components/SettingsDialog.tsx:507
-settings.056	迷幻	設定	components/SettingsDialog.tsx:513 components/SettingsDialog.tsx:513
-settings.057	自訂主題色	設定	components/SettingsDialog.tsx:528 components/SettingsDialog.tsx:528
-settings.058	迷幻主題色會不停重繪畫面，比較舊的電腦或開著很大的檔案時，可能會稍微變慢、比較耗電。	設定	components/SettingsDialog.tsx:535
-settings.059	字體	設定	components/SettingsDialog.tsx:555
-settings.060	{label}字型大小	設定	components/SettingsDialog.tsx:567
-settings.061	跟隨系統字	設定	components/SettingsDialog.tsx:578
-settings.062	超框時	設定	components/SettingsDialog.tsx:582
-settings.063	{label}超框時	設定	components/SettingsDialog.tsx:583
+settings.049	自動存檔間隔（分鐘）	設定	components/SettingsDialog.tsx:433
+settings.051	色彩模式	設定	components/SettingsDialog.tsx:498 components/SettingsDialog.tsx:499
+settings.052	深色	設定	components/SettingsDialog.tsx:500
+settings.053	淺色	設定	components/SettingsDialog.tsx:500
+settings.054	跟隨系統	設定	components/SettingsDialog.tsx:500
+settings.055	主題色	設定	components/SettingsDialog.tsx:507 components/SettingsDialog.tsx:508
+settings.056	迷幻	設定	components/SettingsDialog.tsx:514 components/SettingsDialog.tsx:514
+settings.057	自訂主題色	設定	components/SettingsDialog.tsx:529 components/SettingsDialog.tsx:529
+settings.058	迷幻主題色會不停重繪畫面，比較舊的電腦或開著很大的檔案時，可能會稍微變慢、比較耗電。	設定	components/SettingsDialog.tsx:536
+settings.059	字體	設定	components/SettingsDialog.tsx:556
+settings.060	{label}字型大小	設定	components/SettingsDialog.tsx:568
+settings.061	跟隨系統字	設定	components/SettingsDialog.tsx:579
+settings.062	超框時	設定	components/SettingsDialog.tsx:583
+settings.063	{label}超框時	設定	components/SettingsDialog.tsx:584
 side.001	字典	工具欄	components/SidePanel.tsx:19
 side.002	搜尋	工具欄	components/SidePanel.tsx:20
 side.003	瀏覽器	工具欄	components/SidePanel.tsx:21
