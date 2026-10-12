@@ -162,8 +162,10 @@ export async function migrateLangProject(root: string): Promise<string | null> {
   let meta: ProjectMeta = { fileOrder: [] };
   try { meta = { ...meta, ...JSON.parse(await io.readText(io.join(dir, META))) }; } catch { /* 讀不到就只搬 project.json */ }
   const taken = async (n: string) => (await io.exists(io.join(root, n))) || (await io.exists(io.join(root, DICT_DIR, n)));
+  // 上次搬到一半（目標資料夾已經有了、但 project.json 還沒搬過去）：接著搬進同一個資料夾，不另開新的
+  const halfDone = async (n: string) => (await io.exists(io.join(root, n))) && !(await io.exists(io.join(root, n, META)));
   let to = LANG_DIR + ' (專案)';
-  for (let k = 2; await taken(to); k++) to = `${LANG_DIR} (專案 ${k})`;
+  for (let k = 2; (await taken(to)) && !(await halfDone(to)); k++) to = `${LANG_DIR} (專案 ${k})`;
   const target = io.join(root, to);
   await io.mkdir(target);
   const own = new Set((meta.fileOrder ?? []).map((n) => n.toLowerCase() + '.xlsx'));

@@ -57,7 +57,8 @@ function getWorker(): Worker | null {
 export function autoAlignAsync(old: { id: string; src: string }[], next: NewRow[], onCands?: (c: Cands | null) => void): Promise<AlignRow[]> {
   const w = getWorker();
   // 沒有背景執行緒時在原地算；用 then 包起來，算到丟錯也走 catch，不會讓呼叫端的「比對中」一直卡著
-  if (!w) return Promise.resolve().then(() => autoAlign(old, next));
+  // 高相似候選沒有預先算：通知呼叫端改用逐列計算
+  if (!w) return Promise.resolve().then(() => { const rows = autoAlign(old, next); onCands?.(null); return rows; });
   const id = ++seq;
   return new Promise((resolve, reject) => {
     waiting.set(id, { resolve, reject, onCands, done: false });

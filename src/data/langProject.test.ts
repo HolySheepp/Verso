@@ -34,4 +34,9 @@ describe('舊的「語言」專案（夜間檢查 16）', () => {
     fakeFs(['R/語言/English.xlsx']);
     expect(await migrateLangProject('R')).toBeNull();
   });
+  it('上次搬到一半：接著搬進同一個「語言 (專案)」，不另開新的', async () => {
+    const files = fakeFs(['R/語言/project.json', 'R/語言 (專案)/劇情.xlsx']);
+    expect(await migrateLangProject('R')).toBe('語言 (專案)');
+    expect([...files.keys()].sort()).toEqual(['R/語言 (專案)/project.json', 'R/語言 (專案)/劇情.xlsx'].sort());
+  });
 });

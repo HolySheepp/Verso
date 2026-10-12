@@ -170,15 +170,18 @@ function lastPosition(): LastPosition | undefined {
   return { project: fileDoc.project, file: fileDoc.name, sheet: sheet.name, index: sel, id: entry?.id ?? '' };
 }
 
-/** 存檔。成功回傳 true；檔案被 Excel 開著之類的失敗會標成「未存檔」，之後自動重試 */
-export function saveNow(): Promise<boolean> {
-  return serial(saveNowInner);
+/**
+ * 存檔。成功回傳 true；檔案被 Excel 開著之類的失敗會標成「未存檔」，之後自動重試。
+ * ask：可以跳出詢問（同名衝突、格子太長）。自動重試時不問：同名衝突當成取消、也不跳太長提示。
+ */
+export function saveNow(ask = true): Promise<boolean> {
+  return serial(() => saveNowInner(ask));
 }
 
 /** 存檔本身（已經在排隊裡時直接呼叫，避免排隊等自己） */
-async function saveNowInner(): Promise<boolean> {
+async function saveNowInner(ask = true): Promise<boolean> {
   {
-    const ok = await saveAll();
+    const ok = await saveAll(ask);
     const s = useStore.getState();
     if (ok && !isDirty()) {
       // 正式檔已經是最新的：記下這個版本（含檔案順序），刪掉暫存復原
@@ -230,7 +233,10 @@ const askClash = (project: string, name: string) => new Promise<'overwrite' | 'r
   useStore.setState({ fileClash: { project, name, resolve: (c) => { useStore.setState({ fileClash: null }); resolve(c); } } });
 });
 
-async function saveAll(): Promise<boolean> {
+/** 換存檔資料夾時，使用者在同名衝突裡選了「用目前的」的檔案位置：這次換資料夾的存檔直接覆蓋，不再問 */
+const overwriteOnSwitch = new Set<string>();
+
+async function saveAll(ask = true): Promise<boolean> {
   const s = useStore.getState();
   if (!s.project || !s.saveRoot) return true;
   // 存檔途中檔案可能被改名（新位置已經有別的檔案時）：p 跟著換成新的
@@ -269,8 +275,11 @@ async function saveAll(): Promise<boolean> {
         // 有格子超過 Excel 的上限：這個檔案存不進去，跳過（其他照存），請使用者縮短。先檢查這個，免得先問了同名衝突、甚至丟掉外部檔，結果還是存不進去
         const tooLong = longCellsOf(f);
         if (tooLong.length) { long.push(...tooLong); cancelled = true; continue; }
-        // 寫到新位置（新檔案、改名、搬專案）而那裡已經有別的檔案：問使用者
-        if ((!old || diskKey(old.project, old.name) !== diskKey(f.project, f.name)) && await foreignFileAt(s.saveRoot, f.project, f.name, ours)) {
+        // 寫到新位置（新檔案、改名、搬專案）而那裡已經有別的檔案：問使用者（換資料夾時已經選了覆蓋的不再問）
+        if ((!old || diskKey(old.project, old.name) !== diskKey(f.project, f.name)) && !overwriteOnSwitch.has(diskKey(f.project, f.name))
+          && await foreignFileAt(s.saveRoot, f.project, f.name, ours)) {
+          // 自動重試時不問：當成取消，等使用者自己存檔時再問
+          if (!ask) { cancelled = true; continue; }
           const choice = await askClash(f.project, f.name);
           if (choice === 'cancel') { cancelled = true; continue; }
           if (choice === 'overwrite') await io.trash(io.join(s.saveRoot, f.project, safeFileName(f.name) + '.xlsx'));
@@ -292,7 +301,7 @@ async function saveAll(): Promise<boolean> {
       await trashFile(s.saveRoot, old.project, old.name).catch(() => undefined);
     }
     // 有檔案因為格子太長存不進去：每次存檔都提示（不然使用者不知道為什麼沒存）
-    if (long.length) useStore.setState({ longCells: long });
+    if (long.length && ask) useStore.setState({ longCells: long });
     try { await writeMeta(s.saveRoot, p, lastPosition()); if (ok) { done.customs = p.customMarks; done.projects = p.projects; } } catch (e) { fail(tx('save.009'), e); }
   }
   const ids = dictIds(p);
@@ -501,7 +510,7 @@ function watch() {
   setInterval(() => {
     const s = useStore.getState();
     if (s.saveStatus === 'saving' || s.recoveryAsk) return;
-    if (s.saveStatus === 'error' && Date.now() - lastAttempt >= 10_000) { void saveNow(); return; }
+    if (s.saveStatus === 'error' && Date.now() - lastAttempt >= 10_000) { void saveNow(false); return; }
     if (recPending && Date.now() - recSince >= s.autosaveMin * 60_000) void serial(autosave);
   }, 5_000);
 
@@ -707,7 +716,10 @@ export async function resolveRootConflicts(useFolder: RootConflict[]) {
     } catch { /* 讀不到就用軟體裡的 */ }
   }
   useStore.setState({ project: p });
-  await switchRoot(rc.root);
+  // 選了「用目前的」的檔案：這次換資料夾存檔時直接覆蓋，不再問同名衝突
+  const keep = new Set(useFolder.map((c) => c.kind + ':' + diskKey(c.project, c.name)));
+  for (const c of rc.items) if (c.kind === 'file' && !keep.has('file:' + diskKey(c.project, c.name))) overwriteOnSwitch.add(diskKey(c.project, c.name));
+  try { await switchRoot(rc.root); } finally { overwriteOnSwitch.clear(); }
 }
 
 /** 換存檔資料夾：排隊執行，不跟自動存檔、存檔同時進行 */

@@ -356,6 +356,7 @@ export const ZH = {
   'settings.037': '超框', // 設定
   'settings.038': '終點線', // 設定
   'settings.039': '「{combo}」已被「{v1}」使用', // 設定
+  'settings.comboReserved': '「{combo}」已被佔用', // 設定 > 快捷鍵：錄到條目欄固定的組合（復原、重做、方向鍵）時
   'settings.040': '情境', // 設定
   'settings.041': '還原預設', // 設定
   'settings.042': '把「{v1}」的快捷鍵還原成預設？', // 設定

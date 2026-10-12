@@ -338,6 +338,9 @@ function WorkPanelInner({ height, maxH }: { height: number; maxH: number }) {
     if (!tgtEditable || showHist) return;
     // 改到修改的部分：那組修改算處理過了（顯示時自動移除，在輸入框 Ctrl+Z 改回來就又出現）
     verifySession.undoToSheet = false;
+    // 存檔時譯文會跳脫特殊寫法、和驗證修改一起算長度：超過 Excel 一格的上限就不收這次輸入
+    const e = currentOf(useStore.getState()).entry;
+    if (e && !entryFits({ ...e, tgt: v })) { showToast(tx('work.tooLong')); return; }
     s.updateEntry({ tgt: v });
   };
 

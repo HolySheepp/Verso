@@ -1,5 +1,5 @@
 import { tx } from '../i18n';
-import { NO_SPEAKER, defaultSheetName, fitsCell, tooLongMsg } from '../model/names';
+import { NO_SPEAKER, defaultSheetName, fitsCell, freeSheetName, tooLongMsg } from '../model/names';
 import { useEffect, useState } from 'react';
 import { showToast, useStore, type MoveTarget } from '../state/store';
 import { entryFits } from '../model/cellLimit';
@@ -298,7 +298,8 @@ function ManageProjects() {
 
 // ---- 管理專案：右邊編輯檔案 ----
 
-type FileDraft = { name: string; cols: Columns }[];
+/** ids：這個頁簽原本每一列是哪個條目（照列的位置）；譯文欄清空再貼回、沒有自己的編號時用這個 */
+type FileDraft = { name: string; cols: Columns; ids?: string[] }[];
 const FILE_KEYS = COLS.map((c) => c.key);
 
 /** 檔案轉成手動貼入那種分欄的樣子；譯文欄帶著條目編號，條目的資料跟著譯文走 */
@@ -308,6 +309,7 @@ function toDraft(f: FileDoc): FileDraft {
     const col = (g: (e: Entry) => string): Col | null => (es.length ? { rows: es.map(g), extra: 0 } : null);
     return {
       name: sh.name,
+      ids: es.map((e) => e.uid),
       // 備註欄一開始是空的：貼進來的備註接在條目原本的備註後面
       cols: { id: col((e) => e.id), speaker: col((e) => e.speaker), src: col((e) => e.src), tgt: es.length ? { rows: es.map((e) => e.tgt), extra: 0, ids: es.map((e) => e.uid) } : null, note: null },
     };
@@ -323,7 +325,8 @@ function fromDraft(f: FileDoc, draft: FileDraft): Sheet[] {
       const id = sh.cols.id?.rows[i] ?? '';
       const speaker = (sh.cols.speaker?.rows[i] ?? '').trim() || NO_SPEAKER;
       const tgt = sh.cols.tgt?.rows[i] ?? '';
-      const uid = sh.cols.tgt?.ids?.[i];
+      // 譯文欄帶著條目編號就照它（行移動過也跟得上）；譯文欄清空再貼回、沒有編號時，照列的位置沿用原本第 i 條
+      const uid = sh.cols.tgt?.ids ? sh.cols.tgt.ids[i] : sh.ids?.[i];
       const base = uid ? orig.get(uid) : undefined;
       const note = sh.cols.note?.rows[i] ?? '';
       if (base) return { ...base, id, speaker, src, tgt, note: appendNote(base.note, note) };
@@ -369,7 +372,7 @@ function FileEditor({ file, index, onDirty, onSaved }: { file: FileDoc; index: n
     setBase(d); draft.reset(d); setSelRow(null);
     onSaved(next);
   };
-  const addSheet = () => { draft.commit([...sheets, { name: defaultSheetName(sheets.length + 1), cols: { id: null, speaker: null, src: null, tgt: null, note: null } }]); setCur(sheets.length); };
+  const addSheet = () => { draft.commit([...sheets, { name: freeSheetName(sheets.map((x) => x.name)), cols: { id: null, speaker: null, src: null, tgt: null, note: null } }]); setCur(sheets.length); };
   const tabAct = (k: string, i: number) => {
     setTabMenu(null);
     if (k === 'rename') setRenaming(i);

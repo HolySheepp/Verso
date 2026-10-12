@@ -36,3 +36,12 @@ describe('代理對', () => {
     expect(p).toBe(1);
   });
 });
+
+describe('新頁簽的預設名稱', () => {
+  it('找第一個沒用過的頁簽 N', async () => {
+    const { freeSheetName } = await import('./names');
+    expect(freeSheetName([])).toBe('頁簽 1');
+    expect(freeSheetName(['頁簽 2'])).toBe('頁簽 1');
+    expect(freeSheetName(['頁簽 1', '頁簽 2', '頁簽 3'])).toBe('頁簽 4');
+  });
+});

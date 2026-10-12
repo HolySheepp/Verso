@@ -32,6 +32,13 @@ export function sheetNameError(name: string, others: string[]): string {
 // 存檔用的預設名稱：不隨介面語言改變，一律中文
 /** 沒取名的頁簽 */
 export const defaultSheetName = (n: number) => '頁簽 ' + n;
+/** 新頁簽的預設名稱：從 1 開始找第一個沒人用的「頁簽 N」（不分大小寫） */
+export function freeSheetName(used: string[]): string {
+  const taken = new Set(used.map((x) => x.trim().toLowerCase()));
+  let n = 1;
+  while (taken.has(defaultSheetName(n).toLowerCase())) n++;
+  return defaultSheetName(n);
+}
 /** 沒取名的檔案 */
 export const DEFAULT_FILE_NAME = '未命名檔案';
 /** 沒有發話者時 */

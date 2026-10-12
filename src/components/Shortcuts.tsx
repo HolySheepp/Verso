@@ -42,7 +42,7 @@ const ARROWS: Record<string, 'left' | 'right' | 'up' | 'down'> = { '←': 'left'
  * 條目欄固定的方向鍵。↑/↓ 和 Ctrl+↑/↓ 不在這裡（設定頁可以改鍵）。
  * 回傳 null 代表不是這些組合。
  */
-function listNav(combo: string): { dir: 'left' | 'right' | 'up' | 'down'; extend: boolean; jump: boolean } | null {
+export function listNav(combo: string): { dir: 'left' | 'right' | 'up' | 'down'; extend: boolean; jump: boolean } | null {
   const parts = combo.split('+');
   const dir = ARROWS[parts[parts.length - 1]];
   if (!dir) return null;
@@ -54,6 +54,9 @@ function listNav(combo: string): { dir: 'left' | 'right' | 'up' | 'down'; extend
   if (mods === 'Ctrl+Shift') return { dir, extend: true, jump: true };
   return null;
 }
+
+/** 條目欄固定、不能改的組合（復原、重做、方向鍵）：錄快捷鍵時不能拿來用 */
+export const isFixedListCombo = (combo: string) => combo === 'Ctrl+Z' || combo === 'Ctrl+Y' || combo === 'Ctrl+Shift+Z' || !!listNav(combo);
 
 /** 擴大選取時，讓移動中的那一角看得到（條目欄只畫看得到的條目，由條目欄照位置捲動） */
 function revealFocus() {
@@ -144,6 +147,16 @@ export function Shortcuts() {
         if (ev.key === 'Enter') { ev.preventDefault(); pick(ids[menu.active ?? 0]); return; }
       }
 
+      // 檔案選單開著：↑↓ 只在選單裡移動，不傳給條目欄
+      if (s.fileMenuOpen && (ev.key === 'ArrowUp' || ev.key === 'ArrowDown') && !ev.ctrlKey && !ev.altKey && !ev.metaKey) {
+        ev.preventDefault();
+        const items = Array.from(document.querySelectorAll<HTMLElement>('[role="listbox"] button:not([disabled])'));
+        if (!items.length) return;
+        const at = items.indexOf(document.activeElement as HTMLElement);
+        const next = at < 0 ? (ev.key === 'ArrowDown' ? 0 : items.length - 1) : (at + (ev.key === 'ArrowDown' ? 1 : -1) + items.length) % items.length;
+        items[next].focus();
+        return;
+      }
       // Ctrl+Tab 按住時等下一個鍵（例如 →），不直接動作
       if (tab.down(ev)) { ev.preventDefault(); return; }
       // Esc 先關掉開著的選單

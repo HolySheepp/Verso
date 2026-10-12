@@ -85,8 +85,9 @@ function SrcUpdate({ sheetIdx }: { sheetIdx: number }) {
     const old = entries.map((e) => ({ id: e.id, src: e.src }));
     setCandsReady(false);
     const onCands = (c: [number, [number, number][]][] | null) => {
-      if (run !== alignRun.current || !c) return;
-      seedCandidates(oldSrc, newSrc, c);
+      if (run !== alignRun.current) return;
+      // 背景算不出來（null）：不放候選，畫面改用逐列計算，高相似照樣顯示
+      if (c) seedCandidates(oldSrc, newSrc, c);
       setCandsReady(true);
     };
     autoAlignAsync(old, next, onCands)

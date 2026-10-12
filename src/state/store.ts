@@ -286,6 +286,8 @@ interface Actions {
   /** 整本字典的詞條換成 rows */
   setDictTerms(project: string, name: string, rows: { term: string; en: string; note: string }[]): void;
   checkAll(): void;
+  /** 字型載入好之後：已經報過問題的條目重新檢查一次（例如超出行長是用還沒載好的字型量的） */
+  recheckReported(): void;
   skipCheck(): void;
   setCheck(id: CheckId, on: boolean): void;
   setBinding(ctx: ShortcutContext, action: ActionId, combos: string[]): void;
@@ -1177,6 +1179,16 @@ export const useStore = create<Store>((set, get) => {
       set({ project: { ...withDict(p, project, name), glossary: [...others.slice(0, pos), ...terms, ...others.slice(pos)] } });
     },
 
+    recheckReported() {
+      const p = get().project;
+      if (!p || !Object.keys(get().reported).length) return;
+      const rep = get().reported;
+      p.files.forEach((f) => {
+        const list = f.sheets.flatMap((sh) => sh.entries.filter((e) => rep[e.uid]));
+        if (list.length) checkEntries(list, f.lengthStd);
+      });
+    },
+
     checkAll() {
       leaveCurrent();
       checkEntries(cur().sheet.entries);
@@ -1328,3 +1340,6 @@ export function useStorePick<K extends keyof Store>(...keys: K[]): Pick<Store, K
     return o;
   }));
 }
+
+// 字型載入好時（量測快取已經清掉）：重新檢查已經報過問題的條目，行長結果才會照新字型算
+if (typeof document !== 'undefined' && document.fonts) document.fonts.addEventListener('loadingdone', () => useStore.getState().recheckReported());

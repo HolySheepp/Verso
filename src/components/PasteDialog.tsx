@@ -1,5 +1,5 @@
 import { tx } from '../i18n';
-import { DEFAULT_FILE_NAME, defaultSheetName } from '../model/names';
+import { DEFAULT_FILE_NAME, defaultSheetName, freeSheetName } from '../model/names';
 import { useEffect, useRef, useState } from 'react';
 import { currentOf, currentProjectOf, useStore } from '../state/store';
 import { leaveFile } from '../state/saver';
@@ -17,7 +17,8 @@ interface DraftSheet { id: string; name: string; cols: Columns }
 interface Snapshot { sheets: DraftSheet[]; cur: number }
 
 let sheetSeq = 0;
-const newSheet = (n: number): DraftSheet => ({ id: 's' + sheetSeq++, name: defaultSheetName(n), cols: emptyColumns() });
+/** 新的草稿頁簽；used 是已經用掉的頁簽名稱（草稿的，插入時再加上檔案原有的） */
+const newSheet = (used: string[]): DraftSheet => ({ id: 's' + sheetSeq++, name: freeSheetName(used), cols: emptyColumns() });
 const TAB_GAP = 6;
 
 /** 拖動中的頁簽：from 是被拖的頁簽，to 是放開後的位置，dx 是跟著游標移動的距離 */
@@ -41,7 +42,7 @@ export function PasteDialog() {
   const [newProj, setNewProj] = useState('');
   const projects = useStore((s) => s.project!.projects);
   const allFiles = useStore((s) => s.project!.files);
-  const [sheets, setSheetsState] = useState<DraftSheet[]>([newSheet(1)]);
+  const [sheets, setSheetsState] = useState<DraftSheet[]>([newSheet([])]);
   const [cur, setCur] = useState(0);
   const [renaming, setRenaming] = useState<number | null>(null);
   const [selRow, setSelRow] = useState<{ key: string; sel: BoxSel } | null>(null);
@@ -82,7 +83,7 @@ export function PasteDialog() {
   // 每次打開都是空白的
   useEffect(() => {
     if (open) {
-      const init = [newSheet(existingSheets + 1)];
+      const init = [newSheet(existing.map((x) => x.name))];
       sheetsRef.current = init;
       setSheetsState(init);
       undo.current = [];
@@ -129,10 +130,11 @@ export function PasteDialog() {
     leaveFile(null, () => addFile(doc));
   };
 
-  const addSheet = () => commit([...sheets, newSheet(existingSheets + sheets.length + 1)], sheets.length);
+  const usedNames = () => [...existing.map((x) => x.name), ...sheets.map((x) => x.name)];
+  const addSheet = () => commit([...sheets, newSheet(usedNames())], sheets.length);
 
   const insertSheet = (i: number) =>
-    commit([...sheets.slice(0, i + 1), newSheet(sheets.length + 1), ...sheets.slice(i + 1)], i + 1);
+    commit([...sheets.slice(0, i + 1), newSheet(usedNames()), ...sheets.slice(i + 1)], i + 1);
 
   const removeSheet = (i: number) => {
     const next = sheets.filter((_, j) => j !== i);

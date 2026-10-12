@@ -1,4 +1,5 @@
 import { tx, txSplit } from '../i18n';
+import { isFixedListCombo } from './Shortcuts';
 import { BUILTIN_LANGS, PACK } from '../i18n/lang';
 import { useEffect, useState, useRef } from 'react';
 import { useStore } from '../state/store';
@@ -260,6 +261,11 @@ function ShortcutsSection() {
     if (!recording) return;
     const tab = createTabHold();
     const finish = (combo: string) => {
+      // 條目欄固定的組合（復原、重做、方向鍵）不能改給別的功能用
+      if (ctx === 'list' && isFixedListCombo(combo)) {
+        setError({ action: recording, msg: tx('settings.comboReserved', { combo }) });
+        return;
+      }
       const taken = CONTEXT_ACTIONS[ctx].find((a) => a !== recording && bindings[ctx][a]?.includes(combo));
       if (taken) {
         setError({ action: recording, msg: tx('settings.039', { combo, v1: ACTION_LABELS[taken] }) });
