@@ -3,14 +3,17 @@
 // 不能存檔、改原文、刪條目。
 import { invoke, isTauri } from '@tauri-apps/api/core';
 import { listen } from '@tauri-apps/api/event';
-import { tx } from '../i18n';
+import { stripIds, tx } from '../i18n';
+import { enabledIssues } from '../model/checks';
+import { effectiveStd, type LengthStd } from '../model/length';
+import { measure } from '../model/measure';
 import { TGT_COL, parseKey } from '../model/cells';
 import { appendNote } from '../model/paste';
 import { ratio } from '../model/srcUpdate';
 import { applyChange, compose, editsOf } from '../model/verify';
 import { dictKey, type Entry } from '../model/types';
 import { findHits } from './dictHits';
-import { currentOf, currentProjectOf, dictEnabledIn, shownSrc, showToast, useStore } from './store';
+import { checkText, currentOf, currentProjectOf, dictEnabledIn, shownSrc, showToast, useStore } from './store';
 
 /** 整句換掉的程度：新舊譯文相似度低於這個，就放進「建議翻譯」，不放修改框 */
 const BIG_CHANGE = 0.5;
@@ -27,7 +30,15 @@ const TOOLS = [
   {
     name: 'get_task',
     description: 'Get the task: the mode ("translate" or "verify") and the selected entries. Each entry has index, id, speaker, source text (src), current translation (tgt), suggestion, note, '
-      + 'the 5 entries before and after it (context), and the glossary terms found in its source text (glossary: term and its required translations).',
+      + 'the 5 entries before and after it (context), the glossary terms found in its source text (glossary: term and its required translations), '
+      + 'and length_limit (max_lines the English must fit in, at the given width and font; null when there is no limit).',
+    inputSchema: obj({}),
+  },
+  {
+    name: 'get_checks',
+    description: 'After writing, call this to see which task entries still have problems found by Verso\'s checks, for the text you wrote. '
+      + 'For entries that overflow the length limit it gives max_lines, the lines the text takes now, and roughly how many characters to cut. '
+      + 'Rewrite those entries (same write tool again) and call get_checks again until nothing is left or a problem cannot be fixed without losing important meaning (then explain in write_note).',
     inputSchema: obj({}),
   },
   {
@@ -48,7 +59,7 @@ const TOOLS = [
   },
 ];
 
-interface Job { fid: string; sheet: number; mode: 'translate' | 'verify'; indices: number[]; uids: string[]; before: Record<string, Entry> }
+interface Job { fid: string; sheet: number; mode: 'translate' | 'verify'; indices: number[]; uids: string[]; before: Record<string, Entry>; wrote: Record<string, 'tgt' | 'sugg'> }
 /** 這次 AI 在處理的檔案、頁簽和條目（按下按鈕時記下，中途換頁簽也寫回原本那頁） */
 let job: Job | null = null;
 
@@ -70,6 +81,38 @@ function activeTerms() {
 /** 一條的上下文（只給 AI 參考） */
 const brief = (e: Entry) => ({ id: e.id, speaker: e.speaker, src: shownSrc(e), tgt: e.tgt });
 
+/** 這條要用的長度標準（條目自己的，沒有就用檔案的） */
+function stdOf(j: Job, e: Entry): LengthStd | null {
+  const f = useStore.getState().project?.files.find((x) => x.fid === j.fid);
+  return effectiveStd(e.lengthStd, f?.lengthStd) ?? null;
+}
+
+const limitOf = (std: LengthStd | null) => (std ? { max_lines: std.lines, width_px: std.width, font: `${std.family} ${std.size}pt` } : null);
+
+/** AI 寫的文字有沒有過檢查：超框的附上限、現在幾行、大約要刪幾個字元 */
+function getChecks(j: Job) {
+  const sheet = sheetOf(j)!;
+  const settings = useStore.getState().checkSettings;
+  const out: unknown[] = [];
+  for (const i of j.indices) {
+    const e = sheet.entries[i];
+    if (!e || !j.wrote[e.uid]) continue;
+    // 驗證時改很多的放在建議翻譯：檢查建議翻譯；其他檢查譯文（有修改的話是改好之後的樣子）
+    const text = j.wrote[e.uid] === 'sugg' ? e.sugg : checkText(e);
+    if (!text.trim()) continue;
+    const std = stdOf(j, e);
+    const issues = enabledIssues(shownSrc(e), text, settings, std);
+    if (!issues.length) continue;
+    const m = std && issues.some((x) => x.check === 'overflow') ? measure(text, std) : null;
+    out.push({
+      index: i, text,
+      problems: issues.map((x) => ({ check: x.check, message: stripIds(x.msg) })),
+      ...(m && std ? { overflow: { max_lines: std.lines, lines_now: m.lines, about_chars_to_cut: Math.max(1, text.length - m.fitLen) } } : {}),
+    });
+  }
+  return out.length ? out : 'No problems.';
+}
+
 function getTask(j: Job) {
   const sheet = sheetOf(j)!;
   const { terms, current } = activeTerms();
@@ -84,6 +127,7 @@ function getTask(j: Job) {
         context_before: sheet.entries.slice(Math.max(0, i - CONTEXT), i).map(brief),
         context_after: sheet.entries.slice(i + 1, i + 1 + CONTEXT).map(brief),
         glossary: hits.map((h) => ({ term: h.term.term, translations: [...new Set(h.terms.map((t) => t.en))] })),
+        length_limit: limitOf(stdOf(j, e)),
       };
     }).filter(Boolean),
   };
@@ -104,6 +148,7 @@ function callTool(name: string, args: Record<string, unknown>): unknown {
   const sheet = sheetOf(j);
   if (!sheet) throw new Error('The file or sheet is no longer open in Verso.');
   if (name === 'get_task') return getTask(j);
+  if (name === 'get_checks') return getChecks(j);
   const i = Number(args.index);
   const e = sheet.entries[i];
   if (!e || !j.uids.includes(e.uid)) throw new Error('This entry is not part of the task.');
@@ -118,9 +163,13 @@ function callTool(name: string, args: Record<string, unknown>): unknown {
   if (name === 'write_translation') {
     if (j.mode !== 'translate') throw new Error('This task is verify mode; use write_revision.');
     // 空的直接填進譯文，已經有譯文的放進修改框；都標「AI 翻譯」
-    aiPatch(j.fid, j.sheet, e.uid, (x) => (!x.tgt.trim()
+    // 已經寫過一次（例如照檢查結果重寫）：空的那種直接換掉譯文，有原譯文的那種重算修改
+    const fresh = j.wrote[e.uid] ? j.before[e.uid] : undefined;
+    const filled = fresh ? !fresh.tgt.trim() : !e.tgt.trim();
+    aiPatch(j.fid, j.sheet, e.uid, (x) => (filled
       ? { ...x, tgt: text, pending: false, mark: 'ai' }
       : { ...withEdits(x, text), mark: 'ai' }));
+    j.wrote[e.uid] = 'tgt';
     return 'ok';
   }
   if (name === 'write_revision') {
@@ -129,8 +178,10 @@ function callTool(name: string, args: Record<string, unknown>): unknown {
     // 整句換掉或改很多：放進建議翻譯；小幅修改：放進修改框（跟驗證模式一樣自動標疑慮）
     if (ratio(e.tgt, text) < BIG_CHANGE) {
       aiPatch(j.fid, j.sheet, e.uid, (x) => ({ ...x, sugg: text }));
+      j.wrote[e.uid] = 'sugg';
       return 'saved as suggestion';
     }
+    j.wrote[e.uid] = 'tgt';
     aiPatch(j.fid, j.sheet, e.uid, (x) => {
       const had = editsOf(x).length > 0;
       const y = withEdits(x, text);
@@ -192,13 +243,15 @@ const prompts = {
     'You are helping a game translator inside Verso, a translation tool. Use only the verso MCP tools.',
     skill ? `Use the "${skill}" skill for how to translate.` : 'Translate from the source language into English unless the entries clearly show another target language.',
     'Call get_task first. For every entry, translate its src, following the glossary translations, the speaker, the note and the surrounding context, then call write_translation(index, text) with the full translation.',
+    'When all entries are written, call get_checks and rewrite the entries it reports (especially length overflows) until nothing is left; if a problem cannot be fixed without losing important meaning, explain it in write_note.',
     'If something needs the translator\'s attention, call write_note(index, text) in Traditional Chinese. Do not do anything else.',
   ].join(' '),
   verify: (skill: string) => [
     'You are reviewing a game translation inside Verso, a translation tool. Use only the verso MCP tools.',
     skill ? `Use the "${skill}" skill for how to review.` : '',
     'Call get_task first. For every entry, check its tgt against src, the glossary, the speaker, the note and the surrounding context.',
-    'If the translation needs changes, call write_revision(index, text) with the full corrected translation, then call write_note(index, text) in Traditional Chinese explaining why. If it is fine, leave it alone. Do not do anything else.',
+    'If the translation needs changes, call write_revision(index, text) with the full corrected translation, then call write_note(index, text) in Traditional Chinese explaining why. If it is fine, leave it alone.',
+    'When done, call get_checks and fix what it reports for the entries you revised (especially length overflows); if a problem cannot be fixed without losing important meaning, explain it in write_note. Do not do anything else.',
   ].filter(Boolean).join(' '),
 };
 
@@ -215,7 +268,7 @@ export async function runAi(confirmed = false): Promise<'ask' | void> {
   await startAi();
   const { fileDoc, sheetIdx, sheet } = currentOf(s);
   const list = indices.map((i) => sheet.entries[i]).filter(Boolean);
-  job = { fid: fileDoc.fid ?? '', sheet: sheetIdx, mode, indices, uids: list.map((e) => e.uid), before: Object.fromEntries(list.map((e) => [e.uid, e])) };
+  job = { fid: fileDoc.fid ?? '', sheet: sheetIdx, mode, indices, uids: list.map((e) => e.uid), before: Object.fromEntries(list.map((e) => [e.uid, e])), wrote: {} };
   const skill = (mode === 'translate' ? s.aiSkillTranslate : s.aiSkillVerify).trim();
   try {
     useStore.setState({ aiBusy: true, aiLocked: job.uids });
