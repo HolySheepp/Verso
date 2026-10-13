@@ -53,13 +53,20 @@ const TOOLS = [
     inputSchema: obj({ index: idx, text: { type: 'string', description: 'The full corrected translation' } }, ['index', 'text']),
   },
   {
+    name: 'undo_change',
+    description: 'Throw away everything you wrote for one entry in this task (translation, edits, suggestion and note), putting it back exactly as it was before. Use it when a change turns out to be wrong and you are not replacing it.',
+    inputSchema: obj({ index: idx }, ['index']),
+  },
+  {
     name: 'write_note',
-    description: 'Add a short note to one entry (for example why you changed it, or something the translator should check). Write it in Traditional Chinese. Verso adds the prefix "AI：".',
+    description: 'Set your final note for one entry: why you changed it, or something the translator should check. Write it in Traditional Chinese. '
+      + 'Only write it once the entry is final (after get_checks). Calling it again for the same entry replaces your earlier note; the translator only sees your last one. Verso adds the prefix "AI：".',
     inputSchema: obj({ index: idx, text: { type: 'string' } }, ['index', 'text']),
   },
 ];
 
-interface Job { fid: string; sheet: number; mode: 'translate' | 'verify'; indices: number[]; uids: string[]; before: Record<string, Entry>; wrote: Record<string, 'tgt' | 'sugg'> }
+/** notes：AI 的備註先記在這裡，做完才寫進條目（同一條寫第二次就換掉，譯者只看到最後的） */
+interface Job { fid: string; sheet: number; mode: 'translate' | 'verify'; indices: number[]; uids: string[]; before: Record<string, Entry>; wrote: Record<string, 'tgt' | 'sugg'>; notes: Record<string, string> }
 /** 這次 AI 在處理的檔案、頁簽和條目（按下按鈕時記下，中途換頁簽也寫回原本那頁） */
 let job: Job | null = null;
 
@@ -156,8 +163,15 @@ function callTool(name: string, args: Record<string, unknown>): unknown {
   const { aiPatch } = useStore.getState();
   if (name === 'write_note') {
     if (!text.trim()) throw new Error('Empty note.');
-    aiPatch(j.fid, j.sheet, e.uid, (x) => ({ ...x, note: appendNote(x.note, 'AI：' + text.trim()) }));
-    return 'ok';
+    j.notes[e.uid] = text.trim();
+    return 'ok (shown to the translator when the task ends)';
+  }
+  if (name === 'undo_change') {
+    const b = j.before[e.uid];
+    aiPatch(j.fid, j.sheet, e.uid, (x) => ({ ...x, tgt: b.tgt, ver: b.ver, sugg: b.sugg, mark: b.mark, pending: b.pending }));
+    delete j.wrote[e.uid];
+    delete j.notes[e.uid];
+    return 'reverted';
   }
   if (!text.trim()) throw new Error('Empty text.');
   if (name === 'write_translation') {
@@ -193,11 +207,15 @@ function callTool(name: string, args: Record<string, unknown>): unknown {
   throw new Error('Unknown tool: ' + name);
 }
 
-/** 做完或停止：解除鎖定，這次改過的條目合成一步復原 */
+/** 做完或停止：寫上最後的備註、解除鎖定，這次改過的條目合成一步復原 */
 function finish() {
   const j = job;
   job = null;
-  if (j) useStore.getState().aiFinish(j.fid, j.sheet, j.before);
+  if (j) {
+    const { aiPatch } = useStore.getState();
+    for (const [uid, text] of Object.entries(j.notes)) aiPatch(j.fid, j.sheet, uid, (x) => ({ ...x, note: appendNote(x.note, 'AI：' + text) }));
+    useStore.getState().aiFinish(j.fid, j.sheet, j.before);
+  }
   useStore.setState({ aiBusy: false, aiLocked: [] });
 }
 
@@ -243,15 +261,16 @@ const prompts = {
     'You are helping a game translator inside Verso, a translation tool. Use only the verso MCP tools.',
     skill ? `Use the "${skill}" skill for how to translate.` : 'Translate from the source language into English unless the entries clearly show another target language.',
     'Call get_task first. For every entry, translate its src, following the glossary translations, the speaker, the note and the surrounding context, then call write_translation(index, text) with the full translation.',
-    'When all entries are written, call get_checks and rewrite the entries it reports (especially length overflows) until nothing is left; if a problem cannot be fixed without losing important meaning, explain it in write_note.',
-    'If something needs the translator\'s attention, call write_note(index, text) in Traditional Chinese. Do not do anything else.',
+    'When all entries are written, call get_checks and rewrite the entries it reports (especially length overflows) until nothing is left.',
+    'Only after that, for entries that need the translator\'s attention (or a problem you could not fix without losing important meaning), call write_note(index, text) once with your final note in Traditional Chinese. Never write notes about intermediate attempts. Do not do anything else.',
   ].join(' '),
   verify: (skill: string) => [
     'You are reviewing a game translation inside Verso, a translation tool. Use only the verso MCP tools.',
     skill ? `Use the "${skill}" skill for how to review.` : '',
     'Call get_task first. For every entry, check its tgt against src, the glossary, the speaker, the note and the surrounding context.',
-    'If the translation needs changes, call write_revision(index, text) with the full corrected translation, then call write_note(index, text) in Traditional Chinese explaining why. If it is fine, leave it alone.',
-    'When done, call get_checks and fix what it reports for the entries you revised (especially length overflows); if a problem cannot be fixed without losing important meaning, explain it in write_note. Do not do anything else.',
+    'If the translation needs changes, call write_revision(index, text) with the full corrected translation. If it is fine, leave it alone.',
+    'Then call get_checks and fix what it reports for the entries you revised (especially length overflows): rewrite them, or call undo_change(index) if your change was wrong and the original should stay.',
+    'Only when every revision is final, call write_note(index, text) once per revised entry with the final reason in Traditional Chinese. Never write notes about intermediate attempts or ask the translator to ignore your own change. Do not do anything else.',
   ].filter(Boolean).join(' '),
 };
 
@@ -268,7 +287,7 @@ export async function runAi(confirmed = false): Promise<'ask' | void> {
   await startAi();
   const { fileDoc, sheetIdx, sheet } = currentOf(s);
   const list = indices.map((i) => sheet.entries[i]).filter(Boolean);
-  job = { fid: fileDoc.fid ?? '', sheet: sheetIdx, mode, indices, uids: list.map((e) => e.uid), before: Object.fromEntries(list.map((e) => [e.uid, e])), wrote: {} };
+  job = { fid: fileDoc.fid ?? '', sheet: sheetIdx, mode, indices, uids: list.map((e) => e.uid), before: Object.fromEntries(list.map((e) => [e.uid, e])), wrote: {}, notes: {} };
   const skill = (mode === 'translate' ? s.aiSkillTranslate : s.aiSkillVerify).trim();
   try {
     useStore.setState({ aiBusy: true, aiLocked: job.uids });
