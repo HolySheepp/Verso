@@ -76,6 +76,7 @@ export function markVisual(customs: CustomMark[], id: MarkId): MarkVisual {
 export function markName(customs: CustomMark[], id: MarkId): string {
   if (id.startsWith('c:')) return findCustom(customs, id)?.name ?? tx('mark.003');
   if (id === 'srcupd') return tx('mark.032');
+  if (id === 'ai') return tx('mark.ai');
   return BUILTIN_MARKS.find((b) => b.id === id)?.label ?? id;
 }
 

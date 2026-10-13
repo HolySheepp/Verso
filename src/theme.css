@@ -151,3 +151,7 @@ mark.tm-gap[data-on]::before{left:-4px;width:8px;opacity:1;background:var(--acc-
 .imp-cell{flex-shrink:0;width:180px;box-sizing:border-box;padding:0 8px;line-height:26px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;border-right:1px solid var(--line0);border-bottom:1px solid var(--line0);color:var(--textsoft);cursor:default}
 .imp-cell[class*=imp-f-]{background:var(--imp);color:var(--text)}
 .imp-cell[data-sel]{background:var(--acc-soft);box-shadow:inset 0 0 0 1px var(--acc-line)}
+
+/* AI 正在處理的條目：小字「AI」慢慢閃 */
+.ai-busy { animation: ai-busy 1.2s ease-in-out infinite; }
+@keyframes ai-busy { 0%, 100% { opacity: 1; } 50% { opacity: 0.25; } }

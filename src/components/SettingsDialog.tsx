@@ -380,6 +380,8 @@ function ShortcutsSection() {
 function DevSection() {
   const showIds = useStore((s) => s.showIds);
   const aiEnabled = useStore((s) => s.aiEnabled);
+  const skillT = useStore((s) => s.aiSkillTranslate);
+  const skillV = useStore((s) => s.aiSkillVerify);
   const set = useStore((s) => s.set);
   return (
     <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
@@ -393,6 +395,14 @@ function DevSection() {
         {tx('settings.aiEnabled')}
       </label>
       <div style={{ fontSize: fz(12), color: 'var(--mute)' }}>{tx('settings.aiHint')}</div>
+      {aiEnabled && (
+        <div style={{ display: 'grid', gridTemplateColumns: 'auto minmax(0, 1fr)', alignItems: 'center', gap: '8px 12px', marginTop: 4 }}>
+          <label htmlFor="verso-ai-skill-t" style={{ fontSize: fz(12.5), color: 'var(--text2)' }}>{tx('settings.aiSkillTranslate')}</label>
+          <input id="verso-ai-skill-t" className="field" value={skillT} placeholder={tx('settings.aiSkillNone')} onChange={(e) => set({ aiSkillTranslate: e.target.value })} />
+          <label htmlFor="verso-ai-skill-v" style={{ fontSize: fz(12.5), color: 'var(--text2)' }}>{tx('settings.aiSkillVerify')}</label>
+          <input id="verso-ai-skill-v" className="field" value={skillV} placeholder={tx('settings.aiSkillNone')} onChange={(e) => set({ aiSkillVerify: e.target.value })} />
+        </div>
+      )}
     </div>
   );
 }

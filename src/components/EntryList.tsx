@@ -1,5 +1,6 @@
 import { tx } from '../i18n';
-import { runAi } from '../state/ai';
+import { aiTarget, runAi } from '../state/ai';
+import { ConfirmDialog } from './ConfirmDialog';
 import { memo, useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react';
 import { flushSync } from 'react-dom';
 import { currentOf, hasPendingUpdate, searchHit, useStorePick, visibleIssues, type Filter } from '../state/store';
@@ -87,6 +88,8 @@ interface RowHandlers {
 interface RowProps {
   e: Entry;
   i: number;
+  /** AI 正在處理這一條（不能改） */
+  aiLock: boolean;
   /** 在畫面上（篩選後）的第幾列 */
   k: number;
   m: MarkId;
@@ -130,7 +133,7 @@ function CellEditor({ text, h, uid, c }: { text: string; h: React.RefObject<RowH
 }
 
 /** 條目欄的一行：只有自己的內容、選取、標記等變了才重畫 */
-const EntryRow = memo(function EntryRow({ e, i, k, m, issues, on, hit, selCols, editing, customs, cols, fitId, fitSpk, fitSrc, fitTgt, fontId, fontSpk, fontSrc, fontTgt, ovfId, ovfSpk, ovfSrc, ovfTgt, h }: RowProps) {
+const EntryRow = memo(function EntryRow({ e, i, aiLock, k, m, issues, on, hit, selCols, editing, customs, cols, fitId, fitSpk, fitSrc, fitTgt, fontId, fontSpk, fontSrc, fontTgt, ovfId, ovfSpk, ovfSrc, ovfTgt, h }: RowProps) {
   const doubt = m === 'doubt', ver = m === 'verified', ign = m === 'ignore';
   const label = tx('list.010', { v1: markName(customs, m) });
   const cellProps = (c: CellCol) => {
@@ -159,6 +162,9 @@ const EntryRow = memo(function EntryRow({ e, i, k, m, issues, on, hit, selCols, 
         <MarkIcon mark={markVisual(customs, m)} size={14} />
       </button>
       <span className="row-pick" onMouseDown={(ev) => h.current.rowPick(ev, i)} onMouseEnter={(ev) => h.current.rowEnter(ev, i)} onContextMenu={(ev) => h.current.rowMenu(ev, i)} style={{ display: 'flex', flexDirection: 'column', gap: 3, alignItems: 'flex-start', justifyContent: 'center' }}>
+        {aiLock && (
+          <span role="img" aria-label={tx('list.aiLocked')} title={tx('list.aiLocked')} className="ai-busy" style={{ fontSize: 9, fontWeight: 800, color: 'var(--accent)', lineHeight: 1 }}>AI</span>
+        )}
         {e.lengthStd !== undefined && (
           <span role="img" aria-label={tx('list.011')} title={tx('list.012', { v1: stdLabel(e.lengthStd) })} style={{ display: 'flex', color: 'var(--accent2)' }}><IconRuler size={11} sw={2.2} /></span>
         )}
@@ -252,6 +258,9 @@ export function EntryList() {
   // AI 協助（開發者選項）：開了才有按鈕
   const aiOn = useStore((st) => st.devMode && st.aiEnabled);
   const aiBusy = useStore((st) => st.aiBusy);
+  const aiLocked = useStore((st) => st.aiLocked);
+  // 一次超過 50 條：先問要不要繼續
+  const [aiAsk, setAiAsk] = useState<number | null>(null);
   const ovf = { id: overflowOf(s.fonts, 'id'), speaker: overflowOf(s.fonts, 'speaker'), src: overflowOf(s.fonts, 'src'), tgt: overflowOf(s.fonts, 'tgt') };
 
 
@@ -703,7 +712,7 @@ export function EntryList() {
         </div>
         <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
         {aiOn && (
-          <button type="button" className="btn btn-ghost" onClick={() => void runAi()} title={aiBusy ? tx('list.aiStop') : tx('list.aiButton')}
+          <button type="button" className="btn btn-ghost" onClick={() => void runAi().then((r) => { if (r === 'ask') setAiAsk(aiTarget().indices.length); })} title={aiBusy ? tx('list.aiStop') : tx('list.aiButton')}
             style={{ height: 34, padding: '0 12px', background: 'var(--btn)', border: `1px solid ${aiBusy ? 'var(--accent)' : 'var(--line3)'}`, borderRadius: 8, fontSize: fz(12.5), color: aiBusy ? 'var(--accent2)' : 'var(--text2)' }}>
             {aiBusy ? tx('list.aiStop') : 'AI'}
           </button>
@@ -791,7 +800,7 @@ export function EntryList() {
         {/* 畫面外的條目不畫，用上下兩塊空白撐出整個捲軸的長度 */}
         {start > 0 && <div aria-hidden="true" style={{ height: offsets[start] }} />}
         {rows.slice(start, end).map(({ e, i, m, issues }, j) => (
-          <EntryRow key={e.uid} e={e} i={i} k={start + j} m={m} issues={issues} on={i === sel} hit={searchOn && searchHit(e, searchQ)}
+          <EntryRow key={e.uid} e={e} i={i} aiLock={aiLocked.includes(e.uid)} k={start + j} m={m} issues={issues} on={i === sel} hit={searchOn && searchHit(e, searchQ)}
             selCols={selColsOf(i)} editing={editing && editing.uid === e.uid ? editing : null}
             customs={customs} cols={cols} fitId={colPx[0] - 2} fitSpk={colPx[1] - 12} fitSrc={colPx[2] - 16} fitTgt={colPx[3] - 32}
             fontId={cellFontCss(s.fonts, 'id')} fontSpk={cellFontCss(s.fonts, 'speaker')} fontSrc={cellFontCss(s.fonts, 'src')} fontTgt={cellFontCss(s.fonts, 'tgt')}
@@ -825,6 +834,10 @@ export function EntryList() {
             { key: 'down', label: tx('list.040'), disabled: readOnly },
           ]}
           onPick={menuAct} onClose={() => { setMenu(null); sink.current?.focus({ preventScroll: true }); }} />
+      )}
+      {aiAsk !== null && (
+        <ConfirmDialog zIndex={60} title={tx('ai.askMany', { n: aiAsk })}
+          choices={[{ label: tx('ai.askNo'), onClick: () => setAiAsk(null) }, { label: tx('ai.askYes'), primary: true, onClick: () => { setAiAsk(null); void runAi(true); } }]} />
       )}
       {confirm && <CopyConfirm {...confirm} onCancel={() => setConfirm(null)} onConfirm={() => void doCopy()} />}
     </section>

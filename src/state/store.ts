@@ -216,6 +216,11 @@ interface State {
   aiEnabled: boolean;
   /** AI 正在處理 */
   aiBusy: boolean;
+  /** AI 正在處理的條目（不能改） */
+  aiLocked: string[];
+  /** 開發者選項：翻譯、驗證時要 AI 用的 skill 名稱（空白是不指定） */
+  aiSkillTranslate: string;
+  aiSkillVerify: string;
   /** 存起來的常用長度標準 */
   lengthPresets: { name: string; std: LengthStd }[];
   /** 長度標準設定視窗：設定檔案的標準，或只設定目前這一條 */
@@ -320,6 +325,10 @@ interface Actions {
   undoSheet(): void;
   /** 清空條目欄的復原／重做紀錄（不儲存、恢復暫存、換存檔資料夾時，舊紀錄已經對不上） */
   clearUndo(): void;
+  /** AI 寫回一條（不管鎖定、不算一步復原；整批做完時由 aiFinish 算成一步） */
+  aiPatch(fid: string, sheet: number, uid: string, fn: (e: Entry) => Entry): void;
+  /** AI 做完：這次改過的條目合成一步復原（before 是改之前的樣子） */
+  aiFinish(fid: string, sheet: number, before: Record<string, Entry>): void;
   redoSheet(): void;
   renameSheet(i: number, name: string): void;
   /** 清除頁簽：拿掉所有條目，頁簽保留 */
@@ -477,7 +486,10 @@ export const useStore = create<Store>((set, get) => {
   const patchEntries = (indices: Set<number>, fn: (e: Entry) => Entry) => {
     const s = get();
     if (!s.project || !indices.size) return;
-    const { sheetIdx } = currentOf(s);
+    const { sheetIdx, sheet } = currentOf(s);
+    // AI 正在處理的條目不能改
+    if (s.aiLocked.length) for (const i of [...indices]) if (sheet.entries[i] && s.aiLocked.includes(sheet.entries[i].uid)) indices.delete(i);
+    if (!indices.size) return;
     const files = s.project.files.map((f, fi) => fi !== s.file ? f : {
       ...f,
       sheets: f.sheets.map((sh, si) => si !== sheetIdx ? sh : {
@@ -644,6 +656,9 @@ export const useStore = create<Store>((set, get) => {
     showIds: false,
     aiEnabled: false,
     aiBusy: false,
+    aiLocked: [],
+    aiSkillTranslate: '',
+    aiSkillVerify: '',
     lengthPresets: [],
     lengthDialog: null,
     shortcuts: defaultBindings(),
@@ -709,12 +724,41 @@ export const useStore = create<Store>((set, get) => {
       const { sheetIdx, sheet } = cur();
       const r = fn(sheet.entries);
       if (r.entries === sheet.entries) return;
+      // AI 正在處理的條目：不能刪、不能改（整批操作時這幾條維持原樣）
+      if (s.aiLocked.length) {
+        const locked = new Set(s.aiLocked);
+        const old = new Map(sheet.entries.filter((e) => locked.has(e.uid)).map((e) => [e.uid, e]));
+        if ([...old.keys()].some((u) => !r.entries.some((e) => e.uid === u))) { showToast(tx('ai.locked')); return; }
+        r.entries = r.entries.map((e) => old.get(e.uid) ?? e);
+      }
       pushUndo();
       replaceSheet(s.file, sheetIdx, r.entries);
       if (r.keys?.length) {
         const first = minOf(r.keys.map((k) => parseKey(k).i));
         set({ cellSel: { keys: r.keys, anchor: parseKey(r.keys[0]) }, selBy: { ...get().selBy, [selKey(s.file, sheetIdx)]: first } });
       }
+    },
+
+    aiPatch(fid, sheet, uid, fn) {
+      const p = get().project;
+      const fi = p?.files.findIndex((f) => f.fid === fid) ?? -1;
+      const sh = fi >= 0 ? p!.files[fi].sheets[sheet] : undefined;
+      if (!sh) return;
+      const i = sh.entries.findIndex((e) => e.uid === uid);
+      if (i < 0) return;
+      replaceSheet(fi, sheet, sh.entries.map((e, k) => (k === i ? fn(e) : e)));
+    },
+
+    aiFinish(fid, sheet, before) {
+      const p = get().project;
+      const fi = p?.files.findIndex((f) => f.fid === fid) ?? -1;
+      const f = fi >= 0 ? p!.files[fi] : undefined;
+      if (!f || !f.sheets[sheet] || !Object.keys(before).length) return;
+      // 復原點：現在的檔案，只把 AI 改過的條目換回改之前（同時間在別條做的修改不受影響）
+      const changed = f.sheets[sheet].entries.some((e) => before[e.uid] && before[e.uid] !== e);
+      if (!changed) return;
+      const doc = { ...f, sheets: f.sheets.map((sh, si) => (si !== sheet ? sh : { ...sh, entries: sh.entries.map((e) => before[e.uid] ?? e) })) };
+      pushSnap({ file: fi, id: docId(f), doc, sheet, keys: [] });
     },
 
     undoSheet() { const st = currentStacks(); if (st) restore(st.undo, st.redo); },
@@ -768,6 +812,8 @@ export const useStore = create<Store>((set, get) => {
       const { sheet, sheetIdx, sel, entry } = cur();
       // 翻譯、驗證模式下按下一條，代表確認了這條
       if (entry?.pending && (s.mode === 'translate' || s.mode === 'verify')) patchEntry(sel, (e) => ({ ...e, pending: false }));
+      // 按下一條：AI 翻譯算確認了
+      if (entry?.mark === 'ai' && (s.mode === 'translate' || s.mode === 'verify')) patchEntry(sel, (e) => (e.mark === 'ai' ? { ...e, mark: '' } : e));
       // 按下一條：「原文更新」標記清掉（還沒套用的新原文留著，不會幫忙套用）
       if (entry?.upd && !entry.upd.hidden && (s.mode === 'translate' || s.mode === 'verify')) {
         patchEntry(sel, (e) => { if (e.upd?.applied) { const { upd: _u, ...rest } = e; void _u; return rest; } return { ...e, upd: { ...e.upd!, hidden: true } }; });
@@ -795,6 +841,8 @@ export const useStore = create<Store>((set, get) => {
         let next = { ...e, ...patch };
         if (patch.tgt !== undefined && patch.tgt !== e.tgt) {
           next.pending = false;
+          // 改過譯文：AI 翻譯算確認了
+          if (next.mark === 'ai') next.mark = '';
           // 套用新原文之後改了譯文：原文更新算處理完了
           if (e.upd?.applied) delete next.upd;
           // 譯者直接改掉了所有修改：跟清除修改一樣，自動標的疑慮取消

@@ -12,10 +12,10 @@ export const ENTRY_HEADERS = ['#', '發話者', '原文', '譯文', '標記', '�
 export { SETTINGS_SHEET };
 export const DICT_HEADERS = ['原文', '譯文', '備註'];
 
-const STORED_BUILTIN = new Set(['verified', 'doubt', 'think', 'ignore']);
+const STORED_BUILTIN = new Set(['verified', 'doubt', 'think', 'ignore', 'ai']);
 
 /** 寫進「標記」欄的名稱：存檔一律用中文，不隨介面語言改變 */
-const MARK_NAMES_ZH: Record<string, string> = { untranslated: '未翻譯', translated: '已翻譯', verified: '已驗證', doubt: '疑慮', think: '待思考', ignore: '忽略' };
+const MARK_NAMES_ZH: Record<string, string> = { untranslated: '未翻譯', translated: '已翻譯', verified: '已驗證', doubt: '疑慮', think: '待思考', ignore: '忽略', ai: 'AI 翻譯' };
 
 function markLabel(mark: string, customs: CustomMark[]) {
   if (!mark) return '';

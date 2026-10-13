@@ -4,7 +4,7 @@ import type { VerifyData } from './verify';
 // 結構：專案 → 檔案 → 頁簽 → 條目
 
 /** 內建標記 id */
-export type BuiltinMarkId = 'untranslated' | 'translated' | 'verified' | 'doubt' | 'think' | 'ignore' | 'srcupd';
+export type BuiltinMarkId = 'untranslated' | 'translated' | 'verified' | 'doubt' | 'think' | 'ignore' | 'srcupd' | 'ai';
 
 /** 顯示用的標記 id：內建標記，或 `c:<自訂標記 id>` */
 export type MarkId = BuiltinMarkId | `c:${string}`;
@@ -13,7 +13,8 @@ export type MarkId = BuiltinMarkId | `c:${string}`;
  * 會被存下來的標記：只有使用者刻意標的。
  * 「已翻譯／未翻譯」由有無譯文推算，不存；空字串代表沒有刻意標記。
  */
-export type StoredMark = '' | 'verified' | 'doubt' | 'think' | 'ignore' | `c:${string}`;
+/** 'ai'：AI 翻譯（還沒確認；按下一條、改譯文或手動改標記就算確認） */
+export type StoredMark = '' | 'verified' | 'doubt' | 'think' | 'ignore' | 'ai' | `c:${string}`;
 
 export interface Entry {
   /** 內部唯一編號，只給程式用 */

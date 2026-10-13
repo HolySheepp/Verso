@@ -42,6 +42,8 @@ export interface AppConfig {
   devMode?: boolean;
   showIds?: boolean;
   aiEnabled?: boolean;
+  aiSkillTranslate?: string;
+  aiSkillVerify?: string;
   /** 介面語言：zh、en，或語言包的名稱 */
   uiLang?: string;
 }

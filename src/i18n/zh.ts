@@ -1,6 +1,16 @@
 // 介面文字（中文）：程式裡只寫代號，用 tx('代號') 取文字。由程式整理產生，改字句請改這裡。
 // 存檔裡的名稱（欄位標題、資料夾名稱等）不在這裡，維持中文。
 export const ZH = {
+  'mark.ai': 'AI 翻譯', // 標記名稱：AI 翻好、還沒確認的條目
+  'list.aiLocked': 'AI 處理中', // 條目欄：AI 正在處理的條目旁的小字提示
+  'ai.locked': 'AI 正在處理的條目不能刪除', // 想刪掉 AI 處理中的條目時
+  'ai.stopped': '已停止 AI，已經寫回的內容保留', // 按了停止之後
+  'ai.askMany': '要讓 AI 處理 {n} 條嗎？', // 選了超過 50 條按 AI 時
+  'ai.askNo': '取消', // 上面那句的按鈕
+  'ai.askYes': '繼續', // 上面那句的按鈕
+  'settings.aiSkillTranslate': '翻譯用的 skill', // 設定 > 開發者選項：AI 翻譯時用的 skill 名稱
+  'settings.aiSkillVerify': '驗證用的 skill', // 設定 > 開發者選項：AI 驗證時用的 skill 名稱
+  'settings.aiSkillNone': '不指定', // 上面兩個輸入框空白時的提示
   'settings.aiEnabled': 'AI 協助（測試中）', // 設定 > 開發者選項：開關
   'settings.aiHint': '打開後條目欄上方會出現 AI 按鈕，按下時在背景用 Claude Code 處理選取的條目（需要先裝好、登入命令列版 Claude Code）', // 設定 > 開發者選項：說明
   'list.aiButton': '讓 AI 處理選取的條目', // 條目欄上方 AI 按鈕的滑鼠提示
