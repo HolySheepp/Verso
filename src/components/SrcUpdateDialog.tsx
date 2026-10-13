@@ -96,7 +96,7 @@ function SrcUpdate({ sheetIdx }: { sheetIdx: number }) {
         setTimeout(() => { try { resolve(autoAlign(old, next)); setCandsReady(true); } catch (e) { reject(e); } }, 0);
       })))
       .then((r) => { if (r && run === alignRun.current) commit(r); })
-      .catch(() => { if (run === alignRun.current) showToast(tx('srcupd.alignFailed')); })
+      .catch(() => { if (run === alignRun.current) showToast(tx('srcupd.alignFailed'), { warn: true }); })
       .finally(() => { if (run === alignRun.current) setBusy(false); });
   };
   const apply = () => {

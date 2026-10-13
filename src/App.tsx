@@ -24,7 +24,7 @@ import { Shortcuts } from './components/Shortcuts';
 import { ConfirmDialog } from './components/ConfirmDialog';
 import { resolveAskSave, resolveRecovery } from './state/saver';
 import { useEffectiveTheme } from './components/useTheme';
-import { IconCheck, IconChevD, IconChevL } from './components/icons';
+import { IconCheck, IconChevD, IconChevL, IconWarn } from './components/icons';
 import { fontVars, fz } from './model/fonts';
 
 const clamp = (v: number, lo: number, hi: number) => Math.max(lo, Math.min(hi, v));
@@ -57,7 +57,8 @@ function Toast() {
     return () => document.removeEventListener('paste', onPaste, true);
   }, []);
   useEffect(() => {
-    if (!toast) return;
+    // 警告不自己消失，要使用者點掉
+    if (!toast || toast.warn) return;
     const t = setTimeout(() => useStore.setState({ toast: null }), toast.text.length > 20 ? 3000 : 1400);
     return () => clearTimeout(t);
   }, [toast]);
@@ -65,12 +66,15 @@ function Toast() {
   return (
     // 用 flex 置中而不是 translate(-50%)，避免落在半個像素上讓字變模糊
     <div style={{ position: 'fixed', inset: 0, zIndex: 80, pointerEvents: 'none', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-    <div key={toast.k} role="status" className="toast" style={{
+    <div key={toast.k} role={toast.warn ? 'alert' : 'status'} className="toast" title={toast.warn ? tx('app.toastDismiss') : undefined}
+      onClick={toast.warn ? () => useStore.setState({ toast: null }) : undefined}
+      style={{
+      pointerEvents: toast.warn ? 'auto' : undefined, cursor: toast.warn ? 'pointer' : undefined,
       display: 'flex', alignItems: 'center', gap: 8,
       padding: '12px 22px', background: 'var(--pop)', border: '1px solid var(--line4)', borderRadius: 12, boxShadow: '0 16px 40px rgba(0,0,0,0.35)',
       fontSize: fz(14), fontWeight: 600, color: 'var(--text)',
     }}>
-      <IconCheck size={16} sw={2.6} stroke="var(--accent2)" />{toast.text}
+      {toast.warn ? <IconWarn size={16} sw={2.4} stroke="var(--warntx)" /> : <IconCheck size={16} sw={2.6} stroke="var(--accent2)" />}{toast.text}
     </div>
     </div>
   );

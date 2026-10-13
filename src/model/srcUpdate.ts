@@ -163,31 +163,10 @@ function lis(vals: number[]): number[] {
 }
 
 /**
- * 兩個已配好的句子中間，舊版、新版剛好都只剩一句沒配：就算不像也配在一起，當成同一句改寫。
- * left、right：這一段的開頭、結尾是不是緊接著已配好的句子（檔案開頭、結尾不算）。
- */
-function pairLoneGaps(seq: [number | null, number | null][], left: boolean, right: boolean): [number | null, number | null][] {
-  const out: [number | null, number | null][] = [];
-  for (let k = 0; k < seq.length;) {
-    if (seq[k][0] !== null && seq[k][1] !== null) { out.push(seq[k++]); continue; }
-    let e = k;
-    while (e < seq.length && (seq[e][0] === null || seq[e][1] === null)) e++;
-    const run = seq.slice(k, e);
-    const olds = run.filter((x) => x[0] !== null), news = run.filter((x) => x[1] !== null);
-    const bounded = (k > 0 || left) && (e < seq.length || right);
-    if (bounded && olds.length === 1 && news.length === 1) out.push([olds[0][0], news[0][1]]);
-    else out.push(...run);
-    k = e;
-  }
-  return out;
-}
-
-/**
  * 先用錨點切段再對齊：兩邊都只出現一次、完全相同的句子直接配對；其中順序一致的（最長遞增子序列）當錨點，
  * 錨點之間的每一段再做全域對齊。順序不一致的那些就是被搬動的句子，一樣直接配對。
- * lone：兩個已配好的句子中間只剩一對時硬配（見 pairLoneGaps）。
  */
-function alignByAnchors(A: Keys, a: number[], B: Keys, b: number[], lone = true): [number | null, number | null][] {
+function alignByAnchors(A: Keys, a: number[], B: Keys, b: number[]): [number | null, number | null][] {
   const count = (K: Keys, xs: number[]) => { const m = new Map<string, number>(); xs.forEach((x) => { const k = K.keys[x]; if (k) m.set(k, (m.get(k) ?? 0) + 1); }); return m; };
   const ca = count(A, a), cb = count(B, b);
   const posB = new Map<string, number>();
@@ -200,22 +179,21 @@ function alignByAnchors(A: Keys, a: number[], B: Keys, b: number[], lone = true)
   const out: [number | null, number | null][] = uniq.map(([p, q]) => [a[p], b[q]]);
   let pa = 0, pb = 0;
   anchors.push([a.length, b.length]);
-  anchors.forEach(([p, q], k) => {
+  anchors.forEach(([p, q]) => {
     const segA: number[] = [], segB: number[] = [];
     for (let x = pa; x < p; x++) if (!pairedA.has(x)) segA.push(a[x]);
     for (let y = pb; y < q; y++) if (!pairedB.has(y)) segB.push(b[y]);
-    const seg = globalAlign(A, segA, B, segB);
-    out.push(...(lone ? pairLoneGaps(seg, k > 0, k < anchors.length - 1) : seg));
+    out.push(...globalAlign(A, segA, B, segB));
     pa = p + 1; pb = q + 1;
   });
   return out;
 }
 
 /** 只看內容配對（錨點、全域對齊，再交叉比對順序換過的）：回傳 舊 → 新 */
-function alignContent(A: Keys, olds: number[], B: Keys, news: number[], lone = true): Map<number, number> {
+function alignContent(A: Keys, olds: number[], B: Keys, news: number[]): Map<number, number> {
   const pairs = new Map<number, number>();
   const freeOld: number[] = [], freeNew: number[] = [];
-  for (const [a, b] of alignByAnchors(A, olds, B, news, lone)) {
+  for (const [a, b] of alignByAnchors(A, olds, B, news)) {
     if (a !== null && b !== null) pairs.set(a, b);
     else if (a !== null) freeOld.push(a);
     else if (b !== null) freeNew.push(b);
@@ -234,6 +212,9 @@ function alignContent(A: Keys, olds: number[], B: Keys, news: number[], lone = t
   }
   return pairs;
 }
+
+/** ID 錯開同樣格數的連續句子至少這麼多句，才當成「整段錯開」 */
+const SHIFT_RUN = 3;
 
 /** 大部分 ID 配對都跟內容比對不合時，整份不看 ID */
 const ID_DISTRUST = 0.3;
@@ -258,13 +239,33 @@ export function autoAlign(old: { id: string; src: string }[], next: NewRow[]): A
   });
   // ID 不一定可信（例如 ID 其實是列號，新版插了一行就全部錯開）：先只看內容配一次，跟 ID 配對比較
   if (pairOf.size) {
-    const content = alignContent(A, old.map((_, i) => i), B, next.map((_, j) => j), false);
+    const content = alignContent(A, old.map((_, i) => i), B, next.map((_, j) => j));
     const byNew = new Map<number, number>();
     content.forEach((j, i) => byNew.set(j, i));
     // 不合：內容把這句舊的配給了別句新的，或把這句新的配給了別句舊的（內容沒配到的不算不合）
     const clash = [...pairOf].filter(([i, j]) => (content.has(i) && content.get(i) !== j) || (byNew.has(j!) && byNew.get(j!) !== i));
     if (clash.length > pairOf.size * ID_DISTRUST) { pairOf.clear(); newUsed.clear(); }
     else {
+      // 一整段連續的舊句，ID 配到的新句都剛好跟內容配到的錯開同樣格數（例如 ID 是列號、中間插了一行）：
+      // 這段整段比一次，內容配得比較像就整段改用內容（句子格式很像時，一句一句比看不出來）
+      const shiftOf = (i: number) => (content.has(i) && pairOf.get(i) !== null && pairOf.get(i) !== undefined ? content.get(i)! - pairOf.get(i)! : 0);
+      const runs: number[][] = [];
+      [...clash].map(([i]) => i).sort((x, y) => x - y).forEach((i) => {
+        const run = runs[runs.length - 1];
+        const d = shiftOf(i);
+        if (d && run && run[run.length - 1] === i - 1 && shiftOf(run[0]) === d) run.push(i);
+        else if (d) runs.push([i]);
+      });
+      for (const run of runs) {
+        if (run.length < SHIFT_RUN) continue;
+        let byId = 0, byContent = 0;
+        for (const i of run) { byId += simAbove(A, i, B, pairOf.get(i)!, 0); byContent += simAbove(A, i, B, content.get(i)!, 0); }
+        if (byContent <= byId) continue;
+        // 整段改用內容：這段原本的 ID 配對拿掉；內容要用到的新句如果被別句用 ID 佔著（例如刪掉的那句），也讓出來
+        const wanted = new Set(run.map((i) => content.get(i)!));
+        for (const i of run) { newUsed.delete(pairOf.get(i)!); pairOf.delete(i); }
+        for (const [i, j] of [...pairOf]) if (j !== null && wanted.has(j)) { pairOf.delete(i); newUsed.delete(j); }
+      }
       // 個別的：ID 配的兩句不像，而內容配到的那句很像（0.85 以上）、又比 ID 配的像得多（多 0.2 以上）：不信這個 ID
       const better = (sc: number, other: number | undefined, sim: (x: number) => number) => {
         if (other === undefined) return false;
@@ -272,6 +273,7 @@ export function autoAlign(old: { id: string; src: string }[], next: NewRow[]): A
         return o >= REORDER && o >= sc + 0.2;
       };
       for (const [i, j] of clash) {
+        if (!pairOf.has(i)) continue;
         const sc = simAbove(A, i, B, j!, 0);
         if (better(sc, content.get(i), (jj) => simAbove(A, i, B, jj, 0)) || better(sc, byNew.get(j!), (ii) => simAbove(A, ii, B, j!, 0))) {
           pairOf.delete(i); newUsed.delete(j!);
@@ -283,6 +285,16 @@ export function autoAlign(old: { id: string; src: string }[], next: NewRow[]): A
   const restOld = old.map((_, i) => i).filter((i) => !pairOf.has(i));
   const restNew = next.map((_, j) => j).filter((j) => !newUsed.has(j));
   alignContent(A, restOld, B, restNew).forEach((j, i) => { pairOf.set(i, j); newUsed.add(j); });
+  // 3. 同一個位置只剩一句：舊的第 i 句前後兩句，分別配到新版的第 j-1、j+1 句，而新版第 j 句也沒配到，就配在一起當成修改
+  //    （檔案開頭、結尾不算；要在所有配對都做完之後、照原本的序列判斷，才不會配到別的位置）
+  for (let i = 1; i < old.length - 1; i++) {
+    if (pairOf.get(i) != null) continue;
+    const before = pairOf.get(i - 1), after = pairOf.get(i + 1);
+    if (before == null || after == null || after !== before + 2) continue;
+    const j = before + 1;
+    if (newUsed.has(j)) continue;
+    pairOf.set(i, j); newUsed.add(j);
+  }
   const rows: AlignRow[] = [];
   old.forEach((_, i) => rows.push({ old: i, new: pairOf.get(i) ?? null }));
   next.forEach((_, j) => { if (!newUsed.has(j)) rows.push({ old: null, new: j }); });

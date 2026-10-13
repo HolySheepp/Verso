@@ -249,3 +249,46 @@ describe('原文更新：高相似用算好的候選（夜間檢查 3）', () =>
     expect(best).toBeLessThan(100);
   }, 120000);
 });
+
+describe('原文更新：ID 整段錯開（夜間檢查 9）', () => {
+  const old = Array.from({ length: 1000 }, (_, i) => `Restores ${i * 3 + 10} HP to one ally.`);
+  const run = (next: string[]) => autoAlign(old.map((src, i) => ({ id: String(i + 1), src })), next.map((src, j) => ({ id: String(j + 1), speaker: '', src })));
+  for (const at of [100, 500, 900]) {
+    it(`第 ${at} 條插一句：全部配對正確，插入的標成新增`, () => {
+      const next = [...old.slice(0, at), 'Revives one fallen ally.', ...old.slice(at)];
+      const rows = run(next);
+      const wrong = rows.filter((r) => r.new !== null && r.new !== at && r.old !== (r.new < at ? r.new : r.new - 1));
+      expect(wrong.length).toBe(0);
+      expect(rows.find((r) => r.new === at)?.old).toBeNull();
+    });
+    it(`刪掉第 ${at} 條：全部配對正確，刪掉的標成移除`, () => {
+      const next = [...old.slice(0, at), ...old.slice(at + 1)];
+      const rows = run(next);
+      const wrong = rows.filter((r) => r.old !== null && r.old !== at && r.new !== (r.old < at ? r.old : r.old - 1));
+      expect(wrong.length).toBe(0);
+      expect(rows.find((r) => r.old === at)?.new).toBeNull();
+    });
+  }
+});
+
+describe('原文更新：同位置只剩一句只在真的同位置時才配（夜間檢查 10）', () => {
+  const rand = (seed: number) => () => { seed = (seed * 1103515245 + 12345) % 2147483648; return seed / 2147483648; };
+  const pool = '我你他的是了不在有這個人們來到去說要';
+  const zh = (r: () => number) => Array.from({ length: 10 + Math.floor(r() * 20) }, () => pool[Math.floor(r() * pool.length)]).join('') + '。';
+  it('(a) 刪第 30 條、第 80 條插新句：刪掉的不會配到插入的新句', () => {
+    const r = rand(11);
+    const old = Array.from({ length: 100 }, (_, i) => ({ id: i === 10 || i === 60 ? '' : 'k' + i, src: zh(r) }));
+    const added = zh(r);
+    const nextOld = old.filter((_, i) => i !== 30);
+    const next = [...nextOld.slice(0, 79), { id: 'new', src: added }, ...nextOld.slice(79)].map((x) => ({ ...x, speaker: '' }));
+    const rows = autoAlign(old, next);
+    expect(rows.find((x) => x.old === 30)?.new).toBeNull();
+    expect(rows.find((x) => x.new === 79)?.old).toBeNull();
+  });
+  it('(b) [A, X, C…] → [A, Y, C…, X吧]：X 配到搬走又小改的 X吧，Y 是新增', () => {
+    const A = '我們明天早上出發去王國的首都', X = '你確定這條路真的通往北方的山谷嗎', C = '記得帶上你的劍和盾牌再走', D = '天黑之前一定要找到可以過夜的地方';
+    const rows = autoAlign([A, X, C, D].map((src) => ({ id: '', src })), [A, '好。', C, D, X + '吧'].map((src) => ({ id: '', speaker: '', src })));
+    expect(rows.find((x) => x.old === 1)?.new).toBe(4);
+    expect(rows.find((x) => x.new === 1)?.old).toBeNull();
+  });
+});

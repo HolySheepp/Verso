@@ -237,7 +237,8 @@ function ManageProjects() {
                 <TreeRow depth={0} label={p} extra={files.length ? tx('manage.027', { length: files.length }) : ''} open={isOpen} onToggle={() => toggle(p)}
                   onRename={p === SHARED ? undefined : () => setRenaming({ kind: 'project', name: p })}
                   rename={renaming?.kind === 'project' && renaming.name === p ? {
-                    error: (v) => nameError('project', NEW, v, project.projects),
+                    // 只改大小寫不算跟自己重名
+                    error: (v) => nameError('project', NEW, v, project.projects.filter((x) => x !== p)),
                     onDone: (n) => { setRenaming(null); if (n && n !== p) { renameProject(p, n); setClosed(closed.map((x) => (x === p ? n : x))); commitNow(); } },
                   } : undefined}
                   icon={<IconFolder size={14} stroke="var(--mute)" />}
@@ -251,7 +252,7 @@ function ManageProjects() {
                     selected={i === curIdx} onClick={() => { if (i !== curIdx) guard(() => { setDirty(false); setCurSheets(f.sheets); }); }}
                     onRename={() => setRenaming({ kind: 'file', index: i })}
                     rename={renaming?.kind === 'file' && renaming.index === i ? {
-                      error: (v) => nameError('file', NEW, v, files.map((x) => x.f.name)),
+                      error: (v) => nameError('file', NEW, v, files.filter((x) => x.i !== i).map((x) => x.f.name)),
                       onDone: (n) => { setRenaming(null); if (n && n !== f.name) { renameFile(i, n); commit(); } },
                     } : undefined}
                     onMenu={(ev) => setMenu({ x: ev.clientX, y: ev.clientY, target: { kind: 'file', index: i } })}
@@ -536,7 +537,7 @@ function ManageDicts() {
                             selected={cur?.project === p && cur.name === d.name} onClick={() => open({ project: p, name: d.name })}
                             onRename={() => setRenaming({ project: p, name: d.name })}
                             rename={renaming?.project === p && renaming.name === d.name ? {
-                              error: (v) => nameError('dict', NEW, v, dicts.map((x) => x.name)),
+                              error: (v) => nameError('dict', NEW, v, dicts.filter((x) => x.name !== d.name).map((x) => x.name)),
                               onDone: (n) => {
                                 setRenaming(null);
                                 if (!n || n === d.name) return;

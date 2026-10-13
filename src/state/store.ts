@@ -166,7 +166,8 @@ interface State {
   dictPasteOpen: boolean;
   manageProjectsOpen: boolean;
   /** 畫面中間短暫出現的提示 */
-  toast: { text: string; k: number } | null;
+  /** warn：警告（驚嘆號圖示、一直留著，點了才關） */
+  toast: { text: string; k: number; warn?: boolean } | null;
   /** 換存檔資料夾時，新資料夾已有同名內容：讓使用者逐項選要用哪一份 */
   rootConflicts: { root: string; items: RootConflict[] } | null;
   /** 啟動時讀不到的檔案、字典 */
@@ -323,8 +324,8 @@ interface Actions {
 export type Store = State & Actions;
 
 /** 畫面下方短暫顯示一行提示 */
-export function showToast(text: string) {
-  useStore.setState((st) => ({ toast: { text, k: (st.toast?.k ?? 0) + 1 } }));
+export function showToast(text: string, opts: { warn?: boolean } = {}) {
+  useStore.setState((st) => ({ toast: { text, k: (st.toast?.k ?? 0) + 1, warn: opts.warn } }));
 }
 
 /** 設標記；手動選「已翻譯」時，剛貼入待確認的條目也一起確認 */

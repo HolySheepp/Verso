@@ -10,7 +10,7 @@ import { nameKey, sameName } from '../model/names';
 import { entryFits } from '../model/cellLimit';
 import { migrateList, migrateSheets } from '../model/shortcuts';
 import {
-  clearRecovery, findRootConflicts, saveRootFor, mergeMarks, readFolderMeta, safeName as safeFileName, scanFolder, loadConfig, loadWorkspace, readDict, readDictFull, readRecovery, reloadFile, saveConfig, sortProjects, foreignFileAt, trashDict, trashFile, trashProject, writeDict, writeFile, writeMeta, writeRecovery,
+  clearRecovery, findRootConflicts, fixProjectCase, saveRootFor, mergeMarks, readFolderMeta, safeName as safeFileName, scanFolder, loadConfig, loadWorkspace, readDict, readDictFull, readRecovery, reloadFile, saveConfig, sortProjects, foreignFileAt, trashDict, trashFile, trashProject, writeDict, writeFile, writeMeta, writeRecovery,
   type AppConfig, type LastPosition, type RecoveryState,
 } from '../data/persist';
 import { emptyHistory } from '../model/history';
@@ -275,9 +275,9 @@ async function saveAll(ask = true): Promise<boolean> {
         // 有格子超過 Excel 的上限：這個檔案存不進去，跳過（其他照存），請使用者縮短。先檢查這個，免得先問了同名衝突、甚至丟掉外部檔，結果還是存不進去
         const tooLong = longCellsOf(f);
         if (tooLong.length) { long.push(...tooLong); cancelled = true; continue; }
-        // 寫到新位置（新檔案、改名、搬專案）而那裡已經有別的檔案：問使用者（換資料夾時已經選了覆蓋的不再問）
-        if ((!old || diskKey(old.project, old.name) !== diskKey(f.project, f.name)) && !overwriteOnSwitch.has(diskKey(f.project, f.name))
-          && await foreignFileAt(s.saveRoot, f.project, f.name, ours)) {
+        // 要寫的位置上已經有別的檔案（新位置，或原本的檔案在外面被同名的別人的檔案蓋掉了）：問使用者（換資料夾時已經選了覆蓋的不再問）。
+        // 每次存檔都看，只讀設定頁的檔案 ID
+        if (!overwriteOnSwitch.has(diskKey(f.project, f.name)) && await foreignFileAt(s.saveRoot, f.project, f.name, ours)) {
           // 自動重試時不問：當成取消，等使用者自己存檔時再問
           if (!ask) { cancelled = true; continue; }
           const choice = await askClash(f.project, f.name);
@@ -303,6 +303,8 @@ async function saveAll(ask = true): Promise<boolean> {
     // 有檔案因為格子太長存不進去：每次存檔都提示（不然使用者不知道為什麼沒存）
     if (long.length && ask) useStore.setState({ longCells: long });
     try { await writeMeta(s.saveRoot, p, lastPosition()); if (ok) { done.customs = p.customMarks; done.projects = p.projects; } } catch (e) { fail(tx('save.009'), e); }
+    // 專案只改了大小寫：資料夾名稱也跟著改（Windows 不會自己改）
+    try { for (const x of await fixProjectCase(s.saveRoot, p.projects)) fail(`${x}`, new Error('rename')); } catch { /* 下次存檔再試 */ }
   }
   const ids = dictIds(p);
   for (const [k, terms] of groups) {

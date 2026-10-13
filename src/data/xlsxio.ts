@@ -178,6 +178,11 @@ export function isVersoFileData(data: Uint8Array): boolean {
 }
 
 /** 外部檔案的 Verso 檔案 ID：不是 Verso 檔回傳 null，沒有 ID 回傳空字串 */
+/** 只讀設定頁拿檔案 ID（存檔前確認位置上的檔案是不是自己用，不讀整份）；沒有就是 null */
+export function quickFileIdOf(data: Uint8Array): string | null {
+  try { return readSetting(XLSX.read(data, { type: 'array', sheets: [SETTINGS_SHEET] }), '檔案ID') || null; } catch { return null; }
+}
+
 export function versoFileIdOf(data: Uint8Array): string | null {
   try { const wb = XLSX.read(data, { type: 'array' }); return isVersoBook(wb) ? readSetting(wb, '檔案ID') : null; } catch { return null; }
 }

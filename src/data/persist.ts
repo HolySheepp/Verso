@@ -8,7 +8,7 @@ import { io } from './fsio';
 import { dictToXlsxAsync, fileToXlsxAsync } from './xlsxAsync';
 import { DICT_DIR, LANG_DIR, safeName } from '../model/names';
 export { DICT_DIR, safeName };
-import { isVersoDictData, isVersoFileData, readDictBook, versoFileIdOf, xlsxToVersoFile } from './xlsxio';
+import { isVersoDictData, isVersoFileData, readDictBook, quickFileIdOf, xlsxToVersoFile } from './xlsxio';
 import type { CheckSettings } from '../model/checks';
 import type { FontSettings } from '../model/fonts';
 import type { Bindings } from '../model/shortcuts';
@@ -158,6 +158,36 @@ export async function recoverBackups(dir: string) {
  * 舊的那個資料夾（沒有 project.json）不是專案，略過；有 project.json 的就是叫「語言」的一般專案。
  */
 export const isOldPackDir = async (root: string, name: string) => name === LANG_DIR && !(await io.exists(io.join(root, name, META)).catch(() => false));
+
+/**
+ * 專案名稱只改了大小寫（abc → ABC）：Windows 寫進 ABC 其實是寫進原本的 abc，資料夾名稱不會變，
+ * 所以把資料夾改名兩次（abc → 暫時名稱 → ABC）。存檔資料夾和「字典」裡的專案資料夾都要改。
+ * 第二步失敗就改回原本的名稱，不會丟資料。回傳改不動的名稱。
+ */
+export async function fixProjectCase(root: string, projects: string[]): Promise<string[]> {
+  const failed: string[] = [];
+  for (const parent of [root, io.join(root, DICT_DIR)]) {
+    if (!(await io.exists(parent).catch(() => false))) continue;
+    const dirs = (await io.list(parent)).filter((e) => e.dir).map((e) => e.name);
+    for (const want of projects) {
+      const now = dirs.find((d) => d !== want && d.toLowerCase() === want.toLowerCase());
+      // 同時有 abc 和 ABC 兩個（大小寫有分的磁碟）：不動
+      if (!now || dirs.includes(want)) continue;
+      let tmp = '';
+      for (let k = 0; !tmp || await io.exists(io.join(parent, tmp)); k++) tmp = `.verso-rename-${Date.now().toString(36)}${k}`;
+      try {
+        await io.rename(io.join(parent, now), io.join(parent, tmp));
+      } catch { failed.push(want); continue; }
+      try {
+        await io.rename(io.join(parent, tmp), io.join(parent, want));
+      } catch {
+        await io.rename(io.join(parent, tmp), io.join(parent, now)).catch(() => undefined);
+        failed.push(want);
+      }
+    }
+  }
+  return failed;
+}
 
 /** 載入整個存檔資料夾 */
 export async function loadWorkspace(root: string, onProgress?: (p: number, text: string) => void): Promise<{ data: ProjectData; last?: LastPosition; remapped: boolean; unreadable: string[]; newIds: string[] }> {
@@ -383,7 +413,7 @@ export async function foreignFileAt(root: string, project: string, name: string,
   const path = io.join(root, project, safeName(name) + '.xlsx');
   if (!(await io.exists(path))) return false;
   let id: string | null = null;
-  try { id = versoFileIdOf(await io.readBinary(path)); } catch { /* 讀不到就當成別人的 */ }
+  try { id = quickFileIdOf(await io.readBinary(path)); } catch { /* 讀不到就當成別人的 */ }
   return !id || !ours.has(id);
 }
 

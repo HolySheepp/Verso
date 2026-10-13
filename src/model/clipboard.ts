@@ -47,20 +47,25 @@ export function parseTsv(text: string): string[][] {
 /** 從剪貼簿的 HTML 表格取出每一列的格子；沒有表格時回傳 null */
 export function parseHtmlTable(html: string): string[][] | null {
   const doc = new DOMParser().parseFromString(html, 'text/html');
-  // 只取最外層的表格：裡面巢狀的表格若也抓進來，格子會重複、錯位
-  const table = Array.from(doc.querySelectorAll('table')).find((t) => !t.parentElement?.closest('table'));
-  const trs = table ? table.rows : doc.querySelectorAll('tr');
-  if (!trs.length) return null;
-  // 合併的格子（rowspan、colspan）展開成網格，被佔掉的位置補空字串，後面的格子才不會往左跑
+  // 所有最外層的表格，照出現順序把列接起來（一次複製到好幾個分開的表格時都要貼進來）；
+  // 巢狀在裡面的表格不另外算，不然格子會重複、錯位
+  const tables = Array.from(doc.querySelectorAll('table')).filter((t) => !t.parentElement?.closest('table'));
+  const groups = tables.length ? tables.map((t) => Array.from(t.rows)) : [Array.from(doc.querySelectorAll('tr'))];
+  const out = groups.flatMap(gridOf);
+  return out.length ? out : null;
+}
+
+/** 一個表格的列展開成網格：合併的格子（rowspan、colspan）被佔掉的位置補空字串，後面的格子才不會往左跑 */
+function gridOf(trs: HTMLTableRowElement[]): string[][] {
   const grid: string[][] = [];
-  Array.from(trs).forEach((tr, r) => {
+  trs.forEach((tr, r) => {
     const row = (grid[r] ??= []);
     let c = 0;
     for (const cell of Array.from(tr.cells)) {
       while (row[c] !== undefined) c++;
       const el = cell.cloneNode(true) as HTMLElement;
       el.querySelectorAll('br').forEach((br) => br.replaceWith('\n'));
-      const text = (el.textContent ?? '').replace(/ /g, ' ').replace(/\r\n?/g, '\n');
+      const text = (el.textContent ?? '').replace(/\u00a0/g, ' ').replace(/\r\n?/g, '\n');
       const rs = Math.max(1, Number(cell.getAttribute('rowspan')) || 1), cs = Math.max(1, Number(cell.getAttribute('colspan')) || 1);
       for (let dr = 0; dr < rs; dr++) {
         const rr = (grid[r + dr] ??= []);
