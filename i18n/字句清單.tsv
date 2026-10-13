@@ -1,31 +1,39 @@
 ﻿代號	中文	畫面區域	程式位置
+settings.aiEnabled	AI 協助（測試中）	設定 > 開發者選項：開關	components/SettingsDialog.tsx:393
+settings.aiHint	打開後條目欄上方會出現 AI 按鈕，按下時在背景用 Claude Code 處理選取的條目（需要先裝好、登入命令列版 Claude Code）	設定 > 開發者選項：說明	components/SettingsDialog.tsx:395
+list.aiButton	讓 AI 處理選取的條目	條目欄上方 AI 按鈕的滑鼠提示	components/EntryList.tsx:706
+list.aiStop	停止	AI 處理中時，AI 按鈕變成這個	components/EntryList.tsx:706 components/EntryList.tsx:708
+ai.done	AI 處理完成	AI 做完時的提示	state/ai.ts:63
+ai.failed	AI 處理失敗：{msg}	AI 出錯時的警告	state/ai.ts:64 state/ai.ts:86
+ai.notInstalled	找不到命令列版的 Claude Code，請先安裝並登入	按 AI 按鈕但沒裝 Claude Code	state/ai.ts:86
+ai.desktopOnly	AI 協助只能在桌面版使用	瀏覽器預覽裡按 AI 按鈕	state/ai.ts:72
 settings.devSection	開發者選項	設定左邊的分類（開發者模式才有）	components/SettingsDialog.tsx:27
-settings.showIds	顯示字句 ID	設定 > 開發者選項：開關	components/SettingsDialog.tsx:387
-settings.showIdsHint	滑鼠移到介面文字上，旁邊會顯示它的字句 ID	設定 > 開發者選項：開關下面的說明	components/SettingsDialog.tsx:389
+settings.showIds	顯示字句 ID	設定 > 開發者選項：開關	components/SettingsDialog.tsx:388
+settings.showIdsHint	滑鼠移到介面文字上，旁邊會顯示它的字句 ID	設定 > 開發者選項：開關下面的說明	components/SettingsDialog.tsx:390
 settings.devOn	已開啟開發者模式	連點設定標題 5 次時的提示	components/SettingsDialog.tsx:57
 settings.devOff	已關閉開發者模式	再連點 5 次時的提示	components/SettingsDialog.tsx:57
 shortcut.toggleIds	顯示字句 ID（開發者模式）	設定 > 快捷鍵：動作名稱	model/shortcuts.ts:37
 app.toastDismiss	點一下關閉	一直留著的警告提示，滑鼠停在上面時	App.tsx:70
-settings.language	語言	設定 > 一般	components/SettingsDialog.tsx:431
-settings.addPack	添加語言包	設定 > 一般：語言選單下面的按鈕	components/SettingsDialog.tsx:445
-settings.packLabel	{name}（語言包）	設定 > 一般：語言包跟內建語言同名時，選單裡這樣顯示	components/SettingsDialog.tsx:438
-settings.addPackHint	也可以把語言包檔案拖進這裡	設定 > 一般：添加語言包按鈕旁的說明	components/SettingsDialog.tsx:446
-settings.packsAdded	已加入語言包：{names}	設定 > 一般：加好語言包後的提示	components/SettingsDialog.tsx:417
-settings.packsBad	這些檔案不是語言包：{names}	設定 > 一般：加入的檔案讀不出語言包內容時	components/SettingsDialog.tsx:418
-settings.packsFailed	語言包加不進去，主程式資料夾可能沒有寫入權限	設定 > 一般：複製語言包失敗時	components/SettingsDialog.tsx:420
-settings.packReplace	已經有語言包「{name}」，要取代嗎？	設定 > 一般：加入同名語言包時	components/SettingsDialog.tsx:450
-settings.packReplaceNo	取消	設定 > 一般：同名語言包的詢問	components/SettingsDialog.tsx:451
-settings.packReplaceYes	取代	設定 > 一般：同名語言包的詢問	components/SettingsDialog.tsx:451
-common.sep	、	列出好幾個名稱時的分隔符號	App.tsx:90 App.tsx:101 App.tsx:112 components/CopyConfirm.tsx:19 components/EntryList.tsx:191 components/EntryList.tsx:191 components/FileNav.tsx:123 components/ManageDialogs.tsx:171 components/SettingsDialog.tsx:417 components/SettingsDialog.tsx:418 components/SidePanel.tsx:340 components/WorkPanel.tsx:96 model/importSel.ts:59 model/importSel.ts:59 model/paste.ts:79 state/saver.ts:925 state/saver.ts:925
-common.join	；	把兩段提示接成一句時的分隔符號（英文用「; 」）	state/saver.ts:925
+settings.language	語言	設定 > 一般	components/SettingsDialog.tsx:437
+settings.addPack	添加語言包	設定 > 一般：語言選單下面的按鈕	components/SettingsDialog.tsx:451
+settings.packLabel	{name}（語言包）	設定 > 一般：語言包跟內建語言同名時，選單裡這樣顯示	components/SettingsDialog.tsx:444
+settings.addPackHint	也可以把語言包檔案拖進這裡	設定 > 一般：添加語言包按鈕旁的說明	components/SettingsDialog.tsx:452
+settings.packsAdded	已加入語言包：{names}	設定 > 一般：加好語言包後的提示	components/SettingsDialog.tsx:423
+settings.packsBad	這些檔案不是語言包：{names}	設定 > 一般：加入的檔案讀不出語言包內容時	components/SettingsDialog.tsx:424
+settings.packsFailed	語言包加不進去，主程式資料夾可能沒有寫入權限	設定 > 一般：複製語言包失敗時	components/SettingsDialog.tsx:426
+settings.packReplace	已經有語言包「{name}」，要取代嗎？	設定 > 一般：加入同名語言包時	components/SettingsDialog.tsx:456
+settings.packReplaceNo	取消	設定 > 一般：同名語言包的詢問	components/SettingsDialog.tsx:457
+settings.packReplaceYes	取代	設定 > 一般：同名語言包的詢問	components/SettingsDialog.tsx:457
+common.sep	、	列出好幾個名稱時的分隔符號	App.tsx:90 App.tsx:101 App.tsx:112 components/CopyConfirm.tsx:19 components/EntryList.tsx:192 components/EntryList.tsx:192 components/FileNav.tsx:123 components/ManageDialogs.tsx:171 components/SettingsDialog.tsx:423 components/SettingsDialog.tsx:424 components/SidePanel.tsx:340 components/WorkPanel.tsx:96 model/importSel.ts:59 model/importSel.ts:59 model/paste.ts:79 state/saver.ts:926 state/saver.ts:926
+common.join	；	把兩段提示接成一句時的分隔符號（英文用「; 」）	state/saver.ts:926
 common.moreEntries	 等 {n} 條	列表太長時接在後面	App.tsx:90
-common.moreItems	 等 {n} 個	列表太長時接在後面	App.tsx:101 App.tsx:112 state/saver.ts:925 state/saver.ts:925
-common.sheetError	「{name}」{msg}	某個頁簽有錯誤時，頁簽名稱接錯誤訊息	components/ImportDialog.tsx:189 components/ImportDialog.tsx:190 components/ManageDialogs.tsx:359 components/PasteDialog.tsx:112
+common.moreItems	 等 {n} 個	列表太長時接在後面	App.tsx:101 App.tsx:112 state/saver.ts:926 state/saver.ts:926
+common.sheetError	「{name}」{msg}	某個頁簽有錯誤時，頁簽名稱接錯誤訊息	components/ImportDialog.tsx:188 components/ImportDialog.tsx:189 components/ManageDialogs.tsx:359 components/PasteDialog.tsx:112
 common.errorReason	{target}：{reason}	存檔失敗的項目與原因	components/TitleBar.tsx:55
-import.fieldRange	{range}（{n}）	匯入視窗：欄位選到的範圍和行數	components/ImportDialog.tsx:355
+import.fieldRange	{range}（{n}）	匯入視窗：欄位選到的範圍和行數	components/ImportDialog.tsx:354
 save.longAt	{project} / {file} / {sheet} 第 {n} 條	存檔時格子太長的條目位置	state/saver.ts:135
 work.tooLong	譯文加上修改會超過 Excel 一格 32767 字的上限，沒有改	驗證模式的修改框	components/WorkPanel.tsx:253 components/WorkPanel.tsx:343
-save.sameRoot	已經是目前的存檔資料夾	設定 > 一般：換存檔資料夾時選到同一個	state/saver.ts:678
+save.sameRoot	已經是目前的存檔資料夾	設定 > 一般：換存檔資料夾時選到同一個	state/saver.ts:679
 check.fullwidthSpace	全形空格	檢查項目與訊息	model/checks.ts:139
 app.001	Excel 一格最多 32767 字，貼上後會超過，沒有貼上	主畫面	App.tsx:55
 app.002	有格子超過 Excel 的單格上限	主畫面	App.tsx:89
@@ -83,46 +91,46 @@ dictpaste.007	譯文	貼入字典視窗	components/DictPasteDialog.tsx:82
 dictpaste.008	{length} 筆	貼入字典視窗	components/DictPasteDialog.tsx:89
 dictpaste.009	取消	貼入字典視窗	components/DictPasteDialog.tsx:93
 dictpaste.010	加入	貼入字典視窗	components/DictPasteDialog.tsx:95
-list.001	發話者	條目欄	components/EntryList.tsx:29
-list.002	原文	條目欄	components/EntryList.tsx:29
-list.003	譯文	條目欄	components/EntryList.tsx:29
-list.004	全部	條目欄	components/EntryList.tsx:60
-list.005	未翻譯	條目欄	components/EntryList.tsx:61
-list.006	疑慮	條目欄	components/EntryList.tsx:62
-list.007	待思考	條目欄	components/EntryList.tsx:63
-list.008	有問題	條目欄	components/EntryList.tsx:64
-list.009	原文更新	條目欄	components/EntryList.tsx:65
-list.010	標記：{v1}，點擊變更	條目欄	components/EntryList.tsx:134
-list.011	特殊長度標準	條目欄	components/EntryList.tsx:162
-list.012	特殊標準：{v1}	條目欄	components/EntryList.tsx:162
-list.013	有備註	條目欄	components/EntryList.tsx:165 components/EntryList.tsx:166
-list.014	(新原文已移除)	條目欄	components/EntryList.tsx:180
-list.015	不需翻譯	條目欄	components/EntryList.tsx:189 components/EntryList.tsx:196
-list.016	尚未翻譯	條目欄	components/EntryList.tsx:189 components/EntryList.tsx:196
-list.017	文本條目	條目欄	components/EntryList.tsx:691 components/EntryList.tsx:697
-list.018	共 {n} 條	條目欄	components/EntryList.tsx:698
-list.020	設定檔案的長度標準	條目欄	components/EntryList.tsx:701
-list.021	長度標準：{v1}	條目欄	components/EntryList.tsx:701
-list.022	套用全部新原文	條目欄	components/EntryList.tsx:706 components/EntryList.tsx:706
-list.023	全部檢查	條目欄	components/EntryList.tsx:711 components/EntryList.tsx:711
-list.024	複製譯文欄	條目欄	components/EntryList.tsx:715 components/EntryList.tsx:715
-list.025	複製備註	條目欄	components/EntryList.tsx:719 components/EntryList.tsx:719
-list.026	篩選條目	條目欄	components/EntryList.tsx:723
-list.027	調整「{h}」欄寬	條目欄	components/EntryList.tsx:768
-list.028	條目欄	條目欄	components/EntryList.tsx:778
-list.029	目前沒有檔案，請新增檔案	條目欄	components/EntryList.tsx:793
-list.030	這個頁簽沒有條目	條目欄	components/EntryList.tsx:793
-list.031	這個篩選條件下沒有條目	條目欄	components/EntryList.tsx:793
-list.032	條目	條目欄	components/EntryList.tsx:798
-list.033	清除整欄	條目欄	components/EntryList.tsx:800
-list.034	標記	條目欄	components/EntryList.tsx:802 components/EntryList.tsx:812
-list.035	套用新原文	條目欄	components/EntryList.tsx:803 components/EntryList.tsx:813
-list.036	清除	條目欄	components/EntryList.tsx:804 components/EntryList.tsx:811
-list.037	刪除 {length} 列	條目欄	components/EntryList.tsx:805
-list.038	在下方插入	條目欄	components/EntryList.tsx:806
-list.039	上移	條目欄	components/EntryList.tsx:807 components/EntryList.tsx:814
-list.040	下移	條目欄	components/EntryList.tsx:808 components/EntryList.tsx:815
-list.041	編輯	條目欄	components/EntryList.tsx:810
+list.001	發話者	條目欄	components/EntryList.tsx:30
+list.002	原文	條目欄	components/EntryList.tsx:30
+list.003	譯文	條目欄	components/EntryList.tsx:30
+list.004	全部	條目欄	components/EntryList.tsx:61
+list.005	未翻譯	條目欄	components/EntryList.tsx:62
+list.006	疑慮	條目欄	components/EntryList.tsx:63
+list.007	待思考	條目欄	components/EntryList.tsx:64
+list.008	有問題	條目欄	components/EntryList.tsx:65
+list.009	原文更新	條目欄	components/EntryList.tsx:66
+list.010	標記：{v1}，點擊變更	條目欄	components/EntryList.tsx:135
+list.011	特殊長度標準	條目欄	components/EntryList.tsx:163
+list.012	特殊標準：{v1}	條目欄	components/EntryList.tsx:163
+list.013	有備註	條目欄	components/EntryList.tsx:166 components/EntryList.tsx:167
+list.014	(新原文已移除)	條目欄	components/EntryList.tsx:181
+list.015	不需翻譯	條目欄	components/EntryList.tsx:190 components/EntryList.tsx:197
+list.016	尚未翻譯	條目欄	components/EntryList.tsx:190 components/EntryList.tsx:197
+list.017	文本條目	條目欄	components/EntryList.tsx:695 components/EntryList.tsx:701
+list.018	共 {n} 條	條目欄	components/EntryList.tsx:702
+list.020	設定檔案的長度標準	條目欄	components/EntryList.tsx:711
+list.021	長度標準：{v1}	條目欄	components/EntryList.tsx:711
+list.022	套用全部新原文	條目欄	components/EntryList.tsx:716 components/EntryList.tsx:716
+list.023	全部檢查	條目欄	components/EntryList.tsx:721 components/EntryList.tsx:721
+list.024	複製譯文欄	條目欄	components/EntryList.tsx:725 components/EntryList.tsx:725
+list.025	複製備註	條目欄	components/EntryList.tsx:729 components/EntryList.tsx:729
+list.026	篩選條目	條目欄	components/EntryList.tsx:733
+list.027	調整「{h}」欄寬	條目欄	components/EntryList.tsx:778
+list.028	條目欄	條目欄	components/EntryList.tsx:788
+list.029	目前沒有檔案，請新增檔案	條目欄	components/EntryList.tsx:803
+list.030	這個頁簽沒有條目	條目欄	components/EntryList.tsx:803
+list.031	這個篩選條件下沒有條目	條目欄	components/EntryList.tsx:803
+list.032	條目	條目欄	components/EntryList.tsx:808
+list.033	清除整欄	條目欄	components/EntryList.tsx:810
+list.034	標記	條目欄	components/EntryList.tsx:812 components/EntryList.tsx:822
+list.035	套用新原文	條目欄	components/EntryList.tsx:813 components/EntryList.tsx:823
+list.036	清除	條目欄	components/EntryList.tsx:814 components/EntryList.tsx:821
+list.037	刪除 {length} 列	條目欄	components/EntryList.tsx:815
+list.038	在下方插入	條目欄	components/EntryList.tsx:816
+list.039	上移	條目欄	components/EntryList.tsx:817 components/EntryList.tsx:824
+list.040	下移	條目欄	components/EntryList.tsx:818 components/EntryList.tsx:825
+list.041	編輯	條目欄	components/EntryList.tsx:820
 error.001	Verso 發生錯誤	錯誤畫面	components/ErrorBoundary.tsx:17
 error.002	發生錯誤	錯誤畫面	components/ErrorBoundary.tsx:25
 error.003	目前的內容已經存進暫存，重新載入後可以恢復。	錯誤畫面	components/ErrorBoundary.tsx:26
@@ -160,31 +168,31 @@ font.002	{label}字形	字形選單	components/FontSelect.tsx:52 components/Font
 font.003	搜尋字形	字形選單	components/FontSelect.tsx:67
 font.004	近期	字形選單	components/FontSelect.tsx:72
 font.005	全部	字形選單	components/FontSelect.tsx:73
-import.001	讀不到這個檔案：{v1}	匯入視窗	components/ImportDialog.tsx:70
-import.002	關閉	匯入視窗	components/ImportDialog.tsx:89
-import.003	匯入檔案	匯入視窗	components/ImportDialog.tsx:102 components/ImportDialog.tsx:164 components/ImportDialog.tsx:206
-import.004	把檔案拖到這裡	匯入視窗	components/ImportDialog.tsx:114
-import.005	選擇檔案	匯入視窗	components/ImportDialog.tsx:116
-import.006	檔名	匯入視窗	components/ImportDialog.tsx:132
-import.008	專案	匯入視窗	components/ImportDialog.tsx:135
-import.009	取消	匯入視窗	components/ImportDialog.tsx:145
-import.010	匯入	匯入視窗	components/ImportDialog.tsx:147
-import.011	{n} 條	匯入視窗	components/ImportDialog.tsx:171
+import.001	讀不到這個檔案：{v1}	匯入視窗	components/ImportDialog.tsx:69
+import.002	關閉	匯入視窗	components/ImportDialog.tsx:88
+import.003	匯入檔案	匯入視窗	components/ImportDialog.tsx:101 components/ImportDialog.tsx:163 components/ImportDialog.tsx:205
+import.004	把檔案拖到這裡	匯入視窗	components/ImportDialog.tsx:113
+import.005	選擇檔案	匯入視窗	components/ImportDialog.tsx:115
+import.006	檔名	匯入視窗	components/ImportDialog.tsx:131
+import.008	專案	匯入視窗	components/ImportDialog.tsx:134
+import.009	取消	匯入視窗	components/ImportDialog.tsx:144
+import.010	匯入	匯入視窗	components/ImportDialog.tsx:146
+import.011	{n} 條	匯入視窗	components/ImportDialog.tsx:170
 import.012	還沒貼原文	匯入視窗	
-import.013	還沒選原文	匯入視窗	components/ImportDialog.tsx:184
-import.014	頁簽	匯入視窗	components/ImportDialog.tsx:209
-import.015	頁簽名稱	匯入視窗	components/ImportDialog.tsx:216
-import.016	雙擊改名	匯入視窗	components/ImportDialog.tsx:221
-import.017	移除頁簽「{name}」	匯入視窗	components/ImportDialog.tsx:229
-import.018	移除	匯入視窗	components/ImportDialog.tsx:229 components/ImportDialog.tsx:243
-import.019	頁簽「{v1}」	匯入視窗	components/ImportDialog.tsx:240
-import.020	重新命名	匯入視窗	components/ImportDialog.tsx:242
-import.021	把選取的範圍設為{label}	匯入視窗	components/ImportDialog.tsx:353
-import.022	未選	匯入視窗	components/ImportDialog.tsx:355
-import.023	清除{label}	匯入視窗	components/ImportDialog.tsx:358
-import.024	清除	匯入視窗	components/ImportDialog.tsx:358
-import.025	設為	匯入視窗	components/ImportDialog.tsx:401
-import.026	設為{label}	匯入視窗	components/ImportDialog.tsx:402
+import.013	還沒選原文	匯入視窗	components/ImportDialog.tsx:183
+import.014	頁簽	匯入視窗	components/ImportDialog.tsx:208
+import.015	頁簽名稱	匯入視窗	components/ImportDialog.tsx:215
+import.016	雙擊改名	匯入視窗	components/ImportDialog.tsx:220
+import.017	移除頁簽「{name}」	匯入視窗	components/ImportDialog.tsx:228
+import.018	移除	匯入視窗	components/ImportDialog.tsx:228 components/ImportDialog.tsx:242
+import.019	頁簽「{v1}」	匯入視窗	components/ImportDialog.tsx:239
+import.020	重新命名	匯入視窗	components/ImportDialog.tsx:241
+import.021	把選取的範圍設為{label}	匯入視窗	components/ImportDialog.tsx:352
+import.022	未選	匯入視窗	components/ImportDialog.tsx:354
+import.023	清除{label}	匯入視窗	components/ImportDialog.tsx:357
+import.024	清除	匯入視窗	components/ImportDialog.tsx:357
+import.025	設為	匯入視窗	components/ImportDialog.tsx:400
+import.026	設為{label}	匯入視窗	components/ImportDialog.tsx:401
 length.001	既有參數	長度標準視窗	components/LengthDialog.tsx:14
 length.002	中文上限	長度標準視窗	components/LengthDialog.tsx:15
 length.003	視覺	長度標準視窗	components/LengthDialog.tsx:16
@@ -371,28 +379,28 @@ settings.038	終點線	設定	components/SettingsDialog.tsx:258
 settings.039	「{combo}」已被「{v1}」使用	設定	components/SettingsDialog.tsx:293
 settings.comboReserved	「{combo}」已被佔用	設定 > 快捷鍵：錄到條目欄固定的組合（復原、重做、方向鍵）時	components/SettingsDialog.tsx:288
 settings.040	情境	設定	components/SettingsDialog.tsx:340
-settings.041	還原預設	設定	components/SettingsDialog.tsx:344 components/SettingsDialog.tsx:608
+settings.041	還原預設	設定	components/SettingsDialog.tsx:344 components/SettingsDialog.tsx:614
 settings.042	把「{v1}」的快捷鍵還原成預設？	設定	components/SettingsDialog.tsx:347
 settings.043	還原	設定	components/SettingsDialog.tsx:348
 settings.044	按下新的組合鍵	設定	components/SettingsDialog.tsx:365
-settings.045	存檔資料夾	設定	components/SettingsDialog.tsx:455
-settings.046	更改…	設定	components/SettingsDialog.tsx:463
-settings.047	自動存檔	設定	components/SettingsDialog.tsx:467
-settings.048	每 {input} 分鐘	設定	components/SettingsDialog.tsx:424
-settings.049	自動存檔間隔（分鐘）	設定	components/SettingsDialog.tsx:470
-settings.051	色彩模式	設定	components/SettingsDialog.tsx:535 components/SettingsDialog.tsx:536
-settings.052	深色	設定	components/SettingsDialog.tsx:537
-settings.053	淺色	設定	components/SettingsDialog.tsx:537
-settings.054	跟隨系統	設定	components/SettingsDialog.tsx:537
-settings.055	主題色	設定	components/SettingsDialog.tsx:544 components/SettingsDialog.tsx:545
-settings.056	迷幻	設定	components/SettingsDialog.tsx:551 components/SettingsDialog.tsx:551
-settings.057	自訂主題色	設定	components/SettingsDialog.tsx:566 components/SettingsDialog.tsx:566
-settings.058	迷幻主題色會不停重繪畫面，比較舊的電腦或開著很大的檔案時，可能會稍微變慢、比較耗電。	設定	components/SettingsDialog.tsx:573
-settings.059	字體	設定	components/SettingsDialog.tsx:593
-settings.060	{label}字型大小	設定	components/SettingsDialog.tsx:605
-settings.061	跟隨系統字	設定	components/SettingsDialog.tsx:616
-settings.062	超框時	設定	components/SettingsDialog.tsx:620
-settings.063	{label}超框時	設定	components/SettingsDialog.tsx:621
+settings.045	存檔資料夾	設定	components/SettingsDialog.tsx:461
+settings.046	更改…	設定	components/SettingsDialog.tsx:469
+settings.047	自動存檔	設定	components/SettingsDialog.tsx:473
+settings.048	每 {input} 分鐘	設定	components/SettingsDialog.tsx:430
+settings.049	自動存檔間隔（分鐘）	設定	components/SettingsDialog.tsx:476
+settings.051	色彩模式	設定	components/SettingsDialog.tsx:541 components/SettingsDialog.tsx:542
+settings.052	深色	設定	components/SettingsDialog.tsx:543
+settings.053	淺色	設定	components/SettingsDialog.tsx:543
+settings.054	跟隨系統	設定	components/SettingsDialog.tsx:543
+settings.055	主題色	設定	components/SettingsDialog.tsx:550 components/SettingsDialog.tsx:551
+settings.056	迷幻	設定	components/SettingsDialog.tsx:557 components/SettingsDialog.tsx:557
+settings.057	自訂主題色	設定	components/SettingsDialog.tsx:572 components/SettingsDialog.tsx:572
+settings.058	迷幻主題色會不停重繪畫面，比較舊的電腦或開著很大的檔案時，可能會稍微變慢、比較耗電。	設定	components/SettingsDialog.tsx:579
+settings.059	字體	設定	components/SettingsDialog.tsx:599
+settings.060	{label}字型大小	設定	components/SettingsDialog.tsx:611
+settings.061	跟隨系統字	設定	components/SettingsDialog.tsx:622
+settings.062	超框時	設定	components/SettingsDialog.tsx:626
+settings.063	{label}超框時	設定	components/SettingsDialog.tsx:627
 side.001	字典	工具欄	components/SidePanel.tsx:19
 side.002	搜尋	工具欄	components/SidePanel.tsx:20
 side.003	瀏覽器	工具欄	components/SidePanel.tsx:21
@@ -566,9 +574,9 @@ importfile.001	不支援這種檔案	匯入檔案訊息	data/importio.ts:39
 importfile.002	無法讀取這個檔案	匯入檔案訊息	data/importio.ts:58
 importfile.003	檔案裡沒有內容	匯入檔案訊息	data/importio.ts:61
 importfile.tooLong	Excel 一格最多 32767 字，檔案裡有一格超過了，沒有匯入	匯入檔案訊息	data/importio.ts:63
-load.001	字典 / {name} / {v1}	讀取訊息	data/persist.ts:125
-load.002	讀取專案「{name}」	讀取訊息	data/persist.ts:217
-load.003	讀取字典	讀取訊息	data/persist.ts:259
+load.001	字典 / {name} / {v1}	讀取訊息	data/persist.ts:126
+load.002	讀取專案「{name}」	讀取訊息	data/persist.ts:218
+load.003	讀取字典	讀取訊息	data/persist.ts:260
 xlsx.001	轉檔失敗	存檔轉檔	data/xlsxAsync.ts:19 data/xlsxAsync.ts:23
 align.001	比對失敗	原文更新比對	model/alignAsync.ts:41 model/alignAsync.ts:46
 srcupd.alignFailed	自動比對失敗，目前照順序對應	原文更新比對	components/SrcUpdateDialog.tsx:99
@@ -667,7 +675,7 @@ pastecol.001	發話者	貼入欄位	model/paste.ts:10
 pastecol.002	原文	貼入欄位	model/paste.ts:11
 pastecol.003	譯文	貼入欄位	model/paste.ts:12
 pastecol.004	備註	貼入欄位	model/paste.ts:13
-pastecol.005	還沒貼原文	貼入欄位	components/ImportDialog.tsx:184 model/paste.ts:74
+pastecol.005	還沒貼原文	貼入欄位	components/ImportDialog.tsx:183 model/paste.ts:74
 pastecol.006	各欄行數不一致：{v1}	貼入欄位	model/paste.ts:79
 shortcut.001	在譯文框裡	快捷鍵	model/shortcuts.ts:7
 shortcut.002	不在輸入框時	快捷鍵	model/shortcuts.ts:8
@@ -703,13 +711,13 @@ save.008	專案資料夾「{x}」	存檔訊息	state/saver.ts:323
 save.009	專案設定檔	存檔訊息	state/saver.ts:306
 save.010	已儲存	存檔訊息	state/saver.ts:350
 save.011	讀取設定	存檔訊息	state/saver.ts:399
-save.012	讀取專案	存檔訊息	state/saver.ts:439
-save.013	完成	存檔訊息	state/saver.ts:466
-save.014	資料夾裡有其他東西，改存到裡面的「Verso」資料夾	存檔訊息	state/saver.ts:692
-save.015	已載入：{v1}{v2}	存檔訊息	state/saver.ts:925
-save.016	已改名：{v1}{v2}	存檔訊息	state/saver.ts:925
-save.017	字典 / {project} / {name}	存檔訊息	state/saver.ts:927
-store.001	啟動中	狀態訊息	main.tsx:22 state/store.ts:623
+save.012	讀取專案	存檔訊息	state/saver.ts:440
+save.013	完成	存檔訊息	state/saver.ts:467
+save.014	資料夾裡有其他東西，改存到裡面的「Verso」資料夾	存檔訊息	state/saver.ts:693
+save.015	已載入：{v1}{v2}	存檔訊息	state/saver.ts:926
+save.016	已改名：{v1}{v2}	存檔訊息	state/saver.ts:926
+save.017	字典 / {project} / {name}	存檔訊息	state/saver.ts:928
+store.001	啟動中	狀態訊息	main.tsx:22 state/store.ts:627
 update.001	檢查更新	自動更新	state/updater.ts:33
 update.002	下載太久沒有進度	自動更新	state/updater.ts:57 state/updater.ts:58
 update.003	下載更新 0%	自動更新	state/updater.ts:60

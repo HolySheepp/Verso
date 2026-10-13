@@ -212,6 +212,10 @@ interface State {
   devMode: boolean;
   /** 開發者選項：滑鼠移到介面文字上就顯示它的字句 ID */
   showIds: boolean;
+  /** 開發者選項：AI 協助（關掉時按鈕不出現） */
+  aiEnabled: boolean;
+  /** AI 正在處理 */
+  aiBusy: boolean;
   /** 存起來的常用長度標準 */
   lengthPresets: { name: string; std: LengthStd }[];
   /** 長度標準設定視窗：設定檔案的標準，或只設定目前這一條 */
@@ -638,6 +642,8 @@ export const useStore = create<Store>((set, get) => {
     langStamp: 0,
     devMode: false,
     showIds: false,
+    aiEnabled: false,
+    aiBusy: false,
     lengthPresets: [],
     lengthDialog: null,
     shortcuts: defaultBindings(),

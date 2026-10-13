@@ -1,4 +1,5 @@
 import { tx } from '../i18n';
+import { runAi } from '../state/ai';
 import { memo, useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react';
 import { flushSync } from 'react-dom';
 import { currentOf, hasPendingUpdate, searchHit, useStorePick, visibleIssues, type Filter } from '../state/store';
@@ -22,7 +23,7 @@ import { CellText } from './CellText';
 import { maxOf, minOf } from '../model/num';
 import { hasTooLongCell, MAX_CELL_CHARS, tooLongMsg } from '../model/names';
 import { entryFits } from '../model/cellLimit';
-import { showToast } from '../state/store';
+import { showToast, useStore } from '../state/store';
 
 /** # 欄（對話 id）、發話者欄、原文、譯文：依比例分配寬度 */
 const colsOf = (w: number[]) => w.map((x) => `minmax(0, ${x}fr)`).join(' ');
@@ -248,6 +249,9 @@ export function EntryList() {
   const editRef = useRef<Editing | null>(null);
   const setEditing = (ed: Editing | null) => { editRef.current = ed; setEditingState(ed); };
   const readOnly = s.mode === 'view';
+  // AI 協助（開發者選項）：開了才有按鈕
+  const aiOn = useStore((st) => st.devMode && st.aiEnabled);
+  const aiBusy = useStore((st) => st.aiBusy);
   const ovf = { id: overflowOf(s.fonts, 'id'), speaker: overflowOf(s.fonts, 'speaker'), src: overflowOf(s.fonts, 'src'), tgt: overflowOf(s.fonts, 'tgt') };
 
 
@@ -698,6 +702,12 @@ export function EntryList() {
           <span style={{ fontSize: fz(12), color: 'var(--mute)' }}>{tx('list.018', { n: sheet.entries.length })}</span>
         </div>
         <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+        {aiOn && (
+          <button type="button" className="btn btn-ghost" onClick={() => void runAi()} title={aiBusy ? tx('list.aiStop') : tx('list.aiButton')}
+            style={{ height: 34, padding: '0 12px', background: 'var(--btn)', border: `1px solid ${aiBusy ? 'var(--accent)' : 'var(--line3)'}`, borderRadius: 8, fontSize: fz(12.5), color: aiBusy ? 'var(--accent2)' : 'var(--text2)' }}>
+            {aiBusy ? tx('list.aiStop') : 'AI'}
+          </button>
+        )}
         <button type="button" className="ib" aria-label={tx('list.020')} title={tx('list.021', { v1: stdLabel(fileStd) })} onClick={() => s.set({ lengthDialog: 'file' })}
           style={{ width: 34, height: 34, display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 0, background: 'var(--btn)', border: '1px solid var(--line3)', borderRadius: 8, color: 'var(--text2)' }}>
           <IconRuler size={16} />

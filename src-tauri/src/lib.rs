@@ -1,5 +1,7 @@
 use tauri::Manager;
 
+mod ai;
+
 /// 列出電腦已安裝的字形（字體設定用），去掉重複並排序
 #[tauri::command]
 fn list_fonts() -> Vec<String> {
@@ -85,7 +87,8 @@ pub fn run() {
         .plugin(tauri_plugin_fs::init())
         .plugin(tauri_plugin_dialog::init())
         .plugin(tauri_plugin_opener::init())
-        .invoke_handler(tauri::generate_handler![list_fonts, move_to_trash, install_kind, app_dir, open_url, hide_path])
+        .manage(ai::Ai::default())
+        .invoke_handler(tauri::generate_handler![list_fonts, move_to_trash, install_kind, app_dir, open_url, hide_path, ai::ai_server_start, ai::ai_reply, ai::ai_run, ai::ai_stop])
         .run(tauri::generate_context!())
         .expect("error while running tauri application");
 }
