@@ -185,7 +185,7 @@ pub fn ai_run(app: AppHandle, state: State<Ai>, prompt: String) -> Result<(), St
         .arg("--mcp-config").arg(&cfg)
         .arg("--strict-mcp-config")
         .arg("--allowedTools").arg("mcp__verso")
-        .arg("--disallowedTools").arg("Bash,Edit,Write,MultiEdit,Read,Glob,Grep,WebFetch,WebSearch,NotebookEdit,Task,TodoWrite")
+        .arg("--disallowedTools").arg("Bash,Edit,Write,Read,Glob,Grep,WebFetch,WebSearch,NotebookEdit,Task,TodoWrite")
         .stdin(Stdio::null())
         .stdout(Stdio::piped())
         .stderr(Stdio::piped());
