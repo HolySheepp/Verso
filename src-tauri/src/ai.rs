@@ -187,8 +187,10 @@ pub fn ai_run(app: AppHandle, state: State<Ai>, prompt: String) -> Result<(), St
         .arg("-p").arg(&prompt)
         .arg("--mcp-config").arg(&cfg)
         .arg("--strict-mcp-config")
-        .arg("--allowedTools").arg("mcp__verso")
-        .arg("--disallowedTools").arg("Bash,Edit,Write,Read,Glob,Grep,WebFetch,WebSearch,NotebookEdit,Task,TodoWrite")
+        // 內建工具只留 Skill（讀 skill 用），其他（指令、檔案、網路等）都拿掉；沒有事先允許的一律拒絕、不問
+        .arg("--tools").arg("Skill")
+        .arg("--allowedTools").arg("mcp__verso,Skill")
+        .arg("--permission-mode").arg("dontAsk")
         .stdin(Stdio::null())
         .stdout(Stdio::piped())
         .stderr(Stdio::piped());
