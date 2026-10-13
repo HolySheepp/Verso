@@ -398,8 +398,19 @@ export function EntryList() {
     });
     if (above && !pending.current) el.scrollTop += above;
     if (changed) setHVer((v) => v + 1);
-    else ensure();
+    else if (!ensure()) {
+      // 換頁簽、篩選後條目變少時，瀏覽器會自己把捲動位置往回收，但不一定發出捲動事件：
+      // 照實際的捲動位置再對一次要畫的範圍，不然會一條都沒畫，要滾一下才出現
+      const r = rangeOf(el.scrollTop, el.clientHeight);
+      if (r.start !== rangeRef.current.start || r.end !== rangeRef.current.end) setView({ top: el.scrollTop, h: el.clientHeight });
+    }
   });
+  // 換頁簽、檔案、篩選後：等瀏覽器排好版、捲動位置定下來，再照實際位置對一次要畫的範圍
+  useEffect(() => {
+    const t = setTimeout(syncView, 50);
+    return () => clearTimeout(t);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [rows]);
 
   // 選到的格子；沒有特別選時就是目前這條的譯文格。被篩掉、看不到的格子不算（清除、刪除、貼上都不會動到它們）
   const visSet = posOf;
