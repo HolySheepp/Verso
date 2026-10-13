@@ -161,7 +161,10 @@ fn find_claude() -> Option<std::path::PathBuf> {
         list.push(std::path::Path::new(&appdata).join("npm").join("node_modules").join("@anthropic-ai").join("claude-code").join("bin").join("claude.exe"));
     }
     if let Ok(home) = std::env::var("USERPROFILE") {
-        list.push(std::path::Path::new(&home).join(".local").join("bin").join("claude.exe"));
+        let home = std::path::Path::new(&home);
+        list.push(home.join(".local").join("bin").join("claude.exe"));
+        // 公司電腦的 APPDATA 有時指到別的磁碟（漫遊設定檔），npm 卻裝在使用者資料夾底下
+        list.push(home.join("AppData").join("Roaming").join("npm").join("node_modules").join("@anthropic-ai").join("claude-code").join("bin").join("claude.exe"));
     }
     list.into_iter().find(|p| p.is_file())
 }
