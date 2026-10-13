@@ -20,9 +20,9 @@ common.sep	、	列出好幾個名稱時的分隔符號	App.tsx:90 App.tsx:101 Ap
 common.join	；	把兩段提示接成一句時的分隔符號（英文用「; 」）	state/saver.ts:925
 common.moreEntries	 等 {n} 條	列表太長時接在後面	App.tsx:90
 common.moreItems	 等 {n} 個	列表太長時接在後面	App.tsx:101 App.tsx:112 state/saver.ts:925 state/saver.ts:925
-common.sheetError	「{name}」{msg}	某個頁簽有錯誤時，頁簽名稱接錯誤訊息	components/ImportDialog.tsx:189 components/ImportDialog.tsx:190 components/ManageDialogs.tsx:359 components/PasteDialog.tsx:112
+common.sheetError	「{name}」{msg}	某個頁簽有錯誤時，頁簽名稱接錯誤訊息	components/ImportDialog.tsx:188 components/ImportDialog.tsx:189 components/ManageDialogs.tsx:359 components/PasteDialog.tsx:112
 common.errorReason	{target}：{reason}	存檔失敗的項目與原因	components/TitleBar.tsx:55
-import.fieldRange	{range}（{n}）	匯入視窗：欄位選到的範圍和行數	components/ImportDialog.tsx:355
+import.fieldRange	{range}（{n}）	匯入視窗：欄位選到的範圍和行數	components/ImportDialog.tsx:354
 save.longAt	{project} / {file} / {sheet} 第 {n} 條	存檔時格子太長的條目位置	state/saver.ts:135
 work.tooLong	譯文加上修改會超過 Excel 一格 32767 字的上限，沒有改	驗證模式的修改框	components/WorkPanel.tsx:253 components/WorkPanel.tsx:343
 save.sameRoot	已經是目前的存檔資料夾	設定 > 一般：換存檔資料夾時選到同一個	state/saver.ts:678
@@ -160,31 +160,31 @@ font.002	{label}字形	字形選單	components/FontSelect.tsx:52 components/Font
 font.003	搜尋字形	字形選單	components/FontSelect.tsx:67
 font.004	近期	字形選單	components/FontSelect.tsx:72
 font.005	全部	字形選單	components/FontSelect.tsx:73
-import.001	讀不到這個檔案：{v1}	匯入視窗	components/ImportDialog.tsx:70
-import.002	關閉	匯入視窗	components/ImportDialog.tsx:89
-import.003	匯入檔案	匯入視窗	components/ImportDialog.tsx:102 components/ImportDialog.tsx:164 components/ImportDialog.tsx:206
-import.004	把檔案拖到這裡	匯入視窗	components/ImportDialog.tsx:114
-import.005	選擇檔案	匯入視窗	components/ImportDialog.tsx:116
-import.006	檔名	匯入視窗	components/ImportDialog.tsx:132
-import.008	專案	匯入視窗	components/ImportDialog.tsx:135
-import.009	取消	匯入視窗	components/ImportDialog.tsx:145
-import.010	匯入	匯入視窗	components/ImportDialog.tsx:147
-import.011	{n} 條	匯入視窗	components/ImportDialog.tsx:171
+import.001	讀不到這個檔案：{v1}	匯入視窗	components/ImportDialog.tsx:69
+import.002	關閉	匯入視窗	components/ImportDialog.tsx:88
+import.003	匯入檔案	匯入視窗	components/ImportDialog.tsx:101 components/ImportDialog.tsx:163 components/ImportDialog.tsx:205
+import.004	把檔案拖到這裡	匯入視窗	components/ImportDialog.tsx:113
+import.005	選擇檔案	匯入視窗	components/ImportDialog.tsx:115
+import.006	檔名	匯入視窗	components/ImportDialog.tsx:131
+import.008	專案	匯入視窗	components/ImportDialog.tsx:134
+import.009	取消	匯入視窗	components/ImportDialog.tsx:144
+import.010	匯入	匯入視窗	components/ImportDialog.tsx:146
+import.011	{n} 條	匯入視窗	components/ImportDialog.tsx:170
 import.012	還沒貼原文	匯入視窗	
-import.013	還沒選原文	匯入視窗	components/ImportDialog.tsx:184
-import.014	頁簽	匯入視窗	components/ImportDialog.tsx:209
-import.015	頁簽名稱	匯入視窗	components/ImportDialog.tsx:216
-import.016	雙擊改名	匯入視窗	components/ImportDialog.tsx:221
-import.017	移除頁簽「{name}」	匯入視窗	components/ImportDialog.tsx:229
-import.018	移除	匯入視窗	components/ImportDialog.tsx:229 components/ImportDialog.tsx:243
-import.019	頁簽「{v1}」	匯入視窗	components/ImportDialog.tsx:240
-import.020	重新命名	匯入視窗	components/ImportDialog.tsx:242
-import.021	把選取的範圍設為{label}	匯入視窗	components/ImportDialog.tsx:353
-import.022	未選	匯入視窗	components/ImportDialog.tsx:355
-import.023	清除{label}	匯入視窗	components/ImportDialog.tsx:358
-import.024	清除	匯入視窗	components/ImportDialog.tsx:358
-import.025	設為	匯入視窗	components/ImportDialog.tsx:401
-import.026	設為{label}	匯入視窗	components/ImportDialog.tsx:402
+import.013	還沒選原文	匯入視窗	components/ImportDialog.tsx:183
+import.014	頁簽	匯入視窗	components/ImportDialog.tsx:208
+import.015	頁簽名稱	匯入視窗	components/ImportDialog.tsx:215
+import.016	雙擊改名	匯入視窗	components/ImportDialog.tsx:220
+import.017	移除頁簽「{name}」	匯入視窗	components/ImportDialog.tsx:228
+import.018	移除	匯入視窗	components/ImportDialog.tsx:228 components/ImportDialog.tsx:242
+import.019	頁簽「{v1}」	匯入視窗	components/ImportDialog.tsx:239
+import.020	重新命名	匯入視窗	components/ImportDialog.tsx:241
+import.021	把選取的範圍設為{label}	匯入視窗	components/ImportDialog.tsx:352
+import.022	未選	匯入視窗	components/ImportDialog.tsx:354
+import.023	清除{label}	匯入視窗	components/ImportDialog.tsx:357
+import.024	清除	匯入視窗	components/ImportDialog.tsx:357
+import.025	設為	匯入視窗	components/ImportDialog.tsx:400
+import.026	設為{label}	匯入視窗	components/ImportDialog.tsx:401
 length.001	既有參數	長度標準視窗	components/LengthDialog.tsx:14
 length.002	中文上限	長度標準視窗	components/LengthDialog.tsx:15
 length.003	視覺	長度標準視窗	components/LengthDialog.tsx:16
@@ -667,7 +667,7 @@ pastecol.001	發話者	貼入欄位	model/paste.ts:10
 pastecol.002	原文	貼入欄位	model/paste.ts:11
 pastecol.003	譯文	貼入欄位	model/paste.ts:12
 pastecol.004	備註	貼入欄位	model/paste.ts:13
-pastecol.005	還沒貼原文	貼入欄位	components/ImportDialog.tsx:184 model/paste.ts:74
+pastecol.005	還沒貼原文	貼入欄位	components/ImportDialog.tsx:183 model/paste.ts:74
 pastecol.006	各欄行數不一致：{v1}	貼入欄位	model/paste.ts:79
 shortcut.001	在譯文框裡	快捷鍵	model/shortcuts.ts:7
 shortcut.002	不在輸入框時	快捷鍵	model/shortcuts.ts:8

@@ -5,7 +5,7 @@ import path from 'path';
 
 const zhSrc = fs.readFileSync('src/i18n/zh.ts', 'utf8');
 const rows = [];
-for (const line of zhSrc.split('\n')) {
+for (const line of zhSrc.split(/\r?\n/)) {
   const m = line.match(/^\s*'([^']+)': '((?:[^'\\]|\\.)*)',\s*(?:\/\/\s*(.*))?$/);
   if (m) rows.push({ key: m[1], zh: m[2].replace(/\\'/g, "'").replace(/\\\\/g, '\\'), area: m[3] ?? '' });
 }
@@ -18,7 +18,7 @@ function walk(dir) {
     const p = path.join(dir, f);
     if (fs.statSync(p).isDirectory()) { if (f !== 'i18n') walk(p); continue; }
     if (!/\.(ts|tsx)$/.test(f) || /\.test\./.test(f)) continue;
-    fs.readFileSync(p, 'utf8').split('\n').forEach((l, i) => {
+    fs.readFileSync(p, 'utf8').split(/\r?\n/).forEach((l, i) => {
       // 代號可能寫在 tx( 裡，也可能先選好再傳進去（例如 a ? '代號1' : '代號2'）
       for (const m of l.matchAll(/'([A-Za-z]+\.[A-Za-z0-9]+)'/g)) {
         if (!known.has(m[1])) continue;
