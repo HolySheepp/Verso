@@ -137,6 +137,7 @@ mark.tm-gap[data-on]::before{left:-4px;width:8px;opacity:1;background:var(--acc-
 .imp-f-speaker{--imp:rgba(232,155,50,0.24)}
 .imp-f-src{--imp:rgba(70,140,255,0.22)}
 .imp-f-tgt{--imp:rgba(55,180,115,0.24)}
+.imp-f-note{--imp:rgba(225,95,150,0.22)}
 .imp-chip{display:flex;align-items:center;gap:2px;height:32px;padding:0 4px 0 0;border:1px solid var(--line4);border-radius:8px;background:var(--btn)}
 .imp-chip[data-set]{background:var(--imp);border-color:transparent}
 .imp-chip-btn{display:flex;align-items:center;gap:8px;height:100%;padding:0 6px 0 10px;background:transparent;border:0;color:var(--text);font-size:calc(var(--ui-scale,1) * 12.5px);cursor:pointer}

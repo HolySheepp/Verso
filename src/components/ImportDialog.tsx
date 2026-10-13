@@ -23,8 +23,7 @@ const ROW_H = 26;
 const COL_W = 180;
 const NUM_W = 52;
 const TAB_GAP = 6;
-// 匯入檔案時不對應備註欄（只有手動貼入、插入頁簽、管理專案有）
-const COLS = ALL_COLS.filter((c) => c.key !== 'note');
+const COLS = ALL_COLS;
 
 const label = (k: ColKey) => COLS.find((c) => c.key === k)!.label;
 
