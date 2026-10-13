@@ -1,6 +1,12 @@
 // 介面文字（中文）：程式裡只寫代號，用 tx('代號') 取文字。由程式整理產生，改字句請改這裡。
 // 存檔裡的名稱（欄位標題、資料夾名稱等）不在這裡，維持中文。
 export const ZH = {
+  'settings.devSection': '開發者選項', // 設定左邊的分類（開發者模式才有）
+  'settings.showIds': '顯示字句 ID', // 設定 > 開發者選項：開關
+  'settings.showIdsHint': '滑鼠移到介面文字上，旁邊會顯示它的字句 ID', // 設定 > 開發者選項：開關下面的說明
+  'settings.devOn': '已開啟開發者模式', // 連點設定標題 5 次時的提示
+  'settings.devOff': '已關閉開發者模式', // 再連點 5 次時的提示
+  'shortcut.toggleIds': '顯示字句 ID（開發者模式）', // 設定 > 快捷鍵：動作名稱
   'app.toastDismiss': '點一下關閉', // 一直留著的警告提示，滑鼠停在上面時
   'settings.language': '語言', // 設定 > 一般
   'settings.addPack': '添加語言包', // 設定 > 一般：語言選單下面的按鈕

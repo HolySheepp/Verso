@@ -24,7 +24,7 @@ import { fz } from '../model/fonts';
 const SECTIONS = ['general', 'modes', 'marks', 'checks', 'shortcuts', 'appearance'];
 const READY = ['general', 'marks', 'checks', 'shortcuts', 'appearance'];
 /** 設定分類的名稱 */
-const sectionLabel = (sec: string) => ({ general: tx('settings.001'), modes: tx('settings.002'), marks: tx('settings.003'), checks: tx('settings.004'), shortcuts: tx('settings.005'), appearance: tx('settings.006') } as Record<string, string>)[sec] ?? sec;
+const sectionLabel = (sec: string) => ({ dev: tx('settings.devSection'), general: tx('settings.001'), modes: tx('settings.002'), marks: tx('settings.003'), checks: tx('settings.004'), shortcuts: tx('settings.005'), appearance: tx('settings.006') } as Record<string, string>)[sec] ?? sec;
 
 const h3: React.CSSProperties = { margin: 0, fontSize: fz(12), fontWeight: 600, letterSpacing: 1, color: 'var(--text2)' };
 
@@ -40,6 +40,24 @@ export function SettingsDialog() {
   const [text, setText] = useState('');
   const [color, setColor] = useState('#4fb3a9');
   const [section, setSection] = useState('general');
+  const devMode = useStore((s) => s.devMode);
+  const devClicks = useRef<{ n: number; t: number }>({ n: 0, t: 0 });
+  const [devShake, setDevShake] = useState({ k: 0, n: 0 });
+  const onDevClick = () => {
+    const now = Date.now();
+    const c = devClicks.current;
+    c.n = now - c.t < 1500 ? c.n + 1 : 1;
+    c.t = now;
+    if (c.n >= 5) {
+      c.n = 0;
+      const on = !useStore.getState().devMode;
+      // 關掉開發者模式時「顯示字句 ID」也一起關
+      useStore.getState().set(on ? { devMode: true } : { devMode: false, showIds: false });
+      if (!on && section === 'dev') setSection('general');
+      showToast(on ? tx('settings.devOn') : tx('settings.devOff'));
+    }
+    setDevShake({ k: devShake.k + 1, n: Math.min(c.n || 5, 5) });
+  };
   // 開色盤時設定視窗先收起來，讓使用者直接在主畫面上看顏色
   const [picking, setPicking] = useState(false);
   useEffect(() => { if (open) { setSection('general'); setPicking(false); } }, [open]);
@@ -71,7 +89,9 @@ export function SettingsDialog() {
       <div role="dialog" aria-modal="true" aria-labelledby="verso-settings-title" className="dialog"
         style={{ width: 820, height: 640, boxShadow: '0 24px 64px rgba(0,0,0,0.55)' }}>
         <div style={{ height: 56, flexShrink: 0, display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '0 12px 0 22px', borderBottom: '1px solid var(--line)' }}>
-          <h2 id="verso-settings-title" style={{ margin: 0, fontSize: fz(16), fontWeight: 600 }}>{tx('settings.007')}</h2>
+          {/* 連點標題 5 次（每次間隔 1.5 秒內）開關開發者模式；每點一下抖一下，越點越明顯 */}
+          <h2 id="verso-settings-title" key={devShake.k} className={devShake.k ? 'shake' : undefined} onClick={onDevClick}
+            style={{ margin: 0, fontSize: fz(16), fontWeight: 600, userSelect: 'none', ['--amp' as string]: (1 + devShake.n * 0.6) + 'px' }}>{tx('settings.007')}</h2>
           <button type="button" className="ib" aria-label={tx('settings.008')} onClick={() => set({ settingsOpen: false })}
             style={{ width: 36, height: 36, display: 'flex', alignItems: 'center', justifyContent: 'center', background: 'transparent', border: 0, borderRadius: 8, color: 'var(--text2)' }}>
             <IconWinClose size={14} sw={1.4} />
@@ -79,11 +99,11 @@ export function SettingsDialog() {
         </div>
         <div style={{ flexGrow: 1, minHeight: 0, display: 'flex' }}>
           <nav aria-label={tx('settings.009')} style={{ width: 180, flexShrink: 0, display: 'flex', flexDirection: 'column', gap: 2, padding: 12, borderRight: '1px solid var(--line)', background: 'var(--bar)' }}>
-            {SECTIONS.map((sec) => {
+            {(devMode ? [...SECTIONS, 'dev'] : SECTIONS).map((sec) => {
               const on = sec === section;
               return (
                 <button key={sec} type="button" className="dd" aria-current={on ? 'page' : undefined}
-                  onClick={() => { if (READY.includes(sec)) setSection(sec); }}
+                  onClick={() => { if (READY.includes(sec) || sec === 'dev') setSection(sec); }}
                   style={{ height: 34, padding: '0 12px', border: 0, borderRadius: 7, textAlign: 'left', background: on ? 'var(--sel)' : 'transparent', color: on ? 'var(--text)' : 'var(--text2)', fontWeight: on ? 500 : 400 }}>
                   {sectionLabel(sec)}
                 </button>
@@ -91,7 +111,7 @@ export function SettingsDialog() {
             })}
           </nav>
           <div style={{ flexGrow: 1, minWidth: 0, overflowY: 'auto', padding: '20px 24px', display: 'flex', flexDirection: 'column', gap: 22 }}>
-            {section === 'appearance' ? <AppearanceSection onPick={() => setPicking(true)} /> : section === 'general' ? <GeneralSection /> : section === 'checks' ? <ChecksSection /> : section === 'shortcuts' ? <ShortcutsSection /> : <>
+            {section === 'dev' && devMode ? <DevSection /> : section === 'appearance' ? <AppearanceSection onPick={() => setPicking(true)} /> : section === 'general' ? <GeneralSection /> : section === 'checks' ? <ChecksSection /> : section === 'shortcuts' ? <ShortcutsSection /> : <>
             <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
               <h3 style={h3}>{tx('settings.010')}</h3>
               <div style={{ display: 'grid', gridTemplateColumns: 'repeat(2, minmax(0, 1fr))', gap: 8 }}>
@@ -245,6 +265,7 @@ function ChecksSection() {
 
 function ShortcutsSection() {
   const bindings = useStore((s) => s.shortcuts);
+  const devMode = useStore((s) => s.devMode);
   const setBinding = useStore((s) => s.setBinding);
   const [ctx, setCtx] = useState<ShortcutContext>('input');
   const [recording, setRecording] = useState<ActionId | null>(null);
@@ -327,7 +348,8 @@ function ShortcutsSection() {
           choices={[{ label: tx('settings.032'), onClick: () => setAskReset(false) }, { label: tx('settings.043'), primary: true, onClick: resetCtx }]} />
       )}
       <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
-        {CONTEXT_ACTIONS[ctx].map((a) => {
+        {/* 「顯示字句 ID」只在開發者模式裡出現 */}
+        {CONTEXT_ACTIONS[ctx].filter((a) => a !== 'toggleIds' || devMode).map((a) => {
           const rec = recording === a;
           const combos = bindings[ctx][a] ?? [];
           return (
@@ -350,6 +372,21 @@ function ShortcutsSection() {
           );
         })}
       </div>
+    </div>
+  );
+}
+
+/** 開發者選項：以後其他開發者工具也放這裡 */
+function DevSection() {
+  const showIds = useStore((s) => s.showIds);
+  const set = useStore((s) => s.set);
+  return (
+    <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
+      <label style={{ display: 'flex', alignItems: 'center', gap: 10, fontSize: fz(13) }}>
+        <input type="checkbox" checked={showIds} onChange={(e) => set({ showIds: e.target.checked })} />
+        {tx('settings.showIds')}
+      </label>
+      <div style={{ fontSize: fz(12), color: 'var(--mute)' }}>{tx('settings.showIdsHint')}</div>
     </div>
   );
 }

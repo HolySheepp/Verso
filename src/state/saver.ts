@@ -17,6 +17,7 @@ import { emptyHistory } from '../model/history';
 import { dictKey, newFileId, type CustomMark, type DictInfo, type FileDoc, type GlossaryTerm, type ProjectData } from '../model/types';
 import { currentOf, showToast, useStore, type SaveError } from './store';
 import { applyLang, setPacks, systemLang } from '../i18n/lang';
+import { setIdMarks } from '../i18n';
 import { appLangDir, copyOldPacks, readLangPacks } from '../data/langpacks';
 import { checkAtStartup } from './updater';
 import type { RootConflict } from '../data/persist';
@@ -357,7 +358,7 @@ async function persistConfig(patch: Partial<AppConfig> = {}) {
   const s = useStore.getState();
   config = {
     ...config, ...patch,
-    saveRoot: s.saveRoot, autosaveMin: s.autosaveMin, uiLang: s.uiLang, theme: s.theme, accent: s.accent, customAccents: s.customAccents, rainbowUnlocked: s.rainbowUnlocked, fonts: s.fonts, recentFonts: s.recentFonts,
+    saveRoot: s.saveRoot, autosaveMin: s.autosaveMin, uiLang: s.uiLang, devMode: s.devMode, showIds: s.showIds, theme: s.theme, accent: s.accent, customAccents: s.customAccents, rainbowUnlocked: s.rainbowUnlocked, fonts: s.fonts, recentFonts: s.recentFonts,
     shortcuts: s.shortcuts, checkSettings: s.checkSettings, dictOverrides: s.dictOverrides, collapsedProjects: s.collapsedProjects, colWidths: s.colWidths, finishLine: s.finishLine, lengthPresets: s.lengthPresets,
   };
   try { await saveConfig(config); } catch { /* 設定存不下不影響使用 */ }
@@ -417,7 +418,10 @@ export async function startApp() {
     lengthPresets: config.lengthPresets ?? [],
     // 第一次開啟（設定裡沒有）時跟系統語言
     uiLang: config.uiLang || systemLang(),
+    devMode: !!config.devMode,
+    showIds: !!config.devMode && !!config.showIds,
   });
+  setIdMarks(useStore.getState().devMode && useStore.getState().showIds);
   applyLang(useStore.getState().uiLang);
 
   let project: ProjectData = { files: [], customMarks: [], nextMarkId: 1, glossary: [], dicts: [], projects: sortProjects([]), refs: [] };
@@ -473,6 +477,13 @@ function watch() {
 
   // 換語言：之後的文字都用新語言（畫面由 App 整個重畫）
   useStore.subscribe((s, prev) => { if (s.uiLang !== prev.uiLang) applyLang(s.uiLang); });
+  // 顯示字句 ID 開關：文字重新產生（藏不藏代號），畫面整個重畫一次
+  useStore.subscribe((s, prev) => {
+    const on = s.devMode && s.showIds, was = prev.devMode && prev.showIds;
+    if (on === was) return;
+    setIdMarks(on);
+    useStore.setState((st) => ({ langStamp: st.langStamp + 1 }));
+  });
   // 換存檔資料夾：語言包也換成新資料夾裡的
   // 內容一有變動就標成未存
   let dictTimer: ReturnType<typeof setTimeout> | undefined;
@@ -492,7 +503,7 @@ function watch() {
     }
     // 設定改了就存到設定檔
     if (s.theme !== prev.theme || s.accent !== prev.accent || s.customAccents !== prev.customAccents || s.rainbowUnlocked !== prev.rainbowUnlocked || s.fonts !== prev.fonts || s.recentFonts !== prev.recentFonts || s.shortcuts !== prev.shortcuts || s.checkSettings !== prev.checkSettings
-      || s.dictOverrides !== prev.dictOverrides || s.collapsedProjects !== prev.collapsedProjects || s.colWidths !== prev.colWidths || s.finishLine !== prev.finishLine || s.lengthPresets !== prev.lengthPresets || s.autosaveMin !== prev.autosaveMin || s.saveRoot !== prev.saveRoot || s.uiLang !== prev.uiLang) {
+      || s.dictOverrides !== prev.dictOverrides || s.collapsedProjects !== prev.collapsedProjects || s.colWidths !== prev.colWidths || s.finishLine !== prev.finishLine || s.lengthPresets !== prev.lengthPresets || s.autosaveMin !== prev.autosaveMin || s.saveRoot !== prev.saveRoot || s.uiLang !== prev.uiLang || s.devMode !== prev.devMode || s.showIds !== prev.showIds) {
       clearTimeout(configTimer);
       configTimer = setTimeout(() => void persistConfig(), 400);
     }

@@ -39,6 +39,8 @@ export interface AppConfig {
   lengthPresets?: { name: string; std: import('../model/length').LengthStd }[];
   /** 舊版存檔資料夾「語言」裡的語言包已經複製到主程式資料夾 */
   langPacksMoved?: boolean;
+  devMode?: boolean;
+  showIds?: boolean;
   /** 介面語言：zh、en，或語言包的名稱 */
   uiLang?: string;
 }

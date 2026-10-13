@@ -25,6 +25,7 @@ import { ConfirmDialog } from './components/ConfirmDialog';
 import { resolveAskSave, resolveRecovery } from './state/saver';
 import { useEffectiveTheme } from './components/useTheme';
 import { IconCheck, IconChevD, IconChevL, IconWarn } from './components/icons';
+import { IdPeek } from './components/IdPeek';
 import { fontVars, fz } from './model/fonts';
 
 const clamp = (v: number, lo: number, hi: number) => Math.max(lo, Math.min(hi, v));
@@ -308,6 +309,7 @@ export default function App() {
       <MoveProjectDialog />
       <LengthDialog />
       <Toast />
+      <IdPeek />
     </div>
   );
 }

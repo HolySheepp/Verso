@@ -41,9 +41,31 @@ export const placeholders = (s: string) => new Set(Array.from(s.matchAll(/\{(\w+
 /** 字典裡有這個代號（空字串也算有：有些語言某段本來就不需要字） */
 const pick = (d: Dict | null, key: string) => (d && d[key] !== undefined ? d[key] : undefined);
 
+// ---- 開發者模式：顯示字句 ID ----
+// 打開時，每段文字後面接一串看不見的字元記著代號（排版完全不變），滑鼠移過去時讀出來顯示。
+const ID_START = '\u2063', ID_END = '\u2064', BIT0 = '\u200b', BIT1 = '\u200c';
+const ID_RE = /\u2063([\u200b\u200c]+)\u2064/g;
+let idMarks = false;
+export function setIdMarks(on: boolean) { if (idMarks !== on) { idMarks = on; version++; } }
+const encodeId = (key: string) => ID_START + Array.from(key, (c) => c.charCodeAt(0).toString(2).padStart(7, '0').replace(/0/g, BIT0).replace(/1/g, BIT1)).join('') + ID_END;
+/** 文字裡藏著的代號（照出現順序，不重複） */
+export function idsIn(s: string): string[] {
+  const out: string[] = [];
+  for (const m of s.matchAll(ID_RE)) {
+    const bits = m[1].replace(new RegExp(BIT0, 'g'), '0').replace(new RegExp(BIT1, 'g'), '1');
+    let key = '';
+    for (let k = 0; k + 7 <= bits.length; k += 7) key += String.fromCharCode(parseInt(bits.slice(k, k + 7), 2));
+    if (!out.includes(key)) out.push(key);
+  }
+  return out;
+}
+/** 拿掉藏著的代號（要存進檔案、拿去比對的文字用） */
+export const stripIds = (s: string) => (s.includes(ID_START) ? s.replace(ID_RE, '') : s);
+
 /** 目前語言的文字；{名稱} 換成 vars 裡的值 */
 export function tx(key: TextKey, vars?: Vars): string {
-  return fill(pick(active, key) ?? pick(backup, key) ?? ZH[key] ?? key, vars);
+  const s = fill(pick(active, key) ?? pick(backup, key) ?? ZH[key] ?? key, vars);
+  return idMarks ? s + encodeId(key) : s;
 }
 
 /** 一定是中文的文字（寫進存檔的名稱用） */

@@ -10,7 +10,7 @@ export const CONTEXTS: { id: ShortcutContext; label: string }[] = [
 
 export type ActionId =
   | 'main' | 'newline' | 'stampNext' | 'prevEntry' | 'nextEntry' | 'markMenu' | 'record' | 'leaveInput'
-  | 'editEntry' | 'clearTgt' | 'deleteCells' | 'prevSheet' | 'nextSheet' | 'close' | 'peek' | 'prevPending' | 'nextPending' | 'save' | 'applySrc' | 'peekSrc' | 'applyEdits';
+  | 'editEntry' | 'clearTgt' | 'deleteCells' | 'prevSheet' | 'nextSheet' | 'close' | 'peek' | 'prevPending' | 'nextPending' | 'save' | 'applySrc' | 'peekSrc' | 'applyEdits' | 'toggleIds';
 
 export const ACTION_LABELS: Record<ActionId, string> = {
   get main() { return tx('shortcut.003'); },
@@ -34,6 +34,7 @@ export const ACTION_LABELS: Record<ActionId, string> = {
   get applySrc() { return tx('shortcut.021'); },
   get peekSrc() { return tx('shortcut.022'); },
   get applyEdits() { return tx('shortcut.023'); },
+  get toggleIds() { return tx('shortcut.toggleIds'); },
 };
 
 /** 這些操作要按住才有效，放開就結束 */
@@ -41,8 +42,8 @@ export const HOLD_ACTIONS: ActionId[] = ['peek', 'peekSrc'];
 
 /** 各情境有哪些操作（依設定頁的顯示順序） */
 export const CONTEXT_ACTIONS: Record<ShortcutContext, ActionId[]> = {
-  input: ['main', 'newline', 'stampNext', 'prevEntry', 'nextEntry', 'prevPending', 'nextPending', 'markMenu', 'record', 'peek', 'peekSrc', 'save', 'applySrc', 'applyEdits', 'leaveInput', 'prevSheet', 'nextSheet'],
-  list: ['prevEntry', 'nextEntry', 'prevPending', 'nextPending', 'editEntry', 'clearTgt', 'deleteCells', 'markMenu', 'record', 'peek', 'peekSrc', 'save', 'applySrc', 'applyEdits', 'prevSheet', 'nextSheet', 'close'],
+  input: ['main', 'newline', 'stampNext', 'prevEntry', 'nextEntry', 'prevPending', 'nextPending', 'markMenu', 'record', 'peek', 'peekSrc', 'save', 'applySrc', 'applyEdits', 'leaveInput', 'prevSheet', 'nextSheet', 'toggleIds'],
+  list: ['prevEntry', 'nextEntry', 'prevPending', 'nextPending', 'editEntry', 'clearTgt', 'deleteCells', 'markMenu', 'record', 'peek', 'peekSrc', 'save', 'applySrc', 'applyEdits', 'prevSheet', 'nextSheet', 'close', 'toggleIds'],
 };
 
 export type Bindings = Record<ShortcutContext, Partial<Record<ActionId, string[]>>>;
@@ -60,6 +61,7 @@ export const defaultBindings = (): Bindings => ({
     record: ['Ctrl+R'],
     peek: ['Ctrl+D'],
     save: ['Ctrl+S'],
+    toggleIds: ['Ctrl+Shift+I'],
     applySrc: ['Ctrl+U'],
     peekSrc: ['Ctrl+Shift+D'],
     applyEdits: ['Ctrl+Shift+A'],
@@ -79,6 +81,7 @@ export const defaultBindings = (): Bindings => ({
     record: ['Ctrl+R'],
     peek: ['Ctrl+D'],
     save: ['Ctrl+S'],
+    toggleIds: ['Ctrl+Shift+I'],
     applySrc: ['Ctrl+U'],
     peekSrc: ['Ctrl+Shift+D'],
     applyEdits: ['Ctrl+Shift+A'],

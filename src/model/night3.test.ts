@@ -45,3 +45,15 @@ describe('新頁簽的預設名稱', () => {
     expect(freeSheetName(['頁簽 1', '頁簽 2', '頁簽 3'])).toBe('頁簽 4');
   });
 });
+
+describe('顯示字句 ID（清單 47）', () => {
+  it('藏進文字的代號讀得回來、拿得掉，關掉時文字不帶代號', async () => {
+    const { tx, setIdMarks, idsIn, stripIds } = await import('../i18n');
+    setIdMarks(true);
+    const s = tx('settings.showIds');
+    expect(idsIn(s)).toEqual(['settings.showIds']);
+    expect(stripIds(s)).toBe('顯示字句 ID');
+    setIdMarks(false);
+    expect(tx('settings.showIds')).toBe('顯示字句 ID');
+  });
+});

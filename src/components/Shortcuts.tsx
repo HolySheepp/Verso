@@ -270,6 +270,8 @@ export function Shortcuts() {
         case 'nextSheet': s.setSheet(currentOf(s).sheetIdx + 1); break;
         case 'close': s.closePopups(); break;
         case 'save': void manualSave(); break;
+        // 開發者模式才有作用：開關「顯示字句 ID」
+        case 'toggleIds': if (s.devMode) s.set({ showIds: !s.showIds }); break;
         case 'applySrc': s.applyNewSource(); break;
         case 'peekSrc': if (entry?.upd?.src !== undefined) s.set({ srcPeek: true }); break;
         case 'applyEdits': verifySession.commit(); s.applyAllEdits(); break;

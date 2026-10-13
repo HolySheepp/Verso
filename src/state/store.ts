@@ -208,6 +208,10 @@ interface State {
   langPacks: string[];
   /** 目前用的語言包內容變了就加一，整個畫面重畫 */
   langStamp: number;
+  /** 開發者模式（連點設定標題 5 次開關） */
+  devMode: boolean;
+  /** 開發者選項：滑鼠移到介面文字上就顯示它的字句 ID */
+  showIds: boolean;
   /** 存起來的常用長度標準 */
   lengthPresets: { name: string; std: LengthStd }[];
   /** 長度標準設定視窗：設定檔案的標準，或只設定目前這一條 */
@@ -632,6 +636,8 @@ export const useStore = create<Store>((set, get) => {
     uiLang: bootLang(),
     langPacks: [],
     langStamp: 0,
+    devMode: false,
+    showIds: false,
     lengthPresets: [],
     lengthDialog: null,
     shortcuts: defaultBindings(),
