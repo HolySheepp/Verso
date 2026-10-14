@@ -275,6 +275,7 @@ export function Shortcuts() {
         case 'applySrc': s.applyNewSource(); break;
         case 'peekSrc': if (entry?.upd?.src !== undefined) s.set({ srcPeek: true }); break;
         case 'applyEdits': verifySession.commit(); s.applyAllEdits(); break;
+        case 'ignoreEdits': verifySession.commit(); s.ignoreAllEdits(); break;
         case 'peek': {
           const h = entry && s.history.byEntry[entry.uid];
           if (h?.texts.length) s.set({ peek: true });

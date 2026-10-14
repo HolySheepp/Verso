@@ -1,7 +1,7 @@
 import { tx } from '../i18n';
 import { NO_SPEAKER, defaultSheetName, fitsCell, freeSheetName, tooLongMsg } from '../model/names';
 import { useEffect, useState } from 'react';
-import { showToast, useStore, type MoveTarget } from '../state/store';
+import { aiAllows, showToast, useStore, type MoveTarget } from '../state/store';
 import { entryFits } from '../model/cellLimit';
 import { requestAutosave, saveNow } from '../state/saver';
 import { SHARED, type Entry, type FileDoc, type Sheet } from '../model/types';
@@ -155,7 +155,11 @@ type Pending =
 function DeleteConfirm({ pending, onDone }: { pending: Pending; onDone(): void }) {
   const project = useStore((s) => s.project)!;
   const { deleteProject, deleteFile, deleteDict } = useStore.getState();
-  const run = (fn: () => void) => { fn(); if (pending.kind === 'project') commitNow(); else commit(); onDone(); };
+  const run = (fn: () => void) => {
+    // 刪專案時 AI 還在工作：先問要不要停止
+    if (pending.kind === 'project') { void aiAllows().then((ok) => { if (ok) { fn(); commitNow(); } onDone(); }); return; }
+    fn(); commit(); onDone();
+  };
   const cancel = { label: tx('manage.007'), onClick: onDone };
   if (pending.kind === 'file') {
     const f = project.files[pending.index];
@@ -239,7 +243,7 @@ function ManageProjects() {
                   rename={renaming?.kind === 'project' && renaming.name === p ? {
                     // 只改大小寫不算跟自己重名
                     error: (v) => nameError('project', NEW, v, project.projects.filter((x) => x !== p)),
-                    onDone: (n) => { setRenaming(null); if (n && n !== p) { renameProject(p, n); setClosed(closed.map((x) => (x === p ? n : x))); commitNow(); } },
+                    onDone: (n) => { setRenaming(null); if (n && n !== p) void aiAllows().then((ok) => { if (!ok) return; renameProject(p, n); setClosed(closed.map((x) => (x === p ? n : x))); commitNow(); }); },
                   } : undefined}
                   icon={<IconFolder size={14} stroke="var(--mute)" />}
                   onMenu={p === SHARED ? undefined : (ev) => setMenu({ x: ev.clientX, y: ev.clientY, target: { kind: 'project', name: p } })}

@@ -218,6 +218,12 @@ interface State {
   aiBusy: boolean;
   /** AI 正在處理的條目（不能改） */
   aiLocked: string[];
+  /** 狀態列的 AI 進度（null 是沒有在工作） */
+  aiProgress: { done: number; total: number } | null;
+  /** 關閉 Verso、換存檔資料夾、改名或刪除專案前問一下（AI 還在工作時）；回傳 true 才繼續 */
+  aiGuard: (() => Promise<boolean>) | null;
+  /** 「AI 還在工作，要停止嗎？」的詢問 */
+  aiStopAsk: ((stop: boolean) => void) | null;
   /** 開發者選項：翻譯、驗證時要 AI 用的 skill 名稱（空白是不指定） */
   aiSkillTranslate: string;
   aiSkillVerify: string;
@@ -266,6 +272,8 @@ interface Actions {
   applySuggestion(): void;
   /** 套用這條的全部驗證修改（自己算一步） */
   applyAllEdits(): void;
+  /** 忽略這條的全部修改（自己算一步） */
+  ignoreAllEdits(): void;
   /** 更新原文：把對齊好的結果套用到頁簽（條目欄復原時算一步） */
   applySrcUpdate(sheet: number, entries: Entry[]): void;
   /** 套用暫存的新原文：原文換成新的，舊原文清掉 */
@@ -339,6 +347,12 @@ interface Actions {
 }
 
 export type Store = State & Actions;
+
+/** 要關掉、換掉目前內容之前：AI 還在工作時先問要不要停止；回傳 true 才繼續 */
+export async function aiAllows(): Promise<boolean> {
+  const g = useStore.getState().aiGuard;
+  return g ? g() : true;
+}
 
 /** 畫面下方短暫顯示一行提示 */
 export function showToast(text: string, opts: { warn?: boolean } = {}) {
@@ -657,6 +671,9 @@ export const useStore = create<Store>((set, get) => {
     aiEnabled: false,
     aiBusy: false,
     aiLocked: [],
+    aiProgress: null,
+    aiGuard: null,
+    aiStopAsk: null,
     aiSkillTranslate: '',
     aiSkillVerify: '',
     lengthPresets: [],
@@ -914,6 +931,9 @@ export const useStore = create<Store>((set, get) => {
 
     setVerify(edits, tgt) {
       if (!editSnap) pushUndo();
+      // 套用修改（譯文跟著換）：先把套用前的句子記進譯文記錄
+      const before = cur().entry;
+      if (before && tgt !== undefined && tgt !== before.tgt && before.tgt && !get().aiLocked.includes(before.uid)) get().record(before.tgt);
       patchEntry(cur().sel, (e) => {
         const had = editsOf(e).length > 0;
         const text = tgt ?? e.tgt;
@@ -972,6 +992,15 @@ export const useStore = create<Store>((set, get) => {
       const editing = !!editSnap;
       if (editing) get().endEdit();
       get().setVerify([], compose(entry.tgt, ed));
+      if (editing) get().beginEdit();
+    },
+
+    ignoreAllEdits() {
+      const { entry } = cur();
+      if (!entry || get().mode === 'view' || !editsOf(entry).length) return;
+      const editing = !!editSnap;
+      if (editing) get().endEdit();
+      get().setVerify([]);
       if (editing) get().beginEdit();
     },
 

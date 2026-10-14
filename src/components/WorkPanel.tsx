@@ -604,6 +604,8 @@ function WorkPanelInner({ height, maxH }: { height: number; maxH: number }) {
                 <span style={{ ...meta, flexShrink: 0, alignItems: 'center' }}>
                   <button type="button" className="ib" disabled={!edits.length} onClick={() => asStep(() => s.setVerify([], modText))} title={tx('work.033')}
                     style={{ ...smallBtn, opacity: edits.length ? 1 : 0.5 }}>{tx('work.034')}</button>
+                  <button type="button" className="ib" disabled={!edits.length} onClick={() => asStep(() => s.setVerify([]))} title={tx('work.044')}
+                    style={{ ...smallBtn, opacity: edits.length ? 1 : 0.5 }}>{tx('work.043')}</button>
                   {verify && texts.length > 0 && <span>{tx('work.035', { n: texts.length })}</span>}
                   <span>{tx('work.031', { n: modText.length })}</span>
                 </span>
@@ -649,12 +651,6 @@ function WorkPanelInner({ height, maxH }: { height: number; maxH: number }) {
           </button>
           {mode === 'translate' && (
             <button type="button" className="ib btn-side" aria-label={tx('work.042')} title={tx('work.042')} onClick={() => s.updateEntry({ tgt: '' })}>
-              <IconEraser size={15} />
-            </button>
-          )}
-          {verify && (
-            <button type="button" className="ib btn-side" aria-label={tx('work.043')} title={tx('work.044')} disabled={!edits.length} onClick={() => asStep(() => s.setVerify([]))}
-              style={{ opacity: edits.length ? 1 : 0.5 }}>
               <IconEraser size={15} />
             </button>
           )}

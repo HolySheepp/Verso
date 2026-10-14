@@ -171,6 +171,7 @@ function callTool(name: string, args: Record<string, unknown>): unknown {
     aiPatch(j.fid, j.sheet, e.uid, (x) => ({ ...x, tgt: b.tgt, ver: b.ver, sugg: b.sugg, mark: b.mark, pending: b.pending }));
     delete j.wrote[e.uid];
     delete j.notes[e.uid];
+    progress(j);
     return 'reverted';
   }
   if (!text.trim()) throw new Error('Empty text.');
@@ -184,6 +185,7 @@ function callTool(name: string, args: Record<string, unknown>): unknown {
       ? { ...x, tgt: text, pending: false, mark: 'ai' }
       : { ...withEdits(x, text), mark: 'ai' }));
     j.wrote[e.uid] = 'tgt';
+    progress(j);
     return 'ok';
   }
   if (name === 'write_revision') {
@@ -193,9 +195,11 @@ function callTool(name: string, args: Record<string, unknown>): unknown {
     if (ratio(e.tgt, text) < BIG_CHANGE) {
       aiPatch(j.fid, j.sheet, e.uid, (x) => ({ ...x, sugg: text }));
       j.wrote[e.uid] = 'sugg';
+      progress(j);
       return 'saved as suggestion';
     }
     j.wrote[e.uid] = 'tgt';
+    progress(j);
     aiPatch(j.fid, j.sheet, e.uid, (x) => {
       const had = editsOf(x).length > 0;
       const y = withEdits(x, text);
@@ -216,7 +220,17 @@ function finish() {
     for (const [uid, text] of Object.entries(j.notes)) aiPatch(j.fid, j.sheet, uid, (x) => ({ ...x, note: appendNote(x.note, 'AI：' + text) }));
     useStore.getState().aiFinish(j.fid, j.sheet, j.before);
   }
-  useStore.setState({ aiBusy: false, aiLocked: [] });
+  useStore.setState({ aiBusy: false, aiLocked: [], aiProgress: null });
+}
+
+/** 狀態列的進度：寫過幾條／共幾條 */
+const progress = (j: Job) => useStore.setState({ aiProgress: { done: Object.keys(j.wrote).length, total: j.uids.length } });
+
+/** 失敗的原因，用一句看得懂的話說（不顯示原始錯誤） */
+function failReason(text: string): string {
+  if (/authenticat|oauth|log ?in|logged out|unauthori[sz]ed|\b401\b|session expired|credentials/i.test(text)) return tx('ai.errLogin');
+  if (/usage limit|limit reached|rate.?limit|quota|credit balance|out of (usage|credits)|\b429\b|token/i.test(text)) return tx('ai.errQuota');
+  return tx('ai.errOther');
 }
 
 let started = false;
@@ -237,8 +251,26 @@ export async function startAi() {
     finish();
     if (stopped) showToast(tx('ai.stopped'));
     else if (ev.payload.ok) showToast(tx('ai.done'));
-    else showToast(tx('ai.failed', { msg: (ev.payload.error || ev.payload.output || '').trim().slice(-200) }), { warn: true });
+    else showToast(failReason(ev.payload.error + '\n' + ev.payload.output), { warn: true });
   });
+  // 關閉 Verso、換存檔資料夾、改名或刪除專案前：AI 還在工作就先問
+  useStore.setState({ aiGuard: () => {
+    if (!useStore.getState().aiBusy) return Promise.resolve(true);
+    return new Promise<boolean>((resolve) => useStore.setState({ aiStopAsk: (stop) => {
+      useStore.setState({ aiStopAsk: null });
+      if (stop) { stopping = true; void invoke('ai_stop'); }
+      resolve(stop);
+    } }));
+  } });
+}
+
+/** skill 有沒有裝在 Claude Code 讀得到的地方（使用者資料夾\.claude\skills\名稱\SKILL.md） */
+async function skillExists(name: string): Promise<boolean> {
+  try {
+    const { homeDir, join } = await import('@tauri-apps/api/path');
+    const { exists } = await import('@tauri-apps/plugin-fs');
+    return await exists(await join(await homeDir(), '.claude', 'skills', name, 'SKILL.md'));
+  } catch { return true; }
 }
 
 let stopping = false;
@@ -289,13 +321,16 @@ export async function runAi(confirmed = false): Promise<'ask' | void> {
   const list = indices.map((i) => sheet.entries[i]).filter(Boolean);
   job = { fid: fileDoc.fid ?? '', sheet: sheetIdx, mode, indices, uids: list.map((e) => e.uid), before: Object.fromEntries(list.map((e) => [e.uid, e])), wrote: {}, notes: {} };
   const skill = (mode === 'translate' ? s.aiSkillTranslate : s.aiSkillVerify).trim();
+  if (skill && !(await skillExists(skill))) { job = null; showToast(tx('ai.errSkill'), { warn: true }); return; }
   try {
     useStore.setState({ aiBusy: true, aiLocked: job.uids });
+    progress(job);
     await invoke('ai_run', { prompt: prompts[mode](skill) });
   } catch (e) {
     job = null;
     useStore.setState({ aiBusy: false, aiLocked: [] });
     const msg = String(e);
-    showToast(msg === 'not-installed' ? tx('ai.notInstalled') : tx('ai.failed', { msg }), { warn: true });
+    useStore.setState({ aiProgress: null });
+    showToast(msg === 'not-installed' ? tx('ai.errNotInstalled') : tx('ai.errOther'), { warn: true });
   }
 }

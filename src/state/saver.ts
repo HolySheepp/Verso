@@ -15,7 +15,7 @@ import {
 } from '../data/persist';
 import { emptyHistory } from '../model/history';
 import { dictKey, newFileId, type CustomMark, type DictInfo, type FileDoc, type GlossaryTerm, type ProjectData } from '../model/types';
-import { currentOf, showToast, useStore, type SaveError } from './store';
+import { aiAllows, currentOf, showToast, useStore, type SaveError } from './store';
 import { applyLang, setPacks, systemLang } from '../i18n/lang';
 import { setIdMarks } from '../i18n';
 import { appLangDir, copyOldPacks, readLangPacks } from '../data/langpacks';
@@ -524,6 +524,16 @@ function watch() {
   if (isTauri()) {
     void getCurrentWindow().onCloseRequested(async (ev) => {
       if (closing) return;
+      // AI 還在工作：先問要不要停止，不停止就不關
+      if (useStore.getState().aiBusy) {
+        ev.preventDefault();
+        if (!(await aiAllows())) return;
+        // 等 AI 真的停下來（已經寫回的內容收好）再照常關閉，最多等 5 秒
+        for (let k = 0; k < 50 && useStore.getState().aiBusy; k++) await new Promise((r) => setTimeout(r, 100));
+        useStore.setState({ aiBusy: false });
+        void getCurrentWindow().close();
+        return;
+      }
       if (isDirty() || useStore.getState().saveStatus === 'error') {
         ev.preventDefault();
         useStore.setState({ askSave: { kind: 'close' } });
@@ -676,6 +686,7 @@ export async function resolveAskSave(choice: 'save' | 'discard' | 'cancel') {
 
 /** 更換存檔資料夾：之後的存檔都存到新資料夾，目前的內容馬上存一份過去 */
 export async function changeSaveRoot(root: string) {
+  if (!(await aiAllows())) return;
   // 選到的就是目前的存檔資料夾（換算成實際存放的位置後比，不分大小寫）：提示一下，什麼都不做
   const target = await saveRootFor(root).catch(() => root);
   if (samePath(target, useStore.getState().saveRoot)) { showToast(tx('save.sameRoot')); return; }

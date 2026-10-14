@@ -1,8 +1,18 @@
 ﻿代號	中文	畫面區域	程式位置
+app.aiProgress	AI {done}/{total}	狀態列：AI 工作的進度（寫過幾條／共幾條）	App.tsx:183
+app.aiStillWorking	AI 還在工作，要停止嗎？	AI 工作中要關閉 Verso、換存檔資料夾、改名或刪除專案時	App.tsx:48
+app.aiKeep	取消	上面那句的按鈕：不關閉，AI 繼續	App.tsx:49
+app.aiStop	停止 AI	上面那句的按鈕：停止 AI 再繼續	App.tsx:49
+ai.errNotInstalled	未安裝Claude Code	AI 失敗原因	state/ai.ts:334
+ai.errLogin	未登入或登入過期	AI 失敗原因	state/ai.ts:231
+ai.errQuota	Token用盡	AI 失敗原因	state/ai.ts:232
+ai.errSkill	找不到Skill	AI 失敗原因	state/ai.ts:324
+ai.errOther	AI工作未完成，請重試	AI 失敗原因：其他	state/ai.ts:233 state/ai.ts:334
+shortcut.ignoreEdits	忽略這條的全部修改	設定 > 快捷鍵：動作名稱	model/shortcuts.ts:38
 mark.ai	AI 翻譯	標記名稱：AI 翻好、還沒確認的條目	model/marks.ts:79
 list.aiLocked	AI 處理中	條目欄：AI 正在處理的條目旁的小字提示	components/EntryList.tsx:166 components/EntryList.tsx:166
-ai.locked	AI 正在處理的條目不能刪除	想刪掉 AI 處理中的條目時	state/store.ts:731
-ai.stopped	已停止 AI，已經寫回的內容保留	按了停止之後	state/ai.ts:220
+ai.locked	AI 正在處理的條目不能刪除	想刪掉 AI 處理中的條目時	state/store.ts:748
+ai.stopped	已停止 AI，已經寫回的內容保留	按了停止之後	state/ai.ts:252
 ai.askMany	要讓 AI 處理 {n} 條嗎？	選了超過 50 條按 AI 時	components/EntryList.tsx:839
 ai.askNo	取消	上面那句的按鈕	components/EntryList.tsx:840
 ai.askYes	繼續	上面那句的按鈕	components/EntryList.tsx:840
@@ -13,17 +23,17 @@ settings.aiEnabled	AI 協助（測試中）	設定 > 開發者選項：開關	co
 settings.aiHint	打開後條目欄上方會出現 AI 按鈕，按下時在背景用 Claude Code 處理選取的條目（需要先裝好、登入命令列版 Claude Code）	設定 > 開發者選項：說明	components/SettingsDialog.tsx:397
 list.aiButton	讓 AI 處理選取的條目	條目欄上方 AI 按鈕的滑鼠提示	components/EntryList.tsx:715
 list.aiStop	停止	AI 處理中時，AI 按鈕變成這個	components/EntryList.tsx:715 components/EntryList.tsx:717
-ai.done	AI 處理完成	AI 做完時的提示	state/ai.ts:221
-ai.failed	AI 處理失敗：{msg}	AI 出錯時的警告	state/ai.ts:222 state/ai.ts:280
-ai.notInstalled	找不到命令列版的 Claude Code，請先安裝並登入	按 AI 按鈕但沒裝 Claude Code	state/ai.ts:280
-ai.desktopOnly	AI 協助只能在桌面版使用	瀏覽器預覽裡按 AI 按鈕	state/ai.ts:265
+ai.done	AI 處理完成	AI 做完時的提示	state/ai.ts:253
+ai.failed	AI 處理失敗：{msg}	AI 出錯時的警告	
+ai.notInstalled	找不到命令列版的 Claude Code，請先安裝並登入	按 AI 按鈕但沒裝 Claude Code	
+ai.desktopOnly	AI 協助只能在桌面版使用	瀏覽器預覽裡按 AI 按鈕	state/ai.ts:316
 settings.devSection	開發者選項	設定左邊的分類（開發者模式才有）	components/SettingsDialog.tsx:27
 settings.showIds	顯示字句 ID	設定 > 開發者選項：開關	components/SettingsDialog.tsx:390
 settings.showIdsHint	滑鼠移到介面文字上，旁邊會顯示它的字句 ID	設定 > 開發者選項：開關下面的說明	components/SettingsDialog.tsx:392
 settings.devOn	已開啟開發者模式	連點設定標題 5 次時的提示	components/SettingsDialog.tsx:57
 settings.devOff	已關閉開發者模式	再連點 5 次時的提示	components/SettingsDialog.tsx:57
 shortcut.toggleIds	顯示字句 ID（開發者模式）	設定 > 快捷鍵：動作名稱	model/shortcuts.ts:37
-app.toastDismiss	點一下關閉	一直留著的警告提示，滑鼠停在上面時	App.tsx:70
+app.toastDismiss	點一下關閉	一直留著的警告提示，滑鼠停在上面時	App.tsx:80
 settings.language	語言	設定 > 一般	components/SettingsDialog.tsx:447
 settings.addPack	添加語言包	設定 > 一般：語言選單下面的按鈕	components/SettingsDialog.tsx:461
 settings.packLabel	{name}（語言包）	設定 > 一般：語言包跟內建語言同名時，選單裡這樣顯示	components/SettingsDialog.tsx:454
@@ -34,52 +44,52 @@ settings.packsFailed	語言包加不進去，主程式資料夾可能沒有寫�
 settings.packReplace	已經有語言包「{name}」，要取代嗎？	設定 > 一般：加入同名語言包時	components/SettingsDialog.tsx:466
 settings.packReplaceNo	取消	設定 > 一般：同名語言包的詢問	components/SettingsDialog.tsx:467
 settings.packReplaceYes	取代	設定 > 一般：同名語言包的詢問	components/SettingsDialog.tsx:467
-common.sep	、	列出好幾個名稱時的分隔符號	App.tsx:90 App.tsx:101 App.tsx:112 components/CopyConfirm.tsx:19 components/EntryList.tsx:198 components/EntryList.tsx:198 components/FileNav.tsx:123 components/ManageDialogs.tsx:171 components/SettingsDialog.tsx:433 components/SettingsDialog.tsx:434 components/SidePanel.tsx:340 components/WorkPanel.tsx:96 model/importSel.ts:59 model/importSel.ts:59 model/paste.ts:79 state/saver.ts:928 state/saver.ts:928
-common.join	；	把兩段提示接成一句時的分隔符號（英文用「; 」）	state/saver.ts:928
-common.moreEntries	 等 {n} 條	列表太長時接在後面	App.tsx:90
-common.moreItems	 等 {n} 個	列表太長時接在後面	App.tsx:101 App.tsx:112 state/saver.ts:928 state/saver.ts:928
-common.sheetError	「{name}」{msg}	某個頁簽有錯誤時，頁簽名稱接錯誤訊息	components/ImportDialog.tsx:188 components/ImportDialog.tsx:189 components/ManageDialogs.tsx:359 components/PasteDialog.tsx:112
+common.sep	、	列出好幾個名稱時的分隔符號	App.tsx:100 App.tsx:111 App.tsx:122 components/CopyConfirm.tsx:19 components/EntryList.tsx:198 components/EntryList.tsx:198 components/FileNav.tsx:123 components/ManageDialogs.tsx:175 components/SettingsDialog.tsx:433 components/SettingsDialog.tsx:434 components/SidePanel.tsx:340 components/WorkPanel.tsx:96 model/importSel.ts:59 model/importSel.ts:59 model/paste.ts:79 state/saver.ts:939 state/saver.ts:939
+common.join	；	把兩段提示接成一句時的分隔符號（英文用「; 」）	state/saver.ts:939
+common.moreEntries	 等 {n} 條	列表太長時接在後面	App.tsx:100
+common.moreItems	 等 {n} 個	列表太長時接在後面	App.tsx:111 App.tsx:122 state/saver.ts:939 state/saver.ts:939
+common.sheetError	「{name}」{msg}	某個頁簽有錯誤時，頁簽名稱接錯誤訊息	components/ImportDialog.tsx:188 components/ImportDialog.tsx:189 components/ManageDialogs.tsx:363 components/PasteDialog.tsx:112
 common.errorReason	{target}：{reason}	存檔失敗的項目與原因	components/TitleBar.tsx:55
 import.fieldRange	{range}（{n}）	匯入視窗：欄位選到的範圍和行數	components/ImportDialog.tsx:354
 save.longAt	{project} / {file} / {sheet} 第 {n} 條	存檔時格子太長的條目位置	state/saver.ts:135
 work.tooLong	譯文加上修改會超過 Excel 一格 32767 字的上限，沒有改	驗證模式的修改框	components/WorkPanel.tsx:253 components/WorkPanel.tsx:343
-save.sameRoot	已經是目前的存檔資料夾	設定 > 一般：換存檔資料夾時選到同一個	state/saver.ts:681
+save.sameRoot	已經是目前的存檔資料夾	設定 > 一般：換存檔資料夾時選到同一個	state/saver.ts:692
 check.fullwidthSpace	全形空格	檢查項目與訊息	model/checks.ts:139
-app.001	Excel 一格最多 32767 字，貼上後會超過，沒有貼上	主畫面	App.tsx:55
-app.002	有格子超過 Excel 的單格上限	主畫面	App.tsx:89
-app.003	Excel 一格最多 32767 字，下列條目超過了，所在的檔案存不進去，請縮短：{v1}{v2}	主畫面	App.tsx:90
-app.004	知道了	主畫面	App.tsx:91 App.tsx:102 App.tsx:113
-app.005	有檔案讀不到	主畫面	App.tsx:100
-app.006	下列檔案打不開，這次先略過（檔案本身沒有被改動）：{v1}{v2}。可能被 Excel 開著或檔案損毀，處理好後重新開啟 Verso 就會讀進來。	主畫面	App.tsx:101
-app.007	存檔資料夾裡有檔案不見了	主畫面	App.tsx:111
-app.008	下列檔案在資料夾裡找不到了，軟體裡的內容還在，下次存檔會重新寫回：{v1}{v2}	主畫面	App.tsx:112
-app.009	上次沒有正常關閉	主畫面	App.tsx:123
-app.010	有自動暫存但還沒儲存的內容。恢復後要按儲存才會寫進檔案。	主畫面	App.tsx:123
-app.011	捨棄	主畫面	App.tsx:125
-app.012	恢復	主畫面	App.tsx:126
-app.013	檢測到新版本 {version}	主畫面	App.tsx:149
-app.014	要現在更新嗎？更新完會自動重新開啟。	主畫面	App.tsx:149
-app.015	稍後	主畫面	App.tsx:151
-app.016	更新	主畫面	App.tsx:152
-app.017	檔案進度 {done} / {total} 條	主畫面	App.tsx:168
-app.019	模式：	主畫面	App.tsx:169
-app.020	變更標記	主畫面	App.tsx:183 App.tsx:183
-app.021	顯示檔案欄	主畫面	App.tsx:249 App.tsx:249
-app.022	調整右側欄寬度	主畫面	App.tsx:261
-app.023	顯示右側欄	主畫面	App.tsx:266 App.tsx:266
-app.024	關閉選單	主畫面	App.tsx:278
-app.025	有未儲存的修改	主畫面	App.tsx:297
-app.026	關閉前要儲存嗎？	主畫面	App.tsx:298
-app.027	更新前要儲存嗎？	主畫面	App.tsx:298
-app.028	換存檔資料夾前要儲存嗎？	主畫面	App.tsx:298
-app.029	離開這個檔案前要儲存嗎？	主畫面	App.tsx:298
-app.030	取消	主畫面	App.tsx:138 App.tsx:300
-app.031	不儲存	主畫面	App.tsx:301
-app.032	儲存	主畫面	App.tsx:302
-app.clashTitle	已經有同名的檔案	存檔時新位置已經有別的檔案	App.tsx:136
-app.clashBody	存檔資料夾裡已經有「{project} / {name}.xlsx」，不是這個檔案。覆蓋會把原本的檔案移到資源回收筒。	存檔時新位置已經有別的檔案	App.tsx:136
-app.clashRename	重新命名	存檔時新位置已經有別的檔案	App.tsx:140
-app.clashOverwrite	覆蓋	存檔時新位置已經有別的檔案	App.tsx:139
+app.001	Excel 一格最多 32767 字，貼上後會超過，沒有貼上	主畫面	App.tsx:65
+app.002	有格子超過 Excel 的單格上限	主畫面	App.tsx:99
+app.003	Excel 一格最多 32767 字，下列條目超過了，所在的檔案存不進去，請縮短：{v1}{v2}	主畫面	App.tsx:100
+app.004	知道了	主畫面	App.tsx:101 App.tsx:112 App.tsx:123
+app.005	有檔案讀不到	主畫面	App.tsx:110
+app.006	下列檔案打不開，這次先略過（檔案本身沒有被改動）：{v1}{v2}。可能被 Excel 開著或檔案損毀，處理好後重新開啟 Verso 就會讀進來。	主畫面	App.tsx:111
+app.007	存檔資料夾裡有檔案不見了	主畫面	App.tsx:121
+app.008	下列檔案在資料夾裡找不到了，軟體裡的內容還在，下次存檔會重新寫回：{v1}{v2}	主畫面	App.tsx:122
+app.009	上次沒有正常關閉	主畫面	App.tsx:133
+app.010	有自動暫存但還沒儲存的內容。恢復後要按儲存才會寫進檔案。	主畫面	App.tsx:133
+app.011	捨棄	主畫面	App.tsx:135
+app.012	恢復	主畫面	App.tsx:136
+app.013	檢測到新版本 {version}	主畫面	App.tsx:159
+app.014	要現在更新嗎？更新完會自動重新開啟。	主畫面	App.tsx:159
+app.015	稍後	主畫面	App.tsx:161
+app.016	更新	主畫面	App.tsx:162
+app.017	檔案進度 {done} / {total} 條	主畫面	App.tsx:179
+app.019	模式：	主畫面	App.tsx:189
+app.020	變更標記	主畫面	App.tsx:203 App.tsx:203
+app.021	顯示檔案欄	主畫面	App.tsx:269 App.tsx:269
+app.022	調整右側欄寬度	主畫面	App.tsx:281
+app.023	顯示右側欄	主畫面	App.tsx:286 App.tsx:286
+app.024	關閉選單	主畫面	App.tsx:298
+app.025	有未儲存的修改	主畫面	App.tsx:317
+app.026	關閉前要儲存嗎？	主畫面	App.tsx:318
+app.027	更新前要儲存嗎？	主畫面	App.tsx:318
+app.028	換存檔資料夾前要儲存嗎？	主畫面	App.tsx:318
+app.029	離開這個檔案前要儲存嗎？	主畫面	App.tsx:318
+app.030	取消	主畫面	App.tsx:148 App.tsx:320
+app.031	不儲存	主畫面	App.tsx:321
+app.032	儲存	主畫面	App.tsx:322
+app.clashTitle	已經有同名的檔案	存檔時新位置已經有別的檔案	App.tsx:146
+app.clashBody	存檔資料夾裡已經有「{project} / {name}.xlsx」，不是這個檔案。覆蓋會把原本的檔案移到資源回收筒。	存檔時新位置已經有別的檔案	App.tsx:146
+app.clashRename	重新命名	存檔時新位置已經有別的檔案	App.tsx:150
+app.clashOverwrite	覆蓋	存檔時新位置已經有別的檔案	App.tsx:149
 color.001	自訂主題色	色盤	components/ColorPicker.tsx:69 components/ColorPicker.tsx:75
 color.002	色碼	色盤	components/ColorPicker.tsx:98
 color.003	取消	色盤	components/ColorPicker.tsx:105
@@ -243,59 +253,59 @@ manage.003	收起	管理專案／字典視窗	components/ManageDialogs.tsx:68
 manage.004	展開	管理專案／字典視窗	components/ManageDialogs.tsx:68
 manage.005	更改專案：{name}	管理專案／字典視窗	components/ManageDialogs.tsx:133
 manage.006	專案	管理專案／字典視窗	components/ManageDialogs.tsx:135
-manage.007	取消	管理專案／字典視窗	components/ManageDialogs.tsx:140 components/ManageDialogs.tsx:159 components/ManageDialogs.tsx:277 components/ManageDialogs.tsx:614
-manage.tooLong	「{sheet}」第 {n} 條超過 Excel 一格 32767 字的上限，沒有儲存	管理專案／字典視窗	components/ManageDialogs.tsx:368
+manage.007	取消	管理專案／字典視窗	components/ManageDialogs.tsx:140 components/ManageDialogs.tsx:163 components/ManageDialogs.tsx:281 components/ManageDialogs.tsx:618
+manage.tooLong	「{sheet}」第 {n} 條超過 Excel 一格 32767 字的上限，沒有儲存	管理專案／字典視窗	components/ManageDialogs.tsx:372
 manage.008	確定	管理專案／字典視窗	components/ManageDialogs.tsx:141
-manage.009	刪除檔案「{v1}」？	管理專案／字典視窗	components/ManageDialogs.tsx:162
-manage.010	檔案會移到資源回收筒。	管理專案／字典視窗	components/ManageDialogs.tsx:162
-manage.011	刪除	管理專案／字典視窗	components/ManageDialogs.tsx:163 components/ManageDialogs.tsx:167 components/ManageDialogs.tsx:174 components/ManageDialogs.tsx:216 components/ManageDialogs.tsx:248 components/ManageDialogs.tsx:284 components/ManageDialogs.tsx:285 components/ManageDialogs.tsx:422 components/ManageDialogs.tsx:556 components/ManageDialogs.tsx:600
-manage.012	刪除字典「{name}」？	管理專案／字典視窗	components/ManageDialogs.tsx:166
-manage.013	字典會移到資源回收筒。	管理專案／字典視窗	components/ManageDialogs.tsx:166
-manage.014	{files} 個檔案	管理專案／字典視窗	components/ManageDialogs.tsx:171
-manage.015	{dicts} 本字典	管理專案／字典視窗	components/ManageDialogs.tsx:171
-manage.016	刪除專案「{name}」？	管理專案／字典視窗	components/ManageDialogs.tsx:173 components/ManageDialogs.tsx:176
-manage.017	專案裡的 {parts}會移到資源回收筒。	管理專案／字典視窗	components/ManageDialogs.tsx:173
-manage.018	專案裡有 {parts}。檔案會移到資源回收筒，字典要一起刪除，還是移到共用？	管理專案／字典視窗	components/ManageDialogs.tsx:177
-manage.019	一起刪除	管理專案／字典視窗	components/ManageDialogs.tsx:180
-manage.020	移到共用	管理專案／字典視窗	components/ManageDialogs.tsx:181
-manage.021	重新命名	管理專案／字典視窗	components/ManageDialogs.tsx:209 components/ManageDialogs.tsx:209 components/ManageDialogs.tsx:284 components/ManageDialogs.tsx:285 components/ManageDialogs.tsx:422 components/ManageDialogs.tsx:552 components/ManageDialogs.tsx:552 components/ManageDialogs.tsx:600
-manage.022	更改專案	管理專案／字典視窗	components/ManageDialogs.tsx:215 components/ManageDialogs.tsx:215 components/ManageDialogs.tsx:284 components/ManageDialogs.tsx:554 components/ManageDialogs.tsx:554 components/ManageDialogs.tsx:600
-manage.023	刪除檔案	管理專案／字典視窗	components/ManageDialogs.tsx:216
-manage.024	管理專案	管理專案／字典視窗	components/ManageDialogs.tsx:223
-manage.025	新增專案	管理專案／字典視窗	components/ManageDialogs.tsx:227
-manage.026	專案名稱	管理專案／字典視窗	components/ManageDialogs.tsx:230
-manage.027	{length} 個檔案	管理專案／字典視窗	components/ManageDialogs.tsx:237
-manage.028	刪除專案{p}	管理專案／字典視窗	components/ManageDialogs.tsx:248
-manage.029	選擇左邊的檔案	管理專案／字典視窗	components/ManageDialogs.tsx:268
-manage.030	有未儲存的修改	管理專案／字典視窗	components/ManageDialogs.tsx:275 components/ManageDialogs.tsx:612
-manage.031	這個檔案的修改還沒儲存。	管理專案／字典視窗	components/ManageDialogs.tsx:275
-manage.032	不儲存	管理專案／字典視窗	components/ManageDialogs.tsx:278 components/ManageDialogs.tsx:615
-manage.033	專案操作	管理專案／字典視窗	components/ManageDialogs.tsx:282
-manage.036	頁簽	管理專案／字典視窗	components/ManageDialogs.tsx:387
-manage.037	頁簽名稱	管理專案／字典視窗	components/ManageDialogs.tsx:390
-manage.038	新增頁簽	管理專案／字典視窗	components/ManageDialogs.tsx:401 components/ManageDialogs.tsx:401
-manage.039	{total} 條	管理專案／字典視窗	components/ManageDialogs.tsx:413
-manage.040	還原	管理專案／字典視窗	components/ManageDialogs.tsx:416 components/ManageDialogs.tsx:590
-manage.041	儲存	管理專案／字典視窗	components/ManageDialogs.tsx:417 components/ManageDialogs.tsx:591
-manage.042	頁簽「{v1}」	管理專案／字典視窗	components/ManageDialogs.tsx:421
-manage.043	原文	管理專案／字典視窗	components/ManageDialogs.tsx:438
-manage.044	譯文	管理專案／字典視窗	components/ManageDialogs.tsx:438
-manage.045	備註	管理專案／字典視窗	components/ManageDialogs.tsx:438
-manage.046	原文 {n} 行、譯文 {length} 行，行數不一致	管理專案／字典視窗	components/ManageDialogs.tsx:478
-manage.047	備註比原文多了 {v1} 行	管理專案／字典視窗	components/ManageDialogs.tsx:479
-manage.048	已清除 {n} 筆重複詞條	管理專案／字典視窗	components/ManageDialogs.tsx:504
-manage.049	沒有重複的詞條	管理專案／字典視窗	components/ManageDialogs.tsx:504
-manage.050	管理字典	管理專案／字典視窗	components/ManageDialogs.tsx:516
-manage.051	新字典	管理專案／字典視窗	components/ManageDialogs.tsx:526
-manage.052	在{p}新增字典	管理專案／字典視窗	components/ManageDialogs.tsx:526
-manage.053	字典名稱	管理專案／字典視窗	components/ManageDialogs.tsx:530
-manage.054	刪除字典	管理專案／字典視窗	components/ManageDialogs.tsx:556
-manage.055	選擇左邊的字典	管理專案／字典視窗	components/ManageDialogs.tsx:570
-manage.056	{n} 筆	管理專案／字典視窗	components/ManageDialogs.tsx:582
-manage.057	清除這本字典裡原文、譯文、備註都一樣的詞條，留第一筆（行數對不上時不能用）	管理專案／字典視窗	components/ManageDialogs.tsx:584
-manage.058	清除重複詞條	管理專案／字典視窗	components/ManageDialogs.tsx:585
-manage.059	字典「{name}」	管理專案／字典視窗	components/ManageDialogs.tsx:599
-manage.060	這本字典的修改還沒儲存。	管理專案／字典視窗	components/ManageDialogs.tsx:612
+manage.009	刪除檔案「{v1}」？	管理專案／字典視窗	components/ManageDialogs.tsx:166
+manage.010	檔案會移到資源回收筒。	管理專案／字典視窗	components/ManageDialogs.tsx:166
+manage.011	刪除	管理專案／字典視窗	components/ManageDialogs.tsx:167 components/ManageDialogs.tsx:171 components/ManageDialogs.tsx:178 components/ManageDialogs.tsx:220 components/ManageDialogs.tsx:252 components/ManageDialogs.tsx:288 components/ManageDialogs.tsx:289 components/ManageDialogs.tsx:426 components/ManageDialogs.tsx:560 components/ManageDialogs.tsx:604
+manage.012	刪除字典「{name}」？	管理專案／字典視窗	components/ManageDialogs.tsx:170
+manage.013	字典會移到資源回收筒。	管理專案／字典視窗	components/ManageDialogs.tsx:170
+manage.014	{files} 個檔案	管理專案／字典視窗	components/ManageDialogs.tsx:175
+manage.015	{dicts} 本字典	管理專案／字典視窗	components/ManageDialogs.tsx:175
+manage.016	刪除專案「{name}」？	管理專案／字典視窗	components/ManageDialogs.tsx:177 components/ManageDialogs.tsx:180
+manage.017	專案裡的 {parts}會移到資源回收筒。	管理專案／字典視窗	components/ManageDialogs.tsx:177
+manage.018	專案裡有 {parts}。檔案會移到資源回收筒，字典要一起刪除，還是移到共用？	管理專案／字典視窗	components/ManageDialogs.tsx:181
+manage.019	一起刪除	管理專案／字典視窗	components/ManageDialogs.tsx:184
+manage.020	移到共用	管理專案／字典視窗	components/ManageDialogs.tsx:185
+manage.021	重新命名	管理專案／字典視窗	components/ManageDialogs.tsx:213 components/ManageDialogs.tsx:213 components/ManageDialogs.tsx:288 components/ManageDialogs.tsx:289 components/ManageDialogs.tsx:426 components/ManageDialogs.tsx:556 components/ManageDialogs.tsx:556 components/ManageDialogs.tsx:604
+manage.022	更改專案	管理專案／字典視窗	components/ManageDialogs.tsx:219 components/ManageDialogs.tsx:219 components/ManageDialogs.tsx:288 components/ManageDialogs.tsx:558 components/ManageDialogs.tsx:558 components/ManageDialogs.tsx:604
+manage.023	刪除檔案	管理專案／字典視窗	components/ManageDialogs.tsx:220
+manage.024	管理專案	管理專案／字典視窗	components/ManageDialogs.tsx:227
+manage.025	新增專案	管理專案／字典視窗	components/ManageDialogs.tsx:231
+manage.026	專案名稱	管理專案／字典視窗	components/ManageDialogs.tsx:234
+manage.027	{length} 個檔案	管理專案／字典視窗	components/ManageDialogs.tsx:241
+manage.028	刪除專案{p}	管理專案／字典視窗	components/ManageDialogs.tsx:252
+manage.029	選擇左邊的檔案	管理專案／字典視窗	components/ManageDialogs.tsx:272
+manage.030	有未儲存的修改	管理專案／字典視窗	components/ManageDialogs.tsx:279 components/ManageDialogs.tsx:616
+manage.031	這個檔案的修改還沒儲存。	管理專案／字典視窗	components/ManageDialogs.tsx:279
+manage.032	不儲存	管理專案／字典視窗	components/ManageDialogs.tsx:282 components/ManageDialogs.tsx:619
+manage.033	專案操作	管理專案／字典視窗	components/ManageDialogs.tsx:286
+manage.036	頁簽	管理專案／字典視窗	components/ManageDialogs.tsx:391
+manage.037	頁簽名稱	管理專案／字典視窗	components/ManageDialogs.tsx:394
+manage.038	新增頁簽	管理專案／字典視窗	components/ManageDialogs.tsx:405 components/ManageDialogs.tsx:405
+manage.039	{total} 條	管理專案／字典視窗	components/ManageDialogs.tsx:417
+manage.040	還原	管理專案／字典視窗	components/ManageDialogs.tsx:420 components/ManageDialogs.tsx:594
+manage.041	儲存	管理專案／字典視窗	components/ManageDialogs.tsx:421 components/ManageDialogs.tsx:595
+manage.042	頁簽「{v1}」	管理專案／字典視窗	components/ManageDialogs.tsx:425
+manage.043	原文	管理專案／字典視窗	components/ManageDialogs.tsx:442
+manage.044	譯文	管理專案／字典視窗	components/ManageDialogs.tsx:442
+manage.045	備註	管理專案／字典視窗	components/ManageDialogs.tsx:442
+manage.046	原文 {n} 行、譯文 {length} 行，行數不一致	管理專案／字典視窗	components/ManageDialogs.tsx:482
+manage.047	備註比原文多了 {v1} 行	管理專案／字典視窗	components/ManageDialogs.tsx:483
+manage.048	已清除 {n} 筆重複詞條	管理專案／字典視窗	components/ManageDialogs.tsx:508
+manage.049	沒有重複的詞條	管理專案／字典視窗	components/ManageDialogs.tsx:508
+manage.050	管理字典	管理專案／字典視窗	components/ManageDialogs.tsx:520
+manage.051	新字典	管理專案／字典視窗	components/ManageDialogs.tsx:530
+manage.052	在{p}新增字典	管理專案／字典視窗	components/ManageDialogs.tsx:530
+manage.053	字典名稱	管理專案／字典視窗	components/ManageDialogs.tsx:534
+manage.054	刪除字典	管理專案／字典視窗	components/ManageDialogs.tsx:560
+manage.055	選擇左邊的字典	管理專案／字典視窗	components/ManageDialogs.tsx:574
+manage.056	{n} 筆	管理專案／字典視窗	components/ManageDialogs.tsx:586
+manage.057	清除這本字典裡原文、譯文、備註都一樣的詞條，留第一筆（行數對不上時不能用）	管理專案／字典視窗	components/ManageDialogs.tsx:588
+manage.058	清除重複詞條	管理專案／字典視窗	components/ManageDialogs.tsx:589
+manage.059	字典「{name}」	管理專案／字典視窗	components/ManageDialogs.tsx:603
+manage.060	這本字典的修改還沒儲存。	管理專案／字典視窗	components/ManageDialogs.tsx:616
 markmenu.001	管理自訂標記…	標記選單	components/MarkMenu.tsx:64
 pastebox.001	選取整欄	貼入框	components/PasteBox.tsx:169
 pastebox.002	＊必填	貼入框	components/PasteBox.tsx:173
@@ -550,35 +560,35 @@ work.027	套用（刪除這條）	工作欄	components/WorkPanel.tsx:551
 work.028	套用新原文	工作欄	components/WorkPanel.tsx:551 components/WorkPanel.tsx:551
 work.029	譯文	工作欄	components/WorkPanel.tsx:565
 work.030	已記錄 {length} / 3	工作欄	components/WorkPanel.tsx:574
-work.031	{n} 字元	工作欄	components/WorkPanel.tsx:575 components/WorkPanel.tsx:608
-work.032	修改	工作欄	components/WorkPanel.tsx:601 components/WorkPanel.tsx:628
+work.031	{n} 字元	工作欄	components/WorkPanel.tsx:575 components/WorkPanel.tsx:610
+work.032	修改	工作欄	components/WorkPanel.tsx:601 components/WorkPanel.tsx:630
 work.033	用修改後的內容取代譯文	工作欄	components/WorkPanel.tsx:605
 work.034	全部套用	工作欄	components/WorkPanel.tsx:606
-work.035	已記錄 {n} / 3	工作欄	components/WorkPanel.tsx:607
-work.036	編輯	工作欄	components/WorkPanel.tsx:630
-work.037	刪除	工作欄	components/WorkPanel.tsx:630
-work.038	套用	工作欄	components/WorkPanel.tsx:630 components/WorkPanel.tsx:631
-work.039	忽略修改	工作欄	components/WorkPanel.tsx:631
-work.040	條目功能	工作欄	components/WorkPanel.tsx:645
-work.041	複製原文和譯文	工作欄	components/WorkPanel.tsx:646 components/WorkPanel.tsx:646
-work.042	清除譯文	工作欄	components/WorkPanel.tsx:651 components/WorkPanel.tsx:651
-work.043	全部清除	工作欄	components/WorkPanel.tsx:656
-work.044	清除這一條的所有修改	工作欄	components/WorkPanel.tsx:656
-work.045	插入標籤	工作欄	components/WorkPanel.tsx:663
-work.046	插入標籤，例如 {0}	工作欄	components/WorkPanel.tsx:663
-work.047	複製譯文	工作欄	components/WorkPanel.tsx:668
-work.048	複製譯文到剪貼簿	工作欄	components/WorkPanel.tsx:668
-work.049	第 {n} / {total} 條	工作欄	components/WorkPanel.tsx:678
-work.051	設定這一條的長度標準	工作欄	components/WorkPanel.tsx:679
-work.052	這一條的特殊長度標準	工作欄	components/WorkPanel.tsx:679
-work.053	特殊標準	工作欄	components/WorkPanel.tsx:681
-work.054	上一條	工作欄	components/WorkPanel.tsx:687
-work.055	標記並下一條	工作欄	components/WorkPanel.tsx:699
-work.056	按下後留下的標記	工作欄	components/WorkPanel.tsx:701
-work.057	選擇按鈕要留下的標記	工作欄	components/WorkPanel.tsx:701
-work.058	疑慮並下一條	工作欄	components/WorkPanel.tsx:709
-work.059	驗證並下一條	工作欄	components/WorkPanel.tsx:709
-work.060	下一條	工作欄	components/WorkPanel.tsx:714
+work.035	已記錄 {n} / 3	工作欄	components/WorkPanel.tsx:609
+work.036	編輯	工作欄	components/WorkPanel.tsx:632
+work.037	刪除	工作欄	components/WorkPanel.tsx:632
+work.038	套用	工作欄	components/WorkPanel.tsx:632 components/WorkPanel.tsx:633
+work.039	忽略修改	工作欄	components/WorkPanel.tsx:633
+work.040	條目功能	工作欄	components/WorkPanel.tsx:647
+work.041	複製原文和譯文	工作欄	components/WorkPanel.tsx:648 components/WorkPanel.tsx:648
+work.042	清除譯文	工作欄	components/WorkPanel.tsx:653 components/WorkPanel.tsx:653
+work.043	全部忽略	工作欄：修改框上方，「全部套用」旁的按鈕	components/WorkPanel.tsx:608
+work.044	忽略這一條的所有修改	工作欄：「全部忽略」的滑鼠提示	components/WorkPanel.tsx:607
+work.045	插入標籤	工作欄	components/WorkPanel.tsx:659
+work.046	插入標籤，例如 {0}	工作欄	components/WorkPanel.tsx:659
+work.047	複製譯文	工作欄	components/WorkPanel.tsx:664
+work.048	複製譯文到剪貼簿	工作欄	components/WorkPanel.tsx:664
+work.049	第 {n} / {total} 條	工作欄	components/WorkPanel.tsx:674
+work.051	設定這一條的長度標準	工作欄	components/WorkPanel.tsx:675
+work.052	這一條的特殊長度標準	工作欄	components/WorkPanel.tsx:675
+work.053	特殊標準	工作欄	components/WorkPanel.tsx:677
+work.054	上一條	工作欄	components/WorkPanel.tsx:683
+work.055	標記並下一條	工作欄	components/WorkPanel.tsx:695
+work.056	按下後留下的標記	工作欄	components/WorkPanel.tsx:697
+work.057	選擇按鈕要留下的標記	工作欄	components/WorkPanel.tsx:697
+work.058	疑慮並下一條	工作欄	components/WorkPanel.tsx:705
+work.059	驗證並下一條	工作欄	components/WorkPanel.tsx:705
+work.060	下一條	工作欄	components/WorkPanel.tsx:710
 fs.001	寫入的檔案不完整	檔案讀寫	data/fsio.ts:45
 importfile.001	不支援這種檔案	匯入檔案訊息	data/importio.ts:39
 importfile.002	無法讀取這個檔案	匯入檔案訊息	data/importio.ts:58
@@ -723,11 +733,11 @@ save.010	已儲存	存檔訊息	state/saver.ts:350
 save.011	讀取設定	存檔訊息	state/saver.ts:399
 save.012	讀取專案	存檔訊息	state/saver.ts:442
 save.013	完成	存檔訊息	state/saver.ts:469
-save.014	資料夾裡有其他東西，改存到裡面的「Verso」資料夾	存檔訊息	state/saver.ts:695
-save.015	已載入：{v1}{v2}	存檔訊息	state/saver.ts:928
-save.016	已改名：{v1}{v2}	存檔訊息	state/saver.ts:928
-save.017	字典 / {project} / {name}	存檔訊息	state/saver.ts:930
-store.001	啟動中	狀態訊息	main.tsx:22 state/store.ts:639
+save.014	資料夾裡有其他東西，改存到裡面的「Verso」資料夾	存檔訊息	state/saver.ts:706
+save.015	已載入：{v1}{v2}	存檔訊息	state/saver.ts:939
+save.016	已改名：{v1}{v2}	存檔訊息	state/saver.ts:939
+save.017	字典 / {project} / {name}	存檔訊息	state/saver.ts:941
+store.001	啟動中	狀態訊息	main.tsx:22 state/store.ts:653
 update.001	檢查更新	自動更新	state/updater.ts:33
 update.002	下載太久沒有進度	自動更新	state/updater.ts:57 state/updater.ts:58
 update.003	下載更新 0%	自動更新	state/updater.ts:60

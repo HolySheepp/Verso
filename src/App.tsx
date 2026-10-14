@@ -40,6 +40,16 @@ function useWindowSize() {
   return size;
 }
 
+/** AI 還在工作時要關閉：問要不要停止 */
+function AiStopAsk() {
+  const ask = useStore((s) => s.aiStopAsk);
+  if (!ask) return null;
+  return (
+    <ConfirmDialog zIndex={75} title={tx('app.aiStillWorking')}
+      choices={[{ label: tx('app.aiKeep'), onClick: () => ask(false) }, { label: tx('app.aiStop'), primary: true, onClick: () => ask(true) }]} />
+  );
+}
+
 /** 畫面中間短暫出現、自己消失的提示（例如手動存檔後的「已儲存」） */
 function Toast() {
   const toast = useStore((s) => s.toast);
@@ -159,6 +169,7 @@ function StatusBar() {
   const file = useStore((s) => s.project!.files[s.file]);
   const mode = useStore((s) => s.mode);
   const { done, total } = fileProgress(file, mode);
+  const ai = useStore((s) => s.aiProgress);
   return (
     <footer style={{
       height: 28, flexShrink: 0, display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '0 16px',
@@ -166,6 +177,15 @@ function StatusBar() {
     }}>
       <div style={{ display: 'flex', gap: 18 }}>
         {file && <span>{tx('app.017', { done, total })}</span>}
+        {ai && (
+          // AI 進度：做完自動消失
+          <span style={{ display: 'flex', alignItems: 'center', gap: 6, color: 'var(--accent2)' }}>
+            {tx('app.aiProgress', { done: ai.done, total: ai.total })}
+            <span style={{ width: 80, height: 4, borderRadius: 2, background: 'var(--line2)', overflow: 'hidden' }}>
+              <span style={{ display: 'block', height: 4, width: (ai.total ? Math.min(100, (ai.done / ai.total) * 100) : 0) + '%', background: 'var(--accent)', transition: 'width 200ms' }} />
+            </span>
+          </span>
+        )}
         <span>{tx('app.019')}{MODES.find((m) => m.id === mode)!.label}</span>
       </div>
     </footer>
@@ -309,6 +329,7 @@ export default function App() {
       <MoveProjectDialog />
       <LengthDialog />
       <Toast />
+      <AiStopAsk />
       <IdPeek />
     </div>
   );
