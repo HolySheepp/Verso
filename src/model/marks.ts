@@ -1,4 +1,5 @@
 import { tx } from '../i18n';
+import { hasPlugin } from '../plugins/has';
 import type { BuiltinMarkId, CustomMark, Entry, MarkId, StoredMark, SymbolId } from './types';
 
 export const BUILTIN_MARKS: { id: BuiltinMarkId; label: string; desc: string }[] = [
@@ -43,10 +44,14 @@ export function isTranslated(e: MarkFields): boolean {
 }
 
 /** 條目實際顯示的標記：刻意標記優先，否則看是否已翻譯 */
+const AI = hasPlugin('ai');
+
 export function effectiveMark(e: MarkFields): MarkId {
   // 原文更新優先顯示，清掉後原本的標記才出現
   if (e.upd && !e.upd.hidden) return 'srcupd';
-  return e.mark || (isTranslated(e) ? 'translated' : 'untranslated');
+  // 這次打包沒有 AI：AI 翻譯的標記當作沒標記（照一般的已翻譯／未翻譯顯示）
+  if (e.mark && (e.mark !== 'ai' || AI)) return e.mark;
+  return isTranslated(e) ? 'translated' : 'untranslated';
 }
 
 /** 把選單選到的標記轉成要存的值：已翻譯／未翻譯不存 */

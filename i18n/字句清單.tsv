@@ -1,61 +1,59 @@
 ﻿代號	中文	畫面區域	程式位置
-projset.title	專案設定：{name}	管理專案：點專案名稱後右邊的標題	components/ProjectSettings.tsx:48
-projset.dicts	自動啟用的字典	專案設定	components/ProjectSettings.tsx:51
-projset.dictsHint	打開這個專案的檔案時，勾起來的字典會自動啟用（跟字典頁的開關是同一份）	專案設定	components/ProjectSettings.tsx:52
-projset.noDicts	還沒有字典	專案設定	components/ProjectSettings.tsx:53
-projset.std	預設長度標準	專案設定	components/ProjectSettings.tsx:67
-projset.stdHint	這個專案的檔案沒有自己設定長度標準時用這個	專案設定	components/ProjectSettings.tsx:68
-projset.stdUnset	不設定	專案設定：預設長度標準的選項	components/ProjectSettings.tsx:36
-projset.stdNone	無上限	專案設定：預設長度標準的選項	components/ProjectSettings.tsx:37
-projset.ai	AI 設定	專案設定	components/ProjectSettings.tsx:74
-projset.model	模型	專案設定：AI 用的模型	components/ProjectSettings.tsx:80
-projset.effort	Effort	專案設定：AI 的 effort	components/ProjectSettings.tsx:84
+projset.title	專案設定：{name}	管理專案：點專案名稱後右邊的標題	components/ProjectSettings.tsx:36
+projset.dicts	自動啟用的字典	專案設定	components/ProjectSettings.tsx:39
+projset.dictsHint	打開這個專案的檔案時，勾起來的字典會自動啟用（跟字典頁的開關是同一份）	專案設定	components/ProjectSettings.tsx:40
+projset.noDicts	還沒有字典	專案設定	components/ProjectSettings.tsx:41
+projset.std	預設長度標準	專案設定	components/ProjectSettings.tsx:55
+projset.stdHint	這個專案的檔案沒有自己設定長度標準時用這個	專案設定	components/ProjectSettings.tsx:56
+projset.stdUnset	不設定	專案設定：預設長度標準的選項	components/ProjectSettings.tsx:24
+projset.stdNone	無上限	專案設定：預設長度標準的選項	components/ProjectSettings.tsx:25
+projset.ai	AI 設定	專案設定	plugins/ai/index.tsx:66
+projset.model	模型	專案設定：AI 用的模型	plugins/ai/index.tsx:72
+projset.effort	Effort	專案設定：AI 的 effort	plugins/ai/index.tsx:76
 app.aiProgress	AI {done}/{total}	狀態列：AI 工作的進度（寫過幾條／共幾條）	App.tsx:183
 app.aiStillWorking	AI 還在工作，要停止嗎？	AI 工作中要關閉 Verso、換存檔資料夾、改名或刪除專案時	App.tsx:48
 app.aiKeep	取消	上面那句的按鈕：不關閉，AI 繼續	App.tsx:49
 app.aiStop	停止 AI	上面那句的按鈕：停止 AI 再繼續	App.tsx:49
-ai.errNotInstalled	未安裝Claude Code	AI 失敗原因	state/ai.ts:336
-ai.errLogin	未登入或登入過期	AI 失敗原因	state/ai.ts:231
-ai.errQuota	Token用盡	AI 失敗原因	state/ai.ts:232
-ai.errSkill	找不到Skill	AI 失敗原因	state/ai.ts:326
-ai.errOther	AI工作未完成，請重試	AI 失敗原因：其他	state/ai.ts:233 state/ai.ts:336
+ai.errNotInstalled	未安裝Claude Code	AI 失敗原因	plugins/ai/ai.ts:336
+ai.errLogin	未登入或登入過期	AI 失敗原因	plugins/ai/ai.ts:231
+ai.errQuota	Token用盡	AI 失敗原因	plugins/ai/ai.ts:232
+ai.errSkill	找不到Skill	AI 失敗原因	plugins/ai/ai.ts:326
+ai.errOther	AI工作未完成，請重試	AI 失敗原因：其他	plugins/ai/ai.ts:233 plugins/ai/ai.ts:336
 shortcut.ignoreEdits	忽略這條的全部修改	設定 > 快捷鍵：動作名稱	model/shortcuts.ts:38
-mark.ai	AI 翻譯	標記名稱：AI 翻好、還沒確認的條目	model/marks.ts:79
-list.aiLocked	AI 處理中	條目欄：AI 正在處理的條目旁的小字提示	components/EntryList.tsx:166 components/EntryList.tsx:166
+mark.ai	AI 翻譯	標記名稱：AI 翻好、還沒確認的條目	model/marks.ts:84
+list.aiLocked	AI 處理中	條目欄：AI 正在處理的條目旁的小字提示	components/EntryList.tsx:165 components/EntryList.tsx:165
 ai.locked	AI 正在處理的條目不能刪除	想刪掉 AI 處理中的條目時	state/store.ts:758
-ai.stopped	已停止 AI，已經寫回的內容保留	按了停止之後	state/ai.ts:252
-ai.askMany	要讓 AI 處理 {n} 條嗎？	選了超過 50 條按 AI 時	components/EntryList.tsx:839
-ai.askNo	取消	上面那句的按鈕	components/EntryList.tsx:840
-ai.askYes	繼續	上面那句的按鈕	components/EntryList.tsx:840
-settings.aiSkillTranslate	翻譯用的 skill	設定 > 開發者選項：AI 翻譯時用的 skill 名稱	components/ProjectSettings.tsx:76
-settings.aiSkillVerify	驗證用的 skill	設定 > 開發者選項：AI 驗證時用的 skill 名稱	components/ProjectSettings.tsx:78
-settings.aiSkillNone	不指定	上面兩個輸入框空白時的提示	components/ProjectSettings.tsx:77 components/ProjectSettings.tsx:79
-settings.aiEnabled	AI 協助（測試中）	設定 > 開發者選項：開關	components/SettingsDialog.tsx:393
-settings.aiHint	打開後條目欄上方會出現 AI 按鈕，按下時在背景用 Claude Code 處理選取的條目（需要先裝好、登入命令列版 Claude Code）	設定 > 開發者選項：說明	components/SettingsDialog.tsx:395
-list.aiButton	讓 AI 處理選取的條目	條目欄上方 AI 按鈕的滑鼠提示	components/EntryList.tsx:715
-list.aiStop	停止	AI 處理中時，AI 按鈕變成這個	components/EntryList.tsx:715 components/EntryList.tsx:717
-ai.done	AI 處理完成	AI 做完時的提示	state/ai.ts:253
-ai.failed	AI 處理失敗：{msg}	AI 出錯時的警告	
-ai.notInstalled	找不到命令列版的 Claude Code，請先安裝並登入	按 AI 按鈕但沒裝 Claude Code	
-ai.desktopOnly	AI 協助只能在桌面版使用	瀏覽器預覽裡按 AI 按鈕	state/ai.ts:316
-settings.devSection	開發者選項	設定左邊的分類（開發者模式才有）	components/SettingsDialog.tsx:27
+ai.stopped	已停止 AI，已經寫回的內容保留	按了停止之後	plugins/ai/ai.ts:252
+ai.askMany	要讓 AI 處理 {n} 條嗎？	選了超過 50 條按 AI 時	plugins/ai/index.tsx:25
+ai.askNo	取消	上面那句的按鈕	plugins/ai/index.tsx:26
+ai.askYes	繼續	上面那句的按鈕	plugins/ai/index.tsx:26
+settings.aiSkillTranslate	翻譯用的 skill	設定 > 開發者選項：AI 翻譯時用的 skill 名稱	plugins/ai/index.tsx:68
+settings.aiSkillVerify	驗證用的 skill	設定 > 開發者選項：AI 驗證時用的 skill 名稱	plugins/ai/index.tsx:70
+settings.aiSkillNone	不指定	上面兩個輸入框空白時的提示	plugins/ai/index.tsx:69 plugins/ai/index.tsx:71
+settings.aiEnabled	AI 協助（測試中）	設定 > 開發者選項：開關	plugins/ai/index.tsx:40
+settings.aiHint	打開後條目欄上方會出現 AI 按鈕，按下時在背景用 Claude Code 處理選取的條目（需要先裝好、登入命令列版 Claude Code）	設定 > 開發者選項：說明	plugins/ai/index.tsx:42
+list.aiButton	讓 AI 處理選取的條目	條目欄上方 AI 按鈕的滑鼠提示	plugins/ai/index.tsx:20
+list.aiStop	停止	AI 處理中時，AI 按鈕變成這個	plugins/ai/index.tsx:20 plugins/ai/index.tsx:22
+ai.done	AI 處理完成	AI 做完時的提示	plugins/ai/ai.ts:253
+ai.desktopOnly	AI 協助只能在桌面版使用	瀏覽器預覽裡按 AI 按鈕	plugins/ai/ai.ts:316
+settings.devSection	開發者選項	設定左邊的分類（開發者模式才有）	components/SettingsDialog.tsx:28
 settings.showIds	顯示字句 ID	設定 > 開發者選項：開關	components/SettingsDialog.tsx:388
 settings.showIdsHint	滑鼠移到介面文字上，旁邊會顯示它的字句 ID	設定 > 開發者選項：開關下面的說明	components/SettingsDialog.tsx:390
-settings.devOn	已開啟開發者模式	連點設定標題 5 次時的提示	components/SettingsDialog.tsx:57
-settings.devOff	已關閉開發者模式	再連點 5 次時的提示	components/SettingsDialog.tsx:57
+settings.devOn	已開啟開發者模式	連點設定標題 5 次時的提示	components/SettingsDialog.tsx:58
+settings.devOff	已關閉開發者模式	再連點 5 次時的提示	components/SettingsDialog.tsx:58
 shortcut.toggleIds	顯示字句 ID（開發者模式）	設定 > 快捷鍵：動作名稱	model/shortcuts.ts:37
 app.toastDismiss	點一下關閉	一直留著的警告提示，滑鼠停在上面時	App.tsx:80
-settings.language	語言	設定 > 一般	components/SettingsDialog.tsx:438
-settings.addPack	添加語言包	設定 > 一般：語言選單下面的按鈕	components/SettingsDialog.tsx:452
-settings.packLabel	{name}（語言包）	設定 > 一般：語言包跟內建語言同名時，選單裡這樣顯示	components/SettingsDialog.tsx:445
-settings.addPackHint	也可以把語言包檔案拖進這裡	設定 > 一般：添加語言包按鈕旁的說明	components/SettingsDialog.tsx:453
-settings.packsAdded	已加入語言包：{names}	設定 > 一般：加好語言包後的提示	components/SettingsDialog.tsx:424
-settings.packsBad	這些檔案不是語言包：{names}	設定 > 一般：加入的檔案讀不出語言包內容時	components/SettingsDialog.tsx:425
-settings.packsFailed	語言包加不進去，主程式資料夾可能沒有寫入權限	設定 > 一般：複製語言包失敗時	components/SettingsDialog.tsx:427
-settings.packReplace	已經有語言包「{name}」，要取代嗎？	設定 > 一般：加入同名語言包時	components/SettingsDialog.tsx:457
-settings.packReplaceNo	取消	設定 > 一般：同名語言包的詢問	components/SettingsDialog.tsx:458
-settings.packReplaceYes	取代	設定 > 一般：同名語言包的詢問	components/SettingsDialog.tsx:458
-common.sep	、	列出好幾個名稱時的分隔符號	App.tsx:100 App.tsx:111 App.tsx:122 components/CopyConfirm.tsx:19 components/EntryList.tsx:198 components/EntryList.tsx:198 components/FileNav.tsx:123 components/ManageDialogs.tsx:176 components/SettingsDialog.tsx:424 components/SettingsDialog.tsx:425 components/SidePanel.tsx:340 components/WorkPanel.tsx:96 model/importSel.ts:59 model/importSel.ts:59 model/paste.ts:79 state/saver.ts:941 state/saver.ts:941
+settings.language	語言	設定 > 一般	components/SettingsDialog.tsx:435
+settings.addPack	添加語言包	設定 > 一般：語言選單下面的按鈕	components/SettingsDialog.tsx:449
+settings.packLabel	{name}（語言包）	設定 > 一般：語言包跟內建語言同名時，選單裡這樣顯示	components/SettingsDialog.tsx:442
+settings.addPackHint	也可以把語言包檔案拖進這裡	設定 > 一般：添加語言包按鈕旁的說明	components/SettingsDialog.tsx:450
+settings.packsAdded	已加入語言包：{names}	設定 > 一般：加好語言包後的提示	components/SettingsDialog.tsx:421
+settings.packsBad	這些檔案不是語言包：{names}	設定 > 一般：加入的檔案讀不出語言包內容時	components/SettingsDialog.tsx:422
+settings.packsFailed	語言包加不進去，主程式資料夾可能沒有寫入權限	設定 > 一般：複製語言包失敗時	components/SettingsDialog.tsx:424
+settings.packReplace	已經有語言包「{name}」，要取代嗎？	設定 > 一般：加入同名語言包時	components/SettingsDialog.tsx:454
+settings.packReplaceNo	取消	設定 > 一般：同名語言包的詢問	components/SettingsDialog.tsx:455
+settings.packReplaceYes	取代	設定 > 一般：同名語言包的詢問	components/SettingsDialog.tsx:455
+common.sep	、	列出好幾個名稱時的分隔符號	App.tsx:100 App.tsx:111 App.tsx:122 components/CopyConfirm.tsx:19 components/EntryList.tsx:197 components/EntryList.tsx:197 components/FileNav.tsx:123 components/ManageDialogs.tsx:176 components/SettingsDialog.tsx:421 components/SettingsDialog.tsx:422 components/SidePanel.tsx:340 components/WorkPanel.tsx:96 model/importSel.ts:59 model/importSel.ts:59 model/paste.ts:79 state/saver.ts:941 state/saver.ts:941
 common.join	；	把兩段提示接成一句時的分隔符號（英文用「; 」）	state/saver.ts:941
 common.moreEntries	 等 {n} 條	列表太長時接在後面	App.tsx:100
 common.moreItems	 等 {n} 個	列表太長時接在後面	App.tsx:111 App.tsx:122 state/saver.ts:941 state/saver.ts:941
@@ -122,46 +120,46 @@ dictpaste.007	譯文	貼入字典視窗	components/DictPasteDialog.tsx:82
 dictpaste.008	{length} 筆	貼入字典視窗	components/DictPasteDialog.tsx:89
 dictpaste.009	取消	貼入字典視窗	components/DictPasteDialog.tsx:93
 dictpaste.010	加入	貼入字典視窗	components/DictPasteDialog.tsx:95
-list.001	發話者	條目欄	components/EntryList.tsx:31
-list.002	原文	條目欄	components/EntryList.tsx:31
-list.003	譯文	條目欄	components/EntryList.tsx:31
-list.004	全部	條目欄	components/EntryList.tsx:62
-list.005	未翻譯	條目欄	components/EntryList.tsx:63
-list.006	疑慮	條目欄	components/EntryList.tsx:64
-list.007	待思考	條目欄	components/EntryList.tsx:65
-list.008	有問題	條目欄	components/EntryList.tsx:66
-list.009	原文更新	條目欄	components/EntryList.tsx:67
-list.010	標記：{v1}，點擊變更	條目欄	components/EntryList.tsx:138
-list.011	特殊長度標準	條目欄	components/EntryList.tsx:169
-list.012	特殊標準：{v1}	條目欄	components/EntryList.tsx:169
-list.013	有備註	條目欄	components/EntryList.tsx:172 components/EntryList.tsx:173
-list.014	(新原文已移除)	條目欄	components/EntryList.tsx:187
-list.015	不需翻譯	條目欄	components/EntryList.tsx:196 components/EntryList.tsx:203
-list.016	尚未翻譯	條目欄	components/EntryList.tsx:196 components/EntryList.tsx:203
-list.017	文本條目	條目欄	components/EntryList.tsx:704 components/EntryList.tsx:710
-list.018	共 {n} 條	條目欄	components/EntryList.tsx:711
-list.020	設定檔案的長度標準	條目欄	components/EntryList.tsx:720
-list.021	長度標準：{v1}	條目欄	components/EntryList.tsx:720
-list.022	套用全部新原文	條目欄	components/EntryList.tsx:725 components/EntryList.tsx:725
-list.023	全部檢查	條目欄	components/EntryList.tsx:730 components/EntryList.tsx:730
-list.024	複製譯文欄	條目欄	components/EntryList.tsx:734 components/EntryList.tsx:734
-list.025	複製備註	條目欄	components/EntryList.tsx:738 components/EntryList.tsx:738
-list.026	篩選條目	條目欄	components/EntryList.tsx:742
-list.027	調整「{h}」欄寬	條目欄	components/EntryList.tsx:787
-list.028	條目欄	條目欄	components/EntryList.tsx:797
-list.029	目前沒有檔案，請新增檔案	條目欄	components/EntryList.tsx:812
-list.030	這個頁簽沒有條目	條目欄	components/EntryList.tsx:812
-list.031	這個篩選條件下沒有條目	條目欄	components/EntryList.tsx:812
-list.032	條目	條目欄	components/EntryList.tsx:817
-list.033	清除整欄	條目欄	components/EntryList.tsx:819
-list.034	標記	條目欄	components/EntryList.tsx:821 components/EntryList.tsx:831
-list.035	套用新原文	條目欄	components/EntryList.tsx:822 components/EntryList.tsx:832
-list.036	清除	條目欄	components/EntryList.tsx:823 components/EntryList.tsx:830
-list.037	刪除 {length} 列	條目欄	components/EntryList.tsx:824
-list.038	在下方插入	條目欄	components/EntryList.tsx:825
-list.039	上移	條目欄	components/EntryList.tsx:826 components/EntryList.tsx:833
-list.040	下移	條目欄	components/EntryList.tsx:827 components/EntryList.tsx:834
-list.041	編輯	條目欄	components/EntryList.tsx:829
+list.001	發話者	條目欄	components/EntryList.tsx:30
+list.002	原文	條目欄	components/EntryList.tsx:30
+list.003	譯文	條目欄	components/EntryList.tsx:30
+list.004	全部	條目欄	components/EntryList.tsx:61
+list.005	未翻譯	條目欄	components/EntryList.tsx:62
+list.006	疑慮	條目欄	components/EntryList.tsx:63
+list.007	待思考	條目欄	components/EntryList.tsx:64
+list.008	有問題	條目欄	components/EntryList.tsx:65
+list.009	原文更新	條目欄	components/EntryList.tsx:66
+list.010	標記：{v1}，點擊變更	條目欄	components/EntryList.tsx:137
+list.011	特殊長度標準	條目欄	components/EntryList.tsx:168
+list.012	特殊標準：{v1}	條目欄	components/EntryList.tsx:168
+list.013	有備註	條目欄	components/EntryList.tsx:171 components/EntryList.tsx:172
+list.014	(新原文已移除)	條目欄	components/EntryList.tsx:186
+list.015	不需翻譯	條目欄	components/EntryList.tsx:195 components/EntryList.tsx:202
+list.016	尚未翻譯	條目欄	components/EntryList.tsx:195 components/EntryList.tsx:202
+list.017	文本條目	條目欄	components/EntryList.tsx:699 components/EntryList.tsx:705
+list.018	共 {n} 條	條目欄	components/EntryList.tsx:706
+list.020	設定檔案的長度標準	條目欄	components/EntryList.tsx:711
+list.021	長度標準：{v1}	條目欄	components/EntryList.tsx:711
+list.022	套用全部新原文	條目欄	components/EntryList.tsx:716 components/EntryList.tsx:716
+list.023	全部檢查	條目欄	components/EntryList.tsx:721 components/EntryList.tsx:721
+list.024	複製譯文欄	條目欄	components/EntryList.tsx:725 components/EntryList.tsx:725
+list.025	複製備註	條目欄	components/EntryList.tsx:729 components/EntryList.tsx:729
+list.026	篩選條目	條目欄	components/EntryList.tsx:733
+list.027	調整「{h}」欄寬	條目欄	components/EntryList.tsx:778
+list.028	條目欄	條目欄	components/EntryList.tsx:788
+list.029	目前沒有檔案，請新增檔案	條目欄	components/EntryList.tsx:803
+list.030	這個頁簽沒有條目	條目欄	components/EntryList.tsx:803
+list.031	這個篩選條件下沒有條目	條目欄	components/EntryList.tsx:803
+list.032	條目	條目欄	components/EntryList.tsx:808
+list.033	清除整欄	條目欄	components/EntryList.tsx:810
+list.034	標記	條目欄	components/EntryList.tsx:812 components/EntryList.tsx:822
+list.035	套用新原文	條目欄	components/EntryList.tsx:813 components/EntryList.tsx:823
+list.036	清除	條目欄	components/EntryList.tsx:814 components/EntryList.tsx:821
+list.037	刪除 {length} 列	條目欄	components/EntryList.tsx:815
+list.038	在下方插入	條目欄	components/EntryList.tsx:816
+list.039	上移	條目欄	components/EntryList.tsx:817 components/EntryList.tsx:824
+list.040	下移	條目欄	components/EntryList.tsx:818 components/EntryList.tsx:825
+list.041	編輯	條目欄	components/EntryList.tsx:820
 error.001	Verso 發生錯誤	錯誤畫面	components/ErrorBoundary.tsx:17
 error.002	發生錯誤	錯誤畫面	components/ErrorBoundary.tsx:25
 error.003	目前的內容已經存進暫存，重新載入後可以恢復。	錯誤畫面	components/ErrorBoundary.tsx:26
@@ -369,69 +367,69 @@ rootconflict.005	軟體裡的	換存檔資料夾的同名衝突視窗	components
 rootconflict.006	資料夾裡原有的	換存檔資料夾的同名衝突視窗	components/RootConflictDialog.tsx:44
 rootconflict.007	取消	換存檔資料夾的同名衝突視窗	components/RootConflictDialog.tsx:52
 rootconflict.008	換到這個資料夾	換存檔資料夾的同名衝突視窗	components/RootConflictDialog.tsx:54
-settings.001	一般	設定	components/SettingsDialog.tsx:27
-settings.002	工作模式	設定	components/SettingsDialog.tsx:27
-settings.003	標記	設定	components/SettingsDialog.tsx:27
-settings.004	檢查	設定	components/SettingsDialog.tsx:27
-settings.005	快捷鍵	設定	components/SettingsDialog.tsx:27
-settings.006	外觀	設定	components/SettingsDialog.tsx:27
-settings.007	設定	設定	components/SettingsDialog.tsx:94
-settings.008	關閉設定	設定	components/SettingsDialog.tsx:95
-settings.009	設定分類	設定	components/SettingsDialog.tsx:101
-settings.010	內建標記	設定	components/SettingsDialog.tsx:116
-settings.011	自訂標記	設定	components/SettingsDialog.tsx:131
-settings.012	符號	設定	components/SettingsDialog.tsx:136
-settings.013	文字	設定	components/SettingsDialog.tsx:136
-settings.014	刪除標記「{name}」	設定	components/SettingsDialog.tsx:137
-settings.015	刪除	設定	components/SettingsDialog.tsx:137
-settings.016	還沒有自訂標記	設定	components/SettingsDialog.tsx:147
-settings.017	新增自訂標記	設定	components/SettingsDialog.tsx:151
-settings.018	名稱	設定	components/SettingsDialog.tsx:154
-settings.019	例如：需問企劃	設定	components/SettingsDialog.tsx:155
-settings.020	標記樣式	設定	components/SettingsDialog.tsx:157
-settings.021	符號庫	設定	components/SettingsDialog.tsx:158 components/SettingsDialog.tsx:164
-settings.022	自行輸入	設定	components/SettingsDialog.tsx:159
-settings.023	標記文字	設定	components/SettingsDialog.tsx:179
-settings.024	例如 TM、長、?	設定	components/SettingsDialog.tsx:180
-settings.025	顏色	設定	components/SettingsDialog.tsx:187
-settings.026	標記顏色	設定	components/SettingsDialog.tsx:188
-settings.027	預覽	設定	components/SettingsDialog.tsx:201
-settings.028	未命名標記	設定	components/SettingsDialog.tsx:206
-settings.029	新增標記	設定	components/SettingsDialog.tsx:211
-settings.030	要一起清掉條目上的這個標記嗎？	設定	components/SettingsDialog.tsx:220
-settings.031	選「保留」的話，標記會留在檔案裡，但畫面上不會顯示。	設定	components/SettingsDialog.tsx:221
-settings.032	取消	設定	components/SettingsDialog.tsx:223 components/SettingsDialog.tsx:348
-settings.033	保留	設定	components/SettingsDialog.tsx:224
-settings.034	一起清掉	設定	components/SettingsDialog.tsx:225
-settings.035	標點與機器驗證	設定	components/SettingsDialog.tsx:239
-settings.036	句子長度	設定	components/SettingsDialog.tsx:251
-settings.037	超框	設定	components/SettingsDialog.tsx:254
-settings.038	終點線	設定	components/SettingsDialog.tsx:258
-settings.039	「{combo}」已被「{v1}」使用	設定	components/SettingsDialog.tsx:293
-settings.comboReserved	「{combo}」已被佔用	設定 > 快捷鍵：錄到條目欄固定的組合（復原、重做、方向鍵）時	components/SettingsDialog.tsx:288
-settings.040	情境	設定	components/SettingsDialog.tsx:340
-settings.041	還原預設	設定	components/SettingsDialog.tsx:344 components/SettingsDialog.tsx:615
-settings.042	把「{v1}」的快捷鍵還原成預設？	設定	components/SettingsDialog.tsx:347
-settings.043	還原	設定	components/SettingsDialog.tsx:348
-settings.044	按下新的組合鍵	設定	components/SettingsDialog.tsx:365
-settings.045	存檔資料夾	設定	components/SettingsDialog.tsx:462
-settings.046	更改…	設定	components/SettingsDialog.tsx:470
-settings.047	自動存檔	設定	components/SettingsDialog.tsx:474
-settings.048	每 {input} 分鐘	設定	components/SettingsDialog.tsx:431
-settings.049	自動存檔間隔（分鐘）	設定	components/SettingsDialog.tsx:477
-settings.051	色彩模式	設定	components/SettingsDialog.tsx:542 components/SettingsDialog.tsx:543
-settings.052	深色	設定	components/SettingsDialog.tsx:544
-settings.053	淺色	設定	components/SettingsDialog.tsx:544
-settings.054	跟隨系統	設定	components/SettingsDialog.tsx:544
-settings.055	主題色	設定	components/SettingsDialog.tsx:551 components/SettingsDialog.tsx:552
-settings.056	迷幻	設定	components/SettingsDialog.tsx:558 components/SettingsDialog.tsx:558
-settings.057	自訂主題色	設定	components/SettingsDialog.tsx:573 components/SettingsDialog.tsx:573
-settings.058	迷幻主題色會不停重繪畫面，比較舊的電腦或開著很大的檔案時，可能會稍微變慢、比較耗電。	設定	components/SettingsDialog.tsx:580
-settings.059	字體	設定	components/SettingsDialog.tsx:600
-settings.060	{label}字型大小	設定	components/SettingsDialog.tsx:612
-settings.061	跟隨系統字	設定	components/SettingsDialog.tsx:623
-settings.062	超框時	設定	components/SettingsDialog.tsx:627
-settings.063	{label}超框時	設定	components/SettingsDialog.tsx:628
+settings.001	一般	設定	components/SettingsDialog.tsx:28
+settings.002	工作模式	設定	components/SettingsDialog.tsx:28
+settings.003	標記	設定	components/SettingsDialog.tsx:28
+settings.004	檢查	設定	components/SettingsDialog.tsx:28
+settings.005	快捷鍵	設定	components/SettingsDialog.tsx:28
+settings.006	外觀	設定	components/SettingsDialog.tsx:28
+settings.007	設定	設定	components/SettingsDialog.tsx:95
+settings.008	關閉設定	設定	components/SettingsDialog.tsx:96
+settings.009	設定分類	設定	components/SettingsDialog.tsx:102
+settings.010	內建標記	設定	components/SettingsDialog.tsx:117
+settings.011	自訂標記	設定	components/SettingsDialog.tsx:132
+settings.012	符號	設定	components/SettingsDialog.tsx:137
+settings.013	文字	設定	components/SettingsDialog.tsx:137
+settings.014	刪除標記「{name}」	設定	components/SettingsDialog.tsx:138
+settings.015	刪除	設定	components/SettingsDialog.tsx:138
+settings.016	還沒有自訂標記	設定	components/SettingsDialog.tsx:148
+settings.017	新增自訂標記	設定	components/SettingsDialog.tsx:152
+settings.018	名稱	設定	components/SettingsDialog.tsx:155
+settings.019	例如：需問企劃	設定	components/SettingsDialog.tsx:156
+settings.020	標記樣式	設定	components/SettingsDialog.tsx:158
+settings.021	符號庫	設定	components/SettingsDialog.tsx:159 components/SettingsDialog.tsx:165
+settings.022	自行輸入	設定	components/SettingsDialog.tsx:160
+settings.023	標記文字	設定	components/SettingsDialog.tsx:180
+settings.024	例如 TM、長、?	設定	components/SettingsDialog.tsx:181
+settings.025	顏色	設定	components/SettingsDialog.tsx:188
+settings.026	標記顏色	設定	components/SettingsDialog.tsx:189
+settings.027	預覽	設定	components/SettingsDialog.tsx:202
+settings.028	未命名標記	設定	components/SettingsDialog.tsx:207
+settings.029	新增標記	設定	components/SettingsDialog.tsx:212
+settings.030	要一起清掉條目上的這個標記嗎？	設定	components/SettingsDialog.tsx:221
+settings.031	選「保留」的話，標記會留在檔案裡，但畫面上不會顯示。	設定	components/SettingsDialog.tsx:222
+settings.032	取消	設定	components/SettingsDialog.tsx:224 components/SettingsDialog.tsx:349
+settings.033	保留	設定	components/SettingsDialog.tsx:225
+settings.034	一起清掉	設定	components/SettingsDialog.tsx:226
+settings.035	標點與機器驗證	設定	components/SettingsDialog.tsx:240
+settings.036	句子長度	設定	components/SettingsDialog.tsx:252
+settings.037	超框	設定	components/SettingsDialog.tsx:255
+settings.038	終點線	設定	components/SettingsDialog.tsx:259
+settings.039	「{combo}」已被「{v1}」使用	設定	components/SettingsDialog.tsx:294
+settings.comboReserved	「{combo}」已被佔用	設定 > 快捷鍵：錄到條目欄固定的組合（復原、重做、方向鍵）時	components/SettingsDialog.tsx:289
+settings.040	情境	設定	components/SettingsDialog.tsx:341
+settings.041	還原預設	設定	components/SettingsDialog.tsx:345 components/SettingsDialog.tsx:612
+settings.042	把「{v1}」的快捷鍵還原成預設？	設定	components/SettingsDialog.tsx:348
+settings.043	還原	設定	components/SettingsDialog.tsx:349
+settings.044	按下新的組合鍵	設定	components/SettingsDialog.tsx:366
+settings.045	存檔資料夾	設定	components/SettingsDialog.tsx:459
+settings.046	更改…	設定	components/SettingsDialog.tsx:467
+settings.047	自動存檔	設定	components/SettingsDialog.tsx:471
+settings.048	每 {input} 分鐘	設定	components/SettingsDialog.tsx:428
+settings.049	自動存檔間隔（分鐘）	設定	components/SettingsDialog.tsx:474
+settings.051	色彩模式	設定	components/SettingsDialog.tsx:539 components/SettingsDialog.tsx:540
+settings.052	深色	設定	components/SettingsDialog.tsx:541
+settings.053	淺色	設定	components/SettingsDialog.tsx:541
+settings.054	跟隨系統	設定	components/SettingsDialog.tsx:541
+settings.055	主題色	設定	components/SettingsDialog.tsx:548 components/SettingsDialog.tsx:549
+settings.056	迷幻	設定	components/SettingsDialog.tsx:555 components/SettingsDialog.tsx:555
+settings.057	自訂主題色	設定	components/SettingsDialog.tsx:570 components/SettingsDialog.tsx:570
+settings.058	迷幻主題色會不停重繪畫面，比較舊的電腦或開著很大的檔案時，可能會稍微變慢、比較耗電。	設定	components/SettingsDialog.tsx:577
+settings.059	字體	設定	components/SettingsDialog.tsx:597
+settings.060	{label}字型大小	設定	components/SettingsDialog.tsx:609
+settings.061	跟隨系統字	設定	components/SettingsDialog.tsx:620
+settings.062	超框時	設定	components/SettingsDialog.tsx:624
+settings.063	{label}超框時	設定	components/SettingsDialog.tsx:625
 side.001	字典	工具欄	components/SidePanel.tsx:19
 side.002	搜尋	工具欄	components/SidePanel.tsx:20
 side.003	瀏覽器	工具欄	components/SidePanel.tsx:21
@@ -660,41 +658,41 @@ importsel.001	還沒選範圍	匯入選範圍	model/importSel.ts:31 model/import
 importsel.002	一個欄位只能選一欄	匯入選範圍	model/importSel.ts:34
 len.001	未設定	長度標準	model/length.ts:46
 len.002	{family} {size}pt・欄寬 {width}px・{lines} 行	長度標準	model/length.ts:48
-mark.001	未翻譯	標記	model/marks.ts:5
-mark.002	灰色小點	標記	model/marks.ts:5
-mark.003	已翻譯	標記	model/marks.ts:6 model/marks.ts:77
-mark.004	條目不顯示標記	標記	model/marks.ts:6
-mark.005	已驗證	標記	model/marks.ts:7
-mark.006	不顯示標記，條目文字轉灰	標記	model/marks.ts:7
-mark.007	疑慮	標記	model/marks.ts:8
-mark.008	黃色驚嘆號，條目底色轉黃	標記	model/marks.ts:8
-mark.009	待思考	標記	model/marks.ts:9
-mark.010	之後再回來想這句	標記	model/marks.ts:9
-mark.011	忽略	標記	model/marks.ts:10
-mark.012	不需翻譯，不計入未翻譯	標記	model/marks.ts:10
-mark.013	星形	標記	model/marks.ts:14
-mark.014	愛心	標記	model/marks.ts:14
-mark.015	菱形	標記	model/marks.ts:14
-mark.016	方塊	標記	model/marks.ts:15
-mark.017	閃電	標記	model/marks.ts:15
-mark.018	書籤	標記	model/marks.ts:15
-mark.019	鈴鐺	標記	model/marks.ts:16
-mark.020	眼睛	標記	model/marks.ts:16
-mark.021	對話	標記	model/marks.ts:16
-mark.022	圖釘	標記	model/marks.ts:17
-mark.023	井號	標記	model/marks.ts:17
-mark.024	問號	標記	model/marks.ts:17
-mark.025	跟隨主題色	標記	model/marks.ts:26
-mark.026	青綠	標記	model/marks.ts:27
-mark.027	紫	標記	model/marks.ts:27
-mark.028	珊瑚	標記	model/marks.ts:27
-mark.029	綠	標記	model/marks.ts:28
-mark.030	粉紅	標記	model/marks.ts:28
-mark.031	灰	標記	model/marks.ts:28
-mark.032	原文更新	標記	model/marks.ts:78
-mark.033	英文字母最多 2 個	標記	model/marks.ts:87
-mark.034	中文、日文、韓文最多 1 個字	標記	model/marks.ts:91
-mark.035	只能輸入 1 到 2 個英文字母、1 個中日韓文字，或 1 個 emoji	標記	model/marks.ts:97
+mark.001	未翻譯	標記	model/marks.ts:6
+mark.002	灰色小點	標記	model/marks.ts:6
+mark.003	已翻譯	標記	model/marks.ts:7 model/marks.ts:82
+mark.004	條目不顯示標記	標記	model/marks.ts:7
+mark.005	已驗證	標記	model/marks.ts:8
+mark.006	不顯示標記，條目文字轉灰	標記	model/marks.ts:8
+mark.007	疑慮	標記	model/marks.ts:9
+mark.008	黃色驚嘆號，條目底色轉黃	標記	model/marks.ts:9
+mark.009	待思考	標記	model/marks.ts:10
+mark.010	之後再回來想這句	標記	model/marks.ts:10
+mark.011	忽略	標記	model/marks.ts:11
+mark.012	不需翻譯，不計入未翻譯	標記	model/marks.ts:11
+mark.013	星形	標記	model/marks.ts:15
+mark.014	愛心	標記	model/marks.ts:15
+mark.015	菱形	標記	model/marks.ts:15
+mark.016	方塊	標記	model/marks.ts:16
+mark.017	閃電	標記	model/marks.ts:16
+mark.018	書籤	標記	model/marks.ts:16
+mark.019	鈴鐺	標記	model/marks.ts:17
+mark.020	眼睛	標記	model/marks.ts:17
+mark.021	對話	標記	model/marks.ts:17
+mark.022	圖釘	標記	model/marks.ts:18
+mark.023	井號	標記	model/marks.ts:18
+mark.024	問號	標記	model/marks.ts:18
+mark.025	跟隨主題色	標記	model/marks.ts:27
+mark.026	青綠	標記	model/marks.ts:28
+mark.027	紫	標記	model/marks.ts:28
+mark.028	珊瑚	標記	model/marks.ts:28
+mark.029	綠	標記	model/marks.ts:29
+mark.030	粉紅	標記	model/marks.ts:29
+mark.031	灰	標記	model/marks.ts:29
+mark.032	原文更新	標記	model/marks.ts:83
+mark.033	英文字母最多 2 個	標記	model/marks.ts:92
+mark.034	中文、日文、韓文最多 1 個字	標記	model/marks.ts:96
+mark.035	只能輸入 1 到 2 個英文字母、1 個中日韓文字，或 1 個 emoji	標記	model/marks.ts:102
 name.001	頁簽名稱不能空白	名稱檢查	model/names.ts:23
 name.002	頁簽名稱不能有 \ / ? * [ ] :	名稱檢查	model/names.ts:24
 name.003	頁簽名稱最多 31 個字	名稱檢查	model/names.ts:25

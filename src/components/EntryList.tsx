@@ -1,6 +1,5 @@
 import { tx } from '../i18n';
-import { aiTarget, runAi } from '../state/ai';
-import { ConfirmDialog } from './ConfirmDialog';
+import { plugins } from '../plugins/registry';
 import { memo, useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react';
 import { flushSync } from 'react-dom';
 import { currentOf, hasPendingUpdate, searchHit, useStorePick, visibleIssues, type Filter, currentFileStd } from '../state/store';
@@ -255,12 +254,8 @@ export function EntryList() {
   const editRef = useRef<Editing | null>(null);
   const setEditing = (ed: Editing | null) => { editRef.current = ed; setEditingState(ed); };
   const readOnly = s.mode === 'view';
-  // AI 協助（開發者選項）：開了才有按鈕
-  const aiOn = useStore((st) => st.devMode && st.aiEnabled);
-  const aiBusy = useStore((st) => st.aiBusy);
+  // AI 處理中的條目鎖住（AI 外掛不在時永遠是空的）
   const aiLocked = useStore((st) => st.aiLocked);
-  // 一次超過 50 條：先問要不要繼續
-  const [aiAsk, setAiAsk] = useState<number | null>(null);
   const ovf = { id: overflowOf(s.fonts, 'id'), speaker: overflowOf(s.fonts, 'speaker'), src: overflowOf(s.fonts, 'src'), tgt: overflowOf(s.fonts, 'tgt') };
 
 
@@ -711,12 +706,8 @@ export function EntryList() {
           <span style={{ fontSize: fz(12), color: 'var(--mute)' }}>{tx('list.018', { n: sheet.entries.length })}</span>
         </div>
         <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-        {aiOn && (
-          <button type="button" className="btn btn-ghost" onClick={() => void runAi().then((r) => { if (r === 'ask') setAiAsk(aiTarget().indices.length); })} title={aiBusy ? tx('list.aiStop') : tx('list.aiButton')}
-            style={{ height: 34, padding: '0 12px', background: 'var(--btn)', border: `1px solid ${aiBusy ? 'var(--accent)' : 'var(--line3)'}`, borderRadius: 8, fontSize: fz(12.5), color: aiBusy ? 'var(--accent2)' : 'var(--text2)' }}>
-            {aiBusy ? tx('list.aiStop') : 'AI'}
-          </button>
-        )}
+        {/* 外掛的按鈕（例如 AI） */}
+        {plugins.map((p) => p.ListToolbar && <p.ListToolbar key={p.id} />)}
         <button type="button" className="ib" aria-label={tx('list.020')} title={tx('list.021', { v1: stdLabel(fileStd) })} onClick={() => s.set({ lengthDialog: 'file' })}
           style={{ width: 34, height: 34, display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 0, background: 'var(--btn)', border: '1px solid var(--line3)', borderRadius: 8, color: 'var(--text2)' }}>
           <IconRuler size={16} />
@@ -834,10 +825,6 @@ export function EntryList() {
             { key: 'down', label: tx('list.040'), disabled: readOnly },
           ]}
           onPick={menuAct} onClose={() => { setMenu(null); sink.current?.focus({ preventScroll: true }); }} />
-      )}
-      {aiAsk !== null && (
-        <ConfirmDialog zIndex={60} title={tx('ai.askMany', { n: aiAsk })}
-          choices={[{ label: tx('ai.askNo'), onClick: () => setAiAsk(null) }, { label: tx('ai.askYes'), primary: true, onClick: () => { setAiAsk(null); void runAi(true); } }]} />
       )}
       {confirm && <CopyConfirm {...confirm} onCancel={() => setConfirm(null)} onConfirm={() => void doCopy()} />}
     </section>

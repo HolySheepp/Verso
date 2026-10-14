@@ -1,5 +1,8 @@
 use tauri::Manager;
 
+// AI 外掛（src/plugins/ai 在才有，見 build.rs）
+#[cfg(verso_ai)]
+#[path = "plugins/ai/mod.rs"]
 mod ai;
 
 /// 列出電腦已安裝的字形（字體設定用），去掉重複並排序
@@ -73,7 +76,7 @@ fn hide_path(path: String) -> Result<(), String> {
 
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
 pub fn run() {
-    tauri::Builder::default()
+    let builder = tauri::Builder::default()
         // 只能開一個 Verso：再開一次時，把已開的視窗還原並帶到最上層
         .plugin(tauri_plugin_single_instance::init(|app, _args, _cwd| {
             if let Some(w) = app.webview_windows().values().next() {
@@ -86,9 +89,14 @@ pub fn run() {
         .plugin(tauri_plugin_process::init())
         .plugin(tauri_plugin_fs::init())
         .plugin(tauri_plugin_dialog::init())
-        .plugin(tauri_plugin_opener::init())
+        .plugin(tauri_plugin_opener::init());
+    #[cfg(verso_ai)]
+    let builder = builder
         .manage(ai::Ai::default())
-        .invoke_handler(tauri::generate_handler![list_fonts, move_to_trash, install_kind, app_dir, open_url, hide_path, ai::ai_server_start, ai::ai_reply, ai::ai_run, ai::ai_stop])
+        .invoke_handler(tauri::generate_handler![list_fonts, move_to_trash, install_kind, app_dir, open_url, hide_path, ai::ai_server_start, ai::ai_reply, ai::ai_run, ai::ai_stop]);
+    #[cfg(not(verso_ai))]
+    let builder = builder.invoke_handler(tauri::generate_handler![list_fonts, move_to_trash, install_kind, app_dir, open_url, hide_path]);
+    builder
         .run(tauri::generate_context!())
         .expect("error while running tauri application");
 }

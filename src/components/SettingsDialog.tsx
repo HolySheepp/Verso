@@ -7,6 +7,7 @@ import { showToast, useStore } from '../state/store';
 import { BUILTIN_MARKS, MARK_COLORS, markColorCss, SYMBOLS, checkMarkText, markVisual, type MarkVisual } from '../model/marks';
 import type { CustomMark, SymbolId } from '../model/types';
 import { MarkIcon } from './MarkIcon';
+import { plugins } from '../plugins/registry';
 import { IconPlus, IconTrash, IconWinClose } from './icons';
 import { CHECKS } from '../model/checks';
 import { ConfirmDialog } from './ConfirmDialog';
@@ -379,7 +380,6 @@ function ShortcutsSection() {
 /** 開發者選項：以後其他開發者工具也放這裡 */
 function DevSection() {
   const showIds = useStore((s) => s.showIds);
-  const aiEnabled = useStore((s) => s.aiEnabled);
   const set = useStore((s) => s.set);
   return (
     <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
@@ -388,11 +388,8 @@ function DevSection() {
         {tx('settings.showIds')}
       </label>
       <div style={{ fontSize: fz(12), color: 'var(--mute)' }}>{tx('settings.showIdsHint')}</div>
-      <label style={{ display: 'flex', alignItems: 'center', gap: 10, fontSize: fz(13), marginTop: 12 }}>
-        <input type="checkbox" checked={aiEnabled} onChange={(e) => set({ aiEnabled: e.target.checked })} />
-        {tx('settings.aiEnabled')}
-      </label>
-      <div style={{ fontSize: fz(12), color: 'var(--mute)' }}>{tx('settings.aiHint')}</div>
+      {/* 外掛的開關（例如 AI） */}
+      {plugins.map((p) => p.DevOptions && <p.DevOptions key={p.id} />)}
 
     </div>
   );

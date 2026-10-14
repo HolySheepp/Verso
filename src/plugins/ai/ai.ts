@@ -3,17 +3,17 @@
 // 不能存檔、改原文、刪條目。
 import { invoke, isTauri } from '@tauri-apps/api/core';
 import { listen } from '@tauri-apps/api/event';
-import { stripIds, tx } from '../i18n';
-import { enabledIssues } from '../model/checks';
-import { effectiveStd, type LengthStd } from '../model/length';
-import { measure } from '../model/measure';
-import { TGT_COL, parseKey } from '../model/cells';
-import { appendNote } from '../model/paste';
-import { ratio } from '../model/srcUpdate';
-import { applyChange, compose, editsOf } from '../model/verify';
-import { dictKey, projectTag, type Entry } from '../model/types';
-import { findHits } from './dictHits';
-import { checkText, fileStdFor, currentOf, currentProjectOf, dictEnabledIn, shownSrc, showToast, useStore } from './store';
+import { stripIds, tx } from '../../i18n';
+import { enabledIssues } from '../../model/checks';
+import { effectiveStd, type LengthStd } from '../../model/length';
+import { measure } from '../../model/measure';
+import { TGT_COL, parseKey } from '../../model/cells';
+import { appendNote } from '../../model/paste';
+import { ratio } from '../../model/srcUpdate';
+import { applyChange, compose, editsOf } from '../../model/verify';
+import { dictKey, projectTag, type Entry } from '../../model/types';
+import { findHits } from '../../state/dictHits';
+import { checkText, fileStdFor, currentOf, currentProjectOf, dictEnabledIn, shownSrc, showToast, useStore } from '../../state/store';
 
 /** 整句換掉的程度：新舊譯文相似度低於這個，就放進「建議翻譯」，不放修改框 */
 const BIG_CHANGE = 0.5;

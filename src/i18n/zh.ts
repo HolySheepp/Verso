@@ -37,8 +37,6 @@ export const ZH = {
   'list.aiButton': '讓 AI 處理選取的條目', // 條目欄上方 AI 按鈕的滑鼠提示
   'list.aiStop': '停止', // AI 處理中時，AI 按鈕變成這個
   'ai.done': 'AI 處理完成', // AI 做完時的提示
-  'ai.failed': 'AI 處理失敗：{msg}', // AI 出錯時的警告
-  'ai.notInstalled': '找不到命令列版的 Claude Code，請先安裝並登入', // 按 AI 按鈕但沒裝 Claude Code
   'ai.desktopOnly': 'AI 協助只能在桌面版使用', // 瀏覽器預覽裡按 AI 按鈕
   'settings.devSection': '開發者選項', // 設定左邊的分類（開發者模式才有）
   'settings.showIds': '顯示字句 ID', // 設定 > 開發者選項：開關
