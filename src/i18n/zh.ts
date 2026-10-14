@@ -22,6 +22,7 @@ export const ZH = {
   'ai.errSkill': '找不到Skill', // AI 失敗原因
   'ai.errOther': 'AI工作未完成，請重試', // AI 失敗原因：其他
   'shortcut.ignoreEdits': '忽略這條的全部修改', // 設定 > 快捷鍵：動作名稱
+  'mark.suggHoldsDoubt': '有建議翻譯，維持疑慮', // 有建議翻譯時想改成別的標記：被擋下的提示
   'mark.ai': 'AI 翻譯', // 標記名稱：AI 翻好、還沒確認的條目
   'list.aiLocked': 'AI 處理中', // 條目欄：AI 正在處理的條目旁的小字提示
   'ai.locked': 'AI 正在處理的條目不能刪除', // 想刪掉 AI 處理中的條目時

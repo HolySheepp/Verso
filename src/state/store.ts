@@ -408,19 +408,38 @@ export function dedupeGlossary(glossary: GlossaryTerm[]): GlossaryTerm[] {
 }
 
 /**
- * 修改都沒了：自動標上的疑慮取消，回到原本的標記（建議翻譯還有內容時保留疑慮）。
- * 拿掉修改記錄。
+ * 修改都沒了：自動標上的疑慮取消，回到原本的標記，拿掉修改記錄。
+ * 建議翻譯還有內容時保留疑慮，原本的標記繼續記著（等建議翻譯也清空再退回）。
  */
 function revertAutoDoubt(e: Entry): Entry {
   const next: Entry = { ...e };
   const v = e.ver;
-  if (v?.prev !== undefined && e.mark === 'doubt' && !e.sugg.trim()) {
+  if (v?.prev !== undefined && e.mark === 'doubt') {
+    if (e.sugg.trim()) { next.ver = { base: e.tgt, edits: [], prev: v.prev, ...(v.prevKept ? { prevKept: v.prevKept } : {}) }; return next; }
     next.mark = v.prev;
     next.keptMark = v.prevKept;
   }
   delete next.ver;
   return next;
 }
+
+/**
+ * 改建議翻譯（打字、貼上、AI 寫入、使用建議翻譯後清空）：
+ * 從空的變成有內容時馬上標疑慮，記住原本的標記；清空、也沒有修改時退回原本的標記。
+ */
+export function withSugg(e: Entry, sugg: string): Entry {
+  const had = !!e.sugg.trim(), has = !!sugg.trim();
+  const next: Entry = { ...e, sugg };
+  if (has && !had && e.mark !== 'doubt') {
+    next.ver = { base: e.ver?.base ?? e.tgt, edits: e.ver?.edits ?? [], prev: e.mark, ...(e.keptMark ? { prevKept: e.keptMark } : {}) };
+    next.mark = 'doubt';
+    next.keptMark = undefined;
+  } else if (had && !has && !editsOf(e).length) return revertAutoDoubt(next);
+  return next;
+}
+
+/** 有建議翻譯時一定是疑慮：改成別的標記會被擋下 */
+const suggHoldsDoubt = (e: Entry, id: MarkId) => !!e.sugg.trim() && id !== 'doubt';
 
 /** 有還沒套用的原文更新：暫存的新原文，或新版已移除 */
 export const hasPendingUpdate = (e: Entry) => e.upd?.src !== undefined || !!e.upd?.removed;
@@ -875,7 +894,8 @@ export const useStore = create<Store>((set, get) => {
         set({ history: recordText(get().history, entry.uid, entry.tgt) });
       }
       patchEntry(cur().sel, (e) => {
-        let next = { ...e, ...patch };
+        let next = { ...e, ...patch, sugg: e.sugg };
+        if (patch.sugg !== undefined && patch.sugg !== e.sugg) next = withSugg(next, patch.sugg);
         if (patch.tgt !== undefined && patch.tgt !== e.tgt) {
           next.pending = false;
           // 改過譯文：AI 翻譯算確認了
@@ -890,6 +910,9 @@ export const useStore = create<Store>((set, get) => {
     },
 
     setEntryMark(index, id, keepUpd) {
+      const e = cur().sheet.entries[index];
+      // 有建議翻譯：維持疑慮（已經是疑慮就不動，建議翻譯清空時才能自動退回）
+      if (e?.sugg.trim()) { if (id !== 'doubt') showToast(tx('mark.suggHoldsDoubt')); if (e.mark === 'doubt' || id !== 'doubt') return; }
       // 改標記也算一步
       pushUndo();
       patchEntry(index, (e) => withMark(e, id, keepUpd));
@@ -911,8 +934,14 @@ export const useStore = create<Store>((set, get) => {
     },
 
     setEntryMarks(indices, id) {
+      // 有建議翻譯的條目維持疑慮，其他照改
+      const entries = cur().sheet.entries;
+      const keep = indices.filter((i) => entries[i] && (suggHoldsDoubt(entries[i], id) || (entries[i].sugg.trim() && entries[i].mark === 'doubt')));
+      if (keep.some((i) => suggHoldsDoubt(entries[i], id))) showToast(tx('mark.suggHoldsDoubt'));
+      const pick = indices.filter((i) => !keep.includes(i));
+      if (!pick.length) return;
       pushUndo();
-      patchEntries(new Set(indices), (e) => withMark(e, id));
+      patchEntries(new Set(pick), (e) => withMark(e, id));
     },
 
     beginEdit() {
@@ -1028,7 +1057,8 @@ export const useStore = create<Store>((set, get) => {
       const { entry } = cur();
       if (!entry?.sugg) return;
       if (entry.tgt) get().record(entry.tgt);
-      get().updateEntry({ tgt: entry.sugg });
+      // 套用後建議翻譯清空，標記退回原本的
+      get().updateEntry({ tgt: entry.sugg, sugg: '' });
       set(noView);
     },
 

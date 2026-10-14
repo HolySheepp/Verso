@@ -13,7 +13,7 @@ import { ratio } from '../../model/srcUpdate';
 import { applyChange, compose, editsOf } from '../../model/verify';
 import { dictKey, projectTag, type Entry } from '../../model/types';
 import { findHits } from '../../state/dictHits';
-import { checkText, fileStdFor, currentOf, currentProjectOf, dictEnabledIn, shownSrc, showToast, useStore } from '../../state/store';
+import { checkText, fileStdFor, currentOf, currentProjectOf, dictEnabledIn, shownSrc, showToast, useStore, withSugg } from '../../state/store';
 
 /** 整句換掉的程度：新舊譯文相似度低於這個，就放進「建議翻譯」，不放修改框 */
 const BIG_CHANGE = 0.5;
@@ -193,7 +193,8 @@ function callTool(name: string, args: Record<string, unknown>): unknown {
     if (text === e.tgt) return 'unchanged';
     // 整句換掉或改很多：放進建議翻譯；小幅修改：放進修改框（跟驗證模式一樣自動標疑慮）
     if (ratio(e.tgt, text) < BIG_CHANGE) {
-      aiPatch(j.fid, j.sheet, e.uid, (x) => ({ ...x, sugg: text }));
+      // 跟手動填建議翻譯一樣：標疑慮，記住原本的標記
+      aiPatch(j.fid, j.sheet, e.uid, (x) => withSugg(x, text));
       j.wrote[e.uid] = 'sugg';
       progress(j);
       return 'saved as suggestion';

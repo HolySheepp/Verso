@@ -14,16 +14,17 @@ app.aiProgress	AI {done}/{total}	狀態列：AI 工作的進度（寫過幾條�
 app.aiStillWorking	AI 還在工作，要停止嗎？	AI 工作中要關閉 Verso、換存檔資料夾、改名或刪除專案時	App.tsx:48
 app.aiKeep	取消	上面那句的按鈕：不關閉，AI 繼續	App.tsx:49
 app.aiStop	停止 AI	上面那句的按鈕：停止 AI 再繼續	App.tsx:49
-ai.errNotInstalled	未安裝Claude Code	AI 失敗原因	plugins/ai/ai.ts:336
-ai.errLogin	未登入或登入過期	AI 失敗原因	plugins/ai/ai.ts:231
-ai.errQuota	Token用盡	AI 失敗原因	plugins/ai/ai.ts:232
-ai.errSkill	找不到Skill	AI 失敗原因	plugins/ai/ai.ts:326
-ai.errOther	AI工作未完成，請重試	AI 失敗原因：其他	plugins/ai/ai.ts:233 plugins/ai/ai.ts:336
+ai.errNotInstalled	未安裝Claude Code	AI 失敗原因	plugins/ai/ai.ts:337
+ai.errLogin	未登入或登入過期	AI 失敗原因	plugins/ai/ai.ts:232
+ai.errQuota	Token用盡	AI 失敗原因	plugins/ai/ai.ts:233
+ai.errSkill	找不到Skill	AI 失敗原因	plugins/ai/ai.ts:327
+ai.errOther	AI工作未完成，請重試	AI 失敗原因：其他	plugins/ai/ai.ts:234 plugins/ai/ai.ts:337
 shortcut.ignoreEdits	忽略這條的全部修改	設定 > 快捷鍵：動作名稱	model/shortcuts.ts:38
+mark.suggHoldsDoubt	有建議翻譯，維持疑慮	有建議翻譯時想改成別的標記：被擋下的提示	state/store.ts:915 state/store.ts:940
 mark.ai	AI 翻譯	標記名稱：AI 翻好、還沒確認的條目	model/marks.ts:84
 list.aiLocked	AI 處理中	條目欄：AI 正在處理的條目旁的小字提示	components/EntryList.tsx:165 components/EntryList.tsx:165
-ai.locked	AI 正在處理的條目不能刪除	想刪掉 AI 處理中的條目時	state/store.ts:758
-ai.stopped	已停止 AI，已經寫回的內容保留	按了停止之後	plugins/ai/ai.ts:252
+ai.locked	AI 正在處理的條目不能刪除	想刪掉 AI 處理中的條目時	state/store.ts:777
+ai.stopped	已停止 AI，已經寫回的內容保留	按了停止之後	plugins/ai/ai.ts:253
 ai.askMany	要讓 AI 處理 {n} 條嗎？	選了超過 50 條按 AI 時	plugins/ai/index.tsx:25
 ai.askNo	取消	上面那句的按鈕	plugins/ai/index.tsx:26
 ai.askYes	繼續	上面那句的按鈕	plugins/ai/index.tsx:26
@@ -34,8 +35,8 @@ settings.aiEnabled	AI 協助（測試中）	設定 > 開發者選項：開關	pl
 settings.aiHint	打開後條目欄上方會出現 AI 按鈕，按下時在背景用 Claude Code 處理選取的條目（需要先裝好、登入命令列版 Claude Code）	設定 > 開發者選項：說明	plugins/ai/index.tsx:42
 list.aiButton	讓 AI 處理選取的條目	條目欄上方 AI 按鈕的滑鼠提示	plugins/ai/index.tsx:20
 list.aiStop	停止	AI 處理中時，AI 按鈕變成這個	plugins/ai/index.tsx:20 plugins/ai/index.tsx:22
-ai.done	AI 處理完成	AI 做完時的提示	plugins/ai/ai.ts:253
-ai.desktopOnly	AI 協助只能在桌面版使用	瀏覽器預覽裡按 AI 按鈕	plugins/ai/ai.ts:316
+ai.done	AI 處理完成	AI 做完時的提示	plugins/ai/ai.ts:254
+ai.desktopOnly	AI 協助只能在桌面版使用	瀏覽器預覽裡按 AI 按鈕	plugins/ai/ai.ts:317
 settings.devSection	開發者選項	設定左邊的分類（開發者模式才有）	components/SettingsDialog.tsx:28
 settings.showIds	顯示字句 ID	設定 > 開發者選項：開關	components/SettingsDialog.tsx:388
 settings.showIdsHint	滑鼠移到介面文字上，旁邊會顯示它的字句 ID	設定 > 開發者選項：開關下面的說明	components/SettingsDialog.tsx:390
@@ -746,7 +747,7 @@ save.014	資料夾裡有其他東西，改存到裡面的「Verso」資料夾	�
 save.015	已載入：{v1}{v2}	存檔訊息	state/saver.ts:941
 save.016	已改名：{v1}{v2}	存檔訊息	state/saver.ts:941
 save.017	字典 / {project} / {name}	存檔訊息	state/saver.ts:943
-store.001	啟動中	狀態訊息	main.tsx:22 state/store.ts:663
+store.001	啟動中	狀態訊息	main.tsx:22 state/store.ts:682
 update.001	檢查更新	自動更新	state/updater.ts:33
 update.002	下載太久沒有進度	自動更新	state/updater.ts:57 state/updater.ts:58
 update.003	下載更新 0%	自動更新	state/updater.ts:60
