@@ -131,7 +131,20 @@ export interface ProjectData {
   /** 所有專案名稱，共用放最後 */
   projects: string[];
   refs: RefDoc[];
+  /** 掛在標籤上的設定（key 是「project:專案名稱」；以後多標籤時加別種） */
+  tagSettings?: Record<string, TagSettings>;
 }
+
+/** 掛在標籤上的設定 */
+export interface TagSettings {
+  /** 預設長度標準（檔案自己有設定時以檔案為準） */
+  lengthStd?: import('./length').StdValue;
+  /** AI 設定（翻譯、驗證用的 skill、模型、effort） */
+  ai?: { skillTranslate?: string; skillVerify?: string; model?: string; effort?: string };
+}
+
+/** 專案標籤的 key */
+export const projectTag = (name: string) => 'project:' + name;
 
 /** 譯文記錄：每條最多 3 段，全部最多 3 條（見 history.ts） */
 export interface EntryHistory {

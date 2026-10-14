@@ -2,7 +2,7 @@ import { tx } from '../i18n';
 import { MAX_CELL_CHARS } from '../model/names';
 import { useDeferredValue, useEffect, useMemo, useRef, useState } from 'react';
 import { useShallow } from 'zustand/react/shallow';
-import { currentOf, shownSrc, currentProjectOf, dictEnabledIn, overrideKey, searchHit, useStore, useStorePick, type SideTab } from '../state/store';
+import { currentOf, shownSrc, currentProjectOf, dictEnabledIn, overrideKey, searchHit, useStore, useStorePick, type SideTab, currentFileStd } from '../state/store';
 import { SHARED, dictKey, type DictInfo, type FileDoc, type GlossaryTerm } from '../model/types';
 import { fz } from '../model/fonts';
 import { enabledIssues } from '../model/checks';
@@ -330,7 +330,7 @@ function NotesSectionInner() {
   // 只訂閱這個區塊用到的資料（包含 currentOf 等輔助函式間接用到的）
   const s = useStorePick('project', 'file', 'sheetBy', 'selBy', 'mode', 'suggClosed', 'noteClosed', 'set', 'updateEntry', 'applySuggestion', 'checkSettings', 'beginEdit', 'endEdit');
   const cur = currentOf(s).entry!;
-  const fileStd = currentOf(s).fileDoc.lengthStd;
+  const fileStd = currentFileStd(s);
   // 建議翻譯也檢查（跟譯文一樣的規則）；打字中不提示，離開輸入框才顯示
   const [suggFocus, setSuggFocus] = useState(false);
   const suggIssues = useMemo(

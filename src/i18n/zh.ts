@@ -1,6 +1,17 @@
 // 介面文字（中文）：程式裡只寫代號，用 tx('代號') 取文字。由程式整理產生，改字句請改這裡。
 // 存檔裡的名稱（欄位標題、資料夾名稱等）不在這裡，維持中文。
 export const ZH = {
+  'projset.title': '專案設定：{name}', // 管理專案：點專案名稱後右邊的標題
+  'projset.dicts': '自動啟用的字典', // 專案設定
+  'projset.dictsHint': '打開這個專案的檔案時，勾起來的字典會自動啟用（跟字典頁的開關是同一份）', // 專案設定
+  'projset.noDicts': '還沒有字典', // 專案設定
+  'projset.std': '預設長度標準', // 專案設定
+  'projset.stdHint': '這個專案的檔案沒有自己設定長度標準時用這個', // 專案設定
+  'projset.stdUnset': '不設定', // 專案設定：預設長度標準的選項
+  'projset.stdNone': '無上限', // 專案設定：預設長度標準的選項
+  'projset.ai': 'AI 設定', // 專案設定
+  'projset.model': '模型', // 專案設定：AI 用的模型
+  'projset.effort': 'Effort', // 專案設定：AI 的 effort
   'app.aiProgress': 'AI {done}/{total}', // 狀態列：AI 工作的進度（寫過幾條／共幾條）
   'app.aiStillWorking': 'AI 還在工作，要停止嗎？', // AI 工作中要關閉 Verso、換存檔資料夾、改名或刪除專案時
   'app.aiKeep': '取消', // 上面那句的按鈕：不關閉，AI 繼續

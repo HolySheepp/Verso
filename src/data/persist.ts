@@ -60,6 +60,8 @@ interface ProjectMeta {
 interface WorkspaceMeta {
   customMarks: CustomMark[];
   nextMarkId: number;
+  /** 掛在標籤上的設定 */
+  tagSettings?: ProjectData['tagSettings'];
   last?: LastPosition;
 }
 
@@ -282,6 +284,7 @@ export async function loadWorkspace(root: string, onProgress?: (p: number, text:
     data: {
       files, customMarks: customs, nextMarkId: nextId, glossary: d.terms, dicts: d.dicts,
       projects: sortProjects([...versoProjects, ...d.projects]), refs: [],
+      ...(ws?.tagSettings ? { tagSettings: ws.tagSettings } : {}),
     },
     last: ws?.last,
     remapped: remapped || (!ws && customs.length > 0),
@@ -383,7 +386,7 @@ export async function writeMeta(root: string, data: ProjectData, last?: LastPosi
     await io.writeText(io.join(dir, META), JSON.stringify({ fileOrder: order } satisfies ProjectMeta, null, 2));
   }
   await io.mkdir(root);
-  const ws: WorkspaceMeta = { customMarks: data.customMarks, nextMarkId: data.nextMarkId ?? 1, last };
+  const ws: WorkspaceMeta = { customMarks: data.customMarks, nextMarkId: data.nextMarkId ?? 1, last, ...(data.tagSettings && Object.keys(data.tagSettings).length ? { tagSettings: data.tagSettings } : {}) };
   await io.writeText(io.join(root, WORKSPACE), JSON.stringify(ws, null, 2));
   await writeUninstallList(root, data).catch(() => undefined);
 }

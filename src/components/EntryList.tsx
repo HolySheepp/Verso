@@ -3,7 +3,7 @@ import { aiTarget, runAi } from '../state/ai';
 import { ConfirmDialog } from './ConfirmDialog';
 import { memo, useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react';
 import { flushSync } from 'react-dom';
-import { currentOf, hasPendingUpdate, searchHit, useStorePick, visibleIssues, type Filter } from '../state/store';
+import { currentOf, hasPendingUpdate, searchHit, useStorePick, visibleIssues, type Filter, currentFileStd } from '../state/store';
 import { effectiveMark, markName, markVisual } from '../model/marks';
 import { columnToClipboard, parseHtmlTable, parseTsv, writeColumn } from '../model/clipboard';
 import {
@@ -287,7 +287,7 @@ export function EntryList() {
     else void doCopy();
   };
 
-  const fileStd = currentOf(s).fileDoc.lengthStd;
+  const fileStd = currentFileStd(s);
   // 工具欄開著搜尋頁時，符合搜尋的條目高亮
   const searchQ = s.searchQuery.trim();
   const searchOn = s.side === 'search' && !s.hideSide && !!searchQ;

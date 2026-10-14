@@ -7,7 +7,7 @@ import { TextMarks, type MarkRange } from './TextMarks';
 import { useCurrentHits } from '../state/dictHits';
 import { locateIssues } from '../model/checks';
 import { effectiveStd } from '../model/length';
-import { STAMP_EXCLUDE, currentOf, currentStamp, showToast, useStore, useStorePick, visibleIssues } from '../state/store';
+import { STAMP_EXCLUDE, currentOf, currentStamp, showToast, useStore, useStorePick, visibleIssues, currentFileStd } from '../state/store';
 import { entryFits } from '../model/cellLimit';
 import { markName, markVisual } from '../model/marks';
 import { keyOf, type ActionId } from '../model/shortcuts';
@@ -92,7 +92,7 @@ function WorkPanelInner({ height, maxH }: { height: number; maxH: number }) {
   const total = sheet.entries.length;
   const mode = s.mode;
   const customs = project.customMarks;
-  const issues = visibleIssues(cur, s.reported, s.checkSettings, currentOf(s).fileDoc.lengthStd);
+  const issues = visibleIssues(cur, s.reported, s.checkSettings, currentFileStd(s));
   const issueText = issues.map((i) => i.msg).join(tx('common.sep'));
 
   const hist = s.history.byEntry[cur.uid];
@@ -589,7 +589,7 @@ function WorkPanelInner({ height, maxH }: { height: number; maxH: number }) {
               }} />
             {/* QA 問題的位置標色 */}
             {!tgtHist && <TextMarks target={tgtEl} text={cur.tgt} ranges={showEdits ? tgtEditRanges : issueRanges} />}
-            {s.finishLine && !tgtHist && <FinishLine target={tgtEl} text={cur.tgt} std={effectiveStd(cur.lengthStd, currentOf(s).fileDoc.lengthStd)} />}
+            {s.finishLine && !tgtHist && <FinishLine target={tgtEl} text={cur.tgt} std={effectiveStd(cur.lengthStd, currentFileStd(s))} />}
             {!verify && histUI}
           </div>
 
@@ -623,7 +623,7 @@ function WorkPanelInner({ height, maxH }: { height: number; maxH: number }) {
                     fontSize: 'var(--fs-tgt)', fontFamily: 'var(--font-tgt)', lineHeight: 1.6,
                   }} />
                 {!modHist && <TextMarks target={modEl} text={modText} ranges={[...modRanges, ...issueRanges]} />}
-                {s.finishLine && !modHist && <FinishLine target={modEl} text={modText} std={effectiveStd(cur.lengthStd, currentOf(s).fileDoc.lengthStd)} />}
+                {s.finishLine && !modHist && <FinishLine target={modEl} text={modText} std={effectiveStd(cur.lengthStd, currentFileStd(s))} />}
                 {verify && histUI}
               </div>
               {vMenu && spans[vMenu.i] && (

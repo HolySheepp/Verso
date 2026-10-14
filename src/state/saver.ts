@@ -27,6 +27,7 @@ const fileKey = (f: FileDoc) => f.fid ?? f.project + '/' + f.name;
 
 /** 上次存檔時的內容（資料都是不可變更新，所以比對參照就知道有沒有改過） */
 let saved = {
+  tags: undefined as ProjectData['tagSettings'],
   files: new Map<string, FileDoc>(),
   customs: null as CustomMark[] | null,
   dicts: new Map<string, string>(),
@@ -111,6 +112,7 @@ function markSaved(p: ProjectData, withDicts = false) {
   saved = {
     files: new Map(p.files.map((f) => [fileKey(f), f])),
     customs: p.customMarks,
+    tags: p.tagSettings,
     dicts: withDicts ? new Map([...dictGroups(p)].map(([d, t]) => [d, dictSignature(t, dictIds(p).get(d))])) : saved.dicts,
     projects: p.projects,
   };
@@ -141,7 +143,7 @@ function longCellsOf(f: FileDoc): string[] {
 export function isDirty(): boolean {
   const p = useStore.getState().project;
   if (!p) return false;
-  if (p.customMarks !== saved.customs || p.projects !== saved.projects) return true;
+  if (p.customMarks !== saved.customs || p.projects !== saved.projects || p.tagSettings !== saved.tags) return true;
   if (saved.files.size !== p.files.length) return true;
   return p.files.some((f) => saved.files.get(fileKey(f)) !== f);
 }
@@ -247,7 +249,7 @@ async function saveAll(ask = true): Promise<boolean> {
   let ok = true, cancelled = false;
   const errors: SaveError[] = [];
   const fail = (target: string, e: unknown) => { ok = false; errors.push({ target, reason: saveReason(e) }); };
-  const done = { files: new Map(saved.files), customs: saved.customs, dicts: new Map(saved.dicts), projects: saved.projects };
+  const done = { files: new Map(saved.files), customs: saved.customs, tags: saved.tags, dicts: new Map(saved.dicts), projects: saved.projects };
   // 刪掉（或搬走）的專案、檔案、字典移到資源回收筒（專案資料夾等全部寫好才移，見最後）
   const gone = saved.projects.filter((x) => !p.projects.includes(x));
   const byKey = new Map(p.files.map((f) => [fileKey(f), f]));
@@ -262,7 +264,7 @@ async function saveAll(ask = true): Promise<boolean> {
     try { if (!gone.includes(k.slice(0, i))) await trashDict(s.saveRoot, k.slice(0, i), k.slice(i + 1)); done.dicts.delete(k); } catch (e) { fail(tx('save.007', { k }), e); }
   }
   // 還沒有檔案時不必建立專案資料夾（只存字典）
-  if (p.files.length || saved.files.size || p.projects !== saved.projects) {
+  if (p.files.length || saved.files.size || p.projects !== saved.projects || p.tagSettings !== saved.tags) {
     const customsChanged = p.customMarks !== saved.customs;
     const long: string[] = [];
     // 改名、搬專案的舊位置：等所有檔案都寫好之後才移走（兩個檔案互換名稱時，舊位置正好是另一個檔案的新位置）
@@ -303,7 +305,7 @@ async function saveAll(ask = true): Promise<boolean> {
     }
     // 有檔案因為格子太長存不進去：每次存檔都提示（不然使用者不知道為什麼沒存）
     if (long.length && ask) useStore.setState({ longCells: long });
-    try { await writeMeta(s.saveRoot, p, lastPosition()); if (ok) { done.customs = p.customMarks; done.projects = p.projects; } } catch (e) { fail(tx('save.009'), e); }
+    try { await writeMeta(s.saveRoot, p, lastPosition()); if (ok) { done.customs = p.customMarks; done.projects = p.projects; done.tags = p.tagSettings; } } catch (e) { fail(tx('save.009'), e); }
     // 專案只改了大小寫：資料夾名稱也跟著改（Windows 不會自己改）
     try { for (const x of await fixProjectCase(s.saveRoot, p.projects)) fail(`${x}`, new Error('rename')); } catch { /* 下次存檔再試 */ }
   }
@@ -767,7 +769,7 @@ async function switchRootNow(root: string) {
     useStore.setState({ project: { ...cur, files, customMarks: m.customs, nextMarkId: m.nextMarkId }, stamps });
   }
   useStore.setState({ saveRoot: root });
-  saved = { files: new Map(), customs: null, dicts: new Map(), projects: [] };
+  saved = { files: new Map(), customs: null, tags: undefined, dicts: new Map(), projects: [] };
   await persistConfig();
   await saveNowInner();
   if (folder?.orders.size) {

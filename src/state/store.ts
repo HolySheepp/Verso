@@ -9,7 +9,7 @@ import { TGT_COL, cellKey, parseKey, rectKeys, type Cell, type CellCol } from '.
 import { DEFAULT_FONTS, type FontSettings } from '../model/fonts';
 import { defaultBindings, type ActionId, type Bindings, type ShortcutContext } from '../model/shortcuts';
 import { defaultCheckSettings, enabledIssues, type CheckId, type CheckSettings, type Issue } from '../model/checks';
-import { SHARED, dictKey, newFileId, type CustomMark, type DictInfo, type Entry, type FileDoc, type GlossaryTerm, type MarkId, type Mode, type ProjectData, type Sheet } from '../model/types';
+import { SHARED, dictKey, newFileId, projectTag, type CustomMark, type DictInfo, type Entry, type FileDoc, type GlossaryTerm, type MarkId, type Mode, type ProjectData, type Sheet } from '../model/types';
 import { sortProjects, type RootConflict } from '../data/persist';
 import { DICT_DIR, safeName, sameName, sheetNameError } from '../model/names';
 import { compose, editsOf, type VEdit } from '../model/verify';
@@ -337,6 +337,8 @@ interface Actions {
   aiPatch(fid: string, sheet: number, uid: string, fn: (e: Entry) => Entry): void;
   /** AI 做完：這次改過的條目合成一步復原（before 是改之前的樣子） */
   aiFinish(fid: string, sheet: number, before: Record<string, Entry>): void;
+  /** 改某個標籤的設定（patch 合併；欄位是 undefined 就刪掉） */
+  setTagSettings(tag: string, patch: Partial<import('../model/types').TagSettings>): void;
   redoSheet(): void;
   renameSheet(i: number, name: string): void;
   /** 清除頁簽：拿掉所有條目，頁簽保留 */
@@ -347,6 +349,14 @@ interface Actions {
 }
 
 export type Store = State & Actions;
+
+/** 檔案用的長度標準：檔案自己有設定就用檔案的，沒有就用專案設定的預設 */
+export function fileStdFor(p: ProjectData | null | undefined, f: FileDoc | undefined): StdValue | undefined {
+  if (!f) return undefined;
+  return f.lengthStd ?? p?.tagSettings?.[projectTag(f.project)]?.lengthStd;
+}
+/** 目前檔案用的長度標準 */
+export const currentFileStd = (s: Pick<State, 'project' | 'file' | 'sheetBy' | 'selBy'>) => fileStdFor(s.project, currentOf(s).fileDoc);
 
 /** 要關掉、換掉目前內容之前：AI 還在工作時先問要不要停止；回傳 true 才繼續 */
 export async function aiAllows(): Promise<boolean> {
@@ -582,7 +592,7 @@ export const useStore = create<Store>((set, get) => {
   };
 
   /** 檢查條目並記下當下的問題；沒有問題就清掉記錄 */
-  const checkEntries = (entries: Entry[], fileStd = cur().fileDoc.lengthStd) => {
+  const checkEntries = (entries: Entry[], fileStd = currentFileStd(get())) => {
     const s = get();
     const reported = { ...s.reported };
     entries.forEach((e) => {
@@ -764,6 +774,16 @@ export const useStore = create<Store>((set, get) => {
       const i = sh.entries.findIndex((e) => e.uid === uid);
       if (i < 0) return;
       replaceSheet(fi, sheet, sh.entries.map((e, k) => (k === i ? fn(e) : e)));
+    },
+
+    setTagSettings(tag, patch) {
+      const p = get().project;
+      if (!p) return;
+      const cur = { ...(p.tagSettings?.[tag] ?? {}), ...patch } as Record<string, unknown>;
+      for (const k of Object.keys(cur)) if (cur[k] === undefined) delete cur[k];
+      const all = { ...(p.tagSettings ?? {}) };
+      if (Object.keys(cur).length) all[tag] = cur; else delete all[tag];
+      set({ project: { ...p, tagSettings: all } });
     },
 
     aiFinish(fid, sheet, before) {
@@ -1133,6 +1153,8 @@ export const useStore = create<Store>((set, get) => {
       // 先拿掉這個專案的檔案（檔案位置會跟著調整）
       for (let i = p.files.length - 1; i >= 0; i--) if (p.files[i].project === name) get().deleteFile(i);
       let q = get().project!;
+      // 專案設定一起拿掉
+      if (q.tagSettings?.[projectTag(name)]) { const { [projectTag(name)]: _gone, ...rest } = q.tagSettings; void _gone; q = { ...q, tagSettings: rest }; }
       if (keepDicts) {
         for (const d of q.dicts.filter((x) => x.project === name)) get().moveDict(name, d.name, SHARED);
         q = get().project!;
@@ -1182,9 +1204,14 @@ export const useStore = create<Store>((set, get) => {
       const r = (x: string) => (x === from ? to : x);
       // 字典開關：「在哪個專案」和「哪本字典」兩邊的專案名稱都要跟著改
       set({ dictOverrides: remapOverrides(get().dictOverrides, (cur, dp, dn) => [r(cur), r(dp), dn]) });
+      // 專案設定跟著改名
+      const tags = p.tagSettings?.[projectTag(from)];
+      let tagSettings = p.tagSettings;
+      if (tags) { const { [projectTag(from)]: _old, ...rest } = p.tagSettings!; void _old; tagSettings = { ...rest, [projectTag(to)]: tags }; }
       set({
         project: {
           ...p,
+          ...(tagSettings ? { tagSettings } : {}),
           projects: sortProjects(p.projects.map(r)),
           files: p.files.map((f) => (f.project === from ? { ...f, project: to } : f)),
           dicts: p.dicts.map((d) => (d.project === from ? { ...d, project: to } : d)),
@@ -1275,7 +1302,7 @@ export const useStore = create<Store>((set, get) => {
       const rep = get().reported;
       p.files.forEach((f) => {
         const list = f.sheets.flatMap((sh) => sh.entries.filter((e) => rep[e.uid]));
-        if (list.length) checkEntries(list, f.lengthStd);
+        if (list.length) checkEntries(list, fileStdFor(p, f));
       });
     },
 
@@ -1394,7 +1421,7 @@ function pendingRows(s: State): number[] {
   return visibleRows(s).filter((i) => {
     const e = sheet.entries[i];
     const m = effectiveMark(e);
-    return m === 'untranslated' || m === 'doubt' || m === 'srcupd' || visibleIssues(e, s.reported, s.checkSettings, fileDoc.lengthStd).length > 0;
+    return m === 'untranslated' || m === 'doubt' || m === 'srcupd' || visibleIssues(e, s.reported, s.checkSettings, fileStdFor(s.project, fileDoc)).length > 0;
   });
 }
 
@@ -1413,7 +1440,7 @@ export function visibleRows(s: State): number[] {
   const out: number[] = [];
   sheet.entries.forEach((e, i) => {
     if (s.filter === 'all') out.push(i);
-    else if (s.filter === 'issues') { if (visibleIssues(e, s.reported, s.checkSettings, currentOf(s).fileDoc.lengthStd).length) out.push(i); }
+    else if (s.filter === 'issues') { if (visibleIssues(e, s.reported, s.checkSettings, currentFileStd(s)).length) out.push(i); }
     else if (effectiveMark(e) === s.filter) out.push(i);
   });
   return out;

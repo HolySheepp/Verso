@@ -171,7 +171,7 @@ fn find_claude() -> Option<std::path::PathBuf> {
 
 /// 在背景執行 Claude Code：只能用 Verso 給的工具。做完（或被停止）時發出 ai-done
 #[tauri::command]
-pub fn ai_run(app: AppHandle, state: State<Ai>, prompt: String) -> Result<(), String> {
+pub fn ai_run(app: AppHandle, state: State<Ai>, prompt: String, model: Option<String>, effort: Option<String>) -> Result<(), String> {
     let (port, key) = state.server.lock().unwrap().clone().ok_or("AI 服務還沒開")?;
     let exe = find_claude().ok_or("not-installed")?;
     let mut child_slot = state.child.lock().unwrap();
@@ -191,6 +191,9 @@ pub fn ai_run(app: AppHandle, state: State<Ai>, prompt: String) -> Result<(), St
         .arg("--tools").arg("Skill")
         .arg("--allowedTools").arg("mcp__verso,Skill")
         .arg("--permission-mode").arg("dontAsk")
+        // 專案設定的模型和 effort（只收固定的幾個值）
+        .args(model.filter(|m| ["opus", "sonnet", "haiku", "fable"].contains(&m.as_str())).map(|m| vec!["--model".to_string(), m]).unwrap_or_default())
+        .args(effort.filter(|e| ["low", "medium", "high", "xhigh", "max"].contains(&e.as_str())).map(|e| vec!["--effort".to_string(), e]).unwrap_or_default())
         .stdin(Stdio::null())
         .stdout(Stdio::piped())
         .stderr(Stdio::piped());

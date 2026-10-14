@@ -1,4 +1,5 @@
 import { tx } from '../i18n';
+import { ProjectSettings } from './ProjectSettings';
 import { NO_SPEAKER, defaultSheetName, fitsCell, freeSheetName, tooLongMsg } from '../model/names';
 import { useEffect, useState } from 'react';
 import { aiAllows, showToast, useStore, type MoveTarget } from '../state/store';
@@ -204,6 +205,8 @@ function ManageProjects() {
   const { renameProject, renameFile } = useStore.getState();
   // 正在編輯的檔案：用頁簽陣列認檔案，改名、搬專案時陣列不變，所以還認得到
   const [curSheets, setCurSheets] = useState<Sheet[] | null>(null);
+  // 點專案名稱：右邊打開這個專案的設定
+  const [curProject, setCurProject] = useState<string | null>(null);
   const curIdx = curSheets ? project.files.findIndex((f) => f.sheets === curSheets) : -1;
   const [dirty, setDirty] = useState(false);
   const [askLeave, setAskLeave] = useState<(() => void) | null>(null);
@@ -239,6 +242,7 @@ function ManageProjects() {
             return (
               <div key={p}>
                 <TreeRow depth={0} label={p} extra={files.length ? tx('manage.027', { length: files.length }) : ''} open={isOpen} onToggle={() => toggle(p)}
+                  selected={curProject === p} onClick={() => guard(() => { setDirty(false); setCurSheets(null); setCurProject(p); })}
                   onRename={p === SHARED ? undefined : () => setRenaming({ kind: 'project', name: p })}
                   rename={renaming?.kind === 'project' && renaming.name === p ? {
                     // 只改大小寫不算跟自己重名
@@ -253,7 +257,7 @@ function ManageProjects() {
                   </>} />
                 {isOpen && files.map(({ f, i }) => (
                   <TreeRow key={i} depth={1} label={f.name} icon={<IconFile size={13} stroke="var(--mute)" />}
-                    selected={i === curIdx} onClick={() => { if (i !== curIdx) guard(() => { setDirty(false); setCurSheets(f.sheets); }); }}
+                    selected={i === curIdx} onClick={() => { if (i !== curIdx) guard(() => { setDirty(false); setCurProject(null); setCurSheets(f.sheets); }); }}
                     onRename={() => setRenaming({ kind: 'file', index: i })}
                     rename={renaming?.kind === 'file' && renaming.index === i ? {
                       error: (v) => nameError('file', NEW, v, files.filter((x) => x.i !== i).map((x) => x.f.name)),
@@ -268,7 +272,9 @@ function ManageProjects() {
         </div>
         </div>
         <div style={{ flexGrow: 1, minWidth: 0, display: 'flex', flexDirection: 'column' }}>
-          {curIdx < 0
+          {curProject && project.projects.includes(curProject) && curIdx < 0
+            ? <ProjectSettings key={curProject} name={curProject} />
+            : curIdx < 0
             ? <div className="empty" style={{ margin: 20, flexGrow: 1, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>{tx('manage.029')}</div>
             : <FileEditor key={project.files[curIdx].fid ?? project.files[curIdx].project + '/' + project.files[curIdx].name} file={project.files[curIdx]} index={curIdx}
                 onDirty={setDirty} onSaved={(sheets) => { setCurSheets(sheets); setDirty(false); }} />}

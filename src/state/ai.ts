@@ -11,9 +11,9 @@ import { TGT_COL, parseKey } from '../model/cells';
 import { appendNote } from '../model/paste';
 import { ratio } from '../model/srcUpdate';
 import { applyChange, compose, editsOf } from '../model/verify';
-import { dictKey, type Entry } from '../model/types';
+import { dictKey, projectTag, type Entry } from '../model/types';
 import { findHits } from './dictHits';
-import { checkText, currentOf, currentProjectOf, dictEnabledIn, shownSrc, showToast, useStore } from './store';
+import { checkText, fileStdFor, currentOf, currentProjectOf, dictEnabledIn, shownSrc, showToast, useStore } from './store';
 
 /** 整句換掉的程度：新舊譯文相似度低於這個，就放進「建議翻譯」，不放修改框 */
 const BIG_CHANGE = 0.5;
@@ -90,8 +90,8 @@ const brief = (e: Entry) => ({ id: e.id, speaker: e.speaker, src: shownSrc(e), t
 
 /** 這條要用的長度標準（條目自己的，沒有就用檔案的） */
 function stdOf(j: Job, e: Entry): LengthStd | null {
-  const f = useStore.getState().project?.files.find((x) => x.fid === j.fid);
-  return effectiveStd(e.lengthStd, f?.lengthStd) ?? null;
+  const p = useStore.getState().project;
+  return effectiveStd(e.lengthStd, fileStdFor(p, p?.files.find((x) => x.fid === j.fid))) ?? null;
 }
 
 const limitOf = (std: LengthStd | null) => (std ? { max_lines: std.lines, width_px: std.width, font: `${std.family} ${std.size}pt` } : null);
@@ -320,12 +320,14 @@ export async function runAi(confirmed = false): Promise<'ask' | void> {
   const { fileDoc, sheetIdx, sheet } = currentOf(s);
   const list = indices.map((i) => sheet.entries[i]).filter(Boolean);
   job = { fid: fileDoc.fid ?? '', sheet: sheetIdx, mode, indices, uids: list.map((e) => e.uid), before: Object.fromEntries(list.map((e) => [e.uid, e])), wrote: {}, notes: {} };
-  const skill = (mode === 'translate' ? s.aiSkillTranslate : s.aiSkillVerify).trim();
+  const ps = s.project?.tagSettings?.[projectTag(fileDoc.project)]?.ai ?? {};
+  const skill = ((mode === 'translate' ? ps.skillTranslate : ps.skillVerify) || (mode === 'translate' ? s.aiSkillTranslate : s.aiSkillVerify) || '').trim();
+  const model = ps.model || 'opus', effort = ps.effort || 'medium';
   if (skill && !(await skillExists(skill))) { job = null; showToast(tx('ai.errSkill'), { warn: true }); return; }
   try {
     useStore.setState({ aiBusy: true, aiLocked: job.uids });
     progress(job);
-    await invoke('ai_run', { prompt: prompts[mode](skill) });
+    await invoke('ai_run', { prompt: prompts[mode](skill), model, effort });
   } catch (e) {
     job = null;
     useStore.setState({ aiBusy: false, aiLocked: [] });
