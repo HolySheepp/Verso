@@ -125,3 +125,29 @@ export async function appendRows(sid: string, title: string, rows: string[][]): 
 export async function addTab(sid: string, title: string) {
   await call('POST', `${sid}:batchUpdate`, { requests: [{ addSheet: { properties: { title } } }] });
 }
+
+type GColor = { red?: number; green?: number; blue?: number };
+/** Verso 寫的藍字（現在的 #0000ff 或之前的深寶藍色） */
+const isBlue = (c?: GColor) => !!c && (c.blue ?? 0) > 0.5 && (c.red ?? 0) < 0.3 && (c.green ?? 0) < 0.45;
+
+/** 讀一欄每一格的文字和格式（刪除線、藍字）；回傳以列為索引（從 0 起算） */
+export async function readRich(sid: string, title: string, col: number): Promise<Rich[]> {
+  const L = colName(col);
+  const fields = 'sheets(data(startRow,rowData(values(formattedValue,textFormatRuns))))';
+  const r = await call<{ sheets?: { data?: { startRow?: number; rowData?: { values?: { formattedValue?: string; textFormatRuns?: { startIndex?: number; format?: { strikethrough?: boolean; foregroundColor?: GColor; foregroundColorStyle?: { rgbColor?: GColor } } }[] }[] }[] }[] }[] }>(
+    'GET', `${sid}?ranges=${encodeURIComponent(`${q(title)}!${L}:${L}`)}&fields=${encodeURIComponent(fields)}`);
+  const d = r.sheets?.[0]?.data?.[0];
+  const out: Rich[] = [];
+  (d?.rowData ?? []).forEach((row, i) => {
+    const v = row.values?.[0];
+    out[(d?.startRow ?? 0) + i] = {
+      text: v?.formattedValue ?? '',
+      runs: (v?.textFormatRuns ?? []).map((x) => ({
+        start: x.startIndex ?? 0,
+        ...(x.format?.strikethrough ? { strike: true } : {}),
+        ...(isBlue(x.format?.foregroundColorStyle?.rgbColor ?? x.format?.foregroundColor) ? { blue: true } : {}),
+      })),
+    };
+  });
+  return out;
+}

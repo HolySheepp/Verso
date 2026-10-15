@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import type { Entry } from '../../model/types';
-import { blueStart, markToText, noteCell, textToMark, tgtCell } from './format';
+import { blueStart, markToText, noteCell, stripMarkup, textToMark, tgtCell } from './format';
 
 const entry = (p: Partial<Entry>): Entry => ({
   uid: 'u', id: '1', speaker: '', src: '', src0: '', tgt: '', tgt0: '', mark: '', pending: false, skipCheck: false, note: '', sugg: '', ...p,
@@ -25,9 +25,20 @@ describe('寫回 Google 表的驗證標示', () => {
     expect(r.runs).toEqual([{ start: 0 }, { start: 4, blue: true }]);
   });
 
-  it('整句改：原句不動，新句寫成 Suggestion', () => {
+  it('整句直接改：原句不動，空兩行藍色「-」接新句子', () => {
     const r = tgtCell(entry({ tgt: 'Go now', ver: { base: 'Go now', edits: [{ s: 0, e: 6, t: 'Leave at once', id: 'a' }] } }));
-    expect(r.text).toBe('Go now\n\nSuggestion:\nLeave at once');
+    expect(r.text).toBe('Go now\n\n-Leave at once');
+    expect(stripMarkup(r)).toBe('Go now');
+  });
+
+  it('讀回來時去掉標示，還原成原本的譯文', () => {
+    const e = entry({ tgt: 'I like cats', sugg: 'I love cats', ver: { base: 'I like cats', edits: [{ s: 7, e: 11, t: 'dogs', id: 'a' }] } });
+    const r = tgtCell(e);
+    expect(r.text).toBe('I like cats dogs\n\nSuggestion:\nI love cats');
+    expect(stripMarkup(r)).toBe('I like cats');
+    // Google 可能把一般文字的段落合在一起：照樣還原
+    expect(stripMarkup({ text: 'Hi\n\nSuggestion:\nHello', runs: [{ start: 0 }, { start: 4, blue: true }] })).toBe('Hi');
+    expect(stripMarkup({ text: 'Plain', runs: [] })).toBe('Plain');
   });
 
   it('備註：藍色從新加的地方開始，之後再加也沿用', () => {

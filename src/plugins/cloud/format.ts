@@ -1,6 +1,7 @@
 // 寫回 Google 表的樣子：
 // - 譯文欄：有修改時，被改掉的字加刪除線（藍色），空一格後用藍色寫新的字；
-//   整句改或有建議翻譯時，同一格空兩行，用藍色寫「Suggestion:」，換行再用藍色寫建議的翻譯
+//   整句直接改時，同一格空兩行，用藍色寫「-」接改好的整句；
+//   有建議翻譯時，同一格空兩行，用藍色寫「Suggestion:」，換行再用藍色寫建議的翻譯
 // - 備註欄：驗證時新加的備註用藍色（blueFrom 起）
 import { compose, editsOf } from '../../model/verify';
 import { wholeChanged } from '../../model/verifyCopy';
@@ -34,11 +35,11 @@ export function tgtCell(e: Entry): Rich {
   const sugg = e.sugg.trim() ? e.sugg : '';
   if (!edits.length && !sugg) return { text: e.tgt, runs: [] };
   const parts: [string, Kind][] = [];
-  const blocks: string[] = [];
   if (edits.length && wholeChanged(e.tgt, edits)) {
-    // 整句改：原句不動，新句子寫成 Suggestion
+    // 整句改：原句不動，空兩行用藍色寫「-」接改好的整句
     parts.push([e.tgt, 'p']);
-    blocks.push(compose(e.tgt, edits));
+    parts.push(['\n\n', 'p']);
+    parts.push(['-' + compose(e.tgt, edits), 'b']);
   } else if (edits.length) {
     let at = 0;
     for (const d of [...edits].sort((a, b) => a.s - b.s)) {
@@ -51,12 +52,36 @@ export function tgtCell(e: Entry): Rich {
     }
     parts.push([e.tgt.slice(at), 'p']);
   } else parts.push([e.tgt, 'p']);
-  if (sugg) blocks.push(sugg);
-  if (blocks.length) {
+  if (sugg) {
     parts.push(['\n\n', 'p']);
-    parts.push(['Suggestion:\n' + blocks.join('\n'), 'b']);
+    parts.push(['Suggestion:\n' + sugg, 'b']);
   }
   return build(parts);
+}
+
+/**
+ * 從 Google 讀到的譯文欄去掉 Verso 寫的驗證標示，還原成原本的譯文：
+ * 藍字（新字、「-」整句、Suggestion）拿掉，刪除線的字留著，
+ * 新字前面補的空格、整句和 Suggestion 前面的空行也拿掉
+ */
+export function stripMarkup(r: Rich): string {
+  if (!r.runs.some((x) => x.strike || x.blue)) return r.text;
+  const segs: { t: string; k: Kind }[] = [];
+  const first = r.runs[0]?.start ?? 0;
+  if (first > 0) segs.push({ t: r.text.slice(0, first), k: 'p' });
+  r.runs.forEach((x, i) => segs.push({ t: r.text.slice(x.start, r.runs[i + 1]?.start ?? r.text.length), k: x.strike ? 's' : x.blue ? 'b' : 'p' }));
+  let out = '';
+  segs.forEach((s, i) => {
+    if (s.k === 'b') return;
+    let t = s.t;
+    const next = segs[i + 1];
+    if (s.k === 'p' && next?.k === 'b') {
+      if (/^(-|Suggestion:)/.test(next.t)) t = t.replace(/\n\n$/, '');
+      else if (segs[i - 1]?.k === 's' && t === ' ') t = '';
+    }
+    out += t;
+  });
+  return out;
 }
 
 /** 備註欄要寫的內容：blueFrom 以後是藍色 */

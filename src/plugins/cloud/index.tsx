@@ -16,7 +16,7 @@ import { IconList, IconPlus, IconRefresh, IconWinClose } from '../../components/
 import { beforeExit } from '../hooks';
 import type { VersoPlugin } from '../registry';
 import { errText, insertCol, login, loginStatus, logout, meta, readTabs, sidOf } from './api';
-import { loadConfig, setConfig, toFields, toFieldMap, useCloud, type CloudSheet, type CloudTab } from './config';
+import { allSheets, loadConfig, setConfig, toFields, toFieldMap, useCloud, type CloudSheet, type CloudTab } from './config';
 import { currentSid, enterCloud, flushAll, pickShown, putSheet, refreshAll, removeSheet, resolveConflict, watchStore } from './sync';
 
 const btn: React.CSSProperties = { height: 32, padding: '0 14px', background: 'var(--btn)', border: '1px solid var(--line4)', borderRadius: 8, fontSize: fz(12.5) };
@@ -147,7 +147,7 @@ interface Draft extends DraftSheet { gid: number }
 function SetupDialog({ sid0 }: { sid0?: string }) {
   const close = () => useCloud.setState({ setup: null });
   const projects = useStore((s) => s.project?.projects ?? NONE);
-  const old = useCloud.getState().cfg.sheets.find((x) => x.sid === sid0);
+  const old = allSheets().find((x) => x.sid === sid0);
   const [url, setUrl] = useState(sid0 ? `https://docs.google.com/spreadsheets/d/${sid0}` : '');
   const [project, setProject] = useState(old?.project ?? (projects.includes(useStore.getState().project?.files[useStore.getState().file]?.project ?? '') ? useStore.getState().project!.files[useStore.getState().file].project : SHARED));
   const [title, setTitle] = useState('');
@@ -263,7 +263,10 @@ function SetupDialog({ sid0 }: { sid0?: string }) {
 
 /** 管理設定過的 Google 表：重新設定、不再使用（Google 上的不動） */
 function ManageDialog() {
-  const sheets = useCloud((s) => s.cfg.sheets);
+  // 資料表裡共用的和這台電腦自己設定的都列出來
+  useCloud((s) => s.cfg);
+  useCloud((s) => s.shared);
+  const sheets = allSheets();
   const close = () => useCloud.setState({ manage: false });
   const [ask, setAsk] = useState<CloudSheet | null>(null);
   return (

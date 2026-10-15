@@ -10,11 +10,11 @@ cloud.login	登入	雲端模式：按鈕	plugins/cloud/index.tsx:78
 cloud.loggingIn	請在瀏覽器完成登入…	雲端模式：登入中	plugins/cloud/index.tsx:78
 cloud.logout	登出	雲端模式：按鈕	plugins/cloud/index.tsx:77
 cloud.addSheet	新增 Google 表	檔案選單（雲端模式）	plugins/cloud/index.tsx:108
-cloud.manage	管理 Google 表	檔案選單（雲端模式）；對話框標題	plugins/cloud/index.tsx:111 plugins/cloud/index.tsx:270
+cloud.manage	管理 Google 表	檔案選單（雲端模式）；對話框標題	plugins/cloud/index.tsx:111 plugins/cloud/index.tsx:273
 cloud.refresh	重新讀取	檔案選單（雲端模式）	plugins/cloud/index.tsx:114
-cloud.dataUrl	Verso 資料表	開發者選項（雲端模式）：共用的資料表網址	plugins/cloud/index.tsx:70
+cloud.dataUrl	Verso 資料表	開發者選項（雲端模式）：共用的資料表網址	plugins/cloud/index.tsx:70 plugins/cloud/sync.ts:393 plugins/cloud/sync.ts:448 plugins/cloud/sync.ts:463
 cloud.dataHint	標記、建議翻譯、修改存在這張 Google 表，大家共用（建一張空白試算表、分享給同專案的人，把網址貼在這裡）	開發者選項（雲端模式）	plugins/cloud/index.tsx:72
-cloud.conflictNote	#{id} 的備註已經被別人改過	雲端模式：寫回衝突	plugins/cloud/index.tsx:305
+cloud.conflictNote	#{id} 的備註已經被別人改過	雲端模式：寫回衝突	plugins/cloud/index.tsx:308
 cloud.sync	同步	條目欄上方的按鈕（雲端模式）：寫回並重新讀取 Google 表	plugins/cloud/index.tsx:94 plugins/cloud/index.tsx:96 plugins/cloud/index.tsx:98
 cloud.syncing	同步中…	同步按鈕	plugins/cloud/index.tsx:98
 cloud.lastSync	上次同步：{time}	同步按鈕的提示	plugins/cloud/index.tsx:94
@@ -30,25 +30,25 @@ cloud.pickHint	「{title}」：在每個要翻譯的分頁選 id、發話者、�
 cloud.needFields	「{name}」還沒選：{fields}	雲端模式：設定錯誤	plugins/cloud/index.tsx:204
 cloud.noTabs	至少要在一個分頁選範圍	雲端模式：設定錯誤	plugins/cloud/index.tsx:208
 cloud.badUrl	看不懂這個網址，請貼 Google 試算表的網址	雲端模式：設定錯誤	plugins/cloud/index.tsx:161
-cloud.cancel	取消	雲端模式：按鈕	plugins/cloud/index.tsx:238 plugins/cloud/index.tsx:285
+cloud.cancel	取消	雲端模式：按鈕	plugins/cloud/index.tsx:238 plugins/cloud/index.tsx:288
 cloud.save	儲存	雲端模式：按鈕	plugins/cloud/index.tsx:239
 cloud.saving	儲存中…	雲端模式：按鈕	plugins/cloud/index.tsx:239
-cloud.noSheets	還沒有設定過的 Google 表	雲端模式：管理	plugins/cloud/index.tsx:272
-cloud.tabCount	{n} 個分頁	雲端模式：管理	plugins/cloud/index.tsx:277
-cloud.resetup	重新設定	雲端模式：管理	plugins/cloud/index.tsx:278
-cloud.remove	不再使用	雲端模式：管理	plugins/cloud/index.tsx:279 plugins/cloud/index.tsx:285
-cloud.removeAsk	不再使用「{name}」？	雲端模式：確認	plugins/cloud/index.tsx:284
-cloud.removeBody	只是從 Verso 拿掉，Google 上的表不會動。	雲端模式：確認	plugins/cloud/index.tsx:284
-cloud.conflictTitle	#{id} 已經被別人改過	雲端模式：寫回衝突	plugins/cloud/index.tsx:305
-cloud.conflictSrc	原文	雲端模式：寫回衝突	plugins/cloud/index.tsx:306
-cloud.conflictMine	我的	雲端模式：寫回衝突	plugins/cloud/index.tsx:307
-cloud.conflictTheirs	對方的	雲端模式：寫回衝突	plugins/cloud/index.tsx:308
-cloud.empty	（空白）	雲端模式：寫回衝突	plugins/cloud/index.tsx:298
-cloud.useMine	用我的	雲端模式：寫回衝突	plugins/cloud/index.tsx:312
-cloud.useTheirs	用對方的	雲端模式：寫回衝突	plugins/cloud/index.tsx:311
-cloud.loadFailed	讀不到「{name}」：{reason}	雲端模式：警告	plugins/cloud/sync.ts:193
-cloud.writeFailed	「{name}」的譯文沒有寫回：{reason}	雲端模式：警告	plugins/cloud/sync.ts:292
-cloud.missingId	「{name}」找不到這些 ID，譯文沒有寫回：{ids}	雲端模式：警告	plugins/cloud/sync.ts:290
+cloud.noSheets	還沒有設定過的 Google 表	雲端模式：管理	plugins/cloud/index.tsx:275
+cloud.tabCount	{n} 個分頁	雲端模式：管理	plugins/cloud/index.tsx:280
+cloud.resetup	重新設定	雲端模式：管理	plugins/cloud/index.tsx:281
+cloud.remove	不再使用	雲端模式：管理	plugins/cloud/index.tsx:282 plugins/cloud/index.tsx:288
+cloud.removeAsk	不再使用「{name}」？	雲端模式：確認	plugins/cloud/index.tsx:287
+cloud.removeBody	只是從 Verso 拿掉，Google 上的表不會動。	雲端模式：確認	plugins/cloud/index.tsx:287
+cloud.conflictTitle	#{id} 已經被別人改過	雲端模式：寫回衝突	plugins/cloud/index.tsx:308
+cloud.conflictSrc	原文	雲端模式：寫回衝突	plugins/cloud/index.tsx:309
+cloud.conflictMine	我的	雲端模式：寫回衝突	plugins/cloud/index.tsx:310
+cloud.conflictTheirs	對方的	雲端模式：寫回衝突	plugins/cloud/index.tsx:311
+cloud.empty	（空白）	雲端模式：寫回衝突	plugins/cloud/index.tsx:301
+cloud.useMine	用我的	雲端模式：寫回衝突	plugins/cloud/index.tsx:315
+cloud.useTheirs	用對方的	雲端模式：寫回衝突	plugins/cloud/index.tsx:314
+cloud.loadFailed	讀不到「{name}」：{reason}	雲端模式：警告	plugins/cloud/sync.ts:253 plugins/cloud/sync.ts:393 plugins/cloud/sync.ts:463
+cloud.writeFailed	「{name}」的譯文沒有寫回：{reason}	雲端模式：警告	plugins/cloud/sync.ts:354 plugins/cloud/sync.ts:448
+cloud.missingId	「{name}」找不到這些 ID，譯文沒有寫回：{ids}	雲端模式：警告	plugins/cloud/sync.ts:352
 cloud.errLogin	還沒登入 Google，請到設定 > 開發者選項登入	雲端模式：錯誤	plugins/cloud/api.ts:72
 cloud.errClient	請先填用戶端 ID	雲端模式：錯誤	plugins/cloud/api.ts:73
 cloud.errTimeout	等太久沒有完成登入，請再試一次	雲端模式：錯誤	plugins/cloud/api.ts:74
@@ -111,7 +111,7 @@ settings.packsFailed	語言包加不進去，主程式資料夾可能沒有寫�
 settings.packReplace	已經有語言包「{name}」，要取代嗎？	設定 > 一般：加入同名語言包時	components/SettingsDialog.tsx:460
 settings.packReplaceNo	取消	設定 > 一般：同名語言包的詢問	components/SettingsDialog.tsx:461
 settings.packReplaceYes	取代	設定 > 一般：同名語言包的詢問	components/SettingsDialog.tsx:461
-common.sep	、	列出好幾個名稱時的分隔符號	App.tsx:101 App.tsx:112 App.tsx:123 components/CopyConfirm.tsx:19 components/EntryList.tsx:197 components/EntryList.tsx:197 components/FileNav.tsx:126 components/ManageDialogs.tsx:176 components/SettingsDialog.tsx:427 components/SettingsDialog.tsx:428 components/SidePanel.tsx:342 components/WorkPanel.tsx:96 model/importSel.ts:59 model/importSel.ts:59 model/paste.ts:79 plugins/cloud/index.tsx:204 plugins/cloud/sync.ts:290 state/saver.ts:947 state/saver.ts:947
+common.sep	、	列出好幾個名稱時的分隔符號	App.tsx:101 App.tsx:112 App.tsx:123 components/CopyConfirm.tsx:19 components/EntryList.tsx:197 components/EntryList.tsx:197 components/FileNav.tsx:126 components/ManageDialogs.tsx:176 components/SettingsDialog.tsx:427 components/SettingsDialog.tsx:428 components/SidePanel.tsx:342 components/WorkPanel.tsx:96 model/importSel.ts:59 model/importSel.ts:59 model/paste.ts:79 plugins/cloud/index.tsx:204 plugins/cloud/sync.ts:352 state/saver.ts:947 state/saver.ts:947
 common.join	；	把兩段提示接成一句時的分隔符號（英文用「; 」）	state/saver.ts:947
 common.moreEntries	 等 {n} 條	列表太長時接在後面	App.tsx:101
 common.moreItems	 等 {n} 個	列表太長時接在後面	App.tsx:112 App.tsx:123 state/saver.ts:947 state/saver.ts:947

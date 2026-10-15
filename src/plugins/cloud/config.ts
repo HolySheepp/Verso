@@ -13,8 +13,12 @@ export interface CloudTab { gid: number; title: string; fields: Fields }
 export interface CloudSheet { sid: string; title: string; project: string; tabs: CloudTab[] }
 export interface CloudConfig {
   on: boolean; clientId: string; clientSecret: string; sheets: CloudSheet[];
-  /** Verso 資料表的網址（標記、建議翻譯、修改存在這裡，大家共用） */
+  /** Verso 資料表的網址（標記、建議翻譯、修改、各檔案的欄位設定存在這裡，大家共用） */
   dataUrl?: string;
+  /** 這台電腦「不再使用」的試算表（資料表裡別人設定的也不列出來） */
+  hidden?: string[];
+  /** 上次打開的試算表（打開雲端模式時先讀這份） */
+  last?: string;
 }
 
 const EMPTY: CloudConfig = { on: false, clientId: '', clientSecret: '', sheets: [] };
@@ -26,7 +30,18 @@ export const useCloud = create<{
   conflicts: Conflict[];
   /** 同步中、上次同步完成的時間、上次同步的錯誤（給同步按鈕顯示） */
   syncing: boolean; lastSync: number | null; syncError: string;
-}>(() => ({ cfg: EMPTY, loaded: false, email: null, setup: null, manage: false, conflicts: [], syncing: false, lastSync: null, syncError: '' }));
+  /** Verso 資料表裡記的各檔案欄位設定（同一張資料表的人共用） */
+  shared: CloudSheet[];
+}>(() => ({ cfg: EMPTY, loaded: false, email: null, setup: null, manage: false, conflicts: [], syncing: false, lastSync: null, syncError: '', shared: [] }));
+
+/** 用得到的試算表：資料表裡共用的設定為準，加上這台電腦自己設定的，扣掉不再使用的 */
+export function allSheets(): CloudSheet[] {
+  const { cfg, shared } = useCloud.getState();
+  const hidden = new Set(cfg.hidden ?? []);
+  const out = shared.filter((x) => !hidden.has(x.sid));
+  cfg.sheets.forEach((x) => { if (!hidden.has(x.sid) && !out.some((y) => y.sid === x.sid)) out.push(x); });
+  return out;
+}
 
 /** 寫回前發現別人改過：用我的還是用對方的 */
 export interface Conflict { sid: string; gid: number; uid: string; id: string; src: string; field: 'tgt' | 'note'; mine: string; theirs: string }
