@@ -121,9 +121,9 @@ export async function appendRows(sid: string, title: string, rows: string[][]): 
   return m ? Number(m[1]) - 1 : -1;
 }
 
-/** 新增一個分頁 */
-export async function addTab(sid: string, title: string) {
-  await call('POST', `${sid}:batchUpdate`, { requests: [{ addSheet: { properties: { title } } }] });
+/** 新增一個分頁：只有一列、cols 欄（Google 預設 1000 列 26 欄，會佔掉試算表的格子上限）；之後加在最後的列會自動長出來 */
+export async function addTab(sid: string, title: string, cols: number) {
+  await call('POST', `${sid}:batchUpdate`, { requests: [{ addSheet: { properties: { title, gridProperties: { rowCount: 1, columnCount: cols } } } }] });
 }
 
 type GColor = { red?: number; green?: number; blue?: number };

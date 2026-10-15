@@ -100,7 +100,7 @@ async function writeShared(conf: CloudSheet) {
   const did = dataSid();
   if (!did) return;
   await readShared();
-  if (!filesExists) { await addTab(did, FILES_TAB); await writeRows(did, FILES_TAB, [{ row: 0, values: FILES_HEAD }]); filesExists = true; }
+  if (!filesExists) { await addTab(did, FILES_TAB, FILES_HEAD.length); await writeRows(did, FILES_TAB, [{ row: 0, values: FILES_HEAD }]); filesExists = true; }
   const values = [conf.sid, conf.title, conf.project, JSON.stringify(conf.tabs), useCloud.getState().email ?? '', new Date().toISOString()];
   const row = filesRows.get(conf.sid);
   if (row !== undefined) await writeRows(did, FILES_TAB, [{ row, values }]);
@@ -332,7 +332,7 @@ export function flush(sid: string, all = false): Promise<void> {
         const dataDone = did ? done.filter(({ e, w }) => w.dataSig !== base.get(e.uid)!.data) : [];
         if (dataDone.length) {
           const fd = (await readData(sid, true))!;
-          if (!fd.exists) { await addTab(did, sid); await writeRows(did, sid, [{ row: 0, values: DATA_HEAD }]); fd.exists = true; }
+          if (!fd.exists) { await addTab(did, sid, DATA_HEAD.length); await writeRows(did, sid, [{ row: 0, values: DATA_HEAD }]); fd.exists = true; }
           const now = new Date().toISOString();
           const updates: { row: number; values: string[] }[] = [];
           const adds: string[][] = [];
