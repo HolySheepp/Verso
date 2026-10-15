@@ -81,7 +81,8 @@ export function errText(e: unknown): string {
 /** 有格式的文字：runs 是從第幾個字開始換樣式（刪除線、藍色） */
 export interface Rich { text: string; runs: { start: number; strike?: boolean; blue?: boolean }[] }
 
-const BLUE = { red: 17 / 255, green: 85 / 255, blue: 204 / 255 };
+// Google 試算表色盤裡的「藍色」（#0000ff）
+const BLUE = { red: 0, green: 0, blue: 1 };
 
 /** 寫好幾格有格式的文字（gid 是分頁 ID）；沒有 runs 的格子會清掉原本的文字格式 */
 export async function writeRich(sid: string, cells: { gid: number; row: number; col: number; rich: Rich }[]) {

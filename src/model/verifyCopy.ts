@@ -3,7 +3,7 @@ import { escapeHtml, type RichCell } from './clipboard';
 import { compose, editsOf } from './verify';
 import type { Entry } from './types';
 
-const BLUE = '#1155cc';
+const BLUE = '#0000ff';
 const br = (s: string) => escapeHtml(s).replace(/\n/g, '<br>');
 // 跟 Google Sheets 一樣，每一段文字都包在有樣式的 span 裡
 const plain = (s: string) => (s ? `<span style="font-weight:normal;font-style:normal;">${br(s)}</span>` : '');
