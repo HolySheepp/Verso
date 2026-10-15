@@ -115,7 +115,9 @@ export async function loadSheet(sid: string, quiet = false): Promise<boolean> {
     loaded.add(sid);
     return true;
   } catch (e) {
-    if (!quiet) showToast(tx('cloud.loadFailed', { name: conf.title || sid, reason: errText(e) }), { warn: true });
+    const msg = tx('cloud.loadFailed', { name: conf.title || sid, reason: errText(e) });
+    useCloud.setState({ syncError: msg });
+    if (!quiet) showToast(msg, { warn: true });
     return false;
   }
 }
@@ -200,12 +202,26 @@ export async function resolveConflict(c: Conflict, mine: boolean) {
   if (doc && si >= 0) useStore.getState().aiPatch(doc.fid!, si, c.uid, (e) => ({ ...e, tgt: c.theirs }));
 }
 
-/** 全部重新讀取（先寫回） */
-export async function refreshAll(quiet = true) {
-  for (const sid of [...loaded]) {
-    await flush(sid);
-    await loadSheet(sid, quiet);
+/** 同步：先寫回，再重新讀取（only：只同步這一份）；同步按鈕、定時、回到 Verso 時用 */
+export async function refreshAll(quiet = true, only?: string) {
+  if (useCloud.getState().syncing) return;
+  useCloud.setState({ syncing: true, syncError: '' });
+  let ok = true;
+  try {
+    for (const sid of [...loaded]) {
+      if (only && sid !== only) continue;
+      await flush(sid);
+      ok = (await loadSheet(sid, quiet)) && ok;
+    }
+  } finally {
+    useCloud.setState({ syncing: false, ...(ok ? { lastSync: Date.now() } : {}) });
   }
+}
+
+/** 目前打開的雲端檔案 */
+export function currentSid(): string | undefined {
+  const s = useStore.getState();
+  return s.cloudMode ? currentOf(s).fileDoc.cloud?.sid : undefined;
 }
 
 /** 關掉雲端模式或結束時：全部寫回 */

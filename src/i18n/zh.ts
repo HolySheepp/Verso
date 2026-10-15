@@ -14,6 +14,9 @@ export const ZH = {
   'cloud.addSheet': '新增 Google 表', // 檔案選單（雲端模式）
   'cloud.manage': '管理 Google 表', // 檔案選單（雲端模式）；對話框標題
   'cloud.refresh': '重新讀取', // 檔案選單（雲端模式）
+  'cloud.sync': '同步', // 條目欄上方的按鈕（雲端模式）：寫回並重新讀取 Google 表
+  'cloud.syncing': '同步中…', // 同步按鈕
+  'cloud.lastSync': '上次同步：{time}', // 同步按鈕的提示
   'cloud.refreshed': '已重新讀取', // 雲端模式：提示
   'cloud.close': '關閉', // 雲端模式：對話框的關閉按鈕
   'cloud.setupTitle': '設定 Google 表', // 雲端模式：對話框標題

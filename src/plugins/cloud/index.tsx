@@ -16,7 +16,7 @@ import { beforeExit } from '../hooks';
 import type { VersoPlugin } from '../registry';
 import { errText, insertCol, login, loginStatus, logout, meta, readTabs, sidOf } from './api';
 import { loadConfig, setConfig, toFields, toFieldMap, useCloud, type CloudSheet, type CloudTab } from './config';
-import { enterCloud, flushAll, pickShown, putSheet, refreshAll, removeSheet, resolveConflict, watchStore } from './sync';
+import { currentSid, enterCloud, flushAll, pickShown, putSheet, refreshAll, removeSheet, resolveConflict, watchStore } from './sync';
 
 const btn: React.CSSProperties = { height: 32, padding: '0 14px', background: 'var(--btn)', border: '1px solid var(--line4)', borderRadius: 8, fontSize: fz(12.5) };
 const primary: React.CSSProperties = { height: 36, padding: '0 18px', background: 'var(--primary)', border: 0, borderRadius: 8, color: '#ffffff', fontSize: fz(13), fontWeight: 600 };
@@ -78,6 +78,22 @@ function CloudDevOption() {
   );
 }
 
+/** 條目欄上方的同步按鈕（打開的是 Google 表時）：先寫回再重新讀取；轉圈代表同步中，紅框代表上次沒同步成功 */
+function SyncButton() {
+  const isCloud = useStore((s) => s.cloudMode && !!s.project?.files[s.file]?.cloud);
+  const syncing = useCloud((s) => s.syncing);
+  const last = useCloud((s) => s.lastSync);
+  const error = useCloud((s) => s.syncError);
+  if (!isCloud) return null;
+  const title = error || (last ? tx('cloud.lastSync', { time: new Date(last).toLocaleTimeString() }) : tx('cloud.sync'));
+  return (
+    <button type="button" className="btn btn-ghost" title={title} aria-label={tx('cloud.sync')} disabled={syncing} onClick={() => void refreshAll(false)}
+      style={{ height: 34, display: 'flex', alignItems: 'center', gap: 6, padding: '0 12px', background: 'var(--btn)', border: '1px solid ' + (error ? 'var(--errtx)' : 'var(--line3)'), borderRadius: 8, fontSize: fz(12.5), color: error ? 'var(--errtx)' : 'var(--text2)' }}>
+      <IconRefresh size={14} style={syncing ? { animation: 'verso-spin 0.9s linear infinite' } : undefined} />{syncing ? tx('cloud.syncing') : tx('cloud.sync')}
+    </button>
+  );
+}
+
 /** 檔案選單（雲端模式）：新增、管理 Google 表，重新讀取 */
 function CloudFileMenu({ close }: { close(): void }) {
   return (
@@ -88,7 +104,7 @@ function CloudFileMenu({ close }: { close(): void }) {
       <button type="button" className="dd" style={menuItem} onClick={() => { close(); useCloud.setState({ manage: true }); }}>
         <IconList size={14} />{tx('cloud.manage')}
       </button>
-      <button type="button" className="dd" style={menuItem} onClick={() => { close(); void refreshAll(false).then(() => showToast(tx('cloud.refreshed'))); }}>
+      <button type="button" className="dd" style={menuItem} onClick={() => { close(); void refreshAll(false).then(() => { if (!useCloud.getState().syncError) showToast(tx('cloud.refreshed')); }); }}>
         <IconRefresh size={14} />{tx('cloud.refresh')}
       </button>
     </>
@@ -313,9 +329,17 @@ async function start() {
   beforeExit.add(flushAll);
   try { useCloud.setState({ email: await loginStatus() }); } catch { /* 沒有桌面外殼（瀏覽器預覽） */ }
   if (cfg.on && useStore.getState().devMode) await setCloud(true);
-  setInterval(() => { if (useStore.getState().cloudMode) void refreshAll(); }, 60_000);
+  // 自動同步：打開的那份每 20 秒，其他的每 2 分鐘；從別的視窗（例如瀏覽器）回到 Verso 時馬上同步打開的那份
+  let tick = 0;
+  setInterval(() => {
+    if (!useStore.getState().cloudMode) return;
+    tick++;
+    if (tick % 6 === 0) void refreshAll();
+    else { const sid = currentSid(); if (sid) void refreshAll(true, sid); }
+  }, 20_000);
+  window.addEventListener('focus', () => { const sid = currentSid(); if (sid) void refreshAll(true, sid); });
   // 關掉開發者模式時雲端模式也關掉
   useStore.subscribe((s, prev) => { if (prev.cloudMode && !s.cloudMode && useCloud.getState().cfg.on) void setCloud(false); });
 }
 
-export const plugin: VersoPlugin = { id: 'cloud', DevOptions: CloudDevOption, FileMenu: CloudFileMenu, Overlay, start: () => void start() };
+export const plugin: VersoPlugin = { id: 'cloud', ListToolbar: SyncButton, DevOptions: CloudDevOption, FileMenu: CloudFileMenu, Overlay, start: () => void start() };

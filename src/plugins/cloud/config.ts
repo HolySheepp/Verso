@@ -20,7 +20,9 @@ export const useCloud = create<{
   cfg: CloudConfig; loaded: boolean; email: string | null;
   setup: { sid?: string } | null; manage: boolean;
   conflicts: Conflict[];
-}>(() => ({ cfg: EMPTY, loaded: false, email: null, setup: null, manage: false, conflicts: [] }));
+  /** 同步中、上次同步完成的時間、上次同步的錯誤（給同步按鈕顯示） */
+  syncing: boolean; lastSync: number | null; syncError: string;
+}>(() => ({ cfg: EMPTY, loaded: false, email: null, setup: null, manage: false, conflicts: [], syncing: false, lastSync: null, syncError: '' }));
 
 /** 寫回前發現別人改過：用我的還是用對方的 */
 export interface Conflict { sid: string; gid: number; uid: string; id: string; src: string; mine: string; theirs: string }
