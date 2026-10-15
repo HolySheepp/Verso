@@ -460,7 +460,12 @@ export function selectSheet(sid: string) {
 
 /** 打開雲端模式：列出全部試算表（空殼），換到上次打開的那份，只讀那一份 */
 export async function enterCloud() {
-  try { await readShared(); } catch (e) { showToast(tx('cloud.loadFailed', { name: tx('cloud.dataUrl'), reason: errText(e) }), { warn: true }); }
+  try {
+    await readShared();
+    // 這台電腦之前自己設定、資料表裡還沒有的：補寫進去，別人也看得到
+    const shared = useCloud.getState().shared;
+    if (dataSid()) for (const x of useCloud.getState().cfg.sheets) if (!shared.some((y) => y.sid === x.sid)) await writeShared(x);
+  } catch (e) { showToast(tx('cloud.loadFailed', { name: tx('cloud.dataUrl'), reason: errText(e) }), { warn: true }); }
   ensureStubs();
   const last = useCloud.getState().cfg.last;
   if (last && fileOf(last)) selectSheet(last); else pickShown();
