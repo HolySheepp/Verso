@@ -2,6 +2,7 @@
 // 自動存檔只寫「暫存復原」（存檔資料夾裡的隱藏資料夾），正式的 xlsx 只在手動儲存時才寫；
 // 選「不儲存」就退回上次手動儲存的內容。字典不受影響，改了就馬上存。
 import { tx } from '../i18n';
+import { runBeforeExit } from '../plugins/hooks';
 import { isTauri } from '@tauri-apps/api/core';
 import { getCurrentWindow } from '@tauri-apps/api/window';
 import { io } from '../data/fsio';
@@ -24,6 +25,8 @@ import type { RootConflict } from '../data/persist';
 
 /** 軟體內部認檔案用 ID；檔名、專案只是顯示和存檔位置 */
 const fileKey = (f: FileDoc) => f.fid ?? f.project + '/' + f.name;
+/** 存在存檔資料夾裡的檔案（雲端模式的 Google 試算表不算） */
+const localFiles = (p: ProjectData) => p.files.filter((f) => !f.cloud);
 
 /** 上次存檔時的內容（資料都是不可變更新，所以比對參照就知道有沒有改過） */
 let saved = {
@@ -60,7 +63,7 @@ async function autosave() {
   const files: RecoveryState['files'] = [];
   const changed: { data: string; file: FileDoc }[] = [];
   const keep = new Map<string, FileDoc>();
-  for (const f of p.files) {
+  for (const f of localFiles(p)) {
     const k = fileKey(f);
     const same = saved.files.get(k) === f;
     const data = same ? undefined : recName(f);
@@ -110,7 +113,7 @@ function dictGroups(p: ProjectData) {
  */
 function markSaved(p: ProjectData, withDicts = false) {
   saved = {
-    files: new Map(p.files.map((f) => [fileKey(f), f])),
+    files: new Map(localFiles(p).map((f) => [fileKey(f), f])),
     customs: p.customMarks,
     tags: p.tagSettings,
     dicts: withDicts ? new Map([...dictGroups(p)].map(([d, t]) => [d, dictSignature(t, dictIds(p).get(d))])) : saved.dicts,
@@ -144,8 +147,9 @@ export function isDirty(): boolean {
   const p = useStore.getState().project;
   if (!p) return false;
   if (p.customMarks !== saved.customs || p.projects !== saved.projects || p.tagSettings !== saved.tags) return true;
-  if (saved.files.size !== p.files.length) return true;
-  return p.files.some((f) => saved.files.get(fileKey(f)) !== f);
+  const files = localFiles(p);
+  if (saved.files.size !== files.length) return true;
+  return files.some((f) => saved.files.get(fileKey(f)) !== f);
 }
 
 /** 字典有沒有還沒存的修改 */
@@ -270,7 +274,7 @@ async function saveAll(ask = true): Promise<boolean> {
     // 改名、搬專案的舊位置：等所有檔案都寫好之後才移走（兩個檔案互換名稱時，舊位置正好是另一個檔案的新位置）
     const moved: FileDoc[] = [];
     const ours = new Set([...p.files, ...saved.files.values()].map((f) => f.fid).filter((x): x is string => !!x));
-    for (let f of [...p.files]) {
+    for (let f of localFiles(p)) {
       // 自訂標記改了名稱也要重寫，因為「標記」欄寫的是名稱
       if (saved.files.get(fileKey(f)) === f && !customsChanged) continue;
       const old = saved.files.get(fileKey(f));
@@ -556,6 +560,7 @@ async function finishAndClose() {
 
 /** 軟體要結束前（關閉、更新）：字典、專案設定（含目前位置）、軟體設定都寫進去 */
 export async function flushBeforeExit() {
+  await runBeforeExit();
   await saveDicts();
   const p = useStore.getState().project;
   if (p && p.files.length) { try { await writeMeta(useStore.getState().saveRoot, p, lastPosition()); } catch { /* 忽略 */ } }
@@ -606,7 +611,8 @@ async function discardChanges(target: string | null) {
   const s = useStore.getState();
   const p = s.project;
   if (!p) return;
-  const files = [...saved.files.values()];
+  // 雲端檔案不在存檔裡：留著
+  const files = [...saved.files.values(), ...p.files.filter((f) => f.cloud)];
   const next: ProjectData = { ...p, files, customMarks: saved.customs ?? p.customMarks, projects: saved.projects.length ? saved.projects : p.projects };
   const idx = Math.max(0, files.findIndex((f) => fileKey(f) === target));
   // 檔案可能少了，位置一律重設，避免指到不存在的檔案
@@ -818,7 +824,7 @@ async function syncFolder() {
   const known = () => {
     const p = useStore.getState().project!;
     return {
-      files: new Set([...p.files, ...saved.files.values()].map((f) => diskKey(f.project, f.name))),
+      files: new Set([...localFiles(p), ...saved.files.values()].map((f) => diskKey(f.project, f.name))),
       dicts: new Set([...p.dicts.map((d) => diskKey(d.project, d.name)), ...[...saved.dicts.keys()].map((k) => diskKey(...splitKey(k)))]),
       projects: new Set([...p.projects, ...saved.projects].map((x) => x.toLowerCase())),
     };

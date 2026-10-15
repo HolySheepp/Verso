@@ -16,7 +16,7 @@ import { IMPORT_EXTS, readImport, type ImportBook } from '../data/importio';
 import { xlsxToFile } from '../data/xlsxio';
 import { maxOf } from '../model/num';
 
-interface DraftSheet { id: string; name: string; rows: string[][]; width: number; fields: FieldMap }
+export interface DraftSheet { id: string; name: string; rows: string[][]; width: number; fields: FieldMap }
 
 let sheetSeq = 0;
 const ROW_H = 26;
@@ -249,7 +249,7 @@ export function ImportDialog() {
 }
 
 /** 預覽一個頁簽：像條目欄一樣點、拖、Shift、Ctrl 選範圍，再指定成某個欄位 */
-function Preview({ sheet, onFields }: { sheet: DraftSheet; onFields(f: FieldMap): void }) {
+export function Preview({ sheet, onFields }: { sheet: DraftSheet; onFields(f: FieldMap): void }) {
   const { rows, width, fields } = sheet;
   const [rects, setRects] = useState<Rect[]>([]);
   const [anchor, setAnchor] = useState<{ c: number; r: number } | null>(null);

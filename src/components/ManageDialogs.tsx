@@ -238,7 +238,7 @@ function ManageProjects() {
             onDone={(n) => { setAdding(false); if (n) { addProject(n); commit(); } }} />}
           {project.projects.map((p) => {
             const isOpen = !closed.includes(p);
-            const files = project.files.map((f, i) => ({ f, i })).filter((x) => x.f.project === p);
+            const files = project.files.map((f, i) => ({ f, i })).filter((x) => x.f.project === p && !x.f.cloud);
             return (
               <div key={p}>
                 <TreeRow depth={0} label={p} extra={files.length ? tx('manage.027', { length: files.length }) : ''} open={isOpen} onToggle={() => toggle(p)}

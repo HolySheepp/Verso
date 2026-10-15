@@ -1,6 +1,7 @@
 import { tx } from '../i18n';
 import { useRef, useState } from 'react';
-import { currentOf, useStore, useStorePick } from '../state/store';
+import { currentOf, isShown, shownCount, useStore, useStorePick } from '../state/store';
+import { plugins } from '../plugins/registry';
 import { requestFile } from '../state/saver';
 import { ContextMenu } from './ContextMenu';
 import { ConfirmDialog } from './ConfirmDialog';
@@ -32,7 +33,7 @@ function Done({ label }: { label: string }) {
 
 export function FileNav({ tabW }: { tabW: number }) {
   // 只訂閱這個區塊用到的資料（包含 currentOf 等輔助函式間接用到的）
-  const s = useStorePick('project', 'mode', 'file', 'sheetBy', 'selBy', 'collapsedProjects', 'fileMenuOpen', 'set', 'setSheet', 'renameSheet', 'deleteSheet', 'clearSheet');
+  const s = useStorePick('project', 'mode', 'file', 'sheetBy', 'selBy', 'collapsedProjects', 'fileMenuOpen', 'cloudMode', 'set', 'setSheet', 'renameSheet', 'deleteSheet', 'clearSheet');
   const project = s.project!;
   const { fileDoc, sheetIdx } = currentOf(s);
   const menuOpen = s.fileMenuOpen;
@@ -95,7 +96,9 @@ export function FileNav({ tabW }: { tabW: number }) {
   };
   const carMask = `linear-gradient(90deg, transparent 0, #000 40px, #000 ${carW - 40}px, transparent ${carW}px)`;
   // 專案裡還沒有檔案：不顯示頁簽，檔案框高亮閃動，提示使用者新增檔案
-  const noFiles = project.files.length === 0;
+  const noFiles = shownCount(s) === 0;
+  // 雲端檔案的頁簽名稱跟著 Google，不能在這裡改名、刪除、插入
+  const cloudFile = !!fileDoc.cloud;
   const badgeOrder: MarkId[] = ['doubt', 'think', ...project.customMarks.map((c) => `c:${c.id}` as MarkId)];
 
   return (
@@ -123,7 +126,7 @@ export function FileNav({ tabW }: { tabW: number }) {
             const tip = kinds.map((k) => markName(project.customMarks, k.id) + ' ' + k.n).join(tx('common.sep'));
             return (
               <button key={s.file + ':' + i} type="button" className="tb" aria-current={on ? 'page' : undefined} onClick={() => { lastClicks.current = [...lastClicks.current.slice(-1), i]; s.setSheet(i); }}
-                onDoubleClick={() => { const c = lastClicks.current; if (c.length === 2 && c[0] === i && c[1] === i) setRenaming({ i, name: sh.name }); }}
+                onDoubleClick={() => { const c = lastClicks.current; if (!cloudFile && c.length === 2 && c[0] === i && c[1] === i) setRenaming({ i, name: sh.name }); }}
                 onContextMenu={(ev) => { ev.preventDefault(); s.setSheet(i); setTabMenu({ i, x: ev.clientX, y: ev.clientY }); }}
                 tabIndex={on || near ? 0 : -1}
                 style={{
@@ -183,7 +186,7 @@ export function FileNav({ tabW }: { tabW: number }) {
           <div role="listbox" aria-label={tx('nav.006')} className="pop" style={{ position: 'absolute', top: 42, left: 0, right: 0, zIndex: 30 }}>
             {/* 依專案分組，每組可以收合 */}
             <div style={{ maxHeight: 'min(60vh, 520px)', overflowY: 'auto' }}>
-              {project.projects.filter((p) => project.files.some((f) => f.project === p)).map((p) => {
+              {project.projects.filter((p) => project.files.some((f) => f.project === p && isShown(s, f))).map((p) => {
                 const closed = s.collapsedProjects.includes(p);
                 const toggle = () => s.set({ collapsedProjects: closed ? s.collapsedProjects.filter((x) => x !== p) : [...s.collapsedProjects, p] });
                 return (
@@ -194,7 +197,7 @@ export function FileNav({ tabW }: { tabW: number }) {
                       {p}
                     </button>
                     {!closed && project.files.map((f, i) => {
-                      if (f.project !== p) return null;
+                      if (f.project !== p || !isShown(s, f)) return null;
                       return (
                         <button key={i} type="button" className="dd" role="option" aria-selected={i === s.file}
                           onClick={() => requestFile(i)}
@@ -211,15 +214,19 @@ export function FileNav({ tabW }: { tabW: number }) {
               })}
             </div>
             {!noFiles && <div className="pop-sep" style={{ margin: '6px 4px' }} />}
-            <button type="button" className="dd" style={menuItem} onClick={() => s.set({ pasteOpen: true, fileMenuOpen: false })}>
-              <IconPaste size={14} />{tx('nav.012')}
-            </button>
-            <button type="button" className="dd" style={menuItem} onClick={() => s.set({ importOpen: true, fileMenuOpen: false })}>
-              <IconPlus size={14} />{tx('nav.013')}
-            </button>
-            <button type="button" className="dd" style={menuItem} onClick={() => s.set({ manageProjectsOpen: true, fileMenuOpen: false })}>
-              <IconList size={14} />{tx('nav.014')}
-            </button>
+            {s.cloudMode
+              ? plugins.map((pl) => pl.FileMenu && <pl.FileMenu key={pl.id} close={() => s.set({ fileMenuOpen: false })} />)
+              : <>
+                <button type="button" className="dd" style={menuItem} onClick={() => s.set({ pasteOpen: true, fileMenuOpen: false })}>
+                  <IconPaste size={14} />{tx('nav.012')}
+                </button>
+                <button type="button" className="dd" style={menuItem} onClick={() => s.set({ importOpen: true, fileMenuOpen: false })}>
+                  <IconPlus size={14} />{tx('nav.013')}
+                </button>
+                <button type="button" className="dd" style={menuItem} onClick={() => s.set({ manageProjectsOpen: true, fileMenuOpen: false })}>
+                  <IconList size={14} />{tx('nav.014')}
+                </button>
+              </>}
           </div>
         )}
       </div>
@@ -230,11 +237,11 @@ export function FileNav({ tabW }: { tabW: number }) {
       {tabMenu && (
         <ContextMenu x={tabMenu.x} y={tabMenu.y} label={tx('nav.016', { v1: fileDoc.sheets[tabMenu.i]?.name ?? '' })}
           items={[
-            { key: 'rename', label: tx('nav.017') },
+            { key: 'rename', label: tx('nav.017'), disabled: cloudFile },
             { key: 'clear', label: tx('nav.018') },
-            { key: 'delete', label: tx('nav.019'), danger: true, disabled: fileDoc.sheets.length <= 1 },
-            { key: 'insert', label: tx('nav.020') },
-            { key: 'srcupd', label: tx('nav.021') },
+            { key: 'delete', label: tx('nav.019'), danger: true, disabled: fileDoc.sheets.length <= 1 || cloudFile },
+            { key: 'insert', label: tx('nav.020'), disabled: cloudFile },
+            { key: 'srcupd', label: tx('nav.021'), disabled: cloudFile },
           ]}
           onPick={(k) => onTabMenu(k, tabMenu.i)} onClose={() => setTabMenu(null)} />
       )}

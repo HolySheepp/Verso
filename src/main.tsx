@@ -1,4 +1,5 @@
 import { StrictMode } from 'react';
+import { plugins } from './plugins/registry';
 import { createRoot } from 'react-dom/client';
 import '@fontsource/ibm-plex-sans/400.css';
 import '@fontsource/ibm-plex-sans/500.css';
@@ -50,4 +51,4 @@ createRoot(document.getElementById('root')!).render(
 );
 
 // 啟動：讀設定、載入存檔資料夾（只跑一次，換語言重畫畫面時不會重來）
-void startApp();
+void startApp().then(() => plugins.forEach((p) => p.start?.()));

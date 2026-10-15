@@ -53,7 +53,7 @@ export function SettingsDialog() {
       c.n = 0;
       const on = !useStore.getState().devMode;
       // 關掉開發者模式時「顯示字句 ID」也一起關
-      useStore.getState().set(on ? { devMode: true } : { devMode: false, showIds: false, aiEnabled: false });
+      useStore.getState().set(on ? { devMode: true } : { devMode: false, showIds: false, aiEnabled: false, cloudMode: false });
       if (!on && section === 'dev') setSection('general');
       showToast(on ? tx('settings.devOn') : tx('settings.devOff'));
     }

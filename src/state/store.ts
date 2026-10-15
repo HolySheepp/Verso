@@ -216,6 +216,8 @@ interface State {
   showIds: boolean;
   /** 開發者選項：AI 協助（關掉時按鈕不出現） */
   aiEnabled: boolean;
+  /** 雲端模式（雲端外掛設定）：只顯示 Google 試算表的檔案；關掉時只顯示本地檔案 */
+  cloudMode: boolean;
   /** AI 正在處理 */
   aiBusy: boolean;
   /** AI 正在處理的條目（不能改） */
@@ -298,6 +300,8 @@ interface Actions {
   /** keepDicts：字典移到共用；否則一起刪除 */
   deleteProject(name: string, keepDicts: boolean): void;
   deleteFile(i: number): void;
+  /** 丟掉某個檔案的復原紀錄（雲端檔案收到別人的修改時，免得 Ctrl+Z 把別人的修改退掉） */
+  dropUndo(fid: string): void;
   moveFile(i: number, project: string): void;
   addDict(project: string, name: string): void;
   renameProject(from: string, to: string): void;
@@ -513,9 +517,16 @@ export function dictEnabledIn(current: string, overrides: Record<string, boolean
 }
 
 /** 目前的頁簽、條目位置 */
-export function currentOf(s: Pick<State, 'project' | 'file' | 'sheetBy' | 'selBy'>) {
-  // 檔案被移除時退回第一個檔案；專案裡還沒有檔案時給一個空的，避免畫面整個壞掉
-  const fileDoc = s.project!.files[s.file] ?? s.project!.files[0] ?? EMPTY_FILE;
+/** 這個檔案在目前的模式看得到嗎：雲端模式只看得到雲端檔案，平常只看得到本地檔案 */
+export const isShown = (s: { cloudMode?: boolean }, f: FileDoc) => !!f.cloud === !!s.cloudMode;
+/** 目前的模式看得到幾個檔案 */
+export const shownCount = (s: { cloudMode?: boolean; project: ProjectData | null }) => s.project?.files.filter((f) => isShown(s, f)).length ?? 0;
+
+export function currentOf(s: Pick<State, 'project' | 'file' | 'sheetBy' | 'selBy'> & { cloudMode?: boolean }) {
+  // 檔案被移除時退回第一個檔案；專案裡還沒有檔案時給一個空的，避免畫面整個壞掉。
+  // 目前的檔案在這個模式看不到（例如剛開雲端模式）：也給空的
+  const f0 = s.project!.files[s.file] ?? s.project!.files[0];
+  const fileDoc = f0 && isShown({ cloudMode: s.cloudMode ?? useStore.getState().cloudMode }, f0) ? f0 : EMPTY_FILE;
   // 頁簽被刪掉時，記著的位置可能超出範圍：夾回有效範圍，修改才會寫到看得到的那個頁簽
   const sheetIdx = Math.max(0, Math.min(s.sheetBy[s.file] ?? 0, fileDoc.sheets.length - 1));
   const sheet: Sheet = fileDoc.sheets[sheetIdx] ?? fileDoc.sheets[0];
@@ -701,6 +712,7 @@ export const useStore = create<Store>((set, get) => {
     devMode: false,
     showIds: false,
     aiEnabled: false,
+    cloudMode: false,
     aiBusy: false,
     aiLocked: [],
     aiProgress: null,
@@ -1201,6 +1213,10 @@ export const useStore = create<Store>((set, get) => {
       });
     },
 
+    dropUndo(fid) {
+      stacks.delete(fid);
+    },
+
     deleteFile(i) {
       const s = get();
       const p = s.project;
@@ -1487,6 +1503,8 @@ export function useStorePick<K extends keyof Store>(...keys: K[]): Pick<Store, K
   return useStore(useShallow((s: Store) => {
     const o = {} as Pick<Store, K>;
     for (const k of keys) o[k] = s[k];
+    // currentOf 要知道是不是雲端模式（哪些檔案看得到）：每個區塊都帶著，切換時也會重畫
+    (o as { cloudMode?: boolean }).cloudMode = s.cloudMode;
     return o;
   }));
 }

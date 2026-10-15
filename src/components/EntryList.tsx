@@ -2,7 +2,7 @@ import { tx } from '../i18n';
 import { plugins } from '../plugins/registry';
 import { memo, useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react';
 import { flushSync } from 'react-dom';
-import { currentOf, hasPendingUpdate, searchHit, useStorePick, visibleIssues, type Filter, currentFileStd } from '../state/store';
+import { shownCount, currentOf, hasPendingUpdate, searchHit, useStorePick, visibleIssues, type Filter, currentFileStd } from '../state/store';
 import { effectiveMark, markName, markVisual } from '../model/marks';
 import { columnToClipboard, parseHtmlTable, parseTsv, writeColumn } from '../model/clipboard';
 import {
@@ -800,7 +800,7 @@ export function EntryList() {
         {end < rows.length && <div aria-hidden="true" style={{ height: offsets[rows.length] - offsets[end] }} />}
         {rows.length === 0 && (
           <div style={{ padding: '48px 0', textAlign: 'center', color: 'var(--mute)' }}>
-            {project.files.length === 0 ? tx('list.029') : sheet.entries.length === 0 ? tx('list.030') : tx('list.031')}
+            {shownCount(useStore.getState()) === 0 ? tx('list.029') : sheet.entries.length === 0 ? tx('list.030') : tx('list.031')}
           </div>
         )}
       </div>

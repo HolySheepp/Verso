@@ -1,9 +1,17 @@
 use tauri::Manager;
 
-// AI 外掛（src/plugins/ai 在才有，見 build.rs）
+// 外掛（src/plugins/<名稱> 在才有，見 build.rs）
 #[cfg(verso_ai)]
 #[path = "plugins/ai/mod.rs"]
 mod ai;
+#[cfg(verso_cloud)]
+#[path = "plugins/cloud/mod.rs"]
+mod cloud;
+
+/// 主程式的指令，加上這次編進來的外掛的指令
+macro_rules! handlers {
+    ($($extra:path),*) => { tauri::generate_handler![list_fonts, move_to_trash, install_kind, app_dir, open_url, hide_path $(, $extra)*] };
+}
 
 /// 列出電腦已安裝的字形（字體設定用），去掉重複並排序
 #[tauri::command]
@@ -91,11 +99,17 @@ pub fn run() {
         .plugin(tauri_plugin_dialog::init())
         .plugin(tauri_plugin_opener::init());
     #[cfg(verso_ai)]
-    let builder = builder
-        .manage(ai::Ai::default())
-        .invoke_handler(tauri::generate_handler![list_fonts, move_to_trash, install_kind, app_dir, open_url, hide_path, ai::ai_server_start, ai::ai_reply, ai::ai_run, ai::ai_stop]);
-    #[cfg(not(verso_ai))]
-    let builder = builder.invoke_handler(tauri::generate_handler![list_fonts, move_to_trash, install_kind, app_dir, open_url, hide_path]);
+    let builder = builder.manage(ai::Ai::default());
+    #[cfg(verso_cloud)]
+    let builder = builder.manage(cloud::Cloud::default());
+    #[cfg(all(verso_ai, verso_cloud))]
+    let builder = builder.invoke_handler(handlers![ai::ai_server_start, ai::ai_reply, ai::ai_run, ai::ai_stop, cloud::cloud_login, cloud::cloud_status, cloud::cloud_logout, cloud::cloud_api]);
+    #[cfg(all(verso_ai, not(verso_cloud)))]
+    let builder = builder.invoke_handler(handlers![ai::ai_server_start, ai::ai_reply, ai::ai_run, ai::ai_stop]);
+    #[cfg(all(not(verso_ai), verso_cloud))]
+    let builder = builder.invoke_handler(handlers![cloud::cloud_login, cloud::cloud_status, cloud::cloud_logout, cloud::cloud_api]);
+    #[cfg(all(not(verso_ai), not(verso_cloud)))]
+    let builder = builder.invoke_handler(handlers![]);
     builder
         .run(tauri::generate_context!())
         .expect("error while running tauri application");

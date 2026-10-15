@@ -1,6 +1,57 @@
 // 介面文字（中文）：程式裡只寫代號，用 tx('代號') 取文字。由程式整理產生，改字句請改這裡。
 // 存檔裡的名稱（欄位標題、資料夾名稱等）不在這裡，維持中文。
 export const ZH = {
+  'cloud.enabled': '雲端模式（測試版）', // 開發者選項
+  'cloud.hint': '打開後直接讀寫 Google 試算表，檔案選單只列設定過的表；關掉回到本地檔案（本地檔案和存檔都不受影響）', // 開發者選項：雲端模式的說明
+  'cloud.clientId': '用戶端 ID', // 雲端模式：Google OAuth 用戶端 ID
+  'cloud.clientSecret': '用戶端密鑰', // 雲端模式：Google OAuth 用戶端密鑰
+  'cloud.account': 'Google 帳號', // 雲端模式
+  'cloud.signedIn': '已登入：{email}', // 雲端模式：登入狀態
+  'cloud.signedOut': '還沒登入', // 雲端模式：登入狀態
+  'cloud.login': '登入', // 雲端模式：按鈕
+  'cloud.loggingIn': '請在瀏覽器完成登入…', // 雲端模式：登入中
+  'cloud.logout': '登出', // 雲端模式：按鈕
+  'cloud.addSheet': '新增 Google 表', // 檔案選單（雲端模式）
+  'cloud.manage': '管理 Google 表', // 檔案選單（雲端模式）；對話框標題
+  'cloud.refresh': '重新讀取', // 檔案選單（雲端模式）
+  'cloud.refreshed': '已重新讀取', // 雲端模式：提示
+  'cloud.close': '關閉', // 雲端模式：對話框的關閉按鈕
+  'cloud.setupTitle': '設定 Google 表', // 雲端模式：對話框標題
+  'cloud.url': '網址', // 雲端模式：試算表網址
+  'cloud.project': '所屬專案', // 雲端模式
+  'cloud.read': '讀取', // 雲端模式：按鈕
+  'cloud.reading': '讀取中…', // 雲端模式：按鈕
+  'cloud.setupHint': '貼上 Google 試算表的網址後按「讀取」，再選各欄的範圍', // 雲端模式：設定說明
+  'cloud.pickHint': '「{title}」：在每個要翻譯的分頁選 id、發話者、原文、備註的範圍（可以是空的）；譯文不選的話，會在原文右邊插入一欄。沒選範圍的分頁不會出現在 Verso', // 雲端模式：設定說明
+  'cloud.needFields': '「{name}」還沒選：{fields}', // 雲端模式：設定錯誤
+  'cloud.noTabs': '至少要在一個分頁選範圍', // 雲端模式：設定錯誤
+  'cloud.badUrl': '看不懂這個網址，請貼 Google 試算表的網址', // 雲端模式：設定錯誤
+  'cloud.cancel': '取消', // 雲端模式：按鈕
+  'cloud.save': '儲存', // 雲端模式：按鈕
+  'cloud.saving': '儲存中…', // 雲端模式：按鈕
+  'cloud.noSheets': '還沒有設定過的 Google 表', // 雲端模式：管理
+  'cloud.tabCount': '{n} 個分頁', // 雲端模式：管理
+  'cloud.resetup': '重新設定', // 雲端模式：管理
+  'cloud.remove': '不再使用', // 雲端模式：管理
+  'cloud.removeAsk': '不再使用「{name}」？', // 雲端模式：確認
+  'cloud.removeBody': '只是從 Verso 拿掉，Google 上的表不會動。', // 雲端模式：確認
+  'cloud.conflictTitle': '#{id} 已經被別人改過', // 雲端模式：寫回衝突
+  'cloud.conflictSrc': '原文', // 雲端模式：寫回衝突
+  'cloud.conflictMine': '我的', // 雲端模式：寫回衝突
+  'cloud.conflictTheirs': '對方的', // 雲端模式：寫回衝突
+  'cloud.empty': '（空白）', // 雲端模式：寫回衝突
+  'cloud.useMine': '用我的', // 雲端模式：寫回衝突
+  'cloud.useTheirs': '用對方的', // 雲端模式：寫回衝突
+  'cloud.loadFailed': '讀不到「{name}」：{reason}', // 雲端模式：警告
+  'cloud.writeFailed': '「{name}」的譯文沒有寫回：{reason}', // 雲端模式：警告
+  'cloud.missingId': '「{name}」找不到這些 ID，譯文沒有寫回：{ids}', // 雲端模式：警告
+  'cloud.errLogin': '還沒登入 Google，請到設定 > 開發者選項登入', // 雲端模式：錯誤
+  'cloud.errClient': '請先填用戶端 ID', // 雲端模式：錯誤
+  'cloud.errTimeout': '等太久沒有完成登入，請再試一次', // 雲端模式：錯誤
+  'cloud.errDenied': '沒有權限（這個帳號不能開這張表，或公司還沒允許）', // 雲端模式：錯誤
+  'cloud.errNotFound': '找不到這張表', // 雲端模式：錯誤
+  'cloud.errNetwork': '連不上 Google，請檢查網路', // 雲端模式：錯誤
+  'cloud.errOther': 'Google 回報錯誤：{msg}', // 雲端模式：錯誤
   'projset.title': '專案設定：{name}', // 管理專案：點專案名稱後右邊的標題
   'projset.dicts': '自動啟用的字典', // 專案設定
   'projset.dictsHint': '打開這個專案的檔案時，勾起來的字典會自動啟用（跟字典頁的開關是同一份）', // 專案設定

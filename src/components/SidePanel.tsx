@@ -2,7 +2,7 @@ import { tx } from '../i18n';
 import { MAX_CELL_CHARS } from '../model/names';
 import { useDeferredValue, useEffect, useMemo, useRef, useState } from 'react';
 import { useShallow } from 'zustand/react/shallow';
-import { currentOf, shownSrc, currentProjectOf, dictEnabledIn, overrideKey, searchHit, useStore, useStorePick, type SideTab, currentFileStd } from '../state/store';
+import { currentOf, shownSrc, currentProjectOf, dictEnabledIn, overrideKey, searchHit, useStore, useStorePick, type SideTab, currentFileStd, isShown } from '../state/store';
 import { SHARED, dictKey, type DictInfo, type FileDoc, type GlossaryTerm } from '../model/types';
 import { fz } from '../model/fonts';
 import { enabledIssues } from '../model/checks';
@@ -205,6 +205,8 @@ function scan(files: FileDoc[], q: string, at: [number, number, number], n: numb
   let [f, sh, i] = at;
   for (; f < files.length; f++, sh = 0, i = 0) {
     const file = files[f];
+    // 這個模式看不到的檔案（雲端／本地）不搜
+    if (!isShown(useStore.getState(), file)) continue;
     for (; sh < file.sheets.length; sh++, i = 0) {
       const sheet = file.sheets[sh];
       for (; i < sheet.entries.length; i++) {

@@ -1,4 +1,5 @@
 import { tx } from './i18n';
+import { plugins } from './plugins/registry';
 import { useEffect, useState } from 'react';
 import { currentOf, showToast, useStore, useStorePick } from './state/store';
 import { effectiveMark } from './model/marks';
@@ -331,6 +332,7 @@ export default function App() {
       <Toast />
       <AiStopAsk />
       <IdPeek />
+      {plugins.map((p) => p.Overlay && <p.Overlay key={p.id} />)}
     </div>
   );
 }

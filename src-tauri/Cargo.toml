@@ -1,6 +1,6 @@
 [package]
 name = "verso"
-version = "0.83.2"
+version = "0.84.0"
 description = "Verso 翻譯工作台"
 edition = "2021"
 
@@ -23,3 +23,9 @@ tauri-plugin-single-instance = "2"
 tauri-plugin-updater = "2"
 tauri-plugin-process = "2"
 tauri-plugin-opener = "2"
+# 雲端模式（src/plugins/cloud）用：連 Google
+reqwest = { version = "0.13", default-features = false, features = ["json", "form", "rustls-no-provider"] }
+rustls = { version = "0.23", default-features = false, features = ["ring"] }
+base64 = "0.22"
+sha2 = "0.10"
+url = "2"
