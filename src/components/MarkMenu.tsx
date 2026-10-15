@@ -60,7 +60,7 @@ export function MarkMenu({ title, ariaLabel, current, exclude = [], onPick, styl
       {customs.map((c) => item(`c:${c.id}`, c.name))}
       <div className="pop-sep" />
       <button type="button" className="dd pop-item" style={{ background: 'transparent', color: 'var(--text2)', fontSize: fz(12.5) }}
-        onClick={() => set({ settingsOpen: true, rowMenu: null, stampOpen: false, fileMenuOpen: false })}>
+        onClick={() => set({ settingsOpen: true, settingsSection: 'marks', rowMenu: null, stampOpen: false, fileMenuOpen: false })}>
         <IconPlus size={14} />{tx('markmenu.001')}
       </button>
     </div>

@@ -149,6 +149,8 @@ interface State {
   rowMenu: RowMenu | null;
   stampOpen: boolean;
   settingsOpen: boolean;
+  /** 開設定時要直接顯示的分頁；開完就清掉 */
+  settingsSection: string | null;
   termDraft: TermDraft | null;
   pasteOpen: boolean;
   /** 匯入檔案視窗 */
@@ -663,6 +665,7 @@ export const useStore = create<Store>((set, get) => {
     rowMenu: null,
     stampOpen: false,
     settingsOpen: false,
+    settingsSection: null,
     termDraft: null,
     pasteOpen: false,
     importOpen: false,

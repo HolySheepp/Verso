@@ -61,7 +61,13 @@ export function SettingsDialog() {
   };
   // 開色盤時設定視窗先收起來，讓使用者直接在主畫面上看顏色
   const [picking, setPicking] = useState(false);
-  useEffect(() => { if (open) { setSection('general'); setPicking(false); } }, [open]);
+  useEffect(() => {
+    if (!open) return;
+    const want = useStore.getState().settingsSection;
+    setSection(want ?? 'general');
+    setPicking(false);
+    if (want) useStore.getState().set({ settingsSection: null });
+  }, [open]);
 
   if (!open) return null;
   if (picking) return <AccentPicker onDone={() => setPicking(false)} />;
