@@ -11,7 +11,11 @@ export type Fields = Record<ColKey, FieldRange | null>;
 export interface CloudTab { gid: number; title: string; fields: Fields }
 /** 設定過的一份試算表：sid 是試算表 ID，tabs 是有設定欄位的分頁 */
 export interface CloudSheet { sid: string; title: string; project: string; tabs: CloudTab[] }
-export interface CloudConfig { on: boolean; clientId: string; clientSecret: string; sheets: CloudSheet[] }
+export interface CloudConfig {
+  on: boolean; clientId: string; clientSecret: string; sheets: CloudSheet[];
+  /** Verso 資料表的網址（標記、建議翻譯、修改存在這裡，大家共用） */
+  dataUrl?: string;
+}
 
 const EMPTY: CloudConfig = { on: false, clientId: '', clientSecret: '', sheets: [] };
 
@@ -25,7 +29,7 @@ export const useCloud = create<{
 }>(() => ({ cfg: EMPTY, loaded: false, email: null, setup: null, manage: false, conflicts: [], syncing: false, lastSync: null, syncError: '' }));
 
 /** 寫回前發現別人改過：用我的還是用對方的 */
-export interface Conflict { sid: string; gid: number; uid: string; id: string; src: string; mine: string; theirs: string }
+export interface Conflict { sid: string; gid: number; uid: string; id: string; src: string; field: 'tgt' | 'note'; mine: string; theirs: string }
 
 async function file() {
   const dir = await join(await appDataDir(), 'cloud');

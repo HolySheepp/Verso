@@ -7,6 +7,7 @@ import { checkColumns, COLS, type ColKey } from '../../model/paste';
 import { emptyFields, fieldsToColumns, type FieldMap } from '../../model/importSel';
 import { SHARED } from '../../model/types';
 import { showToast, useStore } from '../../state/store';
+import { isDirty, saveNow } from '../../state/saver';
 import { ConfirmDialog } from '../../components/ConfirmDialog';
 import { Select } from '../../components/Select';
 import { Preview, type DraftSheet } from '../../components/ImportDialog';
@@ -25,8 +26,10 @@ const menuItem: React.CSSProperties = {
   background: 'transparent', color: 'var(--text2)', textAlign: 'left',
 };
 
-/** 打開或關掉雲端模式 */
+/** 打開或關掉雲端模式（打開前本地檔案有沒存的修改就先問） */
 async function setCloud(on: boolean) {
+  // 問「離開這個檔案前要儲存嗎？」：存或不存之後再打開
+  if (on && isDirty()) { useStore.setState({ askSave: { kind: 'leave', target: null, go: () => void setCloud(true) }, fileMenuOpen: false }); return; }
   setConfig({ on });
   if (on) {
     useStore.getState().set({ cloudMode: true });
@@ -64,6 +67,9 @@ function CloudDevOption() {
           <input id="verso-cloud-cid" className="field" value={cfg.clientId} onChange={(e) => setConfig({ clientId: e.target.value })} />
           <label htmlFor="verso-cloud-secret" style={label}>{tx('cloud.clientSecret')}</label>
           <input id="verso-cloud-secret" className="field" type="password" value={cfg.clientSecret} onChange={(e) => setConfig({ clientSecret: e.target.value })} />
+          <label htmlFor="verso-cloud-data" style={label}>{tx('cloud.dataUrl')}</label>
+          <input id="verso-cloud-data" className="field" value={cfg.dataUrl ?? ''} placeholder="https://docs.google.com/spreadsheets/d/…" onChange={(e) => setConfig({ dataUrl: e.target.value })} />
+          <span style={{ gridColumn: '2', fontSize: fz(12), color: 'var(--mute)', marginTop: -4 }}>{tx('cloud.dataHint')}</span>
           <span style={label}>{tx('cloud.account')}</span>
           <span style={{ display: 'flex', alignItems: 'center', gap: 10, fontSize: fz(12.5) }}>
             {email ? tx('cloud.signedIn', { email }) : tx('cloud.signedOut')}
@@ -296,7 +302,7 @@ function ConflictAsk() {
     <div className="scrim" style={{ zIndex: 70 }}>
       <div role="alertdialog" aria-modal="true" aria-labelledby="verso-cloud-conflict" className="dialog" style={{ width: 520, boxShadow: '0 24px 64px rgba(0,0,0,0.45)' }}>
         <div style={{ padding: '20px 20px 8px', display: 'flex', flexDirection: 'column', gap: 10 }}>
-          <h2 id="verso-cloud-conflict" style={{ margin: 0, fontSize: fz(15), fontWeight: 600 }}>{tx('cloud.conflictTitle', { id: c.id || '?' })}</h2>
+          <h2 id="verso-cloud-conflict" style={{ margin: 0, fontSize: fz(15), fontWeight: 600 }}>{tx(c.field === 'note' ? 'cloud.conflictNote' : 'cloud.conflictTitle', { id: c.id || '?' })}</h2>
           {row(tx('cloud.conflictSrc'), c.src)}
           {row(tx('cloud.conflictMine'), c.mine)}
           {row(tx('cloud.conflictTheirs'), c.theirs)}
@@ -338,6 +344,13 @@ async function start() {
     else { const sid = currentSid(); if (sid) void refreshAll(true, sid); }
   }, 20_000);
   window.addEventListener('focus', () => { const sid = currentSid(); if (sid) void refreshAll(true, sid); });
+  // 雲端模式時本地只剩自訂標記、專案設定這類改動：自動存（沒有儲存鍵）
+  let saveTimer: ReturnType<typeof setTimeout> | undefined;
+  useStore.subscribe((s) => {
+    if (!s.cloudMode || s.saveStatus !== 'dirty') return;
+    clearTimeout(saveTimer);
+    saveTimer = setTimeout(() => { if (useStore.getState().cloudMode && isDirty()) void saveNow(false); }, 2000);
+  });
   // 關掉開發者模式時雲端模式也關掉
   useStore.subscribe((s, prev) => { if (prev.cloudMode && !s.cloudMode && useCloud.getState().cfg.on) void setCloud(false); });
 }

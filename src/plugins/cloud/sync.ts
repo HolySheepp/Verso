@@ -1,22 +1,22 @@
 // 雲端檔案的讀取與寫回：
-// - 讀：設定過的分頁照欄位範圍變成條目（同一個 ID 第幾次出現，就對到同一條，標記等留著）
-// - 寫：譯文跟上次讀到的不同就寫回（正在編輯的那條等離開才寫），寫之前用 ID 重新找列，
-//   那格在讀取後被別人改過就先問「用我的／用對方的」
-// - 每分鐘重新讀一次，看到別人的修改
+// - 讀：設定過的分頁照欄位範圍變成條目（同一個 ID 第幾次出現，就對到同一條）；標記、建議翻譯、修改從 Verso 資料表讀
+// - 寫：譯文、備註跟上次讀到的不同就寫回原表（正在編輯的那條等離開才寫），寫之前用 ID 重新找列，
+//   那格在讀取後被別人改過就先問「用我的／用對方的」；標記等寫進 Verso 資料表
+// - 驗證模式的修改、建議翻譯用刪除線和藍字寫在譯文欄，驗證時新加的備註用藍字（見 format.ts）
 import { appDataDir, join } from '@tauri-apps/api/path';
 import { exists, mkdir, readTextFile, writeTextFile } from '@tauri-apps/plugin-fs';
 import { tx } from '../../i18n';
 import { fieldsToColumns } from '../../model/importSel';
 import { columnsToEntries } from '../../model/paste';
-import { SHARED, type Entry, type FileDoc, type Sheet } from '../../model/types';
+import { SHARED, type CustomMark, type Entry, type FileDoc, type Sheet } from '../../model/types';
+import { textToVerify, verifyToText } from '../../model/verify';
 import { currentOf, isShown, showToast, useStore } from '../../state/store';
-import { errText, meta, readCols, readTabs, writeCells } from './api';
+import { addTab, appendRows, errText, meta, readCols, readTabs, sidOf, writeRich, writeRows, type Rich } from './api';
+import { blueStart, markToText, noteCell, richSig, textToMark, tgtCell } from './format';
 import { setConfig, toFieldMap, useCloud, type CloudSheet, type CloudTab, type Conflict } from './config';
 
 export const fidOf = (sid: string) => 'g:' + sid;
 
-/** 每條最後一次跟 Google 對上的內容（uid → 譯文、備註）；譯文不同代表還沒寫回 */
-const base = new Map<string, { tgt: string; note: string; row: number }>();
 /** 讀過的試算表（重新讀取、寫回只處理這些） */
 const loaded = new Set<string>();
 
@@ -29,7 +29,7 @@ const keysOf = (entries: { id: string }[]) => {
   return entries.map((e) => { const n = seen.get(e.id) ?? 0; seen.set(e.id, n + 1); return e.id + '\u0000' + n; });
 };
 
-// ---- 本機暫存：標記、我的備註、建議翻譯等（之後改存到共用的「Verso 資料表」） ----
+// ---- 本機暫存：略過檢查、長度標準等；沒設定 Verso 資料表時，標記、建議翻譯也存這裡 ----
 type Kept = Pick<Entry, 'mark' | 'keptMark' | 'sugg' | 'ver' | 'skipCheck' | 'skipSugg' | 'lengthStd' | 'pending'>;
 async function cacheFile(sid: string) {
   const dir = await join(await appDataDir(), 'cloud', 'cache');
@@ -58,8 +58,62 @@ function saveCacheSoon(doc: FileDoc) {
   }, 3000));
 }
 
-/** 把一個分頁讀到的內容變成條目；prev 是目前軟體裡的那份（標記、還沒寫回的譯文都留著） */
-function buildSheet(tab: CloudTab, rows: string[][], prev: Sheet | undefined, kept: Record<string, Kept> | undefined): Sheet {
+// ---- Verso 資料表：標記、建議翻譯、修改（大家共用，一張表負責所有讀過的檔案） ----
+// 每一列：試算表ID、分頁ID、條目ID、第幾個、標記、建議翻譯、修改、譯文、寫入的譯文格、備註藍色起點、更新者、更新時間
+const DATA_TAB = 'Verso';
+const DATA_HEAD = ['試算表ID', '分頁ID', '條目ID', '第幾個', '標記', '建議翻譯', '修改', '譯文', '寫入的譯文格', '備註藍色起點', '更新者', '更新時間'];
+const data = { did: '', rows: new Map<string, { row: number; v: string[] }>(), at: 0, next: 1 };
+const dataKey = (sid: string, gid: number, key: string) => [sid, gid, ...key.split('\u0000')].join('\t');
+const dataSid = () => sidOf(useCloud.getState().cfg.dataUrl ?? '') ?? '';
+
+/** 讀整張資料表（剛讀過就不再讀）；沒有「Verso」分頁就建一個 */
+async function readData(force = false) {
+  const did = dataSid();
+  if (!did) { data.did = ''; data.rows.clear(); return; }
+  if (!force && did === data.did && Date.now() - data.at < 5000) return;
+  let rows: string[][];
+  try { [rows] = await readTabs(did, [DATA_TAB]); } catch (e) {
+    // 還沒有「Verso」分頁：建好並寫上標題列
+    if (!/^400\b/.test(String((e as Error)?.message ?? e))) throw e;
+    await addTab(did, DATA_TAB);
+    await writeRows(did, DATA_TAB, [{ row: 0, values: DATA_HEAD }]);
+    rows = [DATA_HEAD];
+  }
+  data.did = did;
+  data.rows.clear();
+  rows.forEach((v, r) => {
+    if (r === 0 || !v[0]) return;
+    data.rows.set([v[0], v[1], v[2], v[3]].join('\t'), { row: r, v });
+  });
+  data.next = Math.max(rows.length, 1);
+  data.at = Date.now();
+}
+
+/** 這條在資料表裡要存的內容（第 4～9 欄） */
+function dataCore(e: Entry, customs: CustomMark[]) {
+  return [markToText(e, customs), e.sugg, verifyToText(e.ver)];
+}
+
+interface Base {
+  /** Google 上的譯文（譯文欄是驗證標示時，是資料表記的原本譯文） */
+  tgt: string;
+  /** 譯文欄實際的文字、格式 */
+  cell: string; cellSig: string;
+  note: string; noteSig: string;
+  /** 備註從第幾個字起是藍色（驗證時加的） */
+  blueFrom?: number;
+  row: number;
+  /** 資料表裡這條的內容（標記、建議翻譯、修改）與整列（第 4～9 欄） */
+  core: string; data: string;
+}
+/** 每條最後一次跟 Google 對上的內容（uid → …）；跟軟體裡的不同代表還沒寫回 */
+const base = new Map<string, Base>();
+const plainSig = (t: string) => richSig({ text: t, runs: [] });
+
+/** 把一個分頁讀到的內容變成條目；prev 是目前軟體裡的那份（標記、還沒寫回的修改都留著） */
+function buildSheet(sid: string, tab: CloudTab, rows: string[][], prev: Sheet | undefined, kept: Record<string, Kept> | undefined): Sheet {
+  const customs = useStore.getState().project!.customMarks;
+  const useData = !!data.did;
   const map = toFieldMap(tab.fields, rows.length - 1);
   const fresh = columnsToEntries(fieldsToColumns(rows, map));
   const keys = keysOf(fresh);
@@ -67,19 +121,39 @@ function buildSheet(tab: CloudTab, rows: string[][], prev: Sheet | undefined, ke
   if (prev) { const pk = keysOf(prev.entries); prev.entries.forEach((e, i) => old.set(pk[i], e)); }
   const entries = fresh.map((n, i) => {
     const row = map.src!.rows[i];
+    const d = useData ? data.rows.get(dataKey(sid, tab.gid, keys[i]))?.v : undefined;
+    // 譯文欄是 Verso 寫的驗證標示：真正的譯文在資料表裡
+    const composite = !!d?.[8] && n.tgt === d[8];
+    const rTgt = composite ? d![7] : n.tgt;
+    const rMark = textToMark(d?.[4] ?? '', customs);
+    const rSugg = d?.[5] ?? '';
+    const rVer = textToVerify(d?.[6] ?? '');
+    const blue = d?.[9] ? Number(d[9]) : undefined;
+    const rCore = JSON.stringify([d?.[4] ?? '', rSugg, d?.[6] ?? '']);
+    const rData = JSON.stringify(d ? d.slice(4, 10).map((x) => x ?? '') : ['', '', '', '', '', '']);
     const o = old.get(keys[i]);
     const b = o ? base.get(o.uid) : undefined;
+    let e: Entry;
     if (o) {
-      // 還沒寫回的譯文、改過的備註留著；其他跟著 Google
-      const tgt = b && o.tgt !== b.tgt ? o.tgt : n.tgt;
+      // 還沒寫回的譯文、備註、標記等留著；其他跟著 Google
+      const tgt = b && o.tgt !== b.tgt ? o.tgt : rTgt;
       const note = b && o.note !== b.note ? o.note : n.note;
-      base.set(o.uid, { tgt: n.tgt, note: n.note, row });
-      const same = o.id === n.id && o.speaker === n.speaker && o.src === n.src && o.tgt === tgt && o.note === note;
-      return same ? o : { ...o, id: n.id, speaker: n.speaker, src: n.src, src0: n.src, tgt, note };
+      const localData = !useData || (b && JSON.stringify(dataCore(o, customs)) !== b.core);
+      const marks = localData ? {} : { mark: rMark.mark, keptMark: rMark.keptMark, sugg: rSugg, ver: rVer };
+      const next = { ...o, id: n.id, speaker: n.speaker, src: n.src, src0: n.src, tgt, note, ...marks };
+      const same = (Object.keys(next) as (keyof Entry)[]).every((k) => next[k] === o[k]);
+      e = same ? o : next;
+    } else {
+      const k = kept?.[keys[i]];
+      e = { ...n, tgt: rTgt, pending: false, ...(k ?? {}) };
+      // 有資料表：標記等以資料表為準（資料表裡還沒有的，用這台電腦之前記的，稍後寫上去）
+      if (d) Object.assign(e, { mark: rMark.mark, keptMark: rMark.keptMark, sugg: rSugg, ver: rVer });
     }
-    const k = kept?.[keys[i]];
-    const e: Entry = { ...n, pending: false, ...(k ?? {}) };
-    base.set(e.uid, { tgt: n.tgt, note: n.note, row });
+    base.set(e.uid, {
+      tgt: rTgt, cell: n.tgt, cellSig: composite ? richSig(tgtCell({ ...e, tgt: rTgt, sugg: rSugg, ver: rVer })) : plainSig(n.tgt),
+      note: n.note, noteSig: richSig(noteCell(n.note, blue)), blueFrom: blue, row,
+      core: rCore, data: rData,
+    });
     return e;
   });
   const same = prev && prev.name === tab.title && prev.entries.length === entries.length && entries.every((e, i) => e === prev.entries[i]);
@@ -98,9 +172,10 @@ export async function loadSheet(sid: string, quiet = false): Promise<boolean> {
       setConfig({ sheets: useCloud.getState().cfg.sheets.map((x) => (x.sid === sid ? { ...x, title: m.title, tabs: conf.tabs.map((t) => tabs.find((y) => y.gid === t.gid) ?? t) } : x)) });
     }
     const values = await readTabs(sid, tabs.map((t) => t.title));
+    await readData();
     const prev = fileOf(sid);
     const kept = prev ? undefined : await readCache(sid);
-    const sheets = tabs.map((t, i) => buildSheet(t, values[i], prev?.sheets.find((s) => s.gid === t.gid), kept?.[String(t.gid)]));
+    const sheets = tabs.map((t, i) => buildSheet(sid, t, values[i], prev?.sheets.find((s) => s.gid === t.gid), kept?.[String(t.gid)]));
     if (!sheets.length) return false;
     const p = useStore.getState().project!;
     const project = p.projects.includes(conf.project) ? conf.project : SHARED;
@@ -132,7 +207,20 @@ function editingUid(): string | undefined {
   return currentOf(s).fileDoc.cloud ? currentOf(s).entry?.uid : undefined;
 }
 
-/** 把改過的譯文寫回 Google；all：連正在編輯的那條也寫（結束、關掉雲端模式時） */
+/** 這條現在要寫成什麼樣子 */
+function wanted(e: Entry, b: Base, customs: CustomMark[], useData: boolean) {
+  const verify = useStore.getState().mode === 'verify';
+  // 譯文欄：有資料表才寫驗證標示（不然讀回來時認不得）
+  const cell = useData ? tgtCell(e) : { text: e.tgt, runs: [] };
+  // 備註欄：驗證時新加的是藍色；其他時候沿用原本的藍色起點
+  const blueFrom = verify && e.note !== b.note ? blueStart(b.note, e.note, b.blueFrom) : (b.blueFrom !== undefined && b.blueFrom < e.note.length ? b.blueFrom : undefined);
+  const note = noteCell(e.note, blueFrom);
+  const composite = cell.text !== e.tgt || cell.runs.length > 0;
+  const row = [...dataCore(e, customs), composite ? e.tgt : '', composite ? cell.text : '', blueFrom === undefined ? '' : String(blueFrom)];
+  return { cell, note, blueFrom, row, core: JSON.stringify(dataCore(e, customs)), dataSig: JSON.stringify(row) };
+}
+
+/** 把改過的譯文、備註、標記等寫回 Google；all：連正在編輯的那條也寫（結束、關掉雲端模式時） */
 export function flush(sid: string, all = false): Promise<void> {
   return serial(async () => {
     const doc = fileOf(sid);
@@ -140,40 +228,70 @@ export function flush(sid: string, all = false): Promise<void> {
     if (!doc || !conf) return;
     const skip = all ? undefined : editingUid();
     const locked = new Set(useStore.getState().aiLocked);
+    const customs = useStore.getState().project!.customMarks;
+    const useData = !!dataSid();
+    const who = useCloud.getState().email ?? '';
     for (const sh of doc.sheets) {
       const tab = conf.tabs.find((t) => t.gid === sh.gid);
-      if (!tab?.fields.tgt || !tab.fields.id) continue;
+      if (!tab?.fields.id || !tab.fields.tgt) continue;
       const keys = keysOf(sh.entries);
-      const changed = sh.entries.map((e, i) => ({ e, key: keys[i] })).filter(({ e }) => e.uid !== skip && !locked.has(e.uid) && base.has(e.uid) && e.tgt !== base.get(e.uid)!.tgt);
+      const changed = sh.entries.map((e, i) => ({ e, key: keys[i], b: base.get(e.uid) }))
+        .filter((x): x is { e: Entry; key: string; b: Base } => !!x.b && x.e.uid !== skip && !locked.has(x.e.uid))
+        .map((x) => ({ ...x, w: wanted(x.e, x.b, customs, useData) }))
+        .filter(({ b, w }) => richSig(w.cell) !== b.cellSig || richSig(w.note) !== b.noteSig || (useData && w.dataSig !== b.data));
       if (!changed.length) continue;
       try {
         // 用 ID 重新找列（別人可能插入或刪除了列）
-        const [ids, tgts] = await readCols(sid, tab.title, [tab.fields.id.col, tab.fields.tgt.col]);
-        const idMap = toFieldMap({ ...tab.fields }, Math.max(ids.length, tgts.length) - 1).id!;
+        const cols = [tab.fields.id.col, tab.fields.tgt.col, ...(tab.fields.note ? [tab.fields.note.col] : [])];
+        const [ids, tgts, notes = []] = await readCols(sid, tab.title, cols);
+        const idRows = toFieldMap(tab.fields, Math.max(ids.length, tgts.length) - 1).id!.rows;
         const rowsOf = new Map<string, number[]>();
-        idMap.rows.forEach((r) => { const id = (ids[r] ?? '').trim(); if (!rowsOf.has(id)) rowsOf.set(id, []); rowsOf.get(id)!.push(r); });
-        const cells: { title: string; row: number; col: number; value: string }[] = [];
-        const wrote: { uid: string; tgt: string; row: number }[] = [];
+        idRows.forEach((r) => { const id = (ids[r] ?? '').trim(); if (!rowsOf.has(id)) rowsOf.set(id, []); rowsOf.get(id)!.push(r); });
+        const cells: { gid: number; row: number; col: number; rich: Rich }[] = [];
+        const done: { e: Entry; key: string; w: ReturnType<typeof wanted>; row: number }[] = [];
         const missing: string[] = [];
-        for (const { e, key } of changed) {
+        for (const { e, key, b, w } of changed) {
           const n = Number(key.split('\u0000')[1]);
           // ID 是空的：只能用讀取時的列
-          const row = e.id.trim() ? rowsOf.get(e.id.trim())?.[n] : base.get(e.uid)!.row;
+          const row = e.id.trim() ? rowsOf.get(e.id.trim())?.[n] : b.row;
           if (row === undefined) { missing.push(e.id || '?'); continue; }
-          const remote = tgts[row] ?? '';
-          const b = base.get(e.uid)!;
-          if (remote !== b.tgt && remote !== e.tgt) {
-            addConflict({ sid, gid: sh.gid!, uid: e.uid, id: e.id, src: e.src, mine: e.tgt, theirs: remote });
-            continue;
-          }
-          cells.push({ title: tab.title, row, col: tab.fields.tgt.col, value: e.tgt });
-          wrote.push({ uid: e.uid, tgt: e.tgt, row });
+          const writeCell = richSig(w.cell) !== b.cellSig;
+          const writeNote = !!tab.fields.note && richSig(w.note) !== b.noteSig;
+          // 這格在讀取後被別人改過：先問（這條先不寫）
+          const rc = tgts[row] ?? '', rn = notes[row] ?? '';
+          if (writeCell && rc !== b.cell && rc !== w.cell.text) { addConflict({ sid, gid: sh.gid!, uid: e.uid, id: e.id, src: e.src, field: 'tgt', mine: w.cell.text, theirs: rc }); continue; }
+          if (writeNote && rn !== b.note && rn !== e.note) { addConflict({ sid, gid: sh.gid!, uid: e.uid, id: e.id, src: e.src, field: 'note', mine: e.note, theirs: rn }); continue; }
+          if (writeCell) cells.push({ gid: sh.gid!, row, col: tab.fields.tgt.col, rich: w.cell });
+          if (writeNote) cells.push({ gid: sh.gid!, row, col: tab.fields.note!.col, rich: w.note });
+          done.push({ e, key, w, row });
         }
-        await writeCells(sid, cells);
-        wrote.forEach((w) => base.set(w.uid, { ...base.get(w.uid)!, tgt: w.tgt, row: w.row }));
+        await writeRich(sid, cells);
+        // 資料表：有這條就改那一列，沒有就加在最後
+        const dataDone = useData ? done.filter(({ e, w }) => w.dataSig !== base.get(e.uid)!.data) : [];
+        if (dataDone.length) {
+          await readData(true);
+          const now = new Date().toISOString();
+          const updates: { row: number; values: string[] }[] = [];
+          const adds: string[][] = [];
+          for (const { key, w } of dataDone) {
+            const k = dataKey(sid, sh.gid!, key);
+            const values = [sid, String(sh.gid), ...key.split('\u0000'), ...w.row, who, now];
+            const hit = data.rows.get(k);
+            if (hit) updates.push({ row: hit.row, values }); else adds.push(values);
+          }
+          await writeRows(data.did, DATA_TAB, updates);
+          if (adds.length) await appendRows(data.did, DATA_TAB, adds);
+          data.at = 0;
+        }
+        done.forEach(({ e, w, row }) => base.set(e.uid, {
+          ...base.get(e.uid)!, tgt: e.tgt, cell: w.cell.text, cellSig: richSig(w.cell), note: e.note, noteSig: richSig(w.note), blueFrom: w.blueFrom, row,
+          ...(useData ? { core: w.core, data: w.dataSig } : {}),
+        }));
         if (missing.length) showToast(tx('cloud.missingId', { name: sh.name, ids: missing.slice(0, 5).join(tx('common.sep')) }), { warn: true });
       } catch (e) {
-        showToast(tx('cloud.writeFailed', { name: doc.name, reason: errText(e) }), { warn: true });
+        const msg = tx('cloud.writeFailed', { name: doc.name, reason: errText(e) });
+        useCloud.setState({ syncError: msg });
+        showToast(msg, { warn: true });
       }
     }
   });
@@ -181,25 +299,22 @@ export function flush(sid: string, all = false): Promise<void> {
 
 function addConflict(c: Conflict) {
   const list = useCloud.getState().conflicts;
-  if (list.some((x) => x.uid === c.uid)) return;
+  if (list.some((x) => x.uid === c.uid && x.field === c.field)) return;
   useCloud.setState({ conflicts: [...list, c] });
 }
 
-/** 解決一個衝突：mine 用我的（寫回去），否則用對方的（改掉軟體裡的譯文） */
+/** 解決一個衝突：mine 用我的（寫回去），否則用對方的（改掉軟體裡的內容） */
 export async function resolveConflict(c: Conflict, mine: boolean) {
-  useCloud.setState({ conflicts: useCloud.getState().conflicts.filter((x) => x.uid !== c.uid) });
+  useCloud.setState({ conflicts: useCloud.getState().conflicts.filter((x) => !(x.uid === c.uid && x.field === c.field)) });
   const b = base.get(c.uid);
   if (!b) return;
-  if (mine) {
-    // 對方的內容當成已經看過的，再寫一次就不會又問
-    base.set(c.uid, { ...b, tgt: c.theirs });
-    await flush(c.sid, true);
-    return;
-  }
-  base.set(c.uid, { ...b, tgt: c.theirs });
+  // 對方的內容當成已經看過的：用我的就再寫一次（不會又問），用對方的就改掉軟體裡的
+  if (c.field === 'tgt') base.set(c.uid, { ...b, cell: c.theirs, cellSig: plainSig(c.theirs), ...(mine ? {} : { tgt: c.theirs }) });
+  else base.set(c.uid, { ...b, note: c.theirs, noteSig: plainSig(c.theirs) });
+  if (mine) { await flush(c.sid, true); return; }
   const doc = fileOf(c.sid);
   const si = doc?.sheets.findIndex((s) => s.gid === c.gid) ?? -1;
-  if (doc && si >= 0) useStore.getState().aiPatch(doc.fid!, si, c.uid, (e) => ({ ...e, tgt: c.theirs }));
+  if (doc && si >= 0) useStore.getState().aiPatch(doc.fid!, si, c.uid, (e) => (c.field === 'tgt' ? { ...e, tgt: c.theirs } : { ...e, note: c.theirs }));
 }
 
 /** 同步：先寫回，再重新讀取（only：只同步這一份）；同步按鈕、定時、回到 Verso 時用 */

@@ -77,3 +77,50 @@ export function errText(e: unknown): string {
   if (/error sending request|dns|connect/i.test(m)) return tx('cloud.errNetwork');
   return tx('cloud.errOther', { msg: m.length > 120 ? m.slice(0, 120) + '…' : m });
 }
+
+/** 有格式的文字：runs 是從第幾個字開始換樣式（刪除線、藍色） */
+export interface Rich { text: string; runs: { start: number; strike?: boolean; blue?: boolean }[] }
+
+const BLUE = { red: 17 / 255, green: 85 / 255, blue: 204 / 255 };
+
+/** 寫好幾格有格式的文字（gid 是分頁 ID）；沒有 runs 的格子會清掉原本的文字格式 */
+export async function writeRich(sid: string, cells: { gid: number; row: number; col: number; rich: Rich }[]) {
+  if (!cells.length) return;
+  await call('POST', `${sid}:batchUpdate`, {
+    requests: cells.map((c) => ({
+      updateCells: {
+        start: { sheetId: c.gid, rowIndex: c.row, columnIndex: c.col },
+        rows: [{ values: [{
+          userEnteredValue: { stringValue: c.rich.text },
+          textFormatRuns: c.rich.runs.filter((r) => r.start < c.rich.text.length).map((r) => ({
+            startIndex: r.start,
+            format: { ...(r.strike ? { strikethrough: true } : {}), ...(r.blue || r.strike ? { foregroundColorStyle: { rgbColor: BLUE } } : {}) },
+          })),
+        }] }],
+        fields: 'userEnteredValue,textFormatRuns',
+      },
+    })),
+  });
+}
+
+/** 寫好幾列（從第 row 列起，A 欄開始） */
+export async function writeRows(sid: string, title: string, rows: { row: number; values: string[] }[]) {
+  if (!rows.length) return;
+  await call('POST', `${sid}/values:batchUpdate`, {
+    valueInputOption: 'RAW',
+    data: rows.map((r) => ({ range: `${q(title)}!A${r.row + 1}`, values: [r.values] })),
+  });
+}
+
+/** 接在表的最後面加幾列；回傳第一列的位置（從 0 起算） */
+export async function appendRows(sid: string, title: string, rows: string[][]): Promise<number> {
+  const r = await call<{ updates?: { updatedRange?: string } }>('POST',
+    `${sid}/values/${encodeURIComponent(q(title) + '!A1')}:append?valueInputOption=RAW&insertDataOption=INSERT_ROWS`, { values: rows });
+  const m = r.updates?.updatedRange?.match(/![A-Z]+(\d+)/);
+  return m ? Number(m[1]) - 1 : -1;
+}
+
+/** 新增一個分頁 */
+export async function addTab(sid: string, title: string) {
+  await call('POST', `${sid}:batchUpdate`, { requests: [{ addSheet: { properties: { title } } }] });
+}

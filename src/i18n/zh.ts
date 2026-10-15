@@ -14,6 +14,9 @@ export const ZH = {
   'cloud.addSheet': '新增 Google 表', // 檔案選單（雲端模式）
   'cloud.manage': '管理 Google 表', // 檔案選單（雲端模式）；對話框標題
   'cloud.refresh': '重新讀取', // 檔案選單（雲端模式）
+  'cloud.dataUrl': 'Verso 資料表', // 開發者選項（雲端模式）：共用的資料表網址
+  'cloud.dataHint': '標記、建議翻譯、修改存在這張 Google 表，大家共用（建一張空白試算表、分享給同專案的人，把網址貼在這裡）', // 開發者選項（雲端模式）
+  'cloud.conflictNote': '#{id} 的備註已經被別人改過', // 雲端模式：寫回衝突
   'cloud.sync': '同步', // 條目欄上方的按鈕（雲端模式）：寫回並重新讀取 Google 表
   'cloud.syncing': '同步中…', // 同步按鈕
   'cloud.lastSync': '上次同步：{time}', // 同步按鈕的提示
