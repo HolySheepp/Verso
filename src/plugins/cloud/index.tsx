@@ -15,7 +15,7 @@ import { dragWindow } from '../../components/windowDrag';
 import { IconList, IconPlus, IconRefresh, IconWinClose } from '../../components/icons';
 import { beforeExit } from '../hooks';
 import type { VersoPlugin } from '../registry';
-import { errText, insertCol, login, loginStatus, logout, meta, readTabs, sidOf } from './api';
+import { builtinClient, errText, insertCol, login, loginStatus, logout, meta, readTabs, sidOf } from './api';
 import { allSheets, loadConfig, setConfig, toFields, toFieldMap, useCloud, type CloudSheet, type CloudTab } from './config';
 import { currentSid, enterCloud, flushAll, pickShown, putSheet, refreshAll, removeSheet, resolveConflict, watchStore } from './sync';
 
@@ -46,6 +46,7 @@ function CloudDevOption() {
   const cloudMode = useStore((s) => s.cloudMode);
   const cfg = useCloud((s) => s.cfg);
   const email = useCloud((s) => s.email);
+  const builtin = useCloud((s) => s.builtin);
   const [busy, setBusy] = useState(false);
   const [err, setErr] = useState('');
   const label: React.CSSProperties = { fontSize: fz(12.5), color: 'var(--text2)' };
@@ -63,10 +64,13 @@ function CloudDevOption() {
       <div style={{ fontSize: fz(12), color: 'var(--mute)' }}>{tx('cloud.hint')}</div>
       {cloudMode && (
         <div style={{ display: 'grid', gridTemplateColumns: '120px minmax(0, 1fr)', alignItems: 'center', gap: '8px 12px', marginTop: 4 }}>
-          <label htmlFor="verso-cloud-cid" style={label}>{tx('cloud.clientId')}</label>
-          <input id="verso-cloud-cid" className="field" value={cfg.clientId} onChange={(e) => setConfig({ clientId: e.target.value })} />
-          <label htmlFor="verso-cloud-secret" style={label}>{tx('cloud.clientSecret')}</label>
-          <input id="verso-cloud-secret" className="field" type="password" value={cfg.clientSecret} onChange={(e) => setConfig({ clientSecret: e.target.value })} />
+          {/* 打包時內建了用戶端（發布的版本）：不用填 */}
+          {!builtin && <>
+            <label htmlFor="verso-cloud-cid" style={label}>{tx('cloud.clientId')}</label>
+            <input id="verso-cloud-cid" className="field" value={cfg.clientId} onChange={(e) => setConfig({ clientId: e.target.value })} />
+            <label htmlFor="verso-cloud-secret" style={label}>{tx('cloud.clientSecret')}</label>
+            <input id="verso-cloud-secret" className="field" type="password" value={cfg.clientSecret} onChange={(e) => setConfig({ clientSecret: e.target.value })} />
+          </>}
           <label htmlFor="verso-cloud-data" style={label}>{tx('cloud.dataUrl')}</label>
           <input id="verso-cloud-data" className="field" value={cfg.dataUrl ?? ''} placeholder="https://docs.google.com/spreadsheets/d/…" onChange={(e) => setConfig({ dataUrl: e.target.value })} />
           <span style={{ gridColumn: '2', fontSize: fz(12), color: 'var(--mute)', marginTop: -4 }}>{tx('cloud.dataHint')}</span>
@@ -75,7 +79,7 @@ function CloudDevOption() {
             {email ? tx('cloud.signedIn', { email }) : tx('cloud.signedOut')}
             {email
               ? <button type="button" className="btn btn-ghost" style={btn} onClick={() => { void logout(); useCloud.setState({ email: null }); }}>{tx('cloud.logout')}</button>
-              : <button type="button" className="btn btn-ghost" style={btn} disabled={busy || !cfg.clientId.trim()} onClick={() => void doLogin()}>{busy ? tx('cloud.loggingIn') : tx('cloud.login')}</button>}
+              : <button type="button" className="btn btn-ghost" style={btn} disabled={busy || (!builtin && !cfg.clientId.trim())} onClick={() => void doLogin()}>{busy ? tx('cloud.loggingIn') : tx('cloud.login')}</button>}
           </span>
           {err && <span role="alert" style={{ gridColumn: '1 / -1', fontSize: fz(12.5), color: 'var(--errtx)' }}>{err}</span>}
         </div>
@@ -336,7 +340,7 @@ async function start() {
   const cfg = await loadConfig();
   watchStore();
   beforeExit.add(flushAll);
-  try { useCloud.setState({ email: await loginStatus() }); } catch { /* 沒有桌面外殼（瀏覽器預覽） */ }
+  try { useCloud.setState({ email: await loginStatus(), builtin: await builtinClient() }); } catch { /* 沒有桌面外殼（瀏覽器預覽） */ }
   if (cfg.on && useStore.getState().devMode) await setCloud(true);
   // 自動同步：打開的那份每 20 秒，其他的每 2 分鐘；從別的視窗（例如瀏覽器）回到 Verso 時馬上同步打開的那份
   let tick = 0;

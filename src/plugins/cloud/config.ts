@@ -32,7 +32,9 @@ export const useCloud = create<{
   syncing: boolean; lastSync: number | null; syncError: string;
   /** Verso 資料表裡記的各檔案欄位設定（同一張資料表的人共用） */
   shared: CloudSheet[];
-}>(() => ({ cfg: EMPTY, loaded: false, email: null, setup: null, manage: false, conflicts: [], syncing: false, lastSync: null, syncError: '', shared: [] }));
+  /** 這個版本內建了 Google 用戶端（不用自己填 ID、密鑰） */
+  builtin: boolean;
+}>(() => ({ builtin: false, cfg: EMPTY, loaded: false, email: null, setup: null, manage: false, conflicts: [], syncing: false, lastSync: null, syncError: '', shared: [] }));
 
 /** 用得到的試算表：資料表裡共用的設定為準，加上這台電腦自己設定的，扣掉不再使用的 */
 export function allSheets(): CloudSheet[] {

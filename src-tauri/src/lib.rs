@@ -103,11 +103,11 @@ pub fn run() {
     #[cfg(verso_cloud)]
     let builder = builder.manage(cloud::Cloud::default());
     #[cfg(all(verso_ai, verso_cloud))]
-    let builder = builder.invoke_handler(handlers![ai::ai_server_start, ai::ai_reply, ai::ai_run, ai::ai_stop, cloud::cloud_login, cloud::cloud_status, cloud::cloud_logout, cloud::cloud_api]);
+    let builder = builder.invoke_handler(handlers![ai::ai_server_start, ai::ai_reply, ai::ai_run, ai::ai_stop, cloud::cloud_login, cloud::cloud_builtin, cloud::cloud_status, cloud::cloud_logout, cloud::cloud_api]);
     #[cfg(all(verso_ai, not(verso_cloud)))]
     let builder = builder.invoke_handler(handlers![ai::ai_server_start, ai::ai_reply, ai::ai_run, ai::ai_stop]);
     #[cfg(all(not(verso_ai), verso_cloud))]
-    let builder = builder.invoke_handler(handlers![cloud::cloud_login, cloud::cloud_status, cloud::cloud_logout, cloud::cloud_api]);
+    let builder = builder.invoke_handler(handlers![cloud::cloud_login, cloud::cloud_builtin, cloud::cloud_status, cloud::cloud_logout, cloud::cloud_api]);
     #[cfg(all(not(verso_ai), not(verso_cloud)))]
     let builder = builder.invoke_handler(handlers![]);
     builder

@@ -9,6 +9,8 @@ const call = <T = unknown>(method: 'GET' | 'POST', path: string, body?: unknown)
 export const login = (clientId: string, clientSecret: string) => invoke<string>('cloud_login', { clientId, clientSecret });
 export const loginStatus = () => invoke<string | null>('cloud_status');
 export const logout = () => invoke('cloud_logout');
+/** 這個版本有沒有內建 Google 用戶端（發布時從專案外面的檔案編進去） */
+export const builtinClient = () => invoke<boolean>('cloud_builtin');
 
 /** 從網址取出試算表 ID（直接貼 ID 也可以） */
 export function sidOf(url: string): string | null {

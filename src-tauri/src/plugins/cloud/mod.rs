@@ -116,7 +116,12 @@ fn wait_code(listener: TcpListener, state: String) -> Result<String, String> {
 /// 登入：開瀏覽器讓使用者同意，回來後換成 token 存起來；回傳登入的 email
 #[tauri::command]
 pub async fn cloud_login(app: AppHandle, state: State<'_, Cloud>, client_id: String, client_secret: String) -> Result<String, String> {
-    let (client_id, client_secret) = (client_id.trim().to_string(), client_secret.trim().to_string());
+    // 沒填就用打包時內建的（見 build.rs）
+    let (client_id, client_secret) = if client_id.trim().is_empty() {
+        (option_env!("VERSO_GOOGLE_CLIENT_ID").unwrap_or_default().to_string(), option_env!("VERSO_GOOGLE_CLIENT_SECRET").unwrap_or_default().to_string())
+    } else {
+        (client_id.trim().to_string(), client_secret.trim().to_string())
+    };
     if client_id.is_empty() { return Err("no-client".into()); }
     let listener = TcpListener::bind("127.0.0.1:0").map_err(|e| e.to_string())?;
     let redirect = format!("http://127.0.0.1:{}", listener.local_addr().map_err(|e| e.to_string())?.port());
@@ -149,6 +154,12 @@ pub async fn cloud_login(app: AppHandle, state: State<'_, Cloud>, client_id: Str
     let saved = Saved { client_id, client_secret, refresh, email: email.clone() };
     std::fs::write(token_file(&app)?, serde_json::to_string(&saved).unwrap()).map_err(|e| e.to_string())?;
     Ok(email)
+}
+
+/// 這個版本有沒有內建 Google 用戶端（有的話使用者不用自己填）
+#[tauri::command]
+pub fn cloud_builtin() -> bool {
+    option_env!("VERSO_GOOGLE_CLIENT_ID").is_some_and(|s| !s.is_empty())
 }
 
 /// 目前登入的 email（沒登入是 null）
