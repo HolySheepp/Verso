@@ -4,7 +4,7 @@ import { Fragment, useEffect, useState } from 'react';
 import { tx } from '../../i18n';
 import { fz } from '../../model/fonts';
 import { checkColumns, COLS, type ColKey } from '../../model/paste';
-import { emptyFields, fieldsToColumns, type FieldMap } from '../../model/importSel';
+import { emptyFields, fieldsToColumns, isVersoHeader, type FieldMap } from '../../model/importSel';
 import { SHARED } from '../../model/types';
 import { showToast, useStore } from '../../state/store';
 import { isDirty, saveNow } from '../../state/saver';
@@ -153,6 +153,16 @@ function Shell({ title, width, height, onClose, children, footer }: { title: str
 
 const NONE: string[] = [];
 
+/** Verso 存檔格式的分頁（第一列是 Verso 的欄位標題）：直接套用欄位範圍，不用自己選 */
+function versoFields(rows: string[][]): FieldMap | null {
+  const head = (rows[0] ?? []).map((x) => x.trim());
+  if (!isVersoHeader(head) && !(head[0] === '#' && head[1] === '發話者' && head[2] === '原文' && head[3] === '譯文' && head.includes('備註'))) return null;
+  const data = Array.from({ length: Math.max(0, rows.length - 1) }, (_, i) => i + 1);
+  if (!data.length) return null;
+  const at = (col: number) => (col >= 0 ? { col, rows: data } : null);
+  return { id: at(0), speaker: at(1), src: at(2), tgt: at(3), note: at(head.indexOf('備註')) };
+}
+
 /** 必選的欄位（可以是空的）；譯文不選就在原文右邊插入一欄 */
 const REQUIRED: ColKey[] = ['id', 'speaker', 'src', 'note'];
 
@@ -182,7 +192,7 @@ function SetupDialog({ sid0 }: { sid0?: string }) {
       setDrafts(m.tabs.map((t, i) => {
         const rows = values[i];
         const prev = old?.tabs.find((x) => x.gid === t.gid);
-        return { id: 'g' + t.gid, gid: t.gid, name: t.title, rows, width: Math.max(1, ...rows.map((r) => r.length)), fields: prev ? toFieldMap(prev.fields, rows.length - 1) : emptyFields() };
+        return { id: 'g' + t.gid, gid: t.gid, name: t.title, rows, width: Math.max(1, ...rows.map((r) => r.length)), fields: prev ? toFieldMap(prev.fields, rows.length - 1) : versoFields(rows) ?? emptyFields() };
       }));
       setCur(0);
     } catch (e) { setErr(errText(e)); }
