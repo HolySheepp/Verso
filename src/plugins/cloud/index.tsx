@@ -1,6 +1,6 @@
 // 雲端模式外掛（測試版）：開發者選項的開關與登入、檔案選單的「新增／管理 Google 表」、設定表的對話框、寫回衝突的詢問。
 // 整個資料夾（加上桌面外殼的 src-tauri/src/plugins/cloud）刪掉重新打包，就是沒有雲端模式的 Verso。
-import { useEffect, useState } from 'react';
+import { Fragment, useEffect, useState } from 'react';
 import { tx } from '../../i18n';
 import { fz } from '../../model/fonts';
 import { checkColumns, COLS, type ColKey } from '../../model/paste';
@@ -16,11 +16,11 @@ import { IconFolder, IconList, IconPlus, IconRefresh, IconWinClose } from '../..
 import { flushDicts, removeDicts, watchDicts } from './dicts';
 import { leaveProjects, writePresets } from './projects';
 import { ProjectsDialog } from './ProjectsDialog';
-import { beforeExit } from '../hooks';
+import { beforeExit, rowHook } from '../hooks';
 import type { VersoPlugin } from '../registry';
 import { builtinClient, errText, insertCol, login, loginStatus, logout, meta, readTabs, sidOf } from './api';
 import { allSheets, loadConfig, setConfig, toFields, toFieldMap, useCloud, type CloudSheet, type CloudTab } from './config';
-import { currentSid, enterCloud, flushAll, pickShown, putSheet, refreshAll, removeSheet, resolveConflict, watchStore } from './sync';
+import { rowOp, currentSid, enterCloud, flushAll, pickShown, putSheet, refreshAll, removeSheet, resolveConflict, watchStore } from './sync';
 
 const btn: React.CSSProperties = { height: 32, padding: '0 14px', background: 'var(--btn)', border: '1px solid var(--line4)', borderRadius: 8, fontSize: fz(12.5) };
 const primary: React.CSSProperties = { height: 36, padding: '0 18px', background: 'var(--primary)', border: 0, borderRadius: 8, color: '#ffffff', fontSize: fz(13), fontWeight: 600 };
@@ -305,6 +305,34 @@ function ManageDialog() {
   );
 }
 
+/** 刪除 Google 上的列或分頁之前：列出內容，確認後才刪 */
+function DeletePreview({ ask }: { ask: NonNullable<ReturnType<typeof useCloud.getState>['askDelete']> }) {
+  const [busy, setBusy] = useState(false);
+  const close = () => useCloud.setState({ askDelete: null });
+  return (
+    <div className="scrim" style={{ zIndex: 70 }}>
+      <div role="alertdialog" aria-modal="true" aria-labelledby="verso-cloud-del" className="dialog" style={{ width: 560, maxHeight: 'calc(100% - 48px)', boxShadow: '0 24px 64px rgba(0,0,0,0.45)' }}>
+        <div style={{ padding: '20px 20px 8px', display: 'flex', flexDirection: 'column', gap: 10, minHeight: 0 }}>
+          <h2 id="verso-cloud-del" style={{ margin: 0, fontSize: fz(15), fontWeight: 600 }}>{ask.title}</h2>
+          <div style={{ fontSize: fz(12.5), color: 'var(--text2)' }}>{tx('cloud.deleteHint')}</div>
+          <div style={{ display: 'flex', flexDirection: 'column', gap: 8, overflowY: 'auto', maxHeight: 360 }}>
+            {ask.rows.map((r) => (
+              <div key={r.row} style={{ padding: '8px 10px', background: 'var(--ov1)', borderRadius: 6, display: 'grid', gridTemplateColumns: '110px minmax(0, 1fr)', gap: '4px 10px', fontSize: fz(12.5) }}>
+                <span style={{ gridColumn: '1 / -1', color: 'var(--mute)', fontSize: fz(11.5) }}>{tx('cloud.rowNo', { n: r.row + 1 })}</span>
+                {r.cells.length ? r.cells.map(([k, v], i) => <Fragment key={i}><span style={{ color: 'var(--mute)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{k}</span><span style={{ whiteSpace: 'pre-wrap', wordBreak: 'break-word' }}>{v}</span></Fragment>) : <span style={{ gridColumn: '1 / -1', color: 'var(--mute)' }}>{tx('cloud.empty')}</span>}
+              </div>
+            ))}
+          </div>
+        </div>
+        <div style={{ display: 'flex', justifyContent: 'flex-end', gap: 8, padding: '12px 20px 16px' }}>
+          <button type="button" className="btn btn-ghost" style={{ ...btn, height: 36 }} onClick={close} disabled={busy}>{tx('cloud.cancel')}</button>
+          <button type="button" className="btn btn-primary" style={primary} disabled={busy} onClick={() => { setBusy(true); void ask.run().finally(close); }}>{tx('cloud.deleteConfirm')}</button>
+        </div>
+      </div>
+    </div>
+  );
+}
+
 /** 寫回時發現別人改過：一次問一條 */
 function ConflictAsk() {
   const c = useCloud((s) => s.conflicts[0]);
@@ -319,7 +347,7 @@ function ConflictAsk() {
     <div className="scrim" style={{ zIndex: 70 }}>
       <div role="alertdialog" aria-modal="true" aria-labelledby="verso-cloud-conflict" className="dialog" style={{ width: 520, boxShadow: '0 24px 64px rgba(0,0,0,0.45)' }}>
         <div style={{ padding: '20px 20px 8px', display: 'flex', flexDirection: 'column', gap: 10 }}>
-          <h2 id="verso-cloud-conflict" style={{ margin: 0, fontSize: fz(15), fontWeight: 600 }}>{tx(c.field === 'note' ? 'cloud.conflictNote' : 'cloud.conflictTitle', { id: c.id || '?' })}</h2>
+          <h2 id="verso-cloud-conflict" style={{ margin: 0, fontSize: fz(15), fontWeight: 600 }}>{tx(c.field === 'note' ? 'cloud.conflictNote' : c.field === 'speaker' ? 'cloud.conflictSpeaker' : c.field === 'src' ? 'cloud.conflictSrcText' : 'cloud.conflictTitle', { id: c.id || '?' })}</h2>
           {row(tx('cloud.conflictSrc'), c.src)}
           {row(tx('cloud.conflictMine'), c.mine)}
           {row(tx('cloud.conflictTheirs'), c.theirs)}
@@ -337,11 +365,13 @@ function Overlay() {
   const setup = useCloud((s) => s.setup);
   const manage = useCloud((s) => s.manage);
   const projectsOpen = useCloud((s) => s.projectsOpen);
+  const askDelete = useCloud((s) => s.askDelete);
   return (
     <>
       {setup && <SetupDialog key={setup.sid ?? 'new'} sid0={setup.sid} />}
       {manage && <ManageDialog />}
       {projectsOpen && <ProjectsDialog />}
+      {askDelete && <DeletePreview ask={askDelete} />}
       <ConflictAsk />
     </>
   );
@@ -352,6 +382,7 @@ async function start() {
   const cfg = await loadConfig();
   watchStore();
   watchDicts();
+  rowHook.fn = rowOp;
   beforeExit.add(flushAll);
   beforeExit.add(flushDicts);
   // 雲端模式改了常用標準：寫進資料表

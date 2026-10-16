@@ -46,7 +46,9 @@ export const useCloud = create<{
   projects: CloudProject[];
   /** 管理專案的對話框 */
   projectsOpen: boolean;
-}>(() => ({ builtin: false, projects: [], projectsOpen: false, cfg: EMPTY, loaded: false, email: null, setup: null, manage: false, conflicts: [], syncing: false, lastSync: null, syncError: '', shared: [] }));
+  /** 刪除 Google 上的列或分頁之前：預覽內容，確認後才刪 */
+  askDelete: { title: string; rows: { row: number; cells: [string, string][] }[]; run(): Promise<void> } | null;
+}>(() => ({ builtin: false, projects: [], projectsOpen: false, askDelete: null, cfg: EMPTY, loaded: false, email: null, setup: null, manage: false, conflicts: [], syncing: false, lastSync: null, syncError: '', shared: [] }));
 
 /** 用得到的試算表：資料表裡共用的設定為準，加上這台電腦自己設定的，扣掉不再使用的 */
 export function allSheets(): CloudSheet[] {
@@ -58,7 +60,7 @@ export function allSheets(): CloudSheet[] {
 }
 
 /** 寫回前發現別人改過：用我的還是用對方的 */
-export interface Conflict { sid: string; gid: number; uid: string; id: string; src: string; field: 'tgt' | 'note'; mine: string; theirs: string }
+export interface Conflict { sid: string; gid: number; uid: string; id: string; src: string; field: 'tgt' | 'note' | 'speaker' | 'src'; mine: string; theirs: string }
 
 async function file() {
   const dir = await join(await appDataDir(), 'cloud');

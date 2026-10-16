@@ -1,5 +1,6 @@
 import { tx } from '../i18n';
 import { plugins } from '../plugins/registry';
+import { rowHook } from '../plugins/hooks';
 import { memo, useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react';
 import { flushSync } from 'react-dom';
 import { shownCount, currentOf, hasPendingUpdate, searchHit, useStorePick, visibleIssues, type Filter, currentFileStd } from '../state/store';
@@ -626,6 +627,8 @@ export function EntryList() {
     if (menu?.kind === 'row') {
       // 整列：條目本身一起刪、插入、移動（標記、備註跟著走）
       const last = selRows[selRows.length - 1];
+      // 雲端檔案：交給雲端外掛（同時改 Google 上的列）
+      if (s.project?.files[s.file]?.cloud && (k === 'delete' || k === 'insert' || k === 'up' || k === 'down') && rowHook.fn?.(k, selRows, insertCount)) return;
       if (k === 'delete') {
         const next = Math.min(selRows[0], sheet.entries.length - selRows.length - 1);
         s.editSheet((es) => ({ entries: deleteRows(es, selRows), keys: next >= 0 ? rowKeys(next) : [] }));

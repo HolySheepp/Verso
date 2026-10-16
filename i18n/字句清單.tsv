@@ -1,4 +1,11 @@
 ﻿代號	中文	畫面區域	程式位置
+cloud.deleteRowsAsk	刪除 Google 上的 {n} 列？	雲端模式：刪除條目前的預覽	plugins/cloud/sync.ts:642
+cloud.deleteHint	這些是 Google 表上這幾列的全部內容（包括 Verso 沒讀的欄），刪掉後 Verso 也不能復原。	雲端模式：刪除前的預覽	plugins/cloud/index.tsx:317
+cloud.rowNo	第 {n} 列	雲端模式：刪除前的預覽	plugins/cloud/index.tsx:321
+cloud.deleteConfirm	刪除	雲端模式：刪除前的預覽	plugins/cloud/index.tsx:329
+cloud.conflictSpeaker	#{id} 的發話者已經被別人改過	雲端模式：寫回衝突	plugins/cloud/index.tsx:350
+cloud.conflictSrcText	#{id} 的原文已經被別人改過	雲端模式：寫回衝突	plugins/cloud/index.tsx:350
+cloud.rowsOnly	雲端檔案要增刪、搬動條目，請用右鍵的整列刪除、插入、上移、下移	雲端模式：擋下會改變條目數量或順序的操作	state/store.ts:803 state/store.ts:811
 side.scope	搜尋範圍：{scope}（點一下換範圍）	搜尋分頁：範圍按鈕	components/SidePanel.tsx:282
 side.scope.sheet	當前頁簽	搜尋分頁：範圍	
 side.scope.file	當前檔案	搜尋分頁：範圍	
@@ -21,7 +28,7 @@ cloud.deleteProjectAsk	刪除專案「{name}」？	雲端模式：管理專案	p
 cloud.deleteProjectBody	只會從 Verso 資料表拿掉這個專案，Google 上的字典檔不會動。	雲端模式：管理專案	plugins/cloud/ProjectsDialog.tsx:143
 dict.cloud	雲端	啟用的字典、字典管理：雲端字典的標示	components/ManageDialogs.tsx:546 components/SidePanel.tsx:175
 dict.local	本地	啟用的字典、字典管理：本地字典的標示	components/ManageDialogs.tsx:546 components/SidePanel.tsx:175
-dict.cloudNoMove	雲端字典不能搬到別的專案	想把雲端字典移到別的專案時的提示	state/store.ts:1346
+dict.cloudNoMove	雲端字典不能搬到別的專案	想把雲端字典移到別的專案時的提示	state/store.ts:1352
 cloud.enabled	雲端模式（測試版）	開發者選項	plugins/cloud/index.tsx:69
 cloud.hint	打開後直接讀寫 Google 試算表，檔案選單只列設定過的表；關掉回到本地檔案（本地檔案和存檔都不受影響）	開發者選項：雲端模式的說明	plugins/cloud/index.tsx:71
 cloud.clientId	用戶端 ID	雲端模式：Google OAuth 用戶端 ID	plugins/cloud/index.tsx:76
@@ -35,9 +42,9 @@ cloud.logout	登出	雲端模式：按鈕	plugins/cloud/index.tsx:88
 cloud.addSheet	新增 Google 表	檔案選單（雲端模式）	plugins/cloud/index.tsx:119
 cloud.manage	管理 Google 表	檔案選單（雲端模式）；對話框標題	plugins/cloud/index.tsx:122 plugins/cloud/index.tsx:287
 cloud.refresh	重新讀取	檔案選單（雲端模式）	plugins/cloud/index.tsx:128
-cloud.dataUrl	Verso 資料表	開發者選項（雲端模式）：共用的資料表網址	plugins/cloud/index.tsx:81 plugins/cloud/projects.ts:130 plugins/cloud/ProjectsDialog.tsx:44 plugins/cloud/sync.ts:403 plugins/cloud/sync.ts:459 plugins/cloud/sync.ts:479 plugins/cloud/sync.ts:482
+cloud.dataUrl	Verso 資料表	開發者選項（雲端模式）：共用的資料表網址	plugins/cloud/index.tsx:81 plugins/cloud/projects.ts:130 plugins/cloud/ProjectsDialog.tsx:44 plugins/cloud/sync.ts:429 plugins/cloud/sync.ts:485 plugins/cloud/sync.ts:505 plugins/cloud/sync.ts:508
 cloud.dataHint	標記、建議翻譯、修改存在這張 Google 表，大家共用（建一張空白試算表、分享給同專案的人，把網址貼在這裡）	開發者選項（雲端模式）	plugins/cloud/index.tsx:83
-cloud.conflictNote	#{id} 的備註已經被別人改過	雲端模式：寫回衝突	plugins/cloud/index.tsx:322
+cloud.conflictNote	#{id} 的備註已經被別人改過	雲端模式：寫回衝突	plugins/cloud/index.tsx:350
 cloud.sync	同步	條目欄上方的按鈕（雲端模式）：寫回並重新讀取 Google 表	plugins/cloud/index.tsx:105 plugins/cloud/index.tsx:107 plugins/cloud/index.tsx:109
 cloud.syncing	同步中…	同步按鈕	plugins/cloud/index.tsx:109
 cloud.lastSync	上次同步：{time}	同步按鈕的提示	plugins/cloud/index.tsx:105
@@ -53,7 +60,7 @@ cloud.pickHint	「{title}」：在每個要翻譯的分頁選 id、發話者、�
 cloud.needFields	「{name}」還沒選：{fields}	雲端模式：設定錯誤	plugins/cloud/index.tsx:218
 cloud.noTabs	至少要在一個分頁選範圍	雲端模式：設定錯誤	plugins/cloud/index.tsx:222
 cloud.badUrl	看不懂這個網址，請貼 Google 試算表的網址	雲端模式：設定錯誤	plugins/cloud/index.tsx:175
-cloud.cancel	取消	雲端模式：按鈕	plugins/cloud/index.tsx:252 plugins/cloud/index.tsx:302 plugins/cloud/ProjectsDialog.tsx:144
+cloud.cancel	取消	雲端模式：按鈕	plugins/cloud/index.tsx:252 plugins/cloud/index.tsx:302 plugins/cloud/index.tsx:328 plugins/cloud/ProjectsDialog.tsx:144
 cloud.save	儲存	雲端模式：按鈕	plugins/cloud/index.tsx:253
 cloud.saving	儲存中…	雲端模式：按鈕	plugins/cloud/index.tsx:253
 cloud.noSheets	還沒有設定過的 Google 表	雲端模式：管理	plugins/cloud/index.tsx:289
@@ -62,16 +69,16 @@ cloud.resetup	重新設定	雲端模式：管理	plugins/cloud/index.tsx:295
 cloud.remove	不再使用	雲端模式：管理	plugins/cloud/index.tsx:296 plugins/cloud/index.tsx:302
 cloud.removeAsk	不再使用「{name}」？	雲端模式：確認	plugins/cloud/index.tsx:301
 cloud.removeBody	只是從 Verso 拿掉，Google 上的表不會動。	雲端模式：確認	plugins/cloud/index.tsx:301
-cloud.conflictTitle	#{id} 已經被別人改過	雲端模式：寫回衝突	plugins/cloud/index.tsx:322
-cloud.conflictSrc	原文	雲端模式：寫回衝突	plugins/cloud/index.tsx:323
-cloud.conflictMine	我的	雲端模式：寫回衝突	plugins/cloud/index.tsx:324
-cloud.conflictTheirs	對方的	雲端模式：寫回衝突	plugins/cloud/index.tsx:325
-cloud.empty	（空白）	雲端模式：寫回衝突	plugins/cloud/index.tsx:315
-cloud.useMine	用我的	雲端模式：寫回衝突	plugins/cloud/index.tsx:329
-cloud.useTheirs	用對方的	雲端模式：寫回衝突	plugins/cloud/index.tsx:328
-cloud.loadFailed	讀不到「{name}」：{reason}	雲端模式：警告	plugins/cloud/dicts.ts:24 plugins/cloud/dicts.ts:90 plugins/cloud/sync.ts:263 plugins/cloud/sync.ts:403 plugins/cloud/sync.ts:479 plugins/cloud/sync.ts:482
-cloud.writeFailed	「{name}」的譯文沒有寫回：{reason}	雲端模式：警告	plugins/cloud/dicts.ts:137 plugins/cloud/dicts.ts:145 plugins/cloud/dicts.ts:184 plugins/cloud/projects.ts:130 plugins/cloud/ProjectsDialog.tsx:44 plugins/cloud/sync.ts:364 plugins/cloud/sync.ts:459 plugins/cloud/sync.ts:545
-cloud.missingId	「{name}」找不到這些 ID，譯文沒有寫回：{ids}	雲端模式：警告	plugins/cloud/sync.ts:362
+cloud.conflictTitle	#{id} 已經被別人改過	雲端模式：寫回衝突	plugins/cloud/index.tsx:350
+cloud.conflictSrc	原文	雲端模式：寫回衝突	plugins/cloud/index.tsx:351
+cloud.conflictMine	我的	雲端模式：寫回衝突	plugins/cloud/index.tsx:352
+cloud.conflictTheirs	對方的	雲端模式：寫回衝突	plugins/cloud/index.tsx:353
+cloud.empty	（空白）	雲端模式：寫回衝突	plugins/cloud/index.tsx:322 plugins/cloud/index.tsx:343
+cloud.useMine	用我的	雲端模式：寫回衝突	plugins/cloud/index.tsx:357
+cloud.useTheirs	用對方的	雲端模式：寫回衝突	plugins/cloud/index.tsx:356
+cloud.loadFailed	讀不到「{name}」：{reason}	雲端模式：警告	plugins/cloud/dicts.ts:24 plugins/cloud/dicts.ts:90 plugins/cloud/sync.ts:275 plugins/cloud/sync.ts:429 plugins/cloud/sync.ts:505 plugins/cloud/sync.ts:508
+cloud.writeFailed	「{name}」的譯文沒有寫回：{reason}	雲端模式：警告	plugins/cloud/dicts.ts:137 plugins/cloud/dicts.ts:145 plugins/cloud/dicts.ts:184 plugins/cloud/projects.ts:130 plugins/cloud/ProjectsDialog.tsx:44 plugins/cloud/sync.ts:388 plugins/cloud/sync.ts:485 plugins/cloud/sync.ts:576 plugins/cloud/sync.ts:626
+cloud.missingId	「{name}」找不到這些 ID，譯文沒有寫回：{ids}	雲端模式：警告	plugins/cloud/sync.ts:386
 cloud.errLogin	還沒登入 Google，請到設定 > 開發者選項登入	雲端模式：錯誤	plugins/cloud/api.ts:74
 cloud.errClient	請先填用戶端 ID	雲端模式：錯誤	plugins/cloud/api.ts:75
 cloud.errTimeout	等太久沒有完成登入，請再試一次	雲端模式：錯誤	plugins/cloud/api.ts:76
@@ -100,10 +107,10 @@ ai.errQuota	Token用盡	AI 失敗原因	plugins/ai/ai.ts:233
 ai.errSkill	找不到Skill	AI 失敗原因	plugins/ai/ai.ts:327
 ai.errOther	AI工作未完成，請重試	AI 失敗原因：其他	plugins/ai/ai.ts:234 plugins/ai/ai.ts:337
 shortcut.ignoreEdits	忽略這條的全部修改	設定 > 快捷鍵：動作名稱	model/shortcuts.ts:38
-mark.suggHoldsDoubt	有建議翻譯，維持疑慮	有建議翻譯時想改成別的標記：被擋下的提示	state/store.ts:948 state/store.ts:973
+mark.suggHoldsDoubt	有建議翻譯，維持疑慮	有建議翻譯時想改成別的標記：被擋下的提示	state/store.ts:954 state/store.ts:979
 mark.ai	AI 翻譯	標記名稱：AI 翻好、還沒確認的條目	model/marks.ts:84
-list.aiLocked	AI 處理中	條目欄：AI 正在處理的條目旁的小字提示	components/EntryList.tsx:165 components/EntryList.tsx:165
-ai.locked	AI 正在處理的條目不能刪除	想刪掉 AI 處理中的條目時	state/store.ts:810
+list.aiLocked	AI 處理中	條目欄：AI 正在處理的條目旁的小字提示	components/EntryList.tsx:166 components/EntryList.tsx:166
+ai.locked	AI 正在處理的條目不能刪除	想刪掉 AI 處理中的條目時	state/store.ts:816
 ai.stopped	已停止 AI，已經寫回的內容保留	按了停止之後	plugins/ai/ai.ts:253
 ai.askMany	要讓 AI 處理 {n} 條嗎？	選了超過 50 條按 AI 時	plugins/ai/index.tsx:25
 ai.askNo	取消	上面那句的按鈕	plugins/ai/index.tsx:26
@@ -134,7 +141,7 @@ settings.packsFailed	語言包加不進去，主程式資料夾可能沒有寫�
 settings.packReplace	已經有語言包「{name}」，要取代嗎？	設定 > 一般：加入同名語言包時	components/SettingsDialog.tsx:460
 settings.packReplaceNo	取消	設定 > 一般：同名語言包的詢問	components/SettingsDialog.tsx:461
 settings.packReplaceYes	取代	設定 > 一般：同名語言包的詢問	components/SettingsDialog.tsx:461
-common.sep	、	列出好幾個名稱時的分隔符號	App.tsx:101 App.tsx:112 App.tsx:123 components/CopyConfirm.tsx:19 components/EntryList.tsx:197 components/EntryList.tsx:197 components/FileNav.tsx:126 components/ManageDialogs.tsx:176 components/SettingsDialog.tsx:427 components/SettingsDialog.tsx:428 components/SidePanel.tsx:363 components/WorkPanel.tsx:96 model/importSel.ts:59 model/importSel.ts:59 model/paste.ts:79 plugins/cloud/index.tsx:218 plugins/cloud/sync.ts:362 state/saver.ts:1023 state/saver.ts:1023
+common.sep	、	列出好幾個名稱時的分隔符號	App.tsx:101 App.tsx:112 App.tsx:123 components/CopyConfirm.tsx:19 components/EntryList.tsx:198 components/EntryList.tsx:198 components/FileNav.tsx:126 components/ManageDialogs.tsx:176 components/SettingsDialog.tsx:427 components/SettingsDialog.tsx:428 components/SidePanel.tsx:363 components/WorkPanel.tsx:96 model/importSel.ts:59 model/importSel.ts:59 model/paste.ts:79 plugins/cloud/index.tsx:218 plugins/cloud/sync.ts:386 state/saver.ts:1023 state/saver.ts:1023
 common.join	；	把兩段提示接成一句時的分隔符號（英文用「; 」）	state/saver.ts:1023
 common.moreEntries	 等 {n} 條	列表太長時接在後面	App.tsx:101
 common.moreItems	 等 {n} 個	列表太長時接在後面	App.tsx:112 App.tsx:123 state/saver.ts:1023 state/saver.ts:1023
@@ -201,46 +208,46 @@ dictpaste.007	譯文	貼入字典視窗	components/DictPasteDialog.tsx:84
 dictpaste.008	{length} 筆	貼入字典視窗	components/DictPasteDialog.tsx:91
 dictpaste.009	取消	貼入字典視窗	components/DictPasteDialog.tsx:95
 dictpaste.010	加入	貼入字典視窗	components/DictPasteDialog.tsx:97
-list.001	發話者	條目欄	components/EntryList.tsx:30
-list.002	原文	條目欄	components/EntryList.tsx:30
-list.003	譯文	條目欄	components/EntryList.tsx:30
-list.004	全部	條目欄	components/EntryList.tsx:61
-list.005	未翻譯	條目欄	components/EntryList.tsx:62
-list.006	疑慮	條目欄	components/EntryList.tsx:63
-list.007	待思考	條目欄	components/EntryList.tsx:64
-list.008	有問題	條目欄	components/EntryList.tsx:65
-list.009	原文更新	條目欄	components/EntryList.tsx:66
-list.010	標記：{v1}，點擊變更	條目欄	components/EntryList.tsx:137
-list.011	特殊長度標準	條目欄	components/EntryList.tsx:168
-list.012	特殊標準：{v1}	條目欄	components/EntryList.tsx:168
-list.013	有備註	條目欄	components/EntryList.tsx:171 components/EntryList.tsx:172
-list.014	(新原文已移除)	條目欄	components/EntryList.tsx:186
-list.015	不需翻譯	條目欄	components/EntryList.tsx:195 components/EntryList.tsx:202
-list.016	尚未翻譯	條目欄	components/EntryList.tsx:195 components/EntryList.tsx:202
-list.017	文本條目	條目欄	components/EntryList.tsx:699 components/EntryList.tsx:705
-list.018	共 {n} 條	條目欄	components/EntryList.tsx:706
-list.020	設定檔案的長度標準	條目欄	components/EntryList.tsx:711
-list.021	長度標準：{v1}	條目欄	components/EntryList.tsx:711
-list.022	套用全部新原文	條目欄	components/EntryList.tsx:716 components/EntryList.tsx:716
-list.023	全部檢查	條目欄	components/EntryList.tsx:721 components/EntryList.tsx:721
-list.024	複製譯文欄	條目欄	components/EntryList.tsx:725 components/EntryList.tsx:725
-list.025	複製備註	條目欄	components/EntryList.tsx:729 components/EntryList.tsx:729
-list.026	篩選條目	條目欄	components/EntryList.tsx:733
-list.027	調整「{h}」欄寬	條目欄	components/EntryList.tsx:778
-list.028	條目欄	條目欄	components/EntryList.tsx:788
-list.029	目前沒有檔案，請新增檔案	條目欄	components/EntryList.tsx:803
-list.030	這個頁簽沒有條目	條目欄	components/EntryList.tsx:803
-list.031	這個篩選條件下沒有條目	條目欄	components/EntryList.tsx:803
-list.032	條目	條目欄	components/EntryList.tsx:808
-list.033	清除整欄	條目欄	components/EntryList.tsx:810
-list.034	標記	條目欄	components/EntryList.tsx:812 components/EntryList.tsx:822
-list.035	套用新原文	條目欄	components/EntryList.tsx:813 components/EntryList.tsx:823
-list.036	清除	條目欄	components/EntryList.tsx:814 components/EntryList.tsx:821
-list.037	刪除 {length} 列	條目欄	components/EntryList.tsx:815
-list.038	在下方插入	條目欄	components/EntryList.tsx:816
-list.039	上移	條目欄	components/EntryList.tsx:817 components/EntryList.tsx:824
-list.040	下移	條目欄	components/EntryList.tsx:818 components/EntryList.tsx:825
-list.041	編輯	條目欄	components/EntryList.tsx:820
+list.001	發話者	條目欄	components/EntryList.tsx:31
+list.002	原文	條目欄	components/EntryList.tsx:31
+list.003	譯文	條目欄	components/EntryList.tsx:31
+list.004	全部	條目欄	components/EntryList.tsx:62
+list.005	未翻譯	條目欄	components/EntryList.tsx:63
+list.006	疑慮	條目欄	components/EntryList.tsx:64
+list.007	待思考	條目欄	components/EntryList.tsx:65
+list.008	有問題	條目欄	components/EntryList.tsx:66
+list.009	原文更新	條目欄	components/EntryList.tsx:67
+list.010	標記：{v1}，點擊變更	條目欄	components/EntryList.tsx:138
+list.011	特殊長度標準	條目欄	components/EntryList.tsx:169
+list.012	特殊標準：{v1}	條目欄	components/EntryList.tsx:169
+list.013	有備註	條目欄	components/EntryList.tsx:172 components/EntryList.tsx:173
+list.014	(新原文已移除)	條目欄	components/EntryList.tsx:187
+list.015	不需翻譯	條目欄	components/EntryList.tsx:196 components/EntryList.tsx:203
+list.016	尚未翻譯	條目欄	components/EntryList.tsx:196 components/EntryList.tsx:203
+list.017	文本條目	條目欄	components/EntryList.tsx:702 components/EntryList.tsx:708
+list.018	共 {n} 條	條目欄	components/EntryList.tsx:709
+list.020	設定檔案的長度標準	條目欄	components/EntryList.tsx:714
+list.021	長度標準：{v1}	條目欄	components/EntryList.tsx:714
+list.022	套用全部新原文	條目欄	components/EntryList.tsx:719 components/EntryList.tsx:719
+list.023	全部檢查	條目欄	components/EntryList.tsx:724 components/EntryList.tsx:724
+list.024	複製譯文欄	條目欄	components/EntryList.tsx:728 components/EntryList.tsx:728
+list.025	複製備註	條目欄	components/EntryList.tsx:732 components/EntryList.tsx:732
+list.026	篩選條目	條目欄	components/EntryList.tsx:736
+list.027	調整「{h}」欄寬	條目欄	components/EntryList.tsx:781
+list.028	條目欄	條目欄	components/EntryList.tsx:791
+list.029	目前沒有檔案，請新增檔案	條目欄	components/EntryList.tsx:806
+list.030	這個頁簽沒有條目	條目欄	components/EntryList.tsx:806
+list.031	這個篩選條件下沒有條目	條目欄	components/EntryList.tsx:806
+list.032	條目	條目欄	components/EntryList.tsx:811
+list.033	清除整欄	條目欄	components/EntryList.tsx:813
+list.034	標記	條目欄	components/EntryList.tsx:815 components/EntryList.tsx:825
+list.035	套用新原文	條目欄	components/EntryList.tsx:816 components/EntryList.tsx:826
+list.036	清除	條目欄	components/EntryList.tsx:817 components/EntryList.tsx:824
+list.037	刪除 {length} 列	條目欄	components/EntryList.tsx:818
+list.038	在下方插入	條目欄	components/EntryList.tsx:819
+list.039	上移	條目欄	components/EntryList.tsx:820 components/EntryList.tsx:827
+list.040	下移	條目欄	components/EntryList.tsx:821 components/EntryList.tsx:828
+list.041	編輯	條目欄	components/EntryList.tsx:823
 error.001	Verso 發生錯誤	錯誤畫面	components/ErrorBoundary.tsx:17
 error.002	發生錯誤	錯誤畫面	components/ErrorBoundary.tsx:25
 error.003	目前的內容已經存進暫存，重新載入後可以恢復。	錯誤畫面	components/ErrorBoundary.tsx:26
@@ -827,7 +834,7 @@ save.014	資料夾裡有其他東西，改存到裡面的「Verso」資料夾	�
 save.015	已載入：{v1}{v2}	存檔訊息	state/saver.ts:1023
 save.016	已改名：{v1}{v2}	存檔訊息	state/saver.ts:1023
 save.017	字典 / {project} / {name}	存檔訊息	state/saver.ts:1025
-store.001	啟動中	狀態訊息	main.tsx:23 state/store.ts:711
+store.001	啟動中	狀態訊息	main.tsx:23 state/store.ts:712
 update.001	檢查更新	自動更新	state/updater.ts:33
 update.002	下載太久沒有進度	自動更新	state/updater.ts:57 state/updater.ts:58
 update.003	下載更新 0%	自動更新	state/updater.ts:60

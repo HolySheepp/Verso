@@ -343,7 +343,8 @@ interface Actions {
   selectCells(keys: string[], anchor: Cell, first: number, focus?: Cell): void;
   /** 修改目前頁簽的條目（可用 Ctrl+Z 復原） */
   /** 改目前頁簽的條目（at：改指定檔案的指定頁簽，不動選取） */
-  editSheet(fn: (entries: Entry[]) => { entries: Entry[]; keys?: string[] }, at?: { file: number; sheet: number }): void;
+  /** force：雲端檔案也照樣增刪、搬動條目（雲端外掛自己已經改好 Google 上的列時用） */
+  editSheet(fn: (entries: Entry[]) => { entries: Entry[]; keys?: string[] }, at?: { file: number; sheet: number }, force?: boolean): void;
   undoSheet(): void;
   /** 清空條目欄的復原／重做紀錄（不儲存、恢復暫存、換存檔資料夾時，舊紀錄已經對不上） */
   clearUndo(): void;
@@ -788,14 +789,18 @@ export const useStore = create<Store>((set, get) => {
       set({ cellSel: { keys, anchor, ...(focus ? { focus } : {}) } });
     },
 
-    editSheet(fn, at) {
+    editSheet(fn, at, force) {
       const s = get();
       if (!s.project) return;
+      // 雲端檔案：條目的增刪、順序只能用右鍵的整列刪除、插入、移動（要同時改 Google 上的列），其他操作只能改內容
+      const structural = (a: Entry[], b: Entry[]) => a.length !== b.length || a.some((e, i) => e.uid !== b[i].uid);
+      const blocked = (f: FileDoc | undefined, a: Entry[], b: Entry[]) => !force && !!f?.cloud && structural(a, b);
       if (at && (at.file !== s.file || at.sheet !== cur().sheetIdx)) {
         const f = s.project.files[at.file], sh = f?.sheets[at.sheet];
         if (!sh) return;
         const r = fn(sh.entries);
         if (r.entries === sh.entries) return;
+        if (blocked(f, sh.entries, r.entries)) { showToast(tx('cloud.rowsOnly'), { warn: true }); return; }
         pushSnap({ file: at.file, id: docId(f), doc: f, sheet: at.sheet, keys: [] });
         replaceSheet(at.file, at.sheet, r.entries);
         return;
@@ -803,6 +808,7 @@ export const useStore = create<Store>((set, get) => {
       const { sheetIdx, sheet } = cur();
       const r = fn(sheet.entries);
       if (r.entries === sheet.entries) return;
+      if (blocked(s.project.files[s.file], sheet.entries, r.entries)) { showToast(tx('cloud.rowsOnly'), { warn: true }); return; }
       // AI 正在處理的條目：不能刪、不能改（整批操作時這幾條維持原樣）
       if (s.aiLocked.length) {
         const locked = new Set(s.aiLocked);

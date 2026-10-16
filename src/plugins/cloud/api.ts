@@ -186,3 +186,18 @@ export async function readRich(sid: string, title: string, col: number): Promise
   });
   return out;
 }
+
+/** 在第 at 列（從 0 起算）插入 count 列空白列 */
+export async function insertRowsAt(sid: string, gid: number, at: number, count: number) {
+  await call('POST', `${sid}:batchUpdate`, {
+    requests: [{ insertDimension: { range: { sheetId: gid, dimension: 'ROWS', startIndex: at, endIndex: at + count }, inheritFromBefore: at > 0 } }],
+  });
+}
+
+/** 依序搬動好幾列：每一步把 from 那一列搬到 to 的位置之前（Google 的 destinationIndex） */
+export async function moveRowsSeq(sid: string, gid: number, moves: { from: number; to: number }[]) {
+  if (!moves.length) return;
+  await call('POST', `${sid}:batchUpdate`, {
+    requests: moves.map((m) => ({ moveDimension: { source: { sheetId: gid, dimension: 'ROWS', startIndex: m.from, endIndex: m.from + 1 }, destinationIndex: m.to } })),
+  });
+}

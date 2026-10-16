@@ -1,6 +1,13 @@
 // 介面文字（中文）：程式裡只寫代號，用 tx('代號') 取文字。由程式整理產生，改字句請改這裡。
 // 存檔裡的名稱（欄位標題、資料夾名稱等）不在這裡，維持中文。
 export const ZH = {
+  'cloud.deleteRowsAsk': '刪除 Google 上的 {n} 列？', // 雲端模式：刪除條目前的預覽
+  'cloud.deleteHint': '這些是 Google 表上這幾列的全部內容（包括 Verso 沒讀的欄），刪掉後 Verso 也不能復原。', // 雲端模式：刪除前的預覽
+  'cloud.rowNo': '第 {n} 列', // 雲端模式：刪除前的預覽
+  'cloud.deleteConfirm': '刪除', // 雲端模式：刪除前的預覽
+  'cloud.conflictSpeaker': '#{id} 的發話者已經被別人改過', // 雲端模式：寫回衝突
+  'cloud.conflictSrcText': '#{id} 的原文已經被別人改過', // 雲端模式：寫回衝突
+  'cloud.rowsOnly': '雲端檔案要增刪、搬動條目，請用右鍵的整列刪除、插入、上移、下移', // 雲端模式：擋下會改變條目數量或順序的操作
   'side.scope': '搜尋範圍：{scope}（點一下換範圍）', // 搜尋分頁：範圍按鈕
   'side.scope.sheet': '當前頁簽', // 搜尋分頁：範圍
   'side.scope.file': '當前檔案', // 搜尋分頁：範圍
