@@ -48,7 +48,9 @@ export const useCloud = create<{
   projectsOpen: boolean;
   /** 刪除 Google 上的列或分頁之前：預覽內容，確認後才刪 */
   askDelete: { title: string; rows: { row: number; cells: [string, string][] }[]; run(): Promise<void> } | null;
-}>(() => ({ builtin: false, projects: [], projectsOpen: false, askDelete: null, cfg: EMPTY, loaded: false, email: null, setup: null, manage: false, conflicts: [], syncing: false, lastSync: null, syncError: '', shared: [] }));
+  /** 更新原文（雲端模式）的視窗：哪份試算表、從哪個頁簽打開 */
+  srcUpd: { sid: string; sheet: number } | null;
+}>(() => ({ builtin: false, projects: [], projectsOpen: false, askDelete: null, srcUpd: null, cfg: EMPTY, loaded: false, email: null, setup: null, manage: false, conflicts: [], syncing: false, lastSync: null, syncError: '', shared: [] }));
 
 /** 用得到的試算表：資料表裡共用的設定為準，加上這台電腦自己設定的，扣掉不再使用的 */
 export function allSheets(): CloudSheet[] {

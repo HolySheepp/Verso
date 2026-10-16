@@ -8,6 +8,7 @@ export const tabHook: {
   rename?: (i: number, name: string) => boolean;
   delete?: (i: number) => boolean;
   insert?: (after: number, sheets: { name: string; entries: import('../model/types').Entry[] }[]) => boolean;
+  srcUpdate?: (i: number) => boolean;
 } = {};
 
 /** 軟體結束前要做完的事（例如雲端模式把還沒寫回的譯文寫回去）；每件最多等 8 秒 */

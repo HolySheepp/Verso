@@ -18,6 +18,10 @@ import { currentOf, isShown, showToast, useStore } from '../../state/store';
 import { ensureCols, insertRowsAt, moveRowsSeq, deleteRows, renameTab, deleteTab } from './api';
 import { colName } from '../../model/importSel';
 import { blankEntry, insertRows, moveRows } from '../../model/cells';
+import { applyUpdate, type AlignRow, type NewRow } from '../../model/srcUpdate';
+import { insertCol } from './api';
+import { toFields } from './config';
+import type { FieldMap } from '../../model/importSel';
 import { textToStd, stdToText } from '../../model/length';
 import { backupPresets, ensureProjects, readProjects } from './projects';
 import { listDicts, loadEnabled, reloadDicts } from './dicts';
@@ -26,6 +30,10 @@ import { blueStart, markToText, noteCell, richSig, stripMarkup, textToMark, tgtC
 import { allSheets, setConfig, toFieldMap, useCloud, type CloudSheet, type CloudTab, type Conflict, type FieldRange, type Fields } from './config';
 
 export const fidOf = (sid: string) => 'g:' + sid;
+
+/** 外掛自己改軟體裡的檔案（重新讀取、整列操作）時設成 true：監看變動的地方就不會當成使用者的操作 */
+let internal = false;
+const asInternal = (fn: () => void) => { internal = true; try { fn(); } finally { internal = false; } };
 
 /** 讀過的試算表（重新讀取、寫回只處理這些；還沒點開的只是空殼） */
 const loaded = new Set<string>();
@@ -119,9 +127,18 @@ export async function writeShared(conf: CloudSheet) {
 }
 
 /** 每個檔案在資料表裡的分頁（名稱是試算表 ID）：分頁ID、條目ID、第幾個、標記、建議翻譯、修改、譯文、寫入的譯文格、備註藍色起點、更新者、更新時間 */
-const DATA_HEAD = ['分頁ID', '條目ID', '第幾個', '標記', '建議翻譯', '修改', '譯文', '寫入的譯文格', '備註藍色起點', '更新者', '更新時間'];
-const D = { mark: 3, sugg: 4, ver: 5, tgt: 6, written: 7, blue: 8 } as const;
-interface FileData { rows: Map<string, { row: number; v: string[] }>; exists: boolean; at: number }
+const DATA_HEAD = ['分頁ID', '條目ID', '第幾個', '標記', '建議翻譯', '修改', '譯文', '寫入的譯文格', '備註藍色起點', '更新者', '更新時間', '原文更新'];
+const D = { mark: 3, sugg: 4, ver: 5, tgt: 6, written: 7, blue: 8, upd: 11 } as const;
+
+/** Google 上這條的原文：R15 新檔案還沒套用新原文時，Google 上已經是新原文 */
+const effSrc = (e: Entry) => (e.upd?.cloudNew && e.upd.src !== undefined ? e.upd.src : e.src);
+/** 原文更新的狀態存進資料表（R15 的舊原文一起存，換電腦也看得到） */
+const updText = (e: Entry) => (e.upd ? JSON.stringify({ u: e.upd, ...(e.upd.cloudNew ? { o: e.src } : {}) }) : '');
+function textToUpd(t: string): { u: NonNullable<Entry['upd']>; o?: string } | null {
+  if (!t) return null;
+  try { const x = JSON.parse(t); return x && typeof x === 'object' && x.u ? x : null; } catch { return null; }
+}
+interface FileData { rows: Map<string, { row: number; v: string[] }>; exists: boolean; at: number; head?: number }
 const fileData = new Map<string, FileData>();
 const dataKey = (gid: number, key: string) => [gid, ...key.split('\u0000')].join('\t');
 
@@ -135,6 +152,7 @@ async function readData(sid: string, force = false): Promise<FileData | undefine
   try {
     const [rows] = await readTabs(did, [sid]);
     rows.forEach((v, r) => { if (r > 0 && v[0]) fd.rows.set([v[0], v[1] ?? '', v[2] ?? ''].join('\t'), { row: r, v }); });
+    fd.head = rows[0]?.length ?? 0;
   } catch (e) { if (!is400(e)) throw e; fd.exists = false; }
   fileData.set(sid, fd);
   return fd;
@@ -182,12 +200,13 @@ function buildSheet(tab: CloudTab, rows: string[][], prev: Sheet | undefined, ke
     const tgtRow = map.tgt?.rows[i];
     const composite = !!written && n.tgt === written;
     const rTgt = composite ? d![D.tgt] ?? '' : written && tgtRow !== undefined && rich?.[tgtRow] ? stripMarkup(rich[tgtRow]) : n.tgt;
+    const rUpd = textToUpd(d?.[D.upd] ?? '');
     const rMark = textToMark(d?.[D.mark] ?? '', customs);
     const rSugg = d?.[D.sugg] ?? '';
     const rVer = textToVerify(d?.[D.ver] ?? '');
     const blue = d?.[D.blue] ? Number(d[D.blue]) : undefined;
     const rCore = JSON.stringify([d?.[D.mark] ?? '', rSugg, d?.[D.ver] ?? '']);
-    const rData = JSON.stringify(d ? d.slice(D.mark, D.blue + 1).map((x) => x ?? '') : ['', '', '', '', '', '']);
+    const rData = JSON.stringify([...(d ? d.slice(D.mark, D.blue + 1).map((x) => x ?? '') : ['', '', '', '', '', '']), d?.[D.upd] ?? '']);
     const o = old.get(keys[i]);
     const b = o ? base.get(o.uid) : undefined;
     let e: Entry;
@@ -198,10 +217,14 @@ function buildSheet(tab: CloudTab, rows: string[][], prev: Sheet | undefined, ke
       // ID、發話者、原文：自己改了還沒寫回的留著
       const id = b && o.id !== b.id ? o.id : n.id;
       const speaker = b && o.speaker !== b.speaker ? o.speaker : n.speaker;
-      const srcNow = b && o.src !== b.src ? o.src : n.src;
+      // R15 還沒套用新原文：條目的 src 是舊原文，Google 上的新原文放在 upd.src
+      const cloudNew = o.upd?.cloudNew && o.upd.src !== undefined;
+      const srcNow = b && effSrc(o) !== b.src ? o.src : cloudNew ? o.src : n.src;
+      const updNow = cloudNew && !(b && effSrc(o) !== b.src) && o.upd!.src !== n.src ? { ...o.upd!, src: n.src } : o.upd;
       const localData = !fd || (b && JSON.stringify(dataCore(o, customs)) !== b.core);
       const marks = localData ? {} : { mark: rMark.mark, keptMark: rMark.keptMark, sugg: rSugg, ver: rVer };
-      const next = { ...o, id, speaker, src: srcNow, src0: n.src, tgt, note, ...marks };
+      const next = { ...o, id, speaker, src: srcNow, src0: n.src, tgt, note, upd: updNow, ...marks };
+      if (!next.upd) delete next.upd;
       const same = (Object.keys(next) as (keyof Entry)[]).every((k) => next[k] === o[k]);
       e = same ? o : next;
     } else {
@@ -209,6 +232,11 @@ function buildSheet(tab: CloudTab, rows: string[][], prev: Sheet | undefined, ke
       e = { ...n, tgt: rTgt, tgt0: rTgt, pending: false, ...(k ?? {}) };
       // 有資料表：標記等以資料表為準（資料表裡還沒有的，用這台電腦之前記的，稍後寫上去）
       if (d) Object.assign(e, { mark: rMark.mark, keptMark: rMark.keptMark, sugg: rSugg, ver: rVer });
+      // 原文更新：R15 的條目換回舊原文、新原文放在 upd（Google 上的新原文被人改過就用改過的）
+      if (rUpd) {
+        if (rUpd.u.cloudNew && rUpd.u.src !== undefined) Object.assign(e, { src: rUpd.o ?? n.src, upd: { ...rUpd.u, src: n.src } });
+        else e.upd = rUpd.u;
+      }
     }
     base.set(e.uid, {
       id: n.id, speaker: n.speaker, src: n.src,
@@ -277,7 +305,7 @@ export async function loadSheet(sid: string, quiet = false): Promise<boolean> {
     const doc: FileDoc = { ...(cur0 ?? {}), fid: fidOf(sid), cloud: { sid }, name: m.title, project: cur0?.project ?? project, sheets, lengthStd: conf.lengthStd };
     const cur = useStore.getState().project!;
     const at = cur.files.findIndex((f) => f.fid === doc.fid);
-    useStore.setState({ project: { ...cur, files: at >= 0 ? cur.files.map((f, i) => (i === at ? doc : f)) : [...cur.files, doc] } });
+    asInternal(() => useStore.setState({ project: { ...cur, files: at >= 0 ? cur.files.map((f, i) => (i === at ? doc : f)) : [...cur.files, doc] } }));
     // 收到別人的修改：這個檔案的 Ctrl+Z 紀錄不要了（免得退回別人的修改）
     if (prev) useStore.getState().dropUndo(doc.fid!);
     loaded.add(sid);
@@ -312,7 +340,8 @@ function wanted(e: Entry, b: Base, customs: CustomMark[], useData: boolean) {
   const note = noteCell(e.note, blueFrom);
   const composite = cell.text !== e.tgt || cell.runs.length > 0;
   const row = [...dataCore(e, customs), composite ? e.tgt : '', composite ? cell.text : '', blueFrom === undefined ? '' : String(blueFrom)];
-  return { cell, note, blueFrom, row, core: JSON.stringify(dataCore(e, customs)), dataSig: JSON.stringify(row) };
+  const upd = updText(e);
+  return { cell, note, blueFrom, row, upd, core: JSON.stringify(dataCore(e, customs)), dataSig: JSON.stringify([...row, upd]) };
 }
 
 /** 把改過的譯文、備註、標記等寫回 Google；all：連正在編輯的那條也寫（結束、關掉雲端模式時） */
@@ -331,7 +360,7 @@ export function flush(sid: string, all = false): Promise<void> {
       if (!tab?.fields.id || !tab.fields.tgt) continue;
       // 用 Google 上的 ID 算「第幾個」（自己改了 ID 還沒寫回時，用舊的找列）
       const keys = keysOf(sh.entries.map((e) => ({ id: base.get(e.uid)?.id ?? e.id })));
-      const textChanged = (e: Entry, b: Base) => e.id !== b.id || e.speaker !== b.speaker || e.src !== b.src;
+      const textChanged = (e: Entry, b: Base) => e.id !== b.id || e.speaker !== b.speaker || effSrc(e) !== b.src;
       const changed = sh.entries.map((e, i) => ({ e, key: keys[i], b: base.get(e.uid) }))
         .filter((x): x is { e: Entry; key: string; b: Base } => !!x.b && x.e.uid !== skip && !locked.has(x.e.uid))
         .map((x) => ({ ...x, w: wanted(x.e, x.b, customs, !!did) }))
@@ -357,10 +386,10 @@ export function flush(sid: string, all = false): Promise<void> {
           const sp = (v: string) => (v === '無' ? '' : v);
           const rs = speakers[row] ?? '', rsrc = srcs[row] ?? '';
           if (tab.fields.speaker && e.speaker !== b.speaker && (rs.trim() || '無') !== b.speaker && (rs.trim() || '無') !== e.speaker) { addConflict({ sid, gid: sh.gid!, uid: e.uid, id: e.id, src: e.src, field: 'speaker', mine: e.speaker, theirs: rs }); continue; }
-          if (tab.fields.src && e.src !== b.src && rsrc !== b.src && rsrc !== e.src) { addConflict({ sid, gid: sh.gid!, uid: e.uid, id: e.id, src: e.src, field: 'src', mine: e.src, theirs: rsrc }); continue; }
+          if (tab.fields.src && effSrc(e) !== b.src && rsrc !== b.src && rsrc !== effSrc(e)) { addConflict({ sid, gid: sh.gid!, uid: e.uid, id: e.id, src: e.src, field: 'src', mine: effSrc(e), theirs: rsrc }); continue; }
           if (e.id !== b.id) cells.push({ gid: sh.gid!, row, col: tab.fields.id.col, rich: plain(e.id) });
           if (tab.fields.speaker && e.speaker !== b.speaker) cells.push({ gid: sh.gid!, row, col: tab.fields.speaker.col, rich: plain(sp(e.speaker)) });
-          if (tab.fields.src && e.src !== b.src) cells.push({ gid: sh.gid!, row, col: tab.fields.src.col, rich: plain(e.src) });
+          if (tab.fields.src && effSrc(e) !== b.src) cells.push({ gid: sh.gid!, row, col: tab.fields.src.col, rich: plain(effSrc(e)) });
           const writeCell = richSig(w.cell) !== b.cellSig;
           const writeNote = !!tab.fields.note && richSig(w.note) !== b.noteSig;
           // 這格在讀取後被別人改過：先問（這條先不寫）
@@ -376,12 +405,14 @@ export function flush(sid: string, all = false): Promise<void> {
         const dataDone = did ? done.filter(({ e, w }) => w.dataSig !== base.get(e.uid)!.data) : [];
         if (dataDone.length) {
           const fd = (await readData(sid, true))!;
-          if (!fd.exists) { await addTab(did, sid, DATA_HEAD.length); await writeRows(did, sid, [{ row: 0, values: DATA_HEAD }]); fd.exists = true; }
+          if (!fd.exists) { await addTab(did, sid, DATA_HEAD.length); await writeRows(did, sid, [{ row: 0, values: DATA_HEAD }]); fd.exists = true; fd.head = DATA_HEAD.length; }
+          // 舊版建的分頁欄位比較少：在右邊補欄位、補標題（舊資料不動）
+          else if ((fd.head ?? 0) < DATA_HEAD.length) { await ensureCols(did, sid, DATA_HEAD.length); await writeRows(did, sid, [{ row: 0, values: DATA_HEAD }]); fd.head = DATA_HEAD.length; }
           const now = new Date().toISOString();
           const updates: { row: number; values: string[] }[] = [];
           const adds: string[][] = [];
           for (const { key, w } of dataDone) {
-            const values = [String(sh.gid), ...key.split('\u0000'), ...w.row, who, now];
+            const values = [String(sh.gid), ...key.split('\u0000'), ...w.row, who, now, w.upd];
             const hit = fd.rows.get(dataKey(sh.gid!, key));
             if (hit) updates.push({ row: hit.row, values }); else adds.push(values);
           }
@@ -391,7 +422,7 @@ export function flush(sid: string, all = false): Promise<void> {
         }
         done.forEach(({ e }) => pendingNew.delete(e.uid));
         done.forEach(({ e, w, row }) => base.set(e.uid, {
-          ...base.get(e.uid)!, id: e.id, speaker: e.speaker, src: e.src, tgt: e.tgt, cell: w.cell.text, cellSig: richSig(w.cell), note: e.note, noteSig: richSig(w.note), blueFrom: w.blueFrom, row,
+          ...base.get(e.uid)!, id: e.id, speaker: e.speaker, src: effSrc(e), tgt: e.tgt, cell: w.cell.text, cellSig: richSig(w.cell), note: e.note, noteSig: richSig(w.note), blueFrom: w.blueFrom, row,
           ...(did ? { core: w.core, data: w.dataSig } : {}),
         }));
         if (missing.length) showToast(tx('cloud.missingId', { name: sh.name, ids: missing.slice(0, 5).join(tx('common.sep')) }), { warn: true });
@@ -546,6 +577,16 @@ export function watchStore() {
         if (was === f) return;
         dirty.push(sid);
         saveCacheSoon(f);
+        // 「新版已移除」的條目套用了（軟體裡不見了）：Google 上那一列也刪掉
+        if (!internal && was && !was.cloud?.stub && !f.cloud?.stub) {
+          for (const sh of f.sheets) {
+            const old = was.sheets.find((x) => x.gid === sh.gid);
+            if (!old || old.entries === sh.entries) continue;
+            const now = new Set(sh.entries.map((e) => e.uid));
+            const gone = old.entries.filter((e) => e.upd?.removed && !now.has(e.uid));
+            if (gone.length) void deleteRemoved(sid, sh.gid!, gone);
+          }
+        }
         // 檔案的長度標準、專案改了：記進資料表（大家共用）
         if (was && !f.cloud?.stub && !was.cloud?.stub && (stdToText(was.lengthStd) !== stdToText(f.lengthStd) || was.project !== f.project)) void saveSheetMeta(sid, f);
       });
@@ -658,7 +699,7 @@ export function rowOp(kind: 'delete' | 'insert' | 'up' | 'down', rows: number[],
               fields = shiftFields(fields, r.row, -1);
               remapRows(currentOf(useStore.getState()).sheet.entries, (y) => (y > r.row ? y - 1 : y));
             }
-            useStore.getState().editSheet((es) => ({ entries: es.filter((e) => !list.some((x) => entries[x.i]?.uid === e.uid)), keys: [] }), at, true);
+            asInternal(() => useStore.getState().editSheet((es) => ({ entries: es.filter((e) => !list.some((x) => entries[x.i]?.uid === e.uid)), keys: [] }), at, true));
             done();
             await saveTabFields(sid, gid, fields);
           } catch (e) { fail(e); }
@@ -671,7 +712,7 @@ export function rowOp(kind: 'delete' | 'insert' | 'up' | 'down', rows: number[],
         const n = Math.max(1, count);
         await insertRowsAt(sid, gid, r0, n);
         remapRows(entries, (y) => (y >= r0 ? y + n : y));
-        useStore.getState().editSheet((es) => ({ entries: insertRows(es, last, n), keys: [] }), at, true);
+        asInternal(() => useStore.getState().editSheet((es) => ({ entries: insertRows(es, last, n), keys: [] }), at, true));
         // 新的條目：Google 上是空白列，內容在離開那條時寫入
         const now = currentOf(useStore.getState()).sheet.entries.slice(last + 1, last + 1 + n);
         const customs = useStore.getState().project!.customMarks;
@@ -702,7 +743,7 @@ export function rowOp(kind: 'delete' | 'insert' | 'up' | 'down', rows: number[],
       await moveRowsSeq(sid, gid, moves);
       const r = moveRows(entries, sorted, dir);
       r.entries.forEach((e, k) => { const b = base.get(e.uid); if (b && pos[k] !== undefined) base.set(e.uid, { ...b, row: pos[k]! }); });
-      useStore.getState().editSheet(() => ({ entries: r.entries, keys: r.rows.flatMap((k) => [0, 1, 2, 3].map((c) => k + ':' + c)) }), at, true);
+      asInternal(() => useStore.getState().editSheet(() => ({ entries: r.entries, keys: r.rows.flatMap((k) => [0, 1, 2, 3].map((c) => k + ':' + c)) }), at, true));
       done();
     } catch (e) { fail(e); }
   })();
@@ -762,7 +803,7 @@ export function tabDelete(i: number): boolean {
           await deleteTab(sid, sh.gid!);
           await saveTabs(sid, conf.tabs.filter((t) => t.gid !== sh.gid));
           const st = useStore.getState();
-          if (st.file === fileIdx) st.deleteSheet(i);
+          if (st.file === fileIdx) asInternal(() => st.deleteSheet(i));
           useStore.getState().dropUndo(fidOf(sid));
         } catch (e) { showToast(tx('cloud.writeFailed', { name: fileDoc.name, reason: errText(e) }), { warn: true }); }
       } } });
@@ -814,4 +855,166 @@ export function tabInsert(after: number, sheets: { name: string; entries: Entry[
     } catch (e) { showToast(tx('cloud.writeFailed', { name: fileDoc.name, reason: errText(e) }), { warn: true }); }
   })();
   return true;
+}
+
+/** 「新版已移除」的條目套用了（軟體裡刪掉了）：Google 上那一列也刪掉 */
+async function deleteRemoved(sid: string, gid: number, gone: Entry[]) {
+  const conf = confOf(sid);
+  const tab = conf?.tabs.find((t) => t.gid === gid);
+  if (!tab?.fields.id) return;
+  try {
+    const [ids] = await readCols(sid, tab.title, [tab.fields.id.col]);
+    const rows: number[] = [];
+    for (const e of gone) {
+      const b = base.get(e.uid);
+      if (!b) continue;
+      // 讀取時的列還是同一個 ID 就刪那列，不然找第一個同 ID 的列
+      const r = (ids[b.row] ?? '') === b.id ? b.row : ids.findIndex((x, k) => k >= firstRowOf(tab.fields) && x === b.id && !rows.includes(k));
+      if (r >= 0 && !rows.includes(r)) rows.push(r);
+      base.delete(e.uid);
+    }
+    if (!rows.length) return;
+    await deleteRows(sid, gid, rows);
+    let fields = tab.fields;
+    const doc = fileOf(sid);
+    const sh = doc?.sheets.find((x) => x.gid === gid);
+    for (const r of [...rows].sort((a, b) => b - a)) {
+      fields = shiftFields(fields, r, -1);
+      if (sh) remapRows(sh.entries, (y) => (y > r ? y - 1 : y));
+    }
+    await saveTabFields(sid, gid, fields);
+  } catch (e) { showToast(tx('cloud.writeFailed', { name: tab.title, reason: errText(e) }), { warn: true }); }
+}
+
+// ---- 更新原文（雲端模式）：套用到原本那份 Google 表 ----
+/**
+ * 一個頁簽的比對結果套用到軟體裡，並把新版多出來的句子插進 Google 上（ID、發話者、原文寫入）；
+ * 有改的句子先暫存新原文，按「套用新原文」才寫回
+ */
+export async function applyCloudUpdate(sid: string, sheetIdx: number, out: Entry[]) {
+  const s = useStore.getState();
+  const fi = s.project?.files.findIndex((f) => f.fid === fidOf(sid)) ?? -1;
+  const doc = s.project?.files[fi];
+  const sh = doc?.sheets[sheetIdx];
+  const tab = sh ? confOf(sid)?.tabs.find((t) => t.gid === sh.gid) : undefined;
+  if (!doc || !sh || !tab) return;
+  await flush(sid, true);
+  asInternal(() => useStore.getState().editSheet(() => ({ entries: out, keys: [] }), { file: fi, sheet: sheetIdx }, true));
+  let fields = tab.fields;
+  let prevRow = firstRowOf(fields) - 1;
+  const customs = useStore.getState().project!.customMarks;
+  for (let i = 0; i < out.length;) {
+    const b = base.get(out[i].uid);
+    if (b) { prevRow = b.row; i++; continue; }
+    // 新版多出來的一段：插在前一句在 Google 上的列後面
+    let j = i;
+    while (j < out.length && !base.get(out[j].uid)) j++;
+    const n = j - i, at = prevRow + 1;
+    await insertRowsAt(sid, tab.gid, at, n);
+    remapRows(out.filter((e) => base.has(e.uid)), (y) => (y >= at ? y + n : y));
+    fields = shiftFields(fields, at, n);
+    out.slice(i, j).forEach((e, k) => base.set(e.uid, {
+      id: '', speaker: '無', src: '', tgt: '', cell: '', cellSig: plainSig(''), note: '', noteSig: plainSig(''), row: at + k,
+      core: JSON.stringify(dataCore({ ...e, mark: '', sugg: '', ver: undefined }, customs)), data: JSON.stringify(['', '', '', '', '', '', '']),
+    }));
+    prevRow = at + n - 1;
+    i = j;
+  }
+  await saveTabFields(sid, tab.gid, fields);
+  useStore.getState().dropUndo(fidOf(sid));
+  await flush(sid, true);
+}
+
+// ---- R15：用新連結建一個新檔案，原本的檔案不動 ----
+export interface R15Tab {
+  /** 原本檔案的頁簽 */
+  sheetIdx: number;
+  /** 新連結的分頁 */
+  gid: number; title: string; rows: string[][];
+  /** 選的 ID、發話者、原文範圍 */
+  fields: FieldMap;
+  /** 比對結果 */
+  align: AlignRow[]; next: NewRow[];
+}
+
+/** 建 R15 檔案：新連結的分頁照選的範圍，譯文從原本的檔案帶過去，改過的原文標「原文更新」可以看舊原文 */
+export async function createR15(sid: string, link: string, linkTitle: string, tabs: R15Tab[]) {
+  const conf = confOf(sid);
+  const doc = fileOf(sid);
+  if (!conf || !doc) return;
+  await flush(sid, true);
+  const did = dataSid();
+  const who = useCloud.getState().email ?? '';
+  const now = new Date().toISOString();
+  const newTabs: CloudTab[] = [];
+  const dataRows: string[][] = [];
+  for (const t of tabs) {
+    const sh = doc.sheets[t.sheetIdx];
+    const old = conf.tabs.find((x) => x.gid === sh.gid);
+    if (!old) continue;
+    // 標題列：在選的範圍上面一列；譯文、備註照原本頁簽的標題名稱找
+    const first = Math.min(...(['id', 'speaker', 'src'] as const).map((k) => t.fields[k]?.rows[0] ?? Infinity));
+    const head = first > 0 ? t.rows[first - 1] ?? [] : [];
+    const [oldRows] = await readTabs(sid, [old.title]);
+    const oldFirst = firstRowOf(old.fields);
+    const oldHead = oldFirst > 0 ? oldRows[oldFirst - 1] ?? [] : [];
+    const nameAt = (f: FieldRange | null) => (f ? (oldHead[f.col] ?? '').trim() : '');
+    const findCol = (name: string) => (name ? head.findIndex((h) => (h ?? '').trim() === name) : -1);
+    let fields = { ...t.fields };
+    let tgtCol = findCol(nameAt(old.fields.tgt));
+    const noteCol = findCol(nameAt(old.fields.note));
+    if (tgtCol < 0) {
+      // 找不到譯文欄：在原文右邊插入一欄（標題照原本的頁簽）
+      tgtCol = t.fields.src!.col + 1;
+      await insertCol(link, t.gid, tgtCol);
+      (Object.keys(fields) as (keyof FieldMap)[]).forEach((k) => { const f = fields[k]; if (f && f.col >= tgtCol) fields[k] = { ...f, col: f.col + 1 }; });
+      if (first > 0 && nameAt(old.fields.tgt)) await writeRich(link, [{ gid: t.gid, row: first - 1, col: tgtCol, rich: { text: nameAt(old.fields.tgt), runs: [] } }]);
+    }
+    const srcRows = fields.src!.rows;
+    fields = { ...fields, tgt: { col: tgtCol, rows: srcRows }, note: noteCol >= 0 ? { col: noteCol + (noteCol >= tgtCol && tgtCol === t.fields.src!.col + 1 && findCol(nameAt(old.fields.tgt)) < 0 ? 1 : 0), rows: srcRows } : null };
+    // 譯文帶過去；原文有改的記成「原文更新」（新原文已經在 Google 上，舊原文存進資料表）
+    const out = applyUpdate(sh.entries, t.next, t.align, { id: true, speaker: true });
+    const cells: { gid: number; row: number; col: number; rich: Rich }[] = [];
+    const newIds = t.next.map((n) => n.id);
+    const occ = keysOf(newIds.map((id) => ({ id })));
+    t.align.forEach((r) => {
+      if (r.old === null || r.new === null) return;
+      const e = sh.entries[r.old];
+      if (e.tgt) cells.push({ gid: t.gid, row: srcRows[r.new], col: tgtCol, rich: { text: e.tgt, runs: [] } });
+      const o = out.find((x) => x.uid === e.uid);
+      if (o?.upd?.src !== undefined) {
+        const upd = JSON.stringify({ u: { src: o.upd.src, cloudNew: true }, o: e.src });
+        dataRows.push([String(t.gid), ...occ[r.new].split('\u0000'), '', '', '', '', '', '', who, now, upd]);
+      }
+    });
+    await writeRich(link, cells);
+    newTabs.push({ gid: t.gid, title: t.title, fields: toFields(fields, t.rows.length - 1) });
+  }
+  // 沒選範圍的頁簽：照舊原文整頁帶過去（在新連結裡新增分頁）
+  const used = new Set(tabs.map((t) => t.sheetIdx));
+  const linkMeta = await meta(link);
+  for (const [k, sh] of doc.sheets.entries()) {
+    if (used.has(k)) continue;
+    const old = conf.tabs.find((x) => x.gid === sh.gid);
+    if (!old) continue;
+    const [rows] = await readTabs(sid, [old.title]);
+    let name = old.title, n = 2;
+    while (linkMeta.tabs.some((x) => x.title === name)) name = `${old.title} (${n++})`;
+    const width = Math.max(1, ...rows.map((r) => r.length));
+    const gid = await addTab(link, name, width);
+    if (rows.length) {
+      await writeRows(link, name, [{ row: 0, values: rows[0] }]);
+      if (rows.length > 1) await appendRows(link, name, rows.slice(1).map((r) => (r.length ? r : [''])));
+    }
+    linkMeta.tabs.push({ gid, title: name });
+    newTabs.push({ gid, title: name, fields: old.fields });
+  }
+  // 原文更新的狀態寫進資料表（新檔案的分頁）
+  if (did && dataRows.length) {
+    const fd = await readData(link, true);
+    if (fd && !fd.exists) { await addTab(did, link, DATA_HEAD.length); await writeRows(did, link, [{ row: 0, values: DATA_HEAD }]); }
+    await appendRows(did, link, dataRows);
+    fileData.delete(link);
+  }
+  await putSheet({ sid: link, title: linkTitle, project: conf.project, tabs: newTabs, lengthStd: conf.lengthStd });
 }

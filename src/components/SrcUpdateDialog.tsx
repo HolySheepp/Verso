@@ -178,7 +178,7 @@ type Sel = { side: Side; anchor: number; a: number; b: number };
  * 對齊結果：左舊右新。可以像 Excel 一樣框選一邊的格子拖到別的位置
  * （插在放下的位置，原本的格子往下推，拖走的地方留空格），右鍵插入或刪除空格。
  */
-function AlignGrid({ rows, entries, next, infos, onChange }: {
+export function AlignGrid({ rows, entries, next, infos, onChange }: {
   rows: AlignRow[]; entries: Entry[]; next: NewRow[]; infos: RowInfo[]; onChange(rows: AlignRow[]): void;
 }) {
   const [sel, setSel] = useState<Sel | null>(null);

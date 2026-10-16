@@ -16,6 +16,7 @@ import { IconFolder, IconList, IconPlus, IconRefresh, IconWinClose } from '../..
 import { flushDicts, removeDicts, watchDicts } from './dicts';
 import { leaveProjects, writePresets } from './projects';
 import { ProjectsDialog } from './ProjectsDialog';
+import { SrcUpdateCloud, openSrcUpdate } from './SrcUpdateCloud';
 import { beforeExit, rowHook, tabHook } from '../hooks';
 import type { VersoPlugin } from '../registry';
 import { builtinClient, errText, insertCol, login, loginStatus, logout, meta, readTabs, sidOf } from './api';
@@ -366,12 +367,14 @@ function Overlay() {
   const manage = useCloud((s) => s.manage);
   const projectsOpen = useCloud((s) => s.projectsOpen);
   const askDelete = useCloud((s) => s.askDelete);
+  const srcUpd = useCloud((s) => s.srcUpd);
   return (
     <>
       {setup && <SetupDialog key={setup.sid ?? 'new'} sid0={setup.sid} />}
       {manage && <ManageDialog />}
       {projectsOpen && <ProjectsDialog />}
       {askDelete && <DeletePreview ask={askDelete} />}
+      {srcUpd && <SrcUpdateCloud key={srcUpd.sid + ':' + srcUpd.sheet} sid={srcUpd.sid} start={srcUpd.sheet} />}
       <ConflictAsk />
     </>
   );
@@ -386,6 +389,7 @@ async function start() {
   tabHook.rename = tabRename;
   tabHook.delete = tabDelete;
   tabHook.insert = tabInsert;
+  tabHook.srcUpdate = openSrcUpdate;
   beforeExit.add(flushAll);
   beforeExit.add(flushDicts);
   // 雲端模式改了常用標準：寫進資料表

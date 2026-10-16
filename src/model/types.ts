@@ -60,7 +60,8 @@ export interface Entry {
 }
 
 /** hidden：使用者改了標記，「原文更新」標記不再顯示（新原文還在，仍可查看、套用） */
-export interface SrcUpdate { src?: string; removed?: boolean; applied?: boolean; hidden?: boolean }
+/** cloudNew：雲端檔案（R15）的 Google 上已經是新原文，src 是新原文、條目的 src 是舊原文 */
+export interface SrcUpdate { src?: string; removed?: boolean; applied?: boolean; hidden?: boolean; cloudNew?: boolean }
 
 export interface Sheet {
   name: string;
