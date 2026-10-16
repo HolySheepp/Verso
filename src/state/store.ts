@@ -527,8 +527,8 @@ export function dictEnabled(s: Pick<State, 'project' | 'file' | 'sheetBy' | 'sel
 }
 
 /** 同上，直接給目前專案與手動開關（只訂閱這兩個值的區塊用） */
-/** 沒手動開關時是否啟用：目前專案和共用的本地字典預設啟用；雲端字典預設不啟用（勾了才讀） */
-export const dictDefaultOn = (current: string, d: DictInfo) => !d.cloud && (d.project === current || d.project === SHARED);
+/** 沒手動開關時是否啟用：目前專案和共用的字典（本地、雲端都一樣）預設啟用；之後照使用者的勾選記住 */
+export const dictDefaultOn = (current: string, d: DictInfo) => d.project === current || d.project === SHARED;
 export function dictEnabledIn(current: string, overrides: Record<string, boolean>, d: DictInfo) {
   return overrides[overrideKey(current, d)] ?? dictDefaultOn(current, d);
 }
