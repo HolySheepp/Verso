@@ -8,6 +8,7 @@ import { fz } from '../model/fonts';
 import { enabledIssues } from '../model/checks';
 import { effectiveStd } from '../model/length';
 import { findHits, foldText, useActiveTerms } from '../state/dictHits';
+import { bestRank, sortByRank } from '../model/matchRank';
 import { leaveFile } from '../state/saver';
 import { ContextMenu } from './ContextMenu';
 import { sideFieldKey } from './Shortcuts';
@@ -97,7 +98,9 @@ function DictTab() {
   const results = useMemo(() => {
     if (!ql) return [];
     const fq = foldText(q);
-    return active.filter((_, i) => folded[i][0].includes(fq) || folded[i][1].includes(fq));
+    // 最相符排序：完全相同 → 單字完全相同 → 單字開頭相同 → 在中間（同一級照原本順序）
+    const idx = active.map((_, i) => i).filter((i) => folded[i][0].includes(fq) || folded[i][1].includes(fq));
+    return sortByRank(idx, (i) => bestRank([folded[i][0], folded[i][1]], fq)).map((i) => active[i]);
   }, [active, folded, q]);
   // 搜尋結果先顯示 50 筆，捲到底再顯示下一批
   const [shown, setShown] = useState(DICT_BATCH);
@@ -199,35 +202,54 @@ function DictTab() {
   );
 }
 
-interface SearchHit { f: number; sh: number; i: number; where: string; src: string; tgt: string }
-interface SearchState { q: string; hits: SearchHit[]; at: [number, number, number]; done: boolean }
+interface SearchHit { f: number; sh: number; i: number; where: string; src: string; tgt: string; rank: number }
 
-/** 搜尋所有檔案：從 at 的位置往後找，找到 n 筆就停，回傳下次要接著找的位置 */
-function scan(files: FileDoc[], q: string, at: [number, number, number], n: number): { hits: SearchHit[]; at: [number, number, number]; done: boolean } {
+/** 搜尋範圍：當前頁簽 → 當前檔案 → 當前專案 → 所有專案 */
+const SCOPES = ['sheet', 'file', 'project', 'all'] as const;
+type Scope = (typeof SCOPES)[number];
+
+/** 在範圍內找出所有符合的條目，照最相符排序（同一級照原本順序） */
+function searchAll(files: FileDoc[], q: string, scope: Scope, at: { file: number; sheet: number; cloudMode: boolean }): SearchHit[] {
   const hits: SearchHit[] = [];
-  let [f, sh, i] = at;
-  for (; f < files.length; f++, sh = 0, i = 0) {
-    const file = files[f];
+  const cur = files[at.file];
+  files.forEach((file, f) => {
     // 這個模式看不到的檔案（雲端／本地）不搜
-    if (!isShown(useStore.getState(), file)) continue;
-    for (; sh < file.sheets.length; sh++, i = 0) {
-      const sheet = file.sheets[sh];
-      for (; i < sheet.entries.length; i++) {
-        const e = sheet.entries[i];
-        if (!searchHit(e, q)) continue;
-        if (hits.length === n) return { hits, at: [f, sh, i], done: false };
-        hits.push({ f, sh, i, where: `${file.project} · ${file.name} · ${sheet.name} · #${e.id || i + 1}`, src: shownSrc(e), tgt: e.tgt || tx('side.026') });
-      }
-    }
-  }
-  return { hits, at: [f, sh, i], done: true };
+    if (!isShown({ cloudMode: at.cloudMode }, file)) return;
+    if ((scope === 'sheet' || scope === 'file') && f !== at.file) return;
+    if (scope === 'project' && file.project !== cur?.project) return;
+    file.sheets.forEach((sheet, sh) => {
+      if (scope === 'sheet' && sh !== at.sheet) return;
+      sheet.entries.forEach((e, i) => {
+        if (!searchHit(e, q)) return;
+        const src = shownSrc(e);
+        hits.push({ f, sh, i, where: `${file.project} · ${file.name} · ${sheet.name} · #${e.id || i + 1}`, src, tgt: e.tgt || tx('side.026'), rank: bestRank([src, e.tgt, e.id], q) });
+      });
+    });
+  });
+  return sortByRank(hits, (h) => h.rank);
 }
 
 const SEARCH_BATCH = 20;
 
+/** 搜尋範圍的圖標：由小到大重疊的四個矩形，目前的範圍是實心 */
+function ScopeIcon({ scope }: { scope: Scope }) {
+  const k = SCOPES.indexOf(scope);
+  // 從大畫到小，小的疊在上面看得到
+  return (
+    <svg width="18" height="18" viewBox="0 0 18 18" aria-hidden="true">
+      {[3, 2, 1, 0].map((i) => {
+        const s = 6 + i * 3.5;
+        return <rect key={i} x={1.5} y={16.5 - s} width={s} height={s} rx={1.2} fill={i === k ? 'currentColor' : 'var(--card)'} fillOpacity={i === k ? 0.85 : 1} stroke="currentColor" strokeWidth={1.3} />;
+      })}
+    </svg>
+  );
+}
+
 function SearchTab() {
   const files = useStore((s) => s.project!.files);
   const q = useStore((s) => s.searchQuery);
+  const scope = useStore((s) => s.searchScope);
+  const at = useStore(useShallow((s) => ({ file: s.file, sheet: currentOf(s).sheetIdx, cloudMode: s.cloudMode })));
   const { set, select } = useStore.getState();
   // 停止打字 0.3 秒後才搜
   const [dq, setDq] = useState(q);
@@ -235,38 +257,34 @@ function SearchTab() {
     const t = setTimeout(() => setDq(q.trim()), 300);
     return () => clearTimeout(t);
   }, [q]);
-  const [res, setRes] = useState<SearchState>({ q: '', hits: [], at: [0, 0, 0], done: true });
-  // 搜尋字或檔案內容變了：從頭找，至少找回原本已載入的筆數
-  const resRef = useRef(res);
-  resRef.current = res;
   const deferredFiles = useDeferredValue(files);
-  useEffect(() => {
-    if (!dq) { setRes({ q: '', hits: [], at: [0, 0, 0], done: true }); return; }
-    const n = resRef.current.q === dq ? Math.max(SEARCH_BATCH, resRef.current.hits.length) : SEARCH_BATCH;
-    setRes({ q: dq, ...scan(deferredFiles, dq, [0, 0, 0], n) });
-  }, [dq, deferredFiles]);
-  // 捲到結果底部時，從上次停的位置往後再找一批
-  const more = () => {
-    const r = resRef.current;
-    if (!r.q || r.done) return;
-    const next = scan(deferredFiles, r.q, r.at, SEARCH_BATCH);
-    setRes({ q: r.q, hits: [...r.hits, ...next.hits], at: next.at, done: next.done });
-  };
+  // 範圍內全部找出來排好，畫面上先顯示一批，捲到底再顯示下一批
+  const results = useMemo(() => (dq ? searchAll(deferredFiles, dq, scope, at) : []), [dq, deferredFiles, scope, at]);
+  const [shown, setShown] = useState(SEARCH_BATCH);
+  useEffect(() => { setShown(SEARCH_BATCH); }, [dq, scope]);
   const sentinel = useRef<HTMLDivElement>(null);
   useEffect(() => {
     const el = sentinel.current;
     if (!el) return;
-    const io = new IntersectionObserver((es) => { if (es.some((x) => x.isIntersecting)) more(); });
+    const io = new IntersectionObserver((es) => { if (es.some((x) => x.isIntersecting)) setShown((n) => n + SEARCH_BATCH); });
     io.observe(el);
     return () => io.disconnect();
-  }, [res]);
-  const results = res.hits;
+  }, [shown, results]);
+  const scopeName = tx(('side.scope.' + scope) as 'side.scope.sheet');
+  const nextScope = () => set({ searchScope: SCOPES[(SCOPES.indexOf(scope) + 1) % SCOPES.length] });
   return (
     <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
       <label htmlFor="verso-search" className="sr-only">{tx('side.027')}</label>
-      <input id="verso-search" type="search" className="field" value={q} onChange={(ev) => set({ searchQuery: ev.target.value })}
-        placeholder={tx('side.027')} />
-      {results.map((r) => (
+      <div style={{ display: 'flex', gap: 6 }}>
+        <input id="verso-search" type="search" className="field" value={q} onChange={(ev) => set({ searchQuery: ev.target.value })}
+          placeholder={tx('side.027')} style={{ flexGrow: 1, minWidth: 0 }} />
+        {/* 搜尋範圍：點一下換下一個範圍 */}
+        <button type="button" className="ib" aria-label={tx('side.scope', { scope: scopeName })} title={scopeName} onClick={nextScope}
+          style={{ width: 36, height: 36, flexShrink: 0, display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 0, background: 'var(--btn)', border: '1px solid var(--line4)', borderRadius: 8, color: 'var(--text2)' }}>
+          <ScopeIcon scope={scope} />
+        </button>
+      </div>
+      {results.slice(0, shown).map((r) => (
         <button key={r.f + ':' + r.sh + ':' + r.i} type="button" className="sr" onClick={() => leaveFile(files[r.f] ?? null, (idx) => { if (idx >= 0) select(idx, r.sh, r.i); })}
           style={{ display: 'flex', flexDirection: 'column', gap: 4, padding: '10px 12px', textAlign: 'left', background: 'var(--card)', border: '1px solid var(--line2)', borderRadius: 8 }}>
           <span className="mono" style={{ fontSize: fz(11), color: 'var(--mute)' }}>{r.where}</span>
@@ -274,8 +292,8 @@ function SearchTab() {
           <span style={{ fontSize: fz(12.5), lineHeight: 1.5, color: 'var(--text2)' }}>{r.tgt}</span>
         </button>
       ))}
-      {!res.done && <div ref={sentinel} style={{ height: 1 }} />}
-      {res.q && res.q === dq && results.length === 0 && <div style={{ padding: '24px 8px', textAlign: 'center', color: 'var(--mute)' }}>{tx('side.020', { q: res.q })}</div>}
+      {results.length > shown && <div ref={sentinel} style={{ height: 1 }} />}
+      {dq && dq === q.trim() && results.length === 0 && <div style={{ padding: '24px 8px', textAlign: 'center', color: 'var(--mute)' }}>{tx('side.020', { q: dq })}</div>}
     </div>
   );
 }

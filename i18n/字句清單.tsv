@@ -1,4 +1,9 @@
 ﻿代號	中文	畫面區域	程式位置
+side.scope	搜尋範圍：{scope}（點一下換範圍）	搜尋分頁：範圍按鈕	components/SidePanel.tsx:282
+side.scope.sheet	當前頁簽	搜尋分頁：範圍	
+side.scope.file	當前檔案	搜尋分頁：範圍	
+side.scope.project	當前專案	搜尋分頁：範圍	
+side.scope.all	所有專案	搜尋分頁：範圍	
 cloud.projects	管理專案	檔案選單（雲端模式）；對話框標題	plugins/cloud/index.tsx:125 plugins/cloud/ProjectsDialog.tsx:92
 cloud.needData	請先在設定 > 開發者選項填 Verso 資料表，專案才會存起來	雲端模式：管理專案	plugins/cloud/ProjectsDialog.tsx:99
 cloud.renameProject	改名	雲端模式：管理專案	plugins/cloud/ProjectsDialog.tsx:111
@@ -14,9 +19,9 @@ cloud.newProject	新專案名稱	雲端模式：管理專案	plugins/cloud/Proje
 cloud.addProject	新增專案	雲端模式：管理專案	plugins/cloud/ProjectsDialog.tsx:137
 cloud.deleteProjectAsk	刪除專案「{name}」？	雲端模式：管理專案	plugins/cloud/ProjectsDialog.tsx:143
 cloud.deleteProjectBody	只會從 Verso 資料表拿掉這個專案，Google 上的字典檔不會動。	雲端模式：管理專案	plugins/cloud/ProjectsDialog.tsx:143
-dict.cloud	雲端	啟用的字典、字典管理：雲端字典的標示	components/ManageDialogs.tsx:546 components/SidePanel.tsx:172
-dict.local	本地	啟用的字典、字典管理：本地字典的標示	components/ManageDialogs.tsx:546 components/SidePanel.tsx:172
-dict.cloudNoMove	雲端字典不能搬到別的專案	想把雲端字典移到別的專案時的提示	state/store.ts:1343
+dict.cloud	雲端	啟用的字典、字典管理：雲端字典的標示	components/ManageDialogs.tsx:546 components/SidePanel.tsx:175
+dict.local	本地	啟用的字典、字典管理：本地字典的標示	components/ManageDialogs.tsx:546 components/SidePanel.tsx:175
+dict.cloudNoMove	雲端字典不能搬到別的專案	想把雲端字典移到別的專案時的提示	state/store.ts:1346
 cloud.enabled	雲端模式（測試版）	開發者選項	plugins/cloud/index.tsx:69
 cloud.hint	打開後直接讀寫 Google 試算表，檔案選單只列設定過的表；關掉回到本地檔案（本地檔案和存檔都不受影響）	開發者選項：雲端模式的說明	plugins/cloud/index.tsx:71
 cloud.clientId	用戶端 ID	雲端模式：Google OAuth 用戶端 ID	plugins/cloud/index.tsx:76
@@ -95,10 +100,10 @@ ai.errQuota	Token用盡	AI 失敗原因	plugins/ai/ai.ts:233
 ai.errSkill	找不到Skill	AI 失敗原因	plugins/ai/ai.ts:327
 ai.errOther	AI工作未完成，請重試	AI 失敗原因：其他	plugins/ai/ai.ts:234 plugins/ai/ai.ts:337
 shortcut.ignoreEdits	忽略這條的全部修改	設定 > 快捷鍵：動作名稱	model/shortcuts.ts:38
-mark.suggHoldsDoubt	有建議翻譯，維持疑慮	有建議翻譯時想改成別的標記：被擋下的提示	state/store.ts:945 state/store.ts:970
+mark.suggHoldsDoubt	有建議翻譯，維持疑慮	有建議翻譯時想改成別的標記：被擋下的提示	state/store.ts:948 state/store.ts:973
 mark.ai	AI 翻譯	標記名稱：AI 翻好、還沒確認的條目	model/marks.ts:84
 list.aiLocked	AI 處理中	條目欄：AI 正在處理的條目旁的小字提示	components/EntryList.tsx:165 components/EntryList.tsx:165
-ai.locked	AI 正在處理的條目不能刪除	想刪掉 AI 處理中的條目時	state/store.ts:807
+ai.locked	AI 正在處理的條目不能刪除	想刪掉 AI 處理中的條目時	state/store.ts:810
 ai.stopped	已停止 AI，已經寫回的內容保留	按了停止之後	plugins/ai/ai.ts:253
 ai.askMany	要讓 AI 處理 {n} 條嗎？	選了超過 50 條按 AI 時	plugins/ai/index.tsx:25
 ai.askNo	取消	上面那句的按鈕	plugins/ai/index.tsx:26
@@ -129,7 +134,7 @@ settings.packsFailed	語言包加不進去，主程式資料夾可能沒有寫�
 settings.packReplace	已經有語言包「{name}」，要取代嗎？	設定 > 一般：加入同名語言包時	components/SettingsDialog.tsx:460
 settings.packReplaceNo	取消	設定 > 一般：同名語言包的詢問	components/SettingsDialog.tsx:461
 settings.packReplaceYes	取代	設定 > 一般：同名語言包的詢問	components/SettingsDialog.tsx:461
-common.sep	、	列出好幾個名稱時的分隔符號	App.tsx:101 App.tsx:112 App.tsx:123 components/CopyConfirm.tsx:19 components/EntryList.tsx:197 components/EntryList.tsx:197 components/FileNav.tsx:126 components/ManageDialogs.tsx:176 components/SettingsDialog.tsx:427 components/SettingsDialog.tsx:428 components/SidePanel.tsx:345 components/WorkPanel.tsx:96 model/importSel.ts:59 model/importSel.ts:59 model/paste.ts:79 plugins/cloud/index.tsx:218 plugins/cloud/sync.ts:362 state/saver.ts:1023 state/saver.ts:1023
+common.sep	、	列出好幾個名稱時的分隔符號	App.tsx:101 App.tsx:112 App.tsx:123 components/CopyConfirm.tsx:19 components/EntryList.tsx:197 components/EntryList.tsx:197 components/FileNav.tsx:126 components/ManageDialogs.tsx:176 components/SettingsDialog.tsx:427 components/SettingsDialog.tsx:428 components/SidePanel.tsx:363 components/WorkPanel.tsx:96 model/importSel.ts:59 model/importSel.ts:59 model/paste.ts:79 plugins/cloud/index.tsx:218 plugins/cloud/sync.ts:362 state/saver.ts:1023 state/saver.ts:1023
 common.join	；	把兩段提示接成一句時的分隔符號（英文用「; 」）	state/saver.ts:1023
 common.moreEntries	 等 {n} 條	列表太長時接在後面	App.tsx:101
 common.moreItems	 等 {n} 個	列表太長時接在後面	App.tsx:112 App.tsx:123 state/saver.ts:1023 state/saver.ts:1023
@@ -506,49 +511,49 @@ settings.060	{label}字型大小	設定	components/SettingsDialog.tsx:615
 settings.061	跟隨系統字	設定	components/SettingsDialog.tsx:626
 settings.062	超框時	設定	components/SettingsDialog.tsx:630
 settings.063	{label}超框時	設定	components/SettingsDialog.tsx:631
-side.001	字典	工具欄	components/SidePanel.tsx:19
-side.002	搜尋	工具欄	components/SidePanel.tsx:20
-side.003	瀏覽器	工具欄	components/SidePanel.tsx:21
-side.004	參照	工具欄	components/SidePanel.tsx:22
-side.006	按 Alt+{altKey} 把譯名放進譯文框	工具欄	components/SidePanel.tsx:44
-side.007	編輯詞條「{term}」	工具欄	components/SidePanel.tsx:56
-side.008	編輯詞條	工具欄	components/SidePanel.tsx:56
-side.009	複製譯文「{en}」	工具欄	components/SidePanel.tsx:61
-side.010	已複製	工具欄	components/SidePanel.tsx:61
-side.011	複製譯文	工具欄	components/SidePanel.tsx:61
-side.012	搜尋詞條	工具欄	components/SidePanel.tsx:138
-side.013	搜尋專有名詞或譯名	工具欄	components/SidePanel.tsx:143
-side.014	新增詞條	工具欄	components/SidePanel.tsx:145 components/SidePanel.tsx:145
-side.015	貼入字典	工具欄	components/SidePanel.tsx:150 components/SidePanel.tsx:150
-side.016	管理字典	工具欄	components/SidePanel.tsx:154 components/SidePanel.tsx:154
-side.017	啟用的字典	工具欄	components/SidePanel.tsx:163 components/SidePanel.tsx:167
-side.018	搜尋結果 {n} 筆	工具欄	components/SidePanel.tsx:183
-side.020	找不到「{q}」	工具欄	components/SidePanel.tsx:186 components/SidePanel.tsx:278
-side.021	這一條命中 {n} 個詞條	工具欄	components/SidePanel.tsx:190
-side.023	這一條沒有符合的詞條	工具欄	components/SidePanel.tsx:192
-side.024	字典「{name}」	工具欄	components/SidePanel.tsx:194
-side.025	更改專案	工具欄	components/SidePanel.tsx:194
-side.026	尚未翻譯	工具欄	components/SidePanel.tsx:219
-side.027	搜尋所有檔案	工具欄	components/SidePanel.tsx:266 components/SidePanel.tsx:268
-side.028	上一頁	工具欄	components/SidePanel.tsx:289
-side.029	下一頁	工具欄	components/SidePanel.tsx:290
-side.030	重新整理	工具欄	components/SidePanel.tsx:291
-side.031	網址	工具欄	components/SidePanel.tsx:292
-side.032	輸入網址或關鍵字	工具欄	components/SidePanel.tsx:293
-side.033	專案參照文件	工具欄	components/SidePanel.tsx:307
-side.034	備註	工具欄	components/SidePanel.tsx:352
-side.035	建議翻譯	工具欄	components/SidePanel.tsx:362 components/SidePanel.tsx:388
-side.036	略過	工具欄	components/SidePanel.tsx:369
-side.037	{n} 字元	工具欄	components/SidePanel.tsx:372
-side.038	刪除建議翻譯	工具欄	components/SidePanel.tsx:375
-side.039	刪除	工具欄	components/SidePanel.tsx:377
-side.040	記錄目前譯文，並把建議翻譯套用到譯文框	工具欄	components/SidePanel.tsx:379
-side.041	套用	工具欄	components/SidePanel.tsx:381
-side.042	我的備註	工具欄	components/SidePanel.tsx:407 components/SidePanel.tsx:412
-side.043	其他功能	工具欄	components/SidePanel.tsx:427
-side.044	功能分頁	工具欄	components/SidePanel.tsx:430
-side.045	新增分頁	工具欄	components/SidePanel.tsx:446 components/SidePanel.tsx:446
-side.046	隱藏右側欄	工具欄	components/SidePanel.tsx:449 components/SidePanel.tsx:449
+side.001	字典	工具欄	components/SidePanel.tsx:20
+side.002	搜尋	工具欄	components/SidePanel.tsx:21
+side.003	瀏覽器	工具欄	components/SidePanel.tsx:22
+side.004	參照	工具欄	components/SidePanel.tsx:23
+side.006	按 Alt+{altKey} 把譯名放進譯文框	工具欄	components/SidePanel.tsx:45
+side.007	編輯詞條「{term}」	工具欄	components/SidePanel.tsx:57
+side.008	編輯詞條	工具欄	components/SidePanel.tsx:57
+side.009	複製譯文「{en}」	工具欄	components/SidePanel.tsx:62
+side.010	已複製	工具欄	components/SidePanel.tsx:62
+side.011	複製譯文	工具欄	components/SidePanel.tsx:62
+side.012	搜尋詞條	工具欄	components/SidePanel.tsx:141
+side.013	搜尋專有名詞或譯名	工具欄	components/SidePanel.tsx:146
+side.014	新增詞條	工具欄	components/SidePanel.tsx:148 components/SidePanel.tsx:148
+side.015	貼入字典	工具欄	components/SidePanel.tsx:153 components/SidePanel.tsx:153
+side.016	管理字典	工具欄	components/SidePanel.tsx:157 components/SidePanel.tsx:157
+side.017	啟用的字典	工具欄	components/SidePanel.tsx:166 components/SidePanel.tsx:170
+side.018	搜尋結果 {n} 筆	工具欄	components/SidePanel.tsx:186
+side.020	找不到「{q}」	工具欄	components/SidePanel.tsx:189 components/SidePanel.tsx:296
+side.021	這一條命中 {n} 個詞條	工具欄	components/SidePanel.tsx:193
+side.023	這一條沒有符合的詞條	工具欄	components/SidePanel.tsx:195
+side.024	字典「{name}」	工具欄	components/SidePanel.tsx:197
+side.025	更改專案	工具欄	components/SidePanel.tsx:197
+side.026	尚未翻譯	工具欄	components/SidePanel.tsx:225
+side.027	搜尋所有檔案	工具欄	components/SidePanel.tsx:277 components/SidePanel.tsx:280
+side.028	上一頁	工具欄	components/SidePanel.tsx:307
+side.029	下一頁	工具欄	components/SidePanel.tsx:308
+side.030	重新整理	工具欄	components/SidePanel.tsx:309
+side.031	網址	工具欄	components/SidePanel.tsx:310
+side.032	輸入網址或關鍵字	工具欄	components/SidePanel.tsx:311
+side.033	專案參照文件	工具欄	components/SidePanel.tsx:325
+side.034	備註	工具欄	components/SidePanel.tsx:370
+side.035	建議翻譯	工具欄	components/SidePanel.tsx:380 components/SidePanel.tsx:406
+side.036	略過	工具欄	components/SidePanel.tsx:387
+side.037	{n} 字元	工具欄	components/SidePanel.tsx:390
+side.038	刪除建議翻譯	工具欄	components/SidePanel.tsx:393
+side.039	刪除	工具欄	components/SidePanel.tsx:395
+side.040	記錄目前譯文，並把建議翻譯套用到譯文框	工具欄	components/SidePanel.tsx:397
+side.041	套用	工具欄	components/SidePanel.tsx:399
+side.042	我的備註	工具欄	components/SidePanel.tsx:425 components/SidePanel.tsx:430
+side.043	其他功能	工具欄	components/SidePanel.tsx:445
+side.044	功能分頁	工具欄	components/SidePanel.tsx:448
+side.045	新增分頁	工具欄	components/SidePanel.tsx:464 components/SidePanel.tsx:464
+side.046	隱藏右側欄	工具欄	components/SidePanel.tsx:467 components/SidePanel.tsx:467
 splash.001	檢測到新版本	啟動畫面	components/Splash.tsx:17
 splash.002	檢測到新版本 {version}，是否更新？	啟動畫面	components/Splash.tsx:18
 splash.003	稍後	啟動畫面	components/Splash.tsx:21
@@ -822,7 +827,7 @@ save.014	資料夾裡有其他東西，改存到裡面的「Verso」資料夾	�
 save.015	已載入：{v1}{v2}	存檔訊息	state/saver.ts:1023
 save.016	已改名：{v1}{v2}	存檔訊息	state/saver.ts:1023
 save.017	字典 / {project} / {name}	存檔訊息	state/saver.ts:1025
-store.001	啟動中	狀態訊息	main.tsx:23 state/store.ts:708
+store.001	啟動中	狀態訊息	main.tsx:23 state/store.ts:711
 update.001	檢查更新	自動更新	state/updater.ts:33
 update.002	下載太久沒有進度	自動更新	state/updater.ts:57 state/updater.ts:58
 update.003	下載更新 0%	自動更新	state/updater.ts:60

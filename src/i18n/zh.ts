@@ -1,6 +1,11 @@
 // 介面文字（中文）：程式裡只寫代號，用 tx('代號') 取文字。由程式整理產生，改字句請改這裡。
 // 存檔裡的名稱（欄位標題、資料夾名稱等）不在這裡，維持中文。
 export const ZH = {
+  'side.scope': '搜尋範圍：{scope}（點一下換範圍）', // 搜尋分頁：範圍按鈕
+  'side.scope.sheet': '當前頁簽', // 搜尋分頁：範圍
+  'side.scope.file': '當前檔案', // 搜尋分頁：範圍
+  'side.scope.project': '當前專案', // 搜尋分頁：範圍
+  'side.scope.all': '所有專案', // 搜尋分頁：範圍
   'cloud.projects': '管理專案', // 檔案選單（雲端模式）；對話框標題
   'cloud.needData': '請先在設定 > 開發者選項填 Verso 資料表，專案才會存起來', // 雲端模式：管理專案
   'cloud.renameProject': '改名', // 雲端模式：管理專案

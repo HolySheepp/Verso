@@ -138,6 +138,8 @@ interface State {
   workH: number | null;
   dictQuery: string;
   searchQuery: string;
+  /** 搜尋分頁的範圍（每次開 Verso 都從當前頁簽開始，不記住） */
+  searchScope: 'sheet' | 'file' | 'project' | 'all';
   suggClosed: boolean;
   noteClosed: boolean;
   /** 查看修改：切換模式 */
@@ -680,6 +682,7 @@ export const useStore = create<Store>((set, get) => {
     workH: null,
     dictQuery: '',
     searchQuery: '',
+    searchScope: 'sheet',
     suggClosed: false,
     noteClosed: false,
     viewOn: false,
