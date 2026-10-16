@@ -15,6 +15,10 @@ import { columnsToEntries } from '../../model/paste';
 import { SHARED, type CustomMark, type Entry, type FileDoc, type Sheet } from '../../model/types';
 import { textToVerify, verifyToText } from '../../model/verify';
 import { currentOf, isShown, showToast, useStore } from '../../state/store';
+import { ensureCols } from './api';
+import { textToStd, stdToText } from '../../model/length';
+import { backupPresets, ensureProjects, readProjects } from './projects';
+import { listDicts, loadEnabled, reloadDicts } from './dicts';
 import { addTab, appendRows, errText, meta, readCols, readRich, readTabs, sidOf, writeRich, writeRows, type Rich } from './api';
 import { blueStart, markToText, noteCell, richSig, stripMarkup, textToMark, tgtCell } from './format';
 import { allSheets, setConfig, toFieldMap, useCloud, type CloudSheet, type CloudTab, type Conflict } from './config';
@@ -69,9 +73,10 @@ function saveCacheSoon(doc: FileDoc) {
 const dataSid = () => sidOf(useCloud.getState().cfg.dataUrl ?? '') ?? '';
 const is400 = (e: unknown) => /^400\b/.test(String((e as Error)?.message ?? e));
 
-/** 「Verso檔案」分頁：試算表ID、名稱、專案、欄位設定、更新者、更新時間 */
+/** 「Verso檔案」分頁：試算表ID、名稱、專案、欄位設定、更新者、更新時間、長度標準（新欄位一律加在右邊，舊資料不動） */
 const FILES_TAB = 'Verso檔案';
-const FILES_HEAD = ['試算表ID', '名稱', '專案', '欄位設定', '更新者', '更新時間'];
+const FILES_HEAD = ['試算表ID', '名稱', '專案', '欄位設定', '更新者', '更新時間', '長度標準'];
+let filesHeadLen = 0;
 const filesRows = new Map<string, number>();
 let filesExists = false;
 
@@ -81,6 +86,7 @@ export async function readShared() {
   if (!did) { useCloud.setState({ shared: [] }); return; }
   let rows: string[][] = [];
   try { [rows] = await readTabs(did, [FILES_TAB]); filesExists = true; } catch (e) { if (!is400(e)) throw e; filesExists = false; }
+  filesHeadLen = rows[0]?.length ?? 0;
   filesRows.clear();
   const shared: CloudSheet[] = [];
   rows.forEach((v, r) => {
@@ -89,19 +95,21 @@ export async function readShared() {
       const tabs = JSON.parse(v[3] ?? '') as CloudTab[];
       if (!Array.isArray(tabs)) return;
       filesRows.set(v[0], r);
-      shared.push({ sid: v[0], title: v[1] ?? '', project: v[2] || SHARED, tabs });
+      shared.push({ sid: v[0], title: v[1] ?? '', project: v[2] || SHARED, tabs, ...(v[6] ? { lengthStd: textToStd(v[6]) } : {}) });
     } catch { /* 壞掉的列不理 */ }
   });
   useCloud.setState({ shared });
 }
 
 /** 把一份試算表的設定寫進資料表 */
-async function writeShared(conf: CloudSheet) {
+export async function writeShared(conf: CloudSheet) {
   const did = dataSid();
   if (!did) return;
   await readShared();
   if (!filesExists) { await addTab(did, FILES_TAB, FILES_HEAD.length); await writeRows(did, FILES_TAB, [{ row: 0, values: FILES_HEAD }]); filesExists = true; }
-  const values = [conf.sid, conf.title, conf.project, JSON.stringify(conf.tabs), useCloud.getState().email ?? '', new Date().toISOString()];
+  // 舊版建的分頁欄位比較少：在右邊補欄位、補標題
+  else if (filesHeadLen < FILES_HEAD.length) { await ensureCols(did, FILES_TAB, FILES_HEAD.length); await writeRows(did, FILES_TAB, [{ row: 0, values: FILES_HEAD }]); }
+  const values = [conf.sid, conf.title, conf.project, JSON.stringify(conf.tabs), useCloud.getState().email ?? '', new Date().toISOString(), stdToText(conf.lengthStd)];
   const row = filesRows.get(conf.sid);
   if (row !== undefined) await writeRows(did, FILES_TAB, [{ row, values }]);
   else await appendRows(did, FILES_TAB, [values]);
@@ -238,10 +246,12 @@ export async function loadSheet(sid: string, quiet = false): Promise<boolean> {
     const sheets = tabs.map((t, i) => buildSheet(t, values[i], prev?.sheets.find((s) => s.gid === t.gid), kept?.[String(t.gid)], fd, rich[i]));
     if (!sheets.length) return false;
     const p = useStore.getState().project!;
-    const project = p.projects.includes(conf.project) ? conf.project : SHARED;
+    ensureProjects([conf.project]);
+    const project = conf.project || SHARED;
+    void p;
     const unchanged = prev && prev.name === m.title && prev.sheets.length === sheets.length && sheets.every((s, i) => s === prev.sheets[i]);
     if (unchanged) { loaded.add(sid); return true; }
-    const doc: FileDoc = { ...(cur0 ?? {}), fid: fidOf(sid), cloud: { sid }, name: m.title, project: cur0?.project ?? project, sheets };
+    const doc: FileDoc = { ...(cur0 ?? {}), fid: fidOf(sid), cloud: { sid }, name: m.title, project: cur0?.project ?? project, sheets, lengthStd: conf.lengthStd };
     const cur = useStore.getState().project!;
     const at = cur.files.findIndex((f) => f.fid === doc.fid);
     useStore.setState({ project: { ...cur, files: at >= 0 ? cur.files.map((f, i) => (i === at ? doc : f)) : [...cur.files, doc] } });
@@ -390,7 +400,7 @@ export async function refreshAll(quiet = true, only?: string) {
   useCloud.setState({ syncing: true, syncError: '' });
   let ok = true;
   try {
-    if (!only) { try { await readShared(); ensureStubs(); } catch (e) { ok = false; useCloud.setState({ syncError: tx('cloud.loadFailed', { name: tx('cloud.dataUrl'), reason: errText(e) }) }); } }
+    if (!only) { try { await readShared(); ensureStubs(); await readProjects(); await reloadDicts(); } catch (e) { ok = false; useCloud.setState({ syncError: tx('cloud.loadFailed', { name: tx('cloud.dataUrl'), reason: errText(e) }) }); } }
     for (const sid of [...loaded]) {
       if (only && sid !== only) continue;
       await flush(sid);
@@ -418,9 +428,10 @@ export function ensureStubs() {
   if (!p) return;
   const sheets = allSheets();
   const want = new Set(sheets.map((x) => fidOf(x.sid)));
+  ensureProjects(sheets.map((x) => x.project || SHARED));
   const add = sheets.filter((x) => !p.files.some((f) => f.fid === fidOf(x.sid))).map((x): FileDoc => ({
     fid: fidOf(x.sid), cloud: { sid: x.sid, stub: true }, name: x.title || x.sid,
-    project: p.projects.includes(x.project) ? x.project : SHARED,
+    project: x.project || SHARED, lengthStd: x.lengthStd,
     sheets: x.tabs.map((t) => ({ name: t.title, gid: t.gid, entries: [] })),
   }));
   const drop = p.files.map((f, i) => (f.cloud?.stub && !want.has(f.fid!) ? i : -1)).filter((i) => i >= 0);
@@ -467,6 +478,8 @@ export async function enterCloud() {
     if (dataSid()) for (const x of useCloud.getState().cfg.sheets) if (!shared.some((y) => y.sid === x.sid)) await writeShared(x);
   } catch (e) { showToast(tx('cloud.loadFailed', { name: tx('cloud.dataUrl'), reason: errText(e) }), { warn: true }); }
   ensureStubs();
+  // 專案（字典檔、預設長度標準）、常用標準、雲端字典的頁簽名稱（勾選的才讀內容）
+  try { backupPresets(); await readProjects(); await listDicts(); loadEnabled(); } catch (e) { showToast(tx('cloud.loadFailed', { name: tx('cloud.dataUrl'), reason: errText(e) }), { warn: true }); }
   const last = useCloud.getState().cfg.last;
   if (last && fileOf(last)) selectSheet(last); else pickShown();
   const sid = currentSid();
@@ -491,7 +504,14 @@ export function watchStore() {
     if (s.project !== prev.project) {
       const now = new Map(s.project.files.filter((f) => f.cloud).map((f) => [f.cloud!.sid, f]));
       const dirty: string[] = [];
-      now.forEach((f, sid) => { if (last.get(sid) !== f) { dirty.push(sid); saveCacheSoon(f); } });
+      now.forEach((f, sid) => {
+        const was = last.get(sid);
+        if (was === f) return;
+        dirty.push(sid);
+        saveCacheSoon(f);
+        // 檔案的長度標準、專案改了：記進資料表（大家共用）
+        if (was && !f.cloud?.stub && !was.cloud?.stub && (stdToText(was.lengthStd) !== stdToText(f.lengthStd) || was.project !== f.project)) void saveSheetMeta(sid, f);
+      });
       // 換了存檔資料夾等整個重新載入時，雲端檔案不見了：放回去
       const lost = [...last.keys()].filter((sid) => !now.has(sid) && confOf(sid) && (loaded.has(sid) || last.get(sid)!.cloud?.stub));
       if (lost.length) {
@@ -512,4 +532,15 @@ export function watchStore() {
       if (b.fileDoc.cloud?.stub) void loadSheet(sid);
     }
   });
+}
+
+/** 檔案的長度標準、專案改了：更新這台電腦和資料表裡的設定（管理專案搬檔案也用） */
+export async function saveSheetMeta(sid: string, f: FileDoc) {
+  const conf = confOf(sid);
+  if (!conf) return;
+  const next = { ...conf, project: f.project, lengthStd: f.lengthStd };
+  const { cfg, shared } = useCloud.getState();
+  if (cfg.sheets.some((x) => x.sid === sid)) setConfig({ sheets: cfg.sheets.map((x) => (x.sid === sid ? next : x)) });
+  useCloud.setState({ shared: shared.map((x) => (x.sid === sid ? next : x)) });
+  try { await writeShared(next); } catch (e) { showToast(tx('cloud.writeFailed', { name: f.name, reason: errText(e) }), { warn: true }); }
 }

@@ -1,6 +1,24 @@
 // 介面文字（中文）：程式裡只寫代號，用 tx('代號') 取文字。由程式整理產生，改字句請改這裡。
 // 存檔裡的名稱（欄位標題、資料夾名稱等）不在這裡，維持中文。
 export const ZH = {
+  'cloud.projects': '管理專案', // 檔案選單（雲端模式）；對話框標題
+  'cloud.needData': '請先在設定 > 開發者選項填 Verso 資料表，專案才會存起來', // 雲端模式：管理專案
+  'cloud.renameProject': '改名', // 雲端模式：管理專案
+  'cloud.deleteProject': '刪除', // 雲端模式：管理專案
+  'cloud.projectHasFiles': '這個專案還有檔案，先把檔案移到別的專案才能刪', // 雲端模式：管理專案
+  'cloud.dictFile': '雲端字典檔', // 雲端模式：管理專案（這個專案的字典 Google 表網址）
+  'cloud.projectStd': '預設長度標準', // 雲端模式：管理專案
+  'cloud.stdCustom': '自訂', // 雲端模式：管理專案（不在常用標準裡的長度標準）
+  'cloud.projectFiles': '檔案', // 雲端模式：管理專案
+  'cloud.noFiles': '沒有檔案', // 雲端模式：管理專案
+  'cloud.moveTo': '移到專案', // 雲端模式：管理專案
+  'cloud.newProject': '新專案名稱', // 雲端模式：管理專案
+  'cloud.addProject': '新增專案', // 雲端模式：管理專案
+  'cloud.deleteProjectAsk': '刪除專案「{name}」？', // 雲端模式：管理專案
+  'cloud.deleteProjectBody': '只會從 Verso 資料表拿掉這個專案，Google 上的字典檔不會動。', // 雲端模式：管理專案
+  'dict.cloud': '雲端', // 啟用的字典、字典管理：雲端字典的標示
+  'dict.local': '本地', // 啟用的字典、字典管理：本地字典的標示
+  'dict.cloudNoMove': '雲端字典不能搬到別的專案', // 想把雲端字典移到別的專案時的提示
   'cloud.enabled': '雲端模式（測試版）', // 開發者選項
   'cloud.hint': '打開後直接讀寫 Google 試算表，檔案選單只列設定過的表；關掉回到本地檔案（本地檔案和存檔都不受影響）', // 開發者選項：雲端模式的說明
   'cloud.clientId': '用戶端 ID', // 雲端模式：Google OAuth 用戶端 ID

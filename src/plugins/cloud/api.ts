@@ -124,8 +124,41 @@ export async function appendRows(sid: string, title: string, rows: string[][]): 
 }
 
 /** 新增一個分頁：只有一列、cols 欄（Google 預設 1000 列 26 欄，會佔掉試算表的格子上限）；之後加在最後的列會自動長出來 */
-export async function addTab(sid: string, title: string, cols: number) {
-  await call('POST', `${sid}:batchUpdate`, { requests: [{ addSheet: { properties: { title, gridProperties: { rowCount: 1, columnCount: cols } } } }] });
+export async function addTab(sid: string, title: string, cols: number): Promise<number> {
+  const r = await call<{ replies?: { addSheet?: { properties?: { sheetId?: number } } }[] }>('POST', `${sid}:batchUpdate`, { requests: [{ addSheet: { properties: { title, gridProperties: { rowCount: 1, columnCount: cols } } } }] });
+  return r.replies?.[0]?.addSheet?.properties?.sheetId ?? -1;
+}
+
+/** 分頁改名 */
+export async function renameTab(sid: string, gid: number, title: string) {
+  await call('POST', `${sid}:batchUpdate`, { requests: [{ updateSheetProperties: { properties: { sheetId: gid, title }, fields: 'title' } }] });
+}
+
+/** 刪掉分頁 */
+export async function deleteTab(sid: string, gid: number) {
+  await call('POST', `${sid}:batchUpdate`, { requests: [{ deleteSheet: { sheetId: gid } }] });
+}
+
+/** 刪掉幾列（從 0 起算）；從下面往上刪，位置才不會跑掉 */
+export async function deleteRows(sid: string, gid: number, rows: number[]) {
+  if (!rows.length) return;
+  await call('POST', `${sid}:batchUpdate`, {
+    requests: [...new Set(rows)].sort((a, b) => b - a).map((r) => ({ deleteDimension: { range: { sheetId: gid, dimension: 'ROWS', startIndex: r, endIndex: r + 1 } } })),
+  });
+}
+
+/** 各分頁的 ID 和格子大小（資料表加欄位時看夠不夠） */
+export async function tabGrids(sid: string): Promise<{ gid: number; title: string; rows: number; cols: number }[]> {
+  const r = await call<{ sheets: { properties: { sheetId: number; title: string; gridProperties?: { rowCount?: number; columnCount?: number } } }[] }>(
+    'GET', `${sid}?fields=sheets.properties(sheetId,title,gridProperties)`);
+  return r.sheets.map((s) => ({ gid: s.properties.sheetId, title: s.properties.title, rows: s.properties.gridProperties?.rowCount ?? 0, cols: s.properties.gridProperties?.columnCount ?? 0 }));
+}
+
+/** 分頁的欄數不到 n 欄：在右邊補到 n 欄（資料表新增欄位用，舊資料不動） */
+export async function ensureCols(sid: string, title: string, n: number) {
+  const t = (await tabGrids(sid)).find((x) => x.title === title);
+  if (!t || t.cols >= n) return;
+  await call('POST', `${sid}:batchUpdate`, { requests: [{ appendDimension: { sheetId: t.gid, dimension: 'COLUMNS', length: n - t.cols } }] });
 }
 
 type GColor = { red?: number; green?: number; blue?: number };

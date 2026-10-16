@@ -2,7 +2,7 @@ import { tx } from '../i18n';
 import { MAX_CELL_CHARS } from '../model/names';
 import { useDeferredValue, useEffect, useMemo, useRef, useState } from 'react';
 import { useShallow } from 'zustand/react/shallow';
-import { currentOf, shownSrc, currentProjectOf, dictEnabledIn, overrideKey, searchHit, useStore, useStorePick, type SideTab, currentFileStd, isShown } from '../state/store';
+import { currentOf, shownSrc, currentProjectOf, dictEnabledIn, overrideKey, searchHit, useStore, useStorePick, type SideTab, currentFileStd, isShown, dictDefaultOn } from '../state/store';
 import { SHARED, dictKey, type DictInfo, type FileDoc, type GlossaryTerm } from '../model/types';
 import { fz } from '../model/fonts';
 import { enabledIssues } from '../model/checks';
@@ -80,6 +80,8 @@ function DictTab() {
     src: currentOf(s).entry ? shownSrc(currentOf(s).entry!) : '',
   })));
   const set = useStore((s) => s.set);
+  // 雲端模式：字典標示是雲端還是本地
+  const cloudMode = useStore((s) => s.cloudMode);
   const [pickOpen, setPickOpen] = useState(false);
   const [dictMenu, setDictMenu] = useState<{ d: DictInfo; x: number; y: number } | null>(null);
   const q = dq.trim(), ql = q.toLowerCase();
@@ -124,7 +126,7 @@ function DictTab() {
   const sorted = [...dicts].sort((a, b) => rank(a) - rank(b));
   const toggleDict = (d: DictInfo) => {
     const k = overrideKey(current, d);
-    const auto = d.project === current || d.project === SHARED;
+    const auto = dictDefaultOn(current, d);
     const next = { ...overrides };
     // 跟預設一樣就不必記
     if (!isOn(d) === auto) delete next[k]; else next[k] = !isOn(d);
@@ -167,6 +169,7 @@ function DictTab() {
               <label key={dictKey(d.project, d.name)} className="dd"
                 onContextMenu={(ev) => { ev.preventDefault(); setDictMenu({ d, x: ev.clientX, y: ev.clientY }); }} style={{ height: 30, display: 'flex', alignItems: 'center', gap: 8, padding: '0 8px', borderRadius: 6, cursor: 'pointer', fontSize: fz(12.5) }}>
                 <span style={{ flexGrow: 1, minWidth: 0, overflow: 'hidden', whiteSpace: 'nowrap', textOverflow: 'ellipsis' }}>{d.name}</span>
+                {cloudMode && <ProjTag name={d.cloud ? tx('dict.cloud') : tx('dict.local')} />}
                 <ProjTag name={d.project} />
                 <input type="checkbox" role="switch" className="switch" aria-label={d.project + ' ' + d.name}
                   checked={on.has(dictKey(d.project, d.name))} onChange={() => toggleDict(d)} />

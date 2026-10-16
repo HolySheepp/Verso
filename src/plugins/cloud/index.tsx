@@ -12,7 +12,10 @@ import { ConfirmDialog } from '../../components/ConfirmDialog';
 import { Select } from '../../components/Select';
 import { Preview, type DraftSheet } from '../../components/ImportDialog';
 import { dragWindow } from '../../components/windowDrag';
-import { IconList, IconPlus, IconRefresh, IconWinClose } from '../../components/icons';
+import { IconFolder, IconList, IconPlus, IconRefresh, IconWinClose } from '../../components/icons';
+import { flushDicts, removeDicts, watchDicts } from './dicts';
+import { leaveProjects, writePresets } from './projects';
+import { ProjectsDialog } from './ProjectsDialog';
 import { beforeExit } from '../hooks';
 import type { VersoPlugin } from '../registry';
 import { builtinClient, errText, insertCol, login, loginStatus, logout, meta, readTabs, sidOf } from './api';
@@ -36,7 +39,11 @@ async function setCloud(on: boolean) {
     await enterCloud();
   } else {
     await flushAll();
+    await flushDicts();
     useStore.getState().set({ cloudMode: false });
+    // 雲端字典、雲端才有的專案拿掉，常用標準換回這台電腦的
+    removeDicts();
+    leaveProjects();
     pickShown();
   }
 }
@@ -113,6 +120,9 @@ function CloudFileMenu({ close }: { close(): void }) {
       </button>
       <button type="button" className="dd" style={menuItem} onClick={() => { close(); useCloud.setState({ manage: true }); }}>
         <IconList size={14} />{tx('cloud.manage')}
+      </button>
+      <button type="button" className="dd" style={menuItem} onClick={() => { close(); useCloud.setState({ projectsOpen: true }); }}>
+        <IconFolder size={14} />{tx('cloud.projects')}
       </button>
       <button type="button" className="dd" style={menuItem} onClick={() => { close(); void refreshAll(false).then(() => { if (!useCloud.getState().syncError) showToast(tx('cloud.refreshed')); }); }}>
         <IconRefresh size={14} />{tx('cloud.refresh')}
@@ -326,10 +336,12 @@ function ConflictAsk() {
 function Overlay() {
   const setup = useCloud((s) => s.setup);
   const manage = useCloud((s) => s.manage);
+  const projectsOpen = useCloud((s) => s.projectsOpen);
   return (
     <>
       {setup && <SetupDialog key={setup.sid ?? 'new'} sid0={setup.sid} />}
       {manage && <ManageDialog />}
+      {projectsOpen && <ProjectsDialog />}
       <ConflictAsk />
     </>
   );
@@ -339,7 +351,11 @@ function Overlay() {
 async function start() {
   const cfg = await loadConfig();
   watchStore();
+  watchDicts();
   beforeExit.add(flushAll);
+  beforeExit.add(flushDicts);
+  // 雲端模式改了常用標準：寫進資料表
+  useStore.subscribe((s, prev) => { if (s.cloudMode && prev.cloudMode && s.lengthPresets !== prev.lengthPresets) void writePresets(s.lengthPresets); });
   try { useCloud.setState({ email: await loginStatus(), builtin: await builtinClient() }); } catch { /* 沒有桌面外殼（瀏覽器預覽） */ }
   if (cfg.on && useStore.getState().devMode) await setCloud(true);
   // 自動同步：打開的那份每 20 秒，其他的每 2 分鐘；從別的視窗（例如瀏覽器）回到 Verso 時馬上同步打開的那份

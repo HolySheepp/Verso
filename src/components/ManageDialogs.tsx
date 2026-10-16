@@ -543,7 +543,7 @@ function ManageDicts() {
                       {dicts.map((d) => {
                         const count = project.glossary.filter((g) => g.proj === p && g.dict === d.name).length;
                         return (
-                          <TreeRow key={d.name} depth={1} label={d.name} extra={String(count)} icon={<IconBook size={13} stroke="var(--mute)" />}
+                          <TreeRow key={d.name} depth={1} label={d.name} extra={useStore.getState().cloudMode ? `${count} · ${d.cloud ? tx('dict.cloud') : tx('dict.local')}` : String(count)} icon={<IconBook size={13} stroke="var(--mute)" />}
                             selected={cur?.project === p && cur.name === d.name} onClick={() => open({ project: p, name: d.name })}
                             onRename={() => setRenaming({ project: p, name: d.name })}
                             rename={renaming?.project === p && renaming.name === d.name ? {

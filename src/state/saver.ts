@@ -25,6 +25,18 @@ import type { RootConflict } from '../data/persist';
 
 /** 軟體內部認檔案用 ID；檔名、專案只是顯示和存檔位置 */
 const fileKey = (f: FileDoc) => f.fid ?? f.project + '/' + f.name;
+/** 存在存檔資料夾裡的專案（雲端模式才有的專案不算）；沒有雲端專案時就是原本那個陣列（存檔靠比對參照判斷有沒有改） */
+let lpMemo: { src: string[]; extra: string[]; saved: string[]; out: string[] } | null = null;
+function localProjects(p: ProjectData): string[] {
+  const extra = useStore.getState().cloudProjects;
+  if (!extra.length) return p.projects;
+  if (lpMemo && lpMemo.src === p.projects && lpMemo.extra === extra && lpMemo.saved === saved.projects) return lpMemo.out;
+  const out = p.projects.filter((x) => !extra.includes(x));
+  // 跟已存的一樣：用已存的那個陣列（存檔靠比對參照判斷有沒有改）
+  const same = out.length === saved.projects.length && out.every((x, i) => x === saved.projects[i]);
+  lpMemo = { src: p.projects, extra, saved: saved.projects, out: same ? saved.projects : out };
+  return lpMemo.out;
+}
 /** 存在存檔資料夾裡的檔案（雲端模式的 Google 試算表不算） */
 const localFiles = (p: ProjectData) => p.files.filter((f) => !f.cloud);
 
@@ -72,7 +84,7 @@ async function autosave() {
     keep.set(k, f);
     if (rec.files.get(k) !== f) changed.push({ data, file: f });
   }
-  const state: RecoveryState = { files, projects: p.projects, customMarks: p.customMarks, nextMarkId: p.nextMarkId };
+  const state: RecoveryState = { files, projects: localProjects(p), customMarks: p.customMarks, nextMarkId: p.nextMarkId };
   const sig = JSON.stringify(state);
   if (!changed.length && sig === rec.state) return;
   try {
@@ -176,7 +188,7 @@ function markSaved(p: ProjectData, withDicts = false) {
     customs: p.customMarks,
     tags: p.tagSettings,
     dicts: withDicts ? new Map([...dictGroups(p)].map(([d, t]) => [d, dictSignature(t, dictIds(p).get(d))])) : saved.dicts,
-    projects: p.projects,
+    projects: localProjects(p),
   };
 }
 
@@ -205,7 +217,7 @@ function longCellsOf(f: FileDoc): string[] {
 export function isDirty(): boolean {
   const p = useStore.getState().project;
   if (!p) return false;
-  if (p.customMarks !== saved.customs || p.projects !== saved.projects || p.tagSettings !== saved.tags) return true;
+  if (p.customMarks !== saved.customs || localProjects(p) !== saved.projects || p.tagSettings !== saved.tags) return true;
   const files = localFiles(p);
   if (saved.files.size !== files.length) return true;
   return files.some((f) => saved.files.get(fileKey(f)) !== f);
@@ -314,7 +326,7 @@ async function saveAll(ask = true): Promise<boolean> {
   const fail = (target: string, e: unknown) => { ok = false; errors.push({ target, reason: saveReason(e) }); };
   const done = { files: new Map(saved.files), customs: saved.customs, tags: saved.tags, dicts: new Map(saved.dicts), projects: saved.projects };
   // 刪掉（或搬走）的專案、檔案、字典移到資源回收筒（專案資料夾等全部寫好才移，見最後）
-  const gone = saved.projects.filter((x) => !p.projects.includes(x));
+  const gone = saved.projects.filter((x) => !localProjects(p).includes(x));
   const byKey = new Map(p.files.map((f) => [fileKey(f), f]));
   for (const [k, f] of saved.files) {
     if (byKey.has(k)) continue;
@@ -327,7 +339,7 @@ async function saveAll(ask = true): Promise<boolean> {
     try { if (!gone.includes(k.slice(0, i))) await trashDict(s.saveRoot, k.slice(0, i), k.slice(i + 1)); done.dicts.delete(k); } catch (e) { fail(tx('save.007', { k }), e); }
   }
   // 還沒有檔案時不必建立專案資料夾（只存字典）
-  if (p.files.length || saved.files.size || p.projects !== saved.projects || p.tagSettings !== saved.tags) {
+  if (p.files.length || saved.files.size || localProjects(p) !== saved.projects || p.tagSettings !== saved.tags) {
     const customsChanged = p.customMarks !== saved.customs;
     const long: string[] = [];
     // 改名、搬專案的舊位置：等所有檔案都寫好之後才移走（兩個檔案互換名稱時，舊位置正好是另一個檔案的新位置）
@@ -368,9 +380,9 @@ async function saveAll(ask = true): Promise<boolean> {
     }
     // 有檔案因為格子太長存不進去：每次存檔都提示（不然使用者不知道為什麼沒存）
     if (long.length && ask) useStore.setState({ longCells: long });
-    try { await writeMeta(s.saveRoot, p, lastPosition()); if (ok) { done.customs = p.customMarks; done.projects = p.projects; done.tags = p.tagSettings; } } catch (e) { fail(tx('save.009'), e); }
+    try { await writeMeta(s.saveRoot, { ...p, projects: localProjects(p) }, lastPosition()); if (ok) { done.customs = p.customMarks; done.projects = localProjects(p); done.tags = p.tagSettings; } } catch (e) { fail(tx('save.009'), e); }
     // 專案只改了大小寫：資料夾名稱也跟著改（Windows 不會自己改）
-    try { for (const x of await fixProjectCase(s.saveRoot, p.projects)) fail(`${x}`, new Error('rename')); } catch { /* 下次存檔再試 */ }
+    try { for (const x of await fixProjectCase(s.saveRoot, localProjects(p))) fail(`${x}`, new Error('rename')); } catch { /* 下次存檔再試 */ }
   }
   const ids = dictIds(p);
   for (const [k, terms] of groups) {
@@ -381,7 +393,7 @@ async function saveAll(ask = true): Promise<boolean> {
   }
   // 刪掉、改名的專案：新位置都寫好了才把舊資料夾移走，寫失敗時舊的還留著（下次存檔再移）。
   // 只改大小寫時新舊是同一個資料夾，不移
-  const left = gone.filter((x) => !p.projects.some((y) => sameName(x, y)));
+  const left = gone.filter((x) => !localProjects(p).some((y) => sameName(x, y)));
   if ((!ok || cancelled) && left.length) done.projects = saved.projects;
   else {
     for (const x of left) {
@@ -673,7 +685,9 @@ async function discardChanges(target: string | null) {
   if (!p) return;
   // 雲端檔案不在存檔裡：留著
   const files = [...saved.files.values(), ...p.files.filter((f) => f.cloud)];
-  const next: ProjectData = { ...p, files, customMarks: saved.customs ?? p.customMarks, projects: saved.projects.length ? saved.projects : p.projects };
+  // 雲端才有的專案也不在存檔裡：留著
+  const cloudOnly = p.projects.filter((x) => useStore.getState().cloudProjects.includes(x) && !saved.projects.includes(x));
+  const next: ProjectData = { ...p, files, customMarks: saved.customs ?? p.customMarks, projects: saved.projects.length ? [...saved.projects, ...cloudOnly] : p.projects };
   const idx = Math.max(0, files.findIndex((f) => fileKey(f) === target));
   // 檔案可能少了，位置一律重設，避免指到不存在的檔案
   useStore.setState({ project: next, file: idx, sheetBy: {}, selBy: {}, cellSel: null, reported: {}, viewOn: false, peek: false, saveStatus: 'saved' });
@@ -991,7 +1005,7 @@ async function syncFolder() {
     ? sortProjects([...p.projects, ...newProjects, ...files.map((f) => f.project), ...dicts.map((d) => d.info.project), ...moved])
     : p.projects;
   // 專案清單本來沒有未存的修改，加進來的專案也算已存
-  if (saved.projects === p.projects) saved = { ...saved, projects };
+  if (saved.projects === localProjects(p)) saved = { ...saved, projects: localProjects({ ...p, projects }) };
   const isRenamedDict = (project: string, name: string) => renamedDicts.find((r) => r.from.project === project && r.from.name === name)?.to;
   useStore.setState({
     project: {

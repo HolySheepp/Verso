@@ -218,6 +218,12 @@ interface State {
   aiEnabled: boolean;
   /** 雲端模式（雲端外掛設定）：只顯示 Google 試算表的檔案；關掉時只顯示本地檔案 */
   cloudMode: boolean;
+  /** 雲端模式：各專案的雲端字典檔（專案名稱 → 試算表 ID）；有的專案新增字典時是雲端字典 */
+  cloudDictFile: Record<string, string>;
+  /** 雲端模式：各專案預設的長度標準（雲端檔案沒設定自己的長度標準時用） */
+  cloudProjectStd: Record<string, StdValue>;
+  /** 雲端模式才有的專案（只在雲端資料裡，不存進存檔資料夾） */
+  cloudProjects: string[];
   /** AI 正在處理 */
   aiBusy: boolean;
   /** AI 正在處理的條目（不能改） */
@@ -359,7 +365,8 @@ export type Store = State & Actions;
 /** 檔案用的長度標準：檔案自己有設定就用檔案的，沒有就用專案設定的預設 */
 export function fileStdFor(p: ProjectData | null | undefined, f: FileDoc | undefined): StdValue | undefined {
   if (!f) return undefined;
-  return f.lengthStd ?? p?.tagSettings?.[projectTag(f.project)]?.lengthStd;
+  // 雲端檔案：專案預設的長度標準記在雲端資料裡
+  return f.lengthStd ?? (f.cloud ? useStore.getState().cloudProjectStd[f.project] : p?.tagSettings?.[projectTag(f.project)]?.lengthStd);
 }
 /** 目前檔案用的長度標準 */
 export const currentFileStd = (s: Pick<State, 'project' | 'file' | 'sheetBy' | 'selBy'>) => fileStdFor(s.project, currentOf(s).fileDoc);
@@ -473,7 +480,10 @@ export function withProject(projects: string[], name: string) {
 function withDict(p: ProjectData, project: string, dict: string, did?: string): ProjectData {
   const projects = withProject(p.projects, project);
   const has = p.dicts.some((d) => d.project === project && d.name === dict);
-  return { ...p, projects, dicts: has ? p.dicts : [...p.dicts, { project, name: dict, did: did ?? newFileId() }] };
+  // 雲端模式、這個專案有雲端字典檔：新字典是雲端字典（雲端外掛會在字典檔裡建新頁簽；gid -1 代表還沒建）
+  const st = useStore.getState();
+  const sid = st.cloudMode ? st.cloudDictFile[project] : undefined;
+  return { ...p, projects, dicts: has ? p.dicts : [...p.dicts, { project, name: dict, did: did ?? newFileId(), ...(sid ? { cloud: { sid, gid: -1 } } : {}) }] };
 }
 
 export const DEFAULT_COL_WIDTHS = [9, 12, 39.5, 39.5];
@@ -512,8 +522,10 @@ export function dictEnabled(s: Pick<State, 'project' | 'file' | 'sheetBy' | 'sel
 }
 
 /** 同上，直接給目前專案與手動開關（只訂閱這兩個值的區塊用） */
+/** 沒手動開關時是否啟用：目前專案和共用的本地字典預設啟用；雲端字典預設不啟用（勾了才讀） */
+export const dictDefaultOn = (current: string, d: DictInfo) => !d.cloud && (d.project === current || d.project === SHARED);
 export function dictEnabledIn(current: string, overrides: Record<string, boolean>, d: DictInfo) {
-  return overrides[overrideKey(current, d)] ?? (d.project === current || d.project === SHARED);
+  return overrides[overrideKey(current, d)] ?? dictDefaultOn(current, d);
 }
 
 /** 目前的頁簽、條目位置 */
@@ -713,6 +725,9 @@ export const useStore = create<Store>((set, get) => {
     showIds: false,
     aiEnabled: false,
     cloudMode: false,
+    cloudDictFile: {},
+    cloudProjectStd: {},
+    cloudProjects: [],
     aiBusy: false,
     aiLocked: [],
     aiProgress: null,
@@ -1324,6 +1339,8 @@ export const useStore = create<Store>((set, get) => {
     moveDict(project, name, to) {
       const p = get().project;
       if (!p || project === to) return;
+      // 雲端字典是專案字典檔裡的一個頁簽，不能搬到別的專案
+      if (p.dicts.find((d) => d.project === project && d.name === name)?.cloud) { showToast(tx('dict.cloudNoMove'), { warn: true }); return; }
       const n = uniqueName(name, p.dicts.filter((d) => d.project === to).map((d) => d.name));
       // 搬到別的專案還是同一本字典：ID 不變
       const did = p.dicts.find((d) => d.project === project && d.name === name)?.did;

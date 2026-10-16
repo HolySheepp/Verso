@@ -380,7 +380,7 @@ export async function writeFile(root: string, file: FileDoc, customs: CustomMark
 /** 各專案的檔案順序，與工作區設定（自訂標記、上次位置） */
 export async function writeMeta(root: string, data: ProjectData, last?: LastPosition) {
   // 雲端模式的檔案不在存檔資料夾裡
-  data = { ...data, files: data.files.filter((f) => !f.cloud) };
+  data = { ...data, files: data.files.filter((f) => !f.cloud), dicts: data.dicts.filter((d) => !d.cloud) };
   const byProject = new Map<string, string[]>();
   data.files.forEach((f) => {
     if (!byProject.has(f.project)) byProject.set(f.project, []);

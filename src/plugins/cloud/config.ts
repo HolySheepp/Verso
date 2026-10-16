@@ -4,13 +4,19 @@ import { exists, mkdir, readTextFile, writeTextFile } from '@tauri-apps/plugin-f
 import { create } from 'zustand';
 import { emptyFields, rowRuns, type FieldMap, type FieldSel } from '../../model/importSel';
 import type { ColKey } from '../../model/paste';
+import type { LengthStd, StdValue } from '../../model/length';
+import type { CloudProject } from './projects';
 
 /** 一個欄位在 Google 表上的範圍：哪一欄、哪幾段列；open 代表一直到表的最後一列（之後新增的列也算） */
 export interface FieldRange { col: number; runs: [number, number][]; open: boolean }
 export type Fields = Record<ColKey, FieldRange | null>;
 export interface CloudTab { gid: number; title: string; fields: Fields }
 /** 設定過的一份試算表：sid 是試算表 ID，tabs 是有設定欄位的分頁 */
-export interface CloudSheet { sid: string; title: string; project: string; tabs: CloudTab[] }
+export interface CloudSheet {
+  sid: string; title: string; project: string; tabs: CloudTab[];
+  /** 這個檔案用的長度標準（記在資料表，大家共用） */
+  lengthStd?: StdValue;
+}
 export interface CloudConfig {
   on: boolean; clientId: string; clientSecret: string; sheets: CloudSheet[];
   /** Verso 資料表的網址（標記、建議翻譯、修改、各檔案的欄位設定存在這裡，大家共用） */
@@ -19,6 +25,8 @@ export interface CloudConfig {
   hidden?: string[];
   /** 上次打開的試算表（打開雲端模式時先讀這份） */
   last?: string;
+  /** 雲端模式時，這台電腦原本的常用標準（關掉雲端模式時換回來） */
+  localPresets?: { name: string; std: LengthStd }[];
 }
 
 const EMPTY: CloudConfig = { on: false, clientId: '', clientSecret: '', sheets: [] };
@@ -34,7 +42,11 @@ export const useCloud = create<{
   shared: CloudSheet[];
   /** 這個版本內建了 Google 用戶端（不用自己填 ID、密鑰） */
   builtin: boolean;
-}>(() => ({ builtin: false, cfg: EMPTY, loaded: false, email: null, setup: null, manage: false, conflicts: [], syncing: false, lastSync: null, syncError: '', shared: [] }));
+  /** 資料表裡的雲端專案 */
+  projects: CloudProject[];
+  /** 管理專案的對話框 */
+  projectsOpen: boolean;
+}>(() => ({ builtin: false, projects: [], projectsOpen: false, cfg: EMPTY, loaded: false, email: null, setup: null, manage: false, conflicts: [], syncing: false, lastSync: null, syncError: '', shared: [] }));
 
 /** 用得到的試算表：資料表裡共用的設定為準，加上這台電腦自己設定的，扣掉不再使用的 */
 export function allSheets(): CloudSheet[] {
