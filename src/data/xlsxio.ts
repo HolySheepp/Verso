@@ -129,7 +129,7 @@ function readSetting(wb: XLSX.WorkBook, key: string): string {
 }
 
 /** 原文更新記錄 */
-function readUpd(text: string): SrcUpdate | undefined {
+export function readUpd(text: string): SrcUpdate | undefined {
   if (!text) return undefined;
   try {
     const o = JSON.parse(text) as SrcUpdate;

@@ -201,3 +201,11 @@ export async function moveRowsSeq(sid: string, gid: number, moves: { from: numbe
     requests: moves.map((m) => ({ moveDimension: { source: { sheetId: gid, dimension: 'ROWS', startIndex: m.from, endIndex: m.from + 1 }, destinationIndex: m.to } })),
   });
 }
+
+/** 刪掉分頁的幾欄（從 0 起算）；從右往左刪，位置才不會跑掉 */
+export async function deleteCols(sid: string, gid: number, cols: number[]) {
+  if (!cols.length) return;
+  await call('POST', `${sid}:batchUpdate`, {
+    requests: [...new Set(cols)].sort((a, b) => b - a).map((c) => ({ deleteDimension: { range: { sheetId: gid, dimension: 'COLUMNS', startIndex: c, endIndex: c + 1 } } })),
+  });
+}

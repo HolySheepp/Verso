@@ -19,7 +19,8 @@ import { ensureCols, insertRowsAt, moveRowsSeq, deleteRows, renameTab, deleteTab
 import { colName } from '../../model/importSel';
 import { blankEntry, insertRows, moveRows } from '../../model/cells';
 import { applyUpdate, type AlignRow, type NewRow } from '../../model/srcUpdate';
-import { insertCol } from './api';
+import { insertCol, deleteCols } from './api';
+import { ENTRY_HEADERS, readUpd } from '../../data/xlsxio';
 import { toFields } from './config';
 import type { FieldMap } from '../../model/importSel';
 import { textToStd, stdToText } from '../../model/length';
@@ -1084,4 +1085,56 @@ export function tabRemove(i: number): boolean {
     } catch (e) { showToast(tx('cloud.writeFailed', { name: fileDoc.name, reason: errText(e) }), { warn: true }); }
   } } });
   return true;
+}
+
+// ---- Verso 存檔格式的表：轉成雲端檔 ----
+const VERSO_KEEP = ['#', '發話者', '原文', '譯文', '備註'];
+/** 分頁是不是 Verso 的存檔格式（第一列是 Verso 的欄位標題） */
+export function isVersoTab(rows: string[][]) {
+  const h = (rows[0] ?? []).map((x) => x.trim());
+  return h[0] === '#' && h[1] === '發話者' && h[2] === '原文' && h[3] === '譯文' && h.includes('備註') && rows.length > 1;
+}
+
+/**
+ * 把 Verso 存檔格式的分頁轉成雲端檔：標記、建議翻譯、驗證修改、原文更新寫進 Verso 資料表，
+ * 表上這些 Verso 用的欄刪掉（只留 #、發話者、原文、譯文、備註和使用者自己的欄）。回傳刪欄後的欄位範圍
+ */
+export async function convertVersoTab(sid: string, gid: number, title: string, rows: string[][]): Promise<FieldMap> {
+  const did = dataSid();
+  const head = rows[0].map((x) => x.trim());
+  const col = (n: string) => head.indexOf(n);
+  const get = (r: string[], n: string) => (col(n) >= 0 ? r[col(n)] ?? '' : '');
+  const body = rows.slice(1);
+  const keys = keysOf(body.map((r) => ({ id: r[0] ?? '' })));
+  const customs = useStore.getState().project!.customMarks;
+  const who = useCloud.getState().email ?? '';
+  const now = new Date().toISOString();
+  if (did) {
+    const out: string[][] = [];
+    body.forEach((r, i) => {
+      const raw = get(r, '標記編號').trim();
+      // 標記：內建的用代號；自訂的用名稱（每台電腦的自訂標記編號不一樣）
+      const mark = ['verified', 'doubt', 'think', 'ignore', 'ai'].includes(raw) ? raw : raw.startsWith('c:') ? (get(r, '標記').trim() ? '#' + get(r, '標記').trim() : '') : '';
+      const sugg = get(r, '建議翻譯');
+      const ver = verifyToText(textToVerify(get(r, '驗證修改')));
+      const upd = readUpd(get(r, '原文更新'));
+      if (!mark && !sugg && !ver && !upd) return;
+      void customs;
+      out.push([String(gid), ...keys[i].split('\u0000'), mark, sugg, ver, '', '', '', who, now, upd ? JSON.stringify({ u: upd }) : '']);
+    });
+    if (out.length) {
+      const fd = await readData(sid, true);
+      if (fd && !fd.exists) { await addTab(did, sid, DATA_HEAD.length); await writeRows(did, sid, [{ row: 0, values: DATA_HEAD }]); }
+      await appendRows(did, sid, out);
+      fileData.delete(sid);
+    }
+  }
+  // 表上 Verso 用的欄刪掉
+  const drop = head.map((h, c) => (ENTRY_HEADERS.includes(h) && !VERSO_KEEP.includes(h) ? c : -1)).filter((c) => c >= 0);
+  if (did) await deleteCols(sid, gid, drop);
+  const left = did ? head.filter((_, c) => !drop.includes(c)) : head;
+  const data = body.map((_, i) => i + 1);
+  const at = (n: string) => (left.indexOf(n) >= 0 ? { col: left.indexOf(n), rows: data } : null);
+  void title;
+  return { id: at('#'), speaker: at('發話者'), src: at('原文'), tgt: at('譯文'), note: at('備註') };
 }

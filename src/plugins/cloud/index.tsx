@@ -21,7 +21,7 @@ import { beforeExit, rowHook, tabHook } from '../hooks';
 import type { VersoPlugin } from '../registry';
 import { builtinClient, errText, insertCol, login, loginStatus, logout, meta, readTabs, sidOf } from './api';
 import { allSheets, loadConfig, setConfig, toFields, toFieldMap, useCloud, type CloudSheet, type CloudTab } from './config';
-import { removeRows, tabRemove, rowOp, tabRename, tabDelete, tabInsert, currentSid, enterCloud, flushAll, pickShown, putSheet, refreshAll, removeSheet, resolveConflict, watchStore } from './sync';
+import { isVersoTab, convertVersoTab, removeRows, tabRemove, rowOp, tabRename, tabDelete, tabInsert, currentSid, enterCloud, flushAll, pickShown, putSheet, refreshAll, removeSheet, resolveConflict, watchStore } from './sync';
 
 const btn: React.CSSProperties = { height: 32, padding: '0 14px', background: 'var(--btn)', border: '1px solid var(--line4)', borderRadius: 8, fontSize: fz(12.5) };
 const primary: React.CSSProperties = { height: 36, padding: '0 18px', background: 'var(--primary)', border: 0, borderRadius: 8, color: '#ffffff', fontSize: fz(13), fontWeight: 600 };
@@ -238,6 +238,8 @@ function SetupDialog({ sid0 }: { sid0?: string }) {
       const tabs: CloudTab[] = [];
       for (const d of used) {
         let fields: FieldMap = d.fields;
+        // Verso 存檔格式：標記、修改等搬進 Verso 資料表，表上這些欄刪掉（轉成雲端檔）
+        if (isVersoTab(d.rows) && sidOf(useCloud.getState().cfg.dataUrl ?? '')) fields = await convertVersoTab(sid, d.gid, d.name, d.rows);
         // 沒選譯文：在原文右邊插入一欄，右邊的欄位跟著往右移
         if (!fields.tgt) {
           const at = fields.src!.col + 1;
@@ -268,6 +270,7 @@ function SetupDialog({ sid0 }: { sid0?: string }) {
       <div style={{ flexGrow: 1, minHeight: 0, display: 'flex', flexDirection: 'column', gap: 12, padding: '16px 20px' }}>
         {projectRow}
         <div style={{ fontSize: fz(12), color: 'var(--mute)' }}>{tx('cloud.pickHint', { title })}</div>
+        {drafts.some((d) => isVersoTab(d.rows)) && <div style={{ fontSize: fz(12), color: 'var(--accent2)' }}>{sidOf(useCloud.getState().cfg.dataUrl ?? '') ? tx('cloud.versoConvert') : tx('cloud.versoNoData')}</div>}
         <div role="tablist" className="no-scrollbar" style={{ display: 'flex', gap: 6, overflowX: 'auto', borderBottom: '1px solid var(--line)', flexShrink: 0 }}>
           {drafts.map((d, i) => {
             const on = i === cur;
