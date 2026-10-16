@@ -21,7 +21,7 @@ import { beforeExit, rowHook, tabHook } from '../hooks';
 import type { VersoPlugin } from '../registry';
 import { builtinClient, errText, insertCol, login, loginStatus, logout, meta, readTabs, sidOf } from './api';
 import { allSheets, loadConfig, setConfig, toFields, toFieldMap, useCloud, type CloudSheet, type CloudTab } from './config';
-import { rowOp, tabRename, tabDelete, tabInsert, currentSid, enterCloud, flushAll, pickShown, putSheet, refreshAll, removeSheet, resolveConflict, watchStore } from './sync';
+import { removeRows, tabRemove, rowOp, tabRename, tabDelete, tabInsert, currentSid, enterCloud, flushAll, pickShown, putSheet, refreshAll, removeSheet, resolveConflict, watchStore } from './sync';
 
 const btn: React.CSSProperties = { height: 32, padding: '0 14px', background: 'var(--btn)', border: '1px solid var(--line4)', borderRadius: 8, fontSize: fz(12.5) };
 const primary: React.CSSProperties = { height: 36, padding: '0 18px', background: 'var(--primary)', border: 0, borderRadius: 8, color: '#ffffff', fontSize: fz(13), fontWeight: 600 };
@@ -368,12 +368,17 @@ function Overlay() {
   const projectsOpen = useCloud((s) => s.projectsOpen);
   const askDelete = useCloud((s) => s.askDelete);
   const srcUpd = useCloud((s) => s.srcUpd);
+  const confirm = useCloud((s) => s.confirm);
   return (
     <>
       {setup && <SetupDialog key={setup.sid ?? 'new'} sid0={setup.sid} />}
       {manage && <ManageDialog />}
       {projectsOpen && <ProjectsDialog />}
       {askDelete && <DeletePreview ask={askDelete} />}
+      {confirm && (
+        <ConfirmDialog zIndex={70} title={confirm.title} body={confirm.body}
+          choices={[{ label: tx('cloud.cancel'), onClick: () => useCloud.setState({ confirm: null }) }, { label: confirm.ok, primary: true, onClick: () => { const c = confirm; useCloud.setState({ confirm: null }); void c.run(); } }]} />
+      )}
       {srcUpd && <SrcUpdateCloud key={srcUpd.sid + ':' + srcUpd.sheet} sid={srcUpd.sid} start={srcUpd.sheet} />}
       <ConflictAsk />
     </>
@@ -385,7 +390,8 @@ async function start() {
   const cfg = await loadConfig();
   watchStore();
   watchDicts();
-  rowHook.fn = rowOp;
+  rowHook.fn = (kind, rows, count) => (kind === 'remove' ? removeRows(rows) : rowOp(kind, rows, count));
+  tabHook.remove = tabRemove;
   tabHook.rename = tabRename;
   tabHook.delete = tabDelete;
   tabHook.insert = tabInsert;

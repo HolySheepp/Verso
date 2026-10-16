@@ -16,6 +16,8 @@ export interface CloudSheet {
   sid: string; title: string; project: string; tabs: CloudTab[];
   /** 這個檔案用的長度標準（記在資料表，大家共用） */
   lengthStd?: StdValue;
+  /** 移除的頁簽（分頁 ID）和條目（分頁 ID → 「ID 第幾個」）：Verso 不再讀取，Google 上不動；重新設定時清掉 */
+  removed?: { tabs?: number[]; rows?: Record<string, string[]> };
 }
 export interface CloudConfig {
   on: boolean; clientId: string; clientSecret: string; sheets: CloudSheet[];
@@ -50,7 +52,9 @@ export const useCloud = create<{
   askDelete: { title: string; rows: { row: number; cells: [string, string][] }[]; run(): Promise<void> } | null;
   /** 更新原文（雲端模式）的視窗：哪份試算表、從哪個頁簽打開 */
   srcUpd: { sid: string; sheet: number } | null;
-}>(() => ({ builtin: false, projects: [], projectsOpen: false, askDelete: null, srcUpd: null, cfg: EMPTY, loaded: false, email: null, setup: null, manage: false, conflicts: [], syncing: false, lastSync: null, syncError: '', shared: [] }));
+  /** 需要使用者確認的動作（例如移除） */
+  confirm: { title: string; body: string; ok: string; run(): Promise<void> } | null;
+}>(() => ({ builtin: false, projects: [], projectsOpen: false, askDelete: null, srcUpd: null, confirm: null, cfg: EMPTY, loaded: false, email: null, setup: null, manage: false, conflicts: [], syncing: false, lastSync: null, syncError: '', shared: [] }));
 
 /** 用得到的試算表：資料表裡共用的設定為準，加上這台電腦自己設定的，扣掉不再使用的 */
 export function allSheets(): CloudSheet[] {

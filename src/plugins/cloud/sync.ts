@@ -85,7 +85,7 @@ const is400 = (e: unknown) => /^400\b/.test(String((e as Error)?.message ?? e));
 
 /** 「Verso檔案」分頁：試算表ID、名稱、專案、欄位設定、更新者、更新時間、長度標準（新欄位一律加在右邊，舊資料不動） */
 const FILES_TAB = 'Verso檔案';
-const FILES_HEAD = ['試算表ID', '名稱', '專案', '欄位設定', '更新者', '更新時間', '長度標準'];
+const FILES_HEAD = ['試算表ID', '名稱', '專案', '欄位設定', '更新者', '更新時間', '長度標準', '移除'];
 let filesHeadLen = 0;
 const filesRows = new Map<string, number>();
 let filesExists = false;
@@ -105,7 +105,9 @@ export async function readShared() {
       const tabs = JSON.parse(v[3] ?? '') as CloudTab[];
       if (!Array.isArray(tabs)) return;
       filesRows.set(v[0], r);
-      shared.push({ sid: v[0], title: v[1] ?? '', project: v[2] || SHARED, tabs, ...(v[6] ? { lengthStd: textToStd(v[6]) } : {}) });
+      let removed: CloudSheet['removed'];
+      try { removed = v[7] ? JSON.parse(v[7]) : undefined; } catch { removed = undefined; }
+      shared.push({ sid: v[0], title: v[1] ?? '', project: v[2] || SHARED, tabs, ...(v[6] ? { lengthStd: textToStd(v[6]) } : {}), ...(removed ? { removed } : {}) });
     } catch { /* 壞掉的列不理 */ }
   });
   useCloud.setState({ shared });
@@ -119,7 +121,7 @@ export async function writeShared(conf: CloudSheet) {
   if (!filesExists) { await addTab(did, FILES_TAB, FILES_HEAD.length); await writeRows(did, FILES_TAB, [{ row: 0, values: FILES_HEAD }]); filesExists = true; }
   // 舊版建的分頁欄位比較少：在右邊補欄位、補標題
   else if (filesHeadLen < FILES_HEAD.length) { await ensureCols(did, FILES_TAB, FILES_HEAD.length); await writeRows(did, FILES_TAB, [{ row: 0, values: FILES_HEAD }]); }
-  const values = [conf.sid, conf.title, conf.project, JSON.stringify(conf.tabs), useCloud.getState().email ?? '', new Date().toISOString(), stdToText(conf.lengthStd)];
+  const values = [conf.sid, conf.title, conf.project, JSON.stringify(conf.tabs), useCloud.getState().email ?? '', new Date().toISOString(), stdToText(conf.lengthStd), conf.removed ? JSON.stringify(conf.removed) : ''];
   const row = filesRows.get(conf.sid);
   if (row !== undefined) await writeRows(did, FILES_TAB, [{ row, values }]);
   else await appendRows(did, FILES_TAB, [values]);
@@ -176,6 +178,8 @@ interface Base {
   row: number;
   /** 資料表裡這條的內容（標記、建議翻譯、修改）與整列（標記～備註藍色起點） */
   core: string; data: string;
+  /** 讀取時這條是「哪個 ID 的第幾個」（移除了別的條目也不會跑掉） */
+  key?: string;
 }
 /** 每條最後一次跟 Google 對上的內容（uid → …）；跟軟體裡的不同代表還沒寫回 */
 const base = new Map<string, Base>();
@@ -185,14 +189,16 @@ const plainSig = (t: string) => richSig({ text: t, runs: [] });
  * 把一個分頁讀到的內容變成條目；prev 是目前軟體裡的那份（標記、還沒寫回的修改都留著）。
  * rich 是譯文欄的格式（只有需要還原驗證標示時才讀）
  */
-function buildSheet(tab: CloudTab, rows: string[][], prev: Sheet | undefined, kept: Record<string, Kept> | undefined, fd: FileData | undefined, rich: Rich[] | undefined): Sheet {
+function buildSheet(tab: CloudTab, rows: string[][], prev: Sheet | undefined, kept: Record<string, Kept> | undefined, fd: FileData | undefined, rich: Rich[] | undefined, removed: Set<string> = new Set()): Sheet {
   const customs = useStore.getState().project!.customMarks;
   const map = toFieldMap(tab.fields, rows.length - 1);
   const fresh = columnsToEntries(fieldsToColumns(rows, map));
   const keys = keysOf(fresh);
   const old = new Map<string, Entry>();
-  if (prev) { const pk = keysOf(prev.entries); prev.entries.forEach((e, i) => old.set(pk[i], e)); }
-  const entries = fresh.map((n, i) => {
+  if (prev) { const pk = keysOf(prev.entries); prev.entries.forEach((e, i) => old.set(base.get(e.uid)?.key ?? pk[i], e)); }
+  const entries = fresh.map((n, i): Entry | null => {
+    // 移除的條目：不讀
+    if (removed.has(keys[i])) return null;
     const row = map.src!.rows[i];
     const d = fd?.rows.get(dataKey(tab.gid, keys[i]))?.v;
     // 譯文欄是 Verso 寫的驗證標示：還原成原本的譯文（跟寫入時一樣就用資料表記的；被人改過就照格式拿掉標示）
@@ -242,10 +248,10 @@ function buildSheet(tab: CloudTab, rows: string[][], prev: Sheet | undefined, ke
       id: n.id, speaker: n.speaker, src: n.src,
       tgt: rTgt, cell: n.tgt, cellSig: composite ? richSig(tgtCell({ ...e, tgt: rTgt, sugg: rSugg, ver: rVer })) : plainSig(n.tgt),
       note: n.note, noteSig: richSig(noteCell(n.note, blue)), blueFrom: blue, row,
-      core: rCore, data: rData,
+      core: rCore, data: rData, key: keys[i],
     });
     return e;
-  });
+  }).filter((e): e is Entry => !!e);
   // 空的頁簽：放一條空白條目，讓使用者直接打字（離開時寫進 Google 的第一列資料）
   if (!entries.length) {
     const prevBlank = prev?.entries.length === 1 && pendingNew.has(prev.entries[0].uid) ? prev.entries[0] : undefined;
@@ -281,7 +287,8 @@ export async function loadSheet(sid: string, quiet = false): Promise<boolean> {
   try {
     const m = await meta(sid);
     // 分頁改名：跟著 Google 的名稱；被刪掉的分頁不讀
-    const tabs = conf.tabs.map((t) => ({ ...t, title: m.tabs.find((x) => x.gid === t.gid)?.title ?? '' })).filter((t) => t.title);
+    // 移除的頁簽不讀
+    const tabs = conf.tabs.map((t) => ({ ...t, title: m.tabs.find((x) => x.gid === t.gid)?.title ?? '' })).filter((t) => t.title && !conf.removed?.tabs?.includes(t.gid));
     if (m.title !== conf.title || tabs.some((t, i) => t.title !== conf.tabs[i]?.title)) {
       const fixed = { ...conf, title: m.title, tabs: conf.tabs.map((t) => tabs.find((y) => y.gid === t.gid) ?? t) };
       const { cfg, shared } = useCloud.getState();
@@ -294,7 +301,7 @@ export async function loadSheet(sid: string, quiet = false): Promise<boolean> {
     const cur0 = fileOf(sid);
     const prev = cur0 && !cur0.cloud?.stub ? cur0 : undefined;
     const kept = prev ? undefined : await readCache(sid);
-    const sheets = tabs.map((t, i) => buildSheet(t, values[i], prev?.sheets.find((s) => s.gid === t.gid), kept?.[String(t.gid)], fd, rich[i]));
+    const sheets = tabs.map((t, i) => buildSheet(t, values[i], prev?.sheets.find((s) => s.gid === t.gid), kept?.[String(t.gid)], fd, rich[i], new Set(conf.removed?.rows?.[String(t.gid)] ?? [])));
     if (!sheets.length) return false;
     const p = useStore.getState().project!;
     ensureProjects([conf.project]);
@@ -359,7 +366,9 @@ export function flush(sid: string, all = false): Promise<void> {
       const tab = conf.tabs.find((t) => t.gid === sh.gid);
       if (!tab?.fields.id || !tab.fields.tgt) continue;
       // 用 Google 上的 ID 算「第幾個」（自己改了 ID 還沒寫回時，用舊的找列）
-      const keys = keysOf(sh.entries.map((e) => ({ id: base.get(e.uid)?.id ?? e.id })));
+      const computed = keysOf(sh.entries.map((e) => ({ id: base.get(e.uid)?.id ?? e.id })));
+      // 讀取時記下的「第幾個」為準（移除了同 ID 的別條也不會對錯列）；ID 改過寫回後才用重算的
+      const keys = sh.entries.map((e, i) => { const b = base.get(e.uid); return b?.key && b.key.split('\u0000')[0] === b.id ? b.key : computed[i]; });
       const textChanged = (e: Entry, b: Base) => e.id !== b.id || e.speaker !== b.speaker || effSrc(e) !== b.src;
       const changed = sh.entries.map((e, i) => ({ e, key: keys[i], b: base.get(e.uid) }))
         .filter((x): x is { e: Entry; key: string; b: Base } => !!x.b && x.e.uid !== skip && !locked.has(x.e.uid))
@@ -500,7 +509,7 @@ export function ensureStubs() {
   const add = sheets.filter((x) => !p.files.some((f) => f.fid === fidOf(x.sid))).map((x): FileDoc => ({
     fid: fidOf(x.sid), cloud: { sid: x.sid, stub: true }, name: x.title || x.sid,
     project: x.project || SHARED, lengthStd: x.lengthStd,
-    sheets: x.tabs.map((t) => ({ name: t.title, gid: t.gid, entries: [] })),
+    sheets: x.tabs.filter((t) => !x.removed?.tabs?.includes(t.gid)).map((t) => ({ name: t.title, gid: t.gid, entries: [] })),
   }));
   const drop = p.files.map((f, i) => (f.cloud?.stub && !want.has(f.fid!) ? i : -1)).filter((i) => i >= 0);
   for (const i of drop.reverse()) useStore.getState().deleteFile(i);
@@ -1017,4 +1026,62 @@ export async function createR15(sid: string, link: string, linkTitle: string, ta
     fileData.delete(link);
   }
   await putSheet({ sid: link, title: linkTitle, project: conf.project, tabs: newTabs, lengthStd: conf.lengthStd });
+}
+
+// ---- 移除：Verso 不再讀取這些頁簽、條目（Google 上不動），紀錄存在資料表，同專案的人都不會再讀到 ----
+async function saveRemoved(sid: string, removed: NonNullable<CloudSheet['removed']>) {
+  const conf = confOf(sid);
+  if (!conf) return;
+  const next = { ...conf, removed };
+  const { cfg, shared } = useCloud.getState();
+  if (cfg.sheets.some((x) => x.sid === sid)) setConfig({ sheets: cfg.sheets.map((x) => (x.sid === sid ? next : x)) });
+  useCloud.setState({ shared: shared.map((x) => (x.sid === sid ? next : x)) });
+  await writeShared(next);
+}
+
+/** 移除條目（選了哪幾條就整條移除） */
+export function removeRows(rows: number[]): boolean {
+  const s = useStore.getState();
+  const { fileDoc, sheet, sheetIdx } = currentOf(s);
+  const sid = fileDoc.cloud?.sid;
+  const conf = sid ? confOf(sid) : undefined;
+  if (!sid || !conf || sheet.gid === undefined || fileDoc.cloud?.stub) return false;
+  const pick = rows.map((i) => sheet.entries[i]).filter(Boolean);
+  if (!pick.length) return true;
+  const at = { file: s.file, sheet: sheetIdx };
+  useCloud.setState({ confirm: { title: tx('cloud.removeRowsAsk', { n: pick.length }), body: tx('cloud.removeRowsBody'), ok: tx('cloud.removeOk'), run: async () => {
+    try {
+      await flush(sid, true);
+      const keys = pick.map((e) => base.get(e.uid)?.key).filter((k): k is string => !!k);
+      const g = String(sheet.gid);
+      const removed = { ...(conf.removed ?? {}), rows: { ...(conf.removed?.rows ?? {}), [g]: [...new Set([...(conf.removed?.rows?.[g] ?? []), ...keys])] } };
+      await saveRemoved(sid, removed);
+      const gone = new Set(pick.map((e) => e.uid));
+      asInternal(() => useStore.getState().editSheet((es) => ({ entries: es.filter((e) => !gone.has(e.uid)), keys: [] }), at, true));
+      useStore.getState().dropUndo(fidOf(sid));
+    } catch (e) { showToast(tx('cloud.writeFailed', { name: fileDoc.name, reason: errText(e) }), { warn: true }); }
+  } } });
+  return true;
+}
+
+/** 移除頁簽 */
+export function tabRemove(i: number): boolean {
+  const s = useStore.getState();
+  const { fileDoc } = currentOf(s);
+  const fileIdx = s.file;
+  const sid = fileDoc.cloud?.sid;
+  const sh = fileDoc.sheets[i];
+  const conf = sid ? confOf(sid) : undefined;
+  if (!sid || !conf || sh?.gid === undefined || fileDoc.cloud?.stub) return false;
+  if (fileDoc.sheets.length <= 1) { showToast(tx('cloud.removeLastTab'), { warn: true }); return true; }
+  useCloud.setState({ confirm: { title: tx('cloud.removeTabAsk', { name: sh.name }), body: tx('cloud.removeTabBody'), ok: tx('cloud.removeOk'), run: async () => {
+    try {
+      await flush(sid, true);
+      await saveRemoved(sid, { ...(conf.removed ?? {}), tabs: [...new Set([...(conf.removed?.tabs ?? []), sh.gid!])] });
+      const st = useStore.getState();
+      if (st.file === fileIdx) asInternal(() => st.deleteSheet(i));
+      useStore.getState().dropUndo(fidOf(sid));
+    } catch (e) { showToast(tx('cloud.writeFailed', { name: fileDoc.name, reason: errText(e) }), { warn: true }); }
+  } } });
+  return true;
 }

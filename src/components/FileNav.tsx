@@ -58,6 +58,7 @@ export function FileNav({ tabW }: { tabW: number }) {
     // 雲端檔案：刪除交給雲端外掛（先預覽 Google 上的內容）
     if (k === 'delete' && cloudFile && tabHook.delete?.(i)) return;
     if (k === 'srcupd' && cloudFile && tabHook.srcUpdate?.(i)) return;
+    if (k === 'remove') { tabHook.remove?.(i); return; }
     if (k === 'clear' || k === 'delete') setAsk({ kind: k, i });
     if (k === 'insert') s.set({ pasteOpen: true, pasteInsert: { after: i } });
     if (k === 'srcupd') { s.setSheet(i); s.set({ srcUpdate: i }); }
@@ -247,6 +248,8 @@ export function FileNav({ tabW }: { tabW: number }) {
             { key: 'delete', label: tx('nav.019'), danger: true, disabled: fileDoc.sheets.length <= 1 },
             { key: 'insert', label: tx('nav.020') },
             { key: 'srcupd', label: tx('nav.021') },
+            // 雲端模式：移除（不再讀取這個頁簽，Google 上不動）
+            ...(cloudFile ? [{ key: 'remove', label: tx('cloud.remove'), danger: true }] : []),
           ]}
           onPick={(k) => onTabMenu(k, tabMenu.i)} onClose={() => setTabMenu(null)} />
       )}

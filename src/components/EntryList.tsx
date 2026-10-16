@@ -255,6 +255,8 @@ export function EntryList() {
   const editRef = useRef<Editing | null>(null);
   const setEditing = (ed: Editing | null) => { editRef.current = ed; setEditingState(ed); };
   const readOnly = s.mode === 'view';
+  // 雲端檔案：右鍵多一個「移除」
+  const cloudFile = !!s.project?.files[s.file]?.cloud;
   // AI 處理中的條目鎖住（AI 外掛不在時永遠是空的）
   const aiLocked = useStore((st) => st.aiLocked);
   const ovf = { id: overflowOf(s.fonts, 'id'), speaker: overflowOf(s.fonts, 'speaker'), src: overflowOf(s.fonts, 'src'), tgt: overflowOf(s.fonts, 'tgt') };
@@ -622,6 +624,8 @@ export function EntryList() {
       set({ rowMenu: { index: rowsSel[0], indices: rowsSel, ...menuAt(menu.x, menu.y) }, stampOpen: false, fileMenuOpen: false });
       return;
     }
+    // 雲端模式「移除」：選到的條目整條不再讀取
+    if (k === 'remove') { rowHook.fn?.('remove', selRows, 0); return; }
     if (k === 'edit') startEdit(first.i, first.c);
     if (k === 'clear') s.editSheet((es) => ({ entries: clearCells(es, keys), keys }));
     if (menu?.kind === 'row') {
@@ -819,6 +823,7 @@ export function EntryList() {
             { key: 'insert', label: tx('list.038'), disabled: readOnly, stepper: { value: insertCount, min: 1, max: 100, onChange: setInsertCount } },
             { key: 'up', label: tx('list.039'), disabled: readOnly },
             { key: 'down', label: tx('list.040'), disabled: readOnly },
+            ...(cloudFile ? [{ key: 'remove', label: tx('cloud.remove'), danger: true, disabled: readOnly }] : []),
           ] : [
             { key: 'edit', label: tx('list.041'), disabled: readOnly || !canEdit(firstKey(keys).c) },
             { key: 'clear', label: tx('list.036'), disabled: readOnly },
@@ -826,6 +831,7 @@ export function EntryList() {
             ...(selRows.some((i) => sheet.entries[i] && hasPendingUpdate(sheet.entries[i])) ? [{ key: 'applySrc', label: tx('list.035'), disabled: readOnly }] : []),
             { key: 'up', label: tx('list.039'), disabled: readOnly },
             { key: 'down', label: tx('list.040'), disabled: readOnly },
+            ...(cloudFile ? [{ key: 'remove', label: tx('cloud.remove'), danger: true, disabled: readOnly }] : []),
           ]}
           onPick={menuAct} onClose={() => { setMenu(null); sink.current?.focus({ preventScroll: true }); }} />
       )}

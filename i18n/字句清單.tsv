@@ -1,4 +1,10 @@
 ﻿代號	中文	畫面區域	程式位置
+cloud.removeRowsAsk	移除這 {n} 條？	雲端模式：移除條目的確認	plugins/cloud/sync.ts:1052
+cloud.removeRowsBody	移除後 Verso 不再讀取這幾條（Google 上不動），同專案的人也不會再讀到。之後要恢復，只能重新設定這份表。	雲端模式：移除條目的確認	plugins/cloud/sync.ts:1052
+cloud.removeTabAsk	移除頁簽「{name}」？	雲端模式：移除頁簽的確認	plugins/cloud/sync.ts:1077
+cloud.removeTabBody	移除後 Verso 不再讀取這個頁簽（Google 上不動），同專案的人也不會再讀到。之後要恢復，只能重新設定這份表。	雲端模式：移除頁簽的確認	plugins/cloud/sync.ts:1077
+cloud.removeOk	移除	雲端模式：移除的確認按鈕	plugins/cloud/sync.ts:1052 plugins/cloud/sync.ts:1077
+cloud.removeLastTab	最後一個頁簽不能移除，要整份不用請到「管理 Google 表」選不再使用	雲端模式：移除頁簽	plugins/cloud/sync.ts:1076
 cloud.updSrc	更新原文	雲端模式：更新原文視窗	plugins/cloud/SrcUpdateCloud.tsx:131 plugins/cloud/SrcUpdateCloud.tsx:168
 cloud.r15	R15	雲端模式：更新原文視窗（R15 版本）	plugins/cloud/SrcUpdateCloud.tsx:131 plugins/cloud/SrcUpdateCloud.tsx:169
 cloud.updSrcHint	新原文套用到這份 Google 表：每個頁簽可以手動貼入，或從新連結選範圍。	雲端模式：更新原文視窗	plugins/cloud/SrcUpdateCloud.tsx:168
@@ -14,8 +20,8 @@ cloud.updNone	不更新	雲端模式：更新原文視窗（頁簽清單）	plug
 cloud.r15Carry	照舊原文帶過去	雲端模式：更新原文視窗（頁簽清單）	plugins/cloud/SrcUpdateCloud.tsx:188
 cloud.updConfirm	按確定後套用到這份 Google 表；新增的句子馬上插入，改過的句子按「套用新原文」才寫回。	雲端模式：更新原文視窗	plugins/cloud/SrcUpdateCloud.tsx:265
 cloud.r15Confirm	按確定後新增一個檔案連到新連結，原本的檔案不動。	雲端模式：更新原文視窗	plugins/cloud/SrcUpdateCloud.tsx:265
-cloud.deleteTabAsk	刪除 Google 上的分頁「{name}」？（共 {n} 列，下面是前幾列）	雲端模式：刪除頁簽前的預覽	plugins/cloud/sync.ts:801
-cloud.deleteRowsAsk	刪除 Google 上的 {n} 列？	雲端模式：刪除條目前的預覽	plugins/cloud/sync.ts:694
+cloud.deleteTabAsk	刪除 Google 上的分頁「{name}」？（共 {n} 列，下面是前幾列）	雲端模式：刪除頁簽前的預覽	plugins/cloud/sync.ts:810
+cloud.deleteRowsAsk	刪除 Google 上的 {n} 列？	雲端模式：刪除條目前的預覽	plugins/cloud/sync.ts:703
 cloud.deleteHint	這些是 Google 表上這幾列的全部內容（包括 Verso 沒讀的欄），刪掉後 Verso 也不能復原。	雲端模式：刪除前的預覽	plugins/cloud/index.tsx:318
 cloud.rowNo	第 {n} 列	雲端模式：刪除前的預覽	plugins/cloud/index.tsx:322
 cloud.deleteConfirm	刪除	雲端模式：刪除前的預覽	plugins/cloud/index.tsx:330
@@ -58,7 +64,7 @@ cloud.logout	登出	雲端模式：按鈕	plugins/cloud/index.tsx:89
 cloud.addSheet	新增 Google 表	檔案選單（雲端模式）	plugins/cloud/index.tsx:120
 cloud.manage	管理 Google 表	檔案選單（雲端模式）；對話框標題	plugins/cloud/index.tsx:123 plugins/cloud/index.tsx:288
 cloud.refresh	重新讀取	檔案選單（雲端模式）	plugins/cloud/index.tsx:129
-cloud.dataUrl	Verso 資料表	開發者選項（雲端模式）：共用的資料表網址	plugins/cloud/index.tsx:82 plugins/cloud/projects.ts:130 plugins/cloud/ProjectsDialog.tsx:44 plugins/cloud/sync.ts:471 plugins/cloud/sync.ts:527 plugins/cloud/sync.ts:547 plugins/cloud/sync.ts:550
+cloud.dataUrl	Verso 資料表	開發者選項（雲端模式）：共用的資料表網址	plugins/cloud/index.tsx:82 plugins/cloud/projects.ts:130 plugins/cloud/ProjectsDialog.tsx:44 plugins/cloud/sync.ts:480 plugins/cloud/sync.ts:536 plugins/cloud/sync.ts:556 plugins/cloud/sync.ts:559
 cloud.dataHint	標記、建議翻譯、修改存在這張 Google 表，大家共用（建一張空白試算表、分享給同專案的人，把網址貼在這裡）	開發者選項（雲端模式）	plugins/cloud/index.tsx:84
 cloud.conflictNote	#{id} 的備註已經被別人改過	雲端模式：寫回衝突	plugins/cloud/index.tsx:351
 cloud.sync	同步	條目欄上方的按鈕（雲端模式）：寫回並重新讀取 Google 表	plugins/cloud/index.tsx:106 plugins/cloud/index.tsx:108 plugins/cloud/index.tsx:110
@@ -76,13 +82,13 @@ cloud.pickHint	「{title}」：在每個要翻譯的分頁選 id、發話者、�
 cloud.needFields	「{name}」還沒選：{fields}	雲端模式：設定錯誤	plugins/cloud/index.tsx:219
 cloud.noTabs	至少要在一個分頁選範圍	雲端模式：設定錯誤	plugins/cloud/index.tsx:223
 cloud.badUrl	看不懂這個網址，請貼 Google 試算表的網址	雲端模式：設定錯誤	plugins/cloud/index.tsx:176 plugins/cloud/SrcUpdateCloud.tsx:70
-cloud.cancel	取消	雲端模式：按鈕	plugins/cloud/index.tsx:253 plugins/cloud/index.tsx:303 plugins/cloud/index.tsx:329 plugins/cloud/ProjectsDialog.tsx:144 plugins/cloud/SrcUpdateCloud.tsx:171
+cloud.cancel	取消	雲端模式：按鈕	plugins/cloud/index.tsx:253 plugins/cloud/index.tsx:303 plugins/cloud/index.tsx:329 plugins/cloud/index.tsx:380 plugins/cloud/ProjectsDialog.tsx:144 plugins/cloud/SrcUpdateCloud.tsx:171
 cloud.save	儲存	雲端模式：按鈕	plugins/cloud/index.tsx:254
 cloud.saving	儲存中…	雲端模式：按鈕	plugins/cloud/index.tsx:254 plugins/cloud/SrcUpdateCloud.tsx:268
 cloud.noSheets	還沒有設定過的 Google 表	雲端模式：管理	plugins/cloud/index.tsx:290
 cloud.tabCount	{n} 個分頁	雲端模式：管理	plugins/cloud/index.tsx:295
 cloud.resetup	重新設定	雲端模式：管理	plugins/cloud/index.tsx:296
-cloud.remove	不再使用	雲端模式：管理	plugins/cloud/index.tsx:297 plugins/cloud/index.tsx:303
+cloud.remove	不再使用	雲端模式：管理	components/EntryList.tsx:826 components/EntryList.tsx:834 components/FileNav.tsx:252 plugins/cloud/index.tsx:297 plugins/cloud/index.tsx:303
 cloud.removeAsk	不再使用「{name}」？	雲端模式：確認	plugins/cloud/index.tsx:302
 cloud.removeBody	只是從 Verso 拿掉，Google 上的表不會動。	雲端模式：確認	plugins/cloud/index.tsx:302
 cloud.conflictTitle	#{id} 已經被別人改過	雲端模式：寫回衝突	plugins/cloud/index.tsx:351
@@ -92,9 +98,9 @@ cloud.conflictTheirs	對方的	雲端模式：寫回衝突	plugins/cloud/index.t
 cloud.empty	（空白）	雲端模式：寫回衝突	plugins/cloud/index.tsx:323 plugins/cloud/index.tsx:344
 cloud.useMine	用我的	雲端模式：寫回衝突	plugins/cloud/index.tsx:358
 cloud.useTheirs	用對方的	雲端模式：寫回衝突	plugins/cloud/index.tsx:357
-cloud.loadFailed	讀不到「{name}」：{reason}	雲端模式：警告	plugins/cloud/dicts.ts:24 plugins/cloud/dicts.ts:90 plugins/cloud/sync.ts:314 plugins/cloud/sync.ts:471 plugins/cloud/sync.ts:547 plugins/cloud/sync.ts:550 plugins/cloud/sync.ts:810
-cloud.writeFailed	「{name}」的譯文沒有寫回：{reason}	雲端模式：警告	plugins/cloud/dicts.ts:137 plugins/cloud/dicts.ts:145 plugins/cloud/dicts.ts:184 plugins/cloud/projects.ts:130 plugins/cloud/ProjectsDialog.tsx:44 plugins/cloud/SrcUpdateCloud.tsx:128 plugins/cloud/sync.ts:430 plugins/cloud/sync.ts:527 plugins/cloud/sync.ts:628 plugins/cloud/sync.ts:678 plugins/cloud/sync.ts:781 plugins/cloud/sync.ts:808 plugins/cloud/sync.ts:855 plugins/cloud/sync.ts:886
-cloud.missingId	「{name}」找不到這些 ID，譯文沒有寫回：{ids}	雲端模式：警告	plugins/cloud/sync.ts:428
+cloud.loadFailed	讀不到「{name}」：{reason}	雲端模式：警告	plugins/cloud/dicts.ts:24 plugins/cloud/dicts.ts:90 plugins/cloud/sync.ts:321 plugins/cloud/sync.ts:480 plugins/cloud/sync.ts:556 plugins/cloud/sync.ts:559 plugins/cloud/sync.ts:819
+cloud.writeFailed	「{name}」的譯文沒有寫回：{reason}	雲端模式：警告	plugins/cloud/dicts.ts:137 plugins/cloud/dicts.ts:145 plugins/cloud/dicts.ts:184 plugins/cloud/projects.ts:130 plugins/cloud/ProjectsDialog.tsx:44 plugins/cloud/SrcUpdateCloud.tsx:128 plugins/cloud/sync.ts:439 plugins/cloud/sync.ts:536 plugins/cloud/sync.ts:637 plugins/cloud/sync.ts:687 plugins/cloud/sync.ts:790 plugins/cloud/sync.ts:817 plugins/cloud/sync.ts:864 plugins/cloud/sync.ts:895 plugins/cloud/sync.ts:1062 plugins/cloud/sync.ts:1084
+cloud.missingId	「{name}」找不到這些 ID，譯文沒有寫回：{ids}	雲端模式：警告	plugins/cloud/sync.ts:437
 cloud.errLogin	還沒登入 Google，請到設定 > 開發者選項登入	雲端模式：錯誤	plugins/cloud/api.ts:74
 cloud.errClient	請先填用戶端 ID	雲端模式：錯誤	plugins/cloud/api.ts:75
 cloud.errTimeout	等太久沒有完成登入，請再試一次	雲端模式：錯誤	plugins/cloud/api.ts:76
@@ -157,7 +163,7 @@ settings.packsFailed	語言包加不進去，主程式資料夾可能沒有寫�
 settings.packReplace	已經有語言包「{name}」，要取代嗎？	設定 > 一般：加入同名語言包時	components/SettingsDialog.tsx:460
 settings.packReplaceNo	取消	設定 > 一般：同名語言包的詢問	components/SettingsDialog.tsx:461
 settings.packReplaceYes	取代	設定 > 一般：同名語言包的詢問	components/SettingsDialog.tsx:461
-common.sep	、	列出好幾個名稱時的分隔符號	App.tsx:101 App.tsx:112 App.tsx:123 components/CopyConfirm.tsx:19 components/EntryList.tsx:198 components/EntryList.tsx:198 components/FileNav.tsx:130 components/ManageDialogs.tsx:176 components/SettingsDialog.tsx:427 components/SettingsDialog.tsx:428 components/SidePanel.tsx:363 components/WorkPanel.tsx:96 model/importSel.ts:59 model/importSel.ts:59 model/paste.ts:79 plugins/cloud/index.tsx:219 plugins/cloud/sync.ts:428 state/saver.ts:1023 state/saver.ts:1023
+common.sep	、	列出好幾個名稱時的分隔符號	App.tsx:101 App.tsx:112 App.tsx:123 components/CopyConfirm.tsx:19 components/EntryList.tsx:198 components/EntryList.tsx:198 components/FileNav.tsx:131 components/ManageDialogs.tsx:176 components/SettingsDialog.tsx:427 components/SettingsDialog.tsx:428 components/SidePanel.tsx:363 components/WorkPanel.tsx:96 model/importSel.ts:59 model/importSel.ts:59 model/paste.ts:79 plugins/cloud/index.tsx:219 plugins/cloud/sync.ts:437 state/saver.ts:1023 state/saver.ts:1023
 common.join	；	把兩段提示接成一句時的分隔符號（英文用「; 」）	state/saver.ts:1023
 common.moreEntries	 等 {n} 條	列表太長時接在後面	App.tsx:101
 common.moreItems	 等 {n} 個	列表太長時接在後面	App.tsx:112 App.tsx:123 state/saver.ts:1023 state/saver.ts:1023
@@ -240,62 +246,62 @@ list.013	有備註	條目欄	components/EntryList.tsx:172 components/EntryList.t
 list.014	(新原文已移除)	條目欄	components/EntryList.tsx:187
 list.015	不需翻譯	條目欄	components/EntryList.tsx:196 components/EntryList.tsx:203
 list.016	尚未翻譯	條目欄	components/EntryList.tsx:196 components/EntryList.tsx:203
-list.017	文本條目	條目欄	components/EntryList.tsx:702 components/EntryList.tsx:708
-list.018	共 {n} 條	條目欄	components/EntryList.tsx:709
-list.020	設定檔案的長度標準	條目欄	components/EntryList.tsx:714
-list.021	長度標準：{v1}	條目欄	components/EntryList.tsx:714
-list.022	套用全部新原文	條目欄	components/EntryList.tsx:719 components/EntryList.tsx:719
-list.023	全部檢查	條目欄	components/EntryList.tsx:724 components/EntryList.tsx:724
-list.024	複製譯文欄	條目欄	components/EntryList.tsx:728 components/EntryList.tsx:728
-list.025	複製備註	條目欄	components/EntryList.tsx:732 components/EntryList.tsx:732
-list.026	篩選條目	條目欄	components/EntryList.tsx:736
-list.027	調整「{h}」欄寬	條目欄	components/EntryList.tsx:781
-list.028	條目欄	條目欄	components/EntryList.tsx:791
-list.029	目前沒有檔案，請新增檔案	條目欄	components/EntryList.tsx:806
-list.030	這個頁簽沒有條目	條目欄	components/EntryList.tsx:806
-list.031	這個篩選條件下沒有條目	條目欄	components/EntryList.tsx:806
-list.032	條目	條目欄	components/EntryList.tsx:811
-list.033	清除整欄	條目欄	components/EntryList.tsx:813
-list.034	標記	條目欄	components/EntryList.tsx:815 components/EntryList.tsx:825
-list.035	套用新原文	條目欄	components/EntryList.tsx:816 components/EntryList.tsx:826
-list.036	清除	條目欄	components/EntryList.tsx:817 components/EntryList.tsx:824
-list.037	刪除 {length} 列	條目欄	components/EntryList.tsx:818
-list.038	在下方插入	條目欄	components/EntryList.tsx:819
-list.039	上移	條目欄	components/EntryList.tsx:820 components/EntryList.tsx:827
-list.040	下移	條目欄	components/EntryList.tsx:821 components/EntryList.tsx:828
-list.041	編輯	條目欄	components/EntryList.tsx:823
+list.017	文本條目	條目欄	components/EntryList.tsx:706 components/EntryList.tsx:712
+list.018	共 {n} 條	條目欄	components/EntryList.tsx:713
+list.020	設定檔案的長度標準	條目欄	components/EntryList.tsx:718
+list.021	長度標準：{v1}	條目欄	components/EntryList.tsx:718
+list.022	套用全部新原文	條目欄	components/EntryList.tsx:723 components/EntryList.tsx:723
+list.023	全部檢查	條目欄	components/EntryList.tsx:728 components/EntryList.tsx:728
+list.024	複製譯文欄	條目欄	components/EntryList.tsx:732 components/EntryList.tsx:732
+list.025	複製備註	條目欄	components/EntryList.tsx:736 components/EntryList.tsx:736
+list.026	篩選條目	條目欄	components/EntryList.tsx:740
+list.027	調整「{h}」欄寬	條目欄	components/EntryList.tsx:785
+list.028	條目欄	條目欄	components/EntryList.tsx:795
+list.029	目前沒有檔案，請新增檔案	條目欄	components/EntryList.tsx:810
+list.030	這個頁簽沒有條目	條目欄	components/EntryList.tsx:810
+list.031	這個篩選條件下沒有條目	條目欄	components/EntryList.tsx:810
+list.032	條目	條目欄	components/EntryList.tsx:815
+list.033	清除整欄	條目欄	components/EntryList.tsx:817
+list.034	標記	條目欄	components/EntryList.tsx:819 components/EntryList.tsx:830
+list.035	套用新原文	條目欄	components/EntryList.tsx:820 components/EntryList.tsx:831
+list.036	清除	條目欄	components/EntryList.tsx:821 components/EntryList.tsx:829
+list.037	刪除 {length} 列	條目欄	components/EntryList.tsx:822
+list.038	在下方插入	條目欄	components/EntryList.tsx:823
+list.039	上移	條目欄	components/EntryList.tsx:824 components/EntryList.tsx:832
+list.040	下移	條目欄	components/EntryList.tsx:825 components/EntryList.tsx:833
+list.041	編輯	條目欄	components/EntryList.tsx:828
 error.001	Verso 發生錯誤	錯誤畫面	components/ErrorBoundary.tsx:17
 error.002	發生錯誤	錯誤畫面	components/ErrorBoundary.tsx:25
 error.003	目前的內容已經存進暫存，重新載入後可以恢復。	錯誤畫面	components/ErrorBoundary.tsx:26
 error.004	重新載入	錯誤畫面	components/ErrorBoundary.tsx:28
-nav.001	頁簽與檔案	檔案與頁簽列	components/FileNav.tsx:109
-nav.002	上一個頁簽	檔案與頁簽列	components/FileNav.tsx:110
-nav.003	頁簽名稱	檔案與頁簽列	components/FileNav.tsx:145
-nav.004	這個頁簽都翻完了	檔案與頁簽列	components/FileNav.tsx:152
-nav.005	下一個頁簽	檔案與頁簽列	components/FileNav.tsx:170
-nav.006	選擇檔案	檔案與頁簽列	components/FileNav.tsx:175 components/FileNav.tsx:190
-nav.007	新增檔案	檔案與頁簽列	components/FileNav.tsx:182
-nav.008	這個檔案都翻完了	檔案與頁簽列	components/FileNav.tsx:183 components/FileNav.tsx:210
-nav.009	繁中	檔案與頁簽列	components/FileNav.tsx:185
-nav.010	譯為	檔案與頁簽列	components/FileNav.tsx:185
-nav.targetLang	EN	檔案與頁簽列：檔案的目標語言	components/FileNav.tsx:185
-nav.011	{n} 個頁簽	檔案與頁簽列	components/FileNav.tsx:211
-nav.012	手動貼入…	檔案與頁簽列	components/FileNav.tsx:225
-nav.013	匯入檔案…	檔案與頁簽列	components/FileNav.tsx:228
-nav.014	管理專案…	檔案與頁簽列	components/FileNav.tsx:231
-nav.015	隱藏檔案欄	檔案與頁簽列	components/FileNav.tsx:237 components/FileNav.tsx:237
-nav.016	頁簽「{v1}」	檔案與頁簽列	components/FileNav.tsx:242
-nav.017	重新命名	檔案與頁簽列	components/FileNav.tsx:244
-nav.018	清除	檔案與頁簽列	components/FileNav.tsx:246 components/FileNav.tsx:265
-nav.019	刪除	檔案與頁簽列	components/FileNav.tsx:247 components/FileNav.tsx:265
-nav.020	插入	檔案與頁簽列	components/FileNav.tsx:248
-nav.021	更新原文（實驗性功能）	檔案與頁簽列	components/FileNav.tsx:249
-nav.022	檔案「{v1}」	檔案與頁簽列	components/FileNav.tsx:254
-nav.023	更改專案	檔案與頁簽列	components/FileNav.tsx:255
-nav.clearSheetAsk	清除頁簽「{name}」？	檔案與頁簽列	components/FileNav.tsx:261
-nav.deleteSheetAsk	刪除頁簽「{name}」？	檔案與頁簽列	components/FileNav.tsx:261
-nav.025	頁簽裡的條目會全部拿掉，頁簽保留。	檔案與頁簽列	components/FileNav.tsx:262
-nav.026	取消	檔案與頁簽列	components/FileNav.tsx:264
+nav.001	頁簽與檔案	檔案與頁簽列	components/FileNav.tsx:110
+nav.002	上一個頁簽	檔案與頁簽列	components/FileNav.tsx:111
+nav.003	頁簽名稱	檔案與頁簽列	components/FileNav.tsx:146
+nav.004	這個頁簽都翻完了	檔案與頁簽列	components/FileNav.tsx:153
+nav.005	下一個頁簽	檔案與頁簽列	components/FileNav.tsx:171
+nav.006	選擇檔案	檔案與頁簽列	components/FileNav.tsx:176 components/FileNav.tsx:191
+nav.007	新增檔案	檔案與頁簽列	components/FileNav.tsx:183
+nav.008	這個檔案都翻完了	檔案與頁簽列	components/FileNav.tsx:184 components/FileNav.tsx:211
+nav.009	繁中	檔案與頁簽列	components/FileNav.tsx:186
+nav.010	譯為	檔案與頁簽列	components/FileNav.tsx:186
+nav.targetLang	EN	檔案與頁簽列：檔案的目標語言	components/FileNav.tsx:186
+nav.011	{n} 個頁簽	檔案與頁簽列	components/FileNav.tsx:212
+nav.012	手動貼入…	檔案與頁簽列	components/FileNav.tsx:226
+nav.013	匯入檔案…	檔案與頁簽列	components/FileNav.tsx:229
+nav.014	管理專案…	檔案與頁簽列	components/FileNav.tsx:232
+nav.015	隱藏檔案欄	檔案與頁簽列	components/FileNav.tsx:238 components/FileNav.tsx:238
+nav.016	頁簽「{v1}」	檔案與頁簽列	components/FileNav.tsx:243
+nav.017	重新命名	檔案與頁簽列	components/FileNav.tsx:245
+nav.018	清除	檔案與頁簽列	components/FileNav.tsx:247 components/FileNav.tsx:268
+nav.019	刪除	檔案與頁簽列	components/FileNav.tsx:248 components/FileNav.tsx:268
+nav.020	插入	檔案與頁簽列	components/FileNav.tsx:249
+nav.021	更新原文（實驗性功能）	檔案與頁簽列	components/FileNav.tsx:250
+nav.022	檔案「{v1}」	檔案與頁簽列	components/FileNav.tsx:257
+nav.023	更改專案	檔案與頁簽列	components/FileNav.tsx:258
+nav.clearSheetAsk	清除頁簽「{name}」？	檔案與頁簽列	components/FileNav.tsx:264
+nav.deleteSheetAsk	刪除頁簽「{name}」？	檔案與頁簽列	components/FileNav.tsx:264
+nav.025	頁簽裡的條目會全部拿掉，頁簽保留。	檔案與頁簽列	components/FileNav.tsx:265
+nav.026	取消	檔案與頁簽列	components/FileNav.tsx:267
 font.001	預設	字形選單	components/FontSelect.tsx:45 components/FontSelect.tsx:57 components/FontSelect.tsx:74
 font.002	{label}字形	字形選單	components/FontSelect.tsx:52 components/FontSelect.tsx:63
 font.003	搜尋字形	字形選單	components/FontSelect.tsx:67
