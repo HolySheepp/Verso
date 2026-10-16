@@ -15,9 +15,9 @@ import { columnsToEntries } from '../../model/paste';
 import { SHARED, type CustomMark, type Entry, type FileDoc, type Sheet } from '../../model/types';
 import { textToVerify, verifyToText } from '../../model/verify';
 import { currentOf, isShown, showToast, useStore } from '../../state/store';
-import { ensureCols, insertRowsAt, moveRowsSeq, deleteRows } from './api';
+import { ensureCols, insertRowsAt, moveRowsSeq, deleteRows, renameTab, deleteTab } from './api';
 import { colName } from '../../model/importSel';
-import { insertRows, moveRows } from '../../model/cells';
+import { blankEntry, insertRows, moveRows } from '../../model/cells';
 import { textToStd, stdToText } from '../../model/length';
 import { backupPresets, ensureProjects, readProjects } from './projects';
 import { listDicts, loadEnabled, reloadDicts } from './dicts';
@@ -218,6 +218,17 @@ function buildSheet(tab: CloudTab, rows: string[][], prev: Sheet | undefined, ke
     });
     return e;
   });
+  // 空的頁簽：放一條空白條目，讓使用者直接打字（離開時寫進 Google 的第一列資料）
+  if (!entries.length) {
+    const prevBlank = prev?.entries.length === 1 && pendingNew.has(prev.entries[0].uid) ? prev.entries[0] : undefined;
+    const e = prevBlank ?? { ...blankEntry(), pending: false };
+    if (!prevBlank) {
+      const customs = useStore.getState().project!.customMarks;
+      base.set(e.uid, { id: '', speaker: e.speaker, src: '', tgt: '', cell: '', cellSig: plainSig(''), note: '', noteSig: plainSig(''), row: firstRowOf(tab.fields), core: JSON.stringify(dataCore(e, customs)), data: JSON.stringify(['', '', '', '', '', '']) });
+      pendingNew.add(e.uid);
+    }
+    entries.push(e);
+  }
   const same = prev && prev.name === tab.title && prev.entries.length === entries.length && entries.every((e, i) => e === prev.entries[i]);
   return same ? prev! : { name: tab.title, gid: tab.gid, entries };
 }
@@ -694,6 +705,113 @@ export function rowOp(kind: 'delete' | 'insert' | 'up' | 'down', rows: number[],
       useStore.getState().editSheet(() => ({ entries: r.entries, keys: r.rows.flatMap((k) => [0, 1, 2, 3].map((c) => k + ':' + c)) }), at, true);
       done();
     } catch (e) { fail(e); }
+  })();
+  return true;
+}
+
+// ---- 頁簽：新增、改名、刪除（馬上改 Google 試算表的分頁） ----
+/** 這個分頁的資料從第幾列開始、標題列是哪一列 */
+const firstRowOf = (fields: Fields) => Math.min(...(Object.values(fields).filter(Boolean) as FieldRange[]).map((f) => f.runs[0][0]));
+
+/** 一份試算表的分頁設定改了：更新這台電腦和資料表裡的設定 */
+async function saveTabs(sid: string, tabs: CloudTab[]) {
+  const conf = confOf(sid);
+  if (!conf) return;
+  const next = { ...conf, tabs };
+  const { cfg, shared } = useCloud.getState();
+  if (cfg.sheets.some((x) => x.sid === sid)) setConfig({ sheets: cfg.sheets.map((x) => (x.sid === sid ? next : x)) });
+  useCloud.setState({ shared: shared.map((x) => (x.sid === sid ? next : x)) });
+  try { await writeShared(next); } catch { /* 下次存設定時再寫 */ }
+}
+
+/** 頁簽改名：直接改 Google 上的分頁名稱 */
+export function tabRename(i: number, name: string): boolean {
+  const s = useStore.getState();
+  const { fileDoc } = currentOf(s);
+  const sid = fileDoc.cloud?.sid;
+  const sh = fileDoc.sheets[i];
+  const conf = sid ? confOf(sid) : undefined;
+  if (!sid || !conf || sh?.gid === undefined) return false;
+  void (async () => {
+    try {
+      await renameTab(sid, sh.gid!, name);
+      await saveTabs(sid, conf.tabs.map((t) => (t.gid === sh.gid ? { ...t, title: name } : t)));
+      useStore.getState().renameSheet(i, name);
+    } catch (e) { showToast(tx('cloud.writeFailed', { name: fileDoc.name, reason: errText(e) }), { warn: true }); }
+  })();
+  return true;
+}
+
+/** 刪除頁簽：先預覽 Google 上這個分頁的內容，確認後刪掉分頁 */
+export function tabDelete(i: number): boolean {
+  const s = useStore.getState();
+  const { fileDoc } = currentOf(s);
+  const fileIdx = s.file;
+  const sid = fileDoc.cloud?.sid;
+  const sh = fileDoc.sheets[i];
+  const conf = sid ? confOf(sid) : undefined;
+  if (!sid || !conf || sh?.gid === undefined) return false;
+  void (async () => {
+    try {
+      await flush(sid, true);
+      const [vals] = await readTabs(sid, [sh.name]);
+      const PREVIEW = 30;
+      const rows = vals.slice(0, PREVIEW).map((v, r) => ({ row: r, cells: v.map((x, c): [string, string] => [colName(c), x]).filter(([, x]) => x.trim()) })).filter((r) => r.cells.length);
+      useCloud.setState({ askDelete: { title: tx('cloud.deleteTabAsk', { name: sh.name, n: vals.length }), rows, run: async () => {
+        try {
+          await deleteTab(sid, sh.gid!);
+          await saveTabs(sid, conf.tabs.filter((t) => t.gid !== sh.gid));
+          const st = useStore.getState();
+          if (st.file === fileIdx) st.deleteSheet(i);
+          useStore.getState().dropUndo(fidOf(sid));
+        } catch (e) { showToast(tx('cloud.writeFailed', { name: fileDoc.name, reason: errText(e) }), { warn: true }); }
+      } } });
+    } catch (e) { showToast(tx('cloud.loadFailed', { name: sh.name, reason: errText(e) }), { warn: true }); }
+  })();
+  return true;
+}
+
+/** 新增頁簽：在 Google 試算表新增分頁，標題列和欄位位置照目前這個頁簽；貼入的內容一起寫進去 */
+export function tabInsert(after: number, sheets: { name: string; entries: Entry[] }[]): boolean {
+  const s = useStore.getState();
+  const { fileDoc } = currentOf(s);
+  const sid = fileDoc.cloud?.sid;
+  const conf = sid ? confOf(sid) : undefined;
+  const tpl = conf?.tabs.find((t) => t.gid === fileDoc.sheets[after]?.gid) ?? conf?.tabs[0];
+  if (!sid || !conf || !tpl) return false;
+  void (async () => {
+    try {
+      await flush(sid, true);
+      const [tplRows] = await readTabs(sid, [tpl.title]);
+      const start = firstRowOf(tpl.fields);
+      const fcols = (Object.values(tpl.fields).filter(Boolean) as FieldRange[]).map((f) => f.col);
+      const width = Math.max(...fcols, ...(start > 0 ? [(tplRows[start - 1]?.length ?? 1) - 1] : [])) + 1;
+      const tabs = [...conf.tabs];
+      const at = tabs.findIndex((t) => t.gid === tpl.gid);
+      for (const [k, sh] of sheets.entries()) {
+        const gid = await addTab(sid, sh.name, width);
+        // 標題列以上照原本的頁簽，條目從同一列開始寫
+        const head = tplRows.slice(0, start).map((r) => Array.from({ length: width }, (_, c) => r[c] ?? ''));
+        const body = sh.entries.filter((e) => e.id || e.src || e.tgt || e.note || e.speaker !== '無').map((e) => {
+          const r = Array.from({ length: width }, () => '');
+          const put = (f: FieldRange | null, v: string) => { if (f) r[f.col] = v; };
+          put(tpl.fields.id, e.id); put(tpl.fields.speaker, e.speaker === '無' ? '' : e.speaker); put(tpl.fields.src, e.src); put(tpl.fields.tgt, e.tgt); put(tpl.fields.note, e.note);
+          return r;
+        });
+        const all = [...head, ...body];
+        if (all.length) {
+          // 新分頁只有一列：列數不夠時接在後面長出來
+          await writeRows(sid, sh.name, all.slice(0, 1).map((values) => ({ row: 0, values })));
+          if (all.length > 1) await appendRows(sid, sh.name, all.slice(1));
+        }
+        const fields = {} as Fields;
+        (Object.keys(tpl.fields) as (keyof Fields)[]).forEach((key) => { const f = tpl.fields[key]; fields[key] = f ? { col: f.col, runs: [[start, start + Math.max(0, body.length - 1)]], open: true } : null; });
+        tabs.splice(at + 1 + k, 0, { gid, title: sh.name, fields });
+      }
+      await saveTabs(sid, tabs);
+      await loadSheet(sid, false);
+      useStore.getState().dropUndo(fidOf(sid));
+    } catch (e) { showToast(tx('cloud.writeFailed', { name: fileDoc.name, reason: errText(e) }), { warn: true }); }
   })();
   return true;
 }

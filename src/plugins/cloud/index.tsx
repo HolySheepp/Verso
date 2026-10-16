@@ -16,11 +16,11 @@ import { IconFolder, IconList, IconPlus, IconRefresh, IconWinClose } from '../..
 import { flushDicts, removeDicts, watchDicts } from './dicts';
 import { leaveProjects, writePresets } from './projects';
 import { ProjectsDialog } from './ProjectsDialog';
-import { beforeExit, rowHook } from '../hooks';
+import { beforeExit, rowHook, tabHook } from '../hooks';
 import type { VersoPlugin } from '../registry';
 import { builtinClient, errText, insertCol, login, loginStatus, logout, meta, readTabs, sidOf } from './api';
 import { allSheets, loadConfig, setConfig, toFields, toFieldMap, useCloud, type CloudSheet, type CloudTab } from './config';
-import { rowOp, currentSid, enterCloud, flushAll, pickShown, putSheet, refreshAll, removeSheet, resolveConflict, watchStore } from './sync';
+import { rowOp, tabRename, tabDelete, tabInsert, currentSid, enterCloud, flushAll, pickShown, putSheet, refreshAll, removeSheet, resolveConflict, watchStore } from './sync';
 
 const btn: React.CSSProperties = { height: 32, padding: '0 14px', background: 'var(--btn)', border: '1px solid var(--line4)', borderRadius: 8, fontSize: fz(12.5) };
 const primary: React.CSSProperties = { height: 36, padding: '0 18px', background: 'var(--primary)', border: 0, borderRadius: 8, color: '#ffffff', fontSize: fz(13), fontWeight: 600 };
@@ -383,6 +383,9 @@ async function start() {
   watchStore();
   watchDicts();
   rowHook.fn = rowOp;
+  tabHook.rename = tabRename;
+  tabHook.delete = tabDelete;
+  tabHook.insert = tabInsert;
   beforeExit.add(flushAll);
   beforeExit.add(flushDicts);
   // 雲端模式改了常用標準：寫進資料表

@@ -1,5 +1,6 @@
 ﻿代號	中文	畫面區域	程式位置
-cloud.deleteRowsAsk	刪除 Google 上的 {n} 列？	雲端模式：刪除條目前的預覽	plugins/cloud/sync.ts:642
+cloud.deleteTabAsk	刪除 Google 上的分頁「{name}」？（共 {n} 列，下面是前幾列）	雲端模式：刪除頁簽前的預覽	plugins/cloud/sync.ts:760
+cloud.deleteRowsAsk	刪除 Google 上的 {n} 列？	雲端模式：刪除條目前的預覽	plugins/cloud/sync.ts:653
 cloud.deleteHint	這些是 Google 表上這幾列的全部內容（包括 Verso 沒讀的欄），刪掉後 Verso 也不能復原。	雲端模式：刪除前的預覽	plugins/cloud/index.tsx:317
 cloud.rowNo	第 {n} 列	雲端模式：刪除前的預覽	plugins/cloud/index.tsx:321
 cloud.deleteConfirm	刪除	雲端模式：刪除前的預覽	plugins/cloud/index.tsx:329
@@ -42,7 +43,7 @@ cloud.logout	登出	雲端模式：按鈕	plugins/cloud/index.tsx:88
 cloud.addSheet	新增 Google 表	檔案選單（雲端模式）	plugins/cloud/index.tsx:119
 cloud.manage	管理 Google 表	檔案選單（雲端模式）；對話框標題	plugins/cloud/index.tsx:122 plugins/cloud/index.tsx:287
 cloud.refresh	重新讀取	檔案選單（雲端模式）	plugins/cloud/index.tsx:128
-cloud.dataUrl	Verso 資料表	開發者選項（雲端模式）：共用的資料表網址	plugins/cloud/index.tsx:81 plugins/cloud/projects.ts:130 plugins/cloud/ProjectsDialog.tsx:44 plugins/cloud/sync.ts:429 plugins/cloud/sync.ts:485 plugins/cloud/sync.ts:505 plugins/cloud/sync.ts:508
+cloud.dataUrl	Verso 資料表	開發者選項（雲端模式）：共用的資料表網址	plugins/cloud/index.tsx:81 plugins/cloud/projects.ts:130 plugins/cloud/ProjectsDialog.tsx:44 plugins/cloud/sync.ts:440 plugins/cloud/sync.ts:496 plugins/cloud/sync.ts:516 plugins/cloud/sync.ts:519
 cloud.dataHint	標記、建議翻譯、修改存在這張 Google 表，大家共用（建一張空白試算表、分享給同專案的人，把網址貼在這裡）	開發者選項（雲端模式）	plugins/cloud/index.tsx:83
 cloud.conflictNote	#{id} 的備註已經被別人改過	雲端模式：寫回衝突	plugins/cloud/index.tsx:350
 cloud.sync	同步	條目欄上方的按鈕（雲端模式）：寫回並重新讀取 Google 表	plugins/cloud/index.tsx:105 plugins/cloud/index.tsx:107 plugins/cloud/index.tsx:109
@@ -76,9 +77,9 @@ cloud.conflictTheirs	對方的	雲端模式：寫回衝突	plugins/cloud/index.t
 cloud.empty	（空白）	雲端模式：寫回衝突	plugins/cloud/index.tsx:322 plugins/cloud/index.tsx:343
 cloud.useMine	用我的	雲端模式：寫回衝突	plugins/cloud/index.tsx:357
 cloud.useTheirs	用對方的	雲端模式：寫回衝突	plugins/cloud/index.tsx:356
-cloud.loadFailed	讀不到「{name}」：{reason}	雲端模式：警告	plugins/cloud/dicts.ts:24 plugins/cloud/dicts.ts:90 plugins/cloud/sync.ts:275 plugins/cloud/sync.ts:429 plugins/cloud/sync.ts:505 plugins/cloud/sync.ts:508
-cloud.writeFailed	「{name}」的譯文沒有寫回：{reason}	雲端模式：警告	plugins/cloud/dicts.ts:137 plugins/cloud/dicts.ts:145 plugins/cloud/dicts.ts:184 plugins/cloud/projects.ts:130 plugins/cloud/ProjectsDialog.tsx:44 plugins/cloud/sync.ts:388 plugins/cloud/sync.ts:485 plugins/cloud/sync.ts:576 plugins/cloud/sync.ts:626
-cloud.missingId	「{name}」找不到這些 ID，譯文沒有寫回：{ids}	雲端模式：警告	plugins/cloud/sync.ts:386
+cloud.loadFailed	讀不到「{name}」：{reason}	雲端模式：警告	plugins/cloud/dicts.ts:24 plugins/cloud/dicts.ts:90 plugins/cloud/sync.ts:286 plugins/cloud/sync.ts:440 plugins/cloud/sync.ts:516 plugins/cloud/sync.ts:519 plugins/cloud/sync.ts:769
+cloud.writeFailed	「{name}」的譯文沒有寫回：{reason}	雲端模式：警告	plugins/cloud/dicts.ts:137 plugins/cloud/dicts.ts:145 plugins/cloud/dicts.ts:184 plugins/cloud/projects.ts:130 plugins/cloud/ProjectsDialog.tsx:44 plugins/cloud/sync.ts:399 plugins/cloud/sync.ts:496 plugins/cloud/sync.ts:587 plugins/cloud/sync.ts:637 plugins/cloud/sync.ts:740 plugins/cloud/sync.ts:767 plugins/cloud/sync.ts:814
+cloud.missingId	「{name}」找不到這些 ID，譯文沒有寫回：{ids}	雲端模式：警告	plugins/cloud/sync.ts:397
 cloud.errLogin	還沒登入 Google，請到設定 > 開發者選項登入	雲端模式：錯誤	plugins/cloud/api.ts:74
 cloud.errClient	請先填用戶端 ID	雲端模式：錯誤	plugins/cloud/api.ts:75
 cloud.errTimeout	等太久沒有完成登入，請再試一次	雲端模式：錯誤	plugins/cloud/api.ts:76
@@ -141,11 +142,11 @@ settings.packsFailed	語言包加不進去，主程式資料夾可能沒有寫�
 settings.packReplace	已經有語言包「{name}」，要取代嗎？	設定 > 一般：加入同名語言包時	components/SettingsDialog.tsx:460
 settings.packReplaceNo	取消	設定 > 一般：同名語言包的詢問	components/SettingsDialog.tsx:461
 settings.packReplaceYes	取代	設定 > 一般：同名語言包的詢問	components/SettingsDialog.tsx:461
-common.sep	、	列出好幾個名稱時的分隔符號	App.tsx:101 App.tsx:112 App.tsx:123 components/CopyConfirm.tsx:19 components/EntryList.tsx:198 components/EntryList.tsx:198 components/FileNav.tsx:126 components/ManageDialogs.tsx:176 components/SettingsDialog.tsx:427 components/SettingsDialog.tsx:428 components/SidePanel.tsx:363 components/WorkPanel.tsx:96 model/importSel.ts:59 model/importSel.ts:59 model/paste.ts:79 plugins/cloud/index.tsx:218 plugins/cloud/sync.ts:386 state/saver.ts:1023 state/saver.ts:1023
+common.sep	、	列出好幾個名稱時的分隔符號	App.tsx:101 App.tsx:112 App.tsx:123 components/CopyConfirm.tsx:19 components/EntryList.tsx:198 components/EntryList.tsx:198 components/FileNav.tsx:129 components/ManageDialogs.tsx:176 components/SettingsDialog.tsx:427 components/SettingsDialog.tsx:428 components/SidePanel.tsx:363 components/WorkPanel.tsx:96 model/importSel.ts:59 model/importSel.ts:59 model/paste.ts:79 plugins/cloud/index.tsx:218 plugins/cloud/sync.ts:397 state/saver.ts:1023 state/saver.ts:1023
 common.join	；	把兩段提示接成一句時的分隔符號（英文用「; 」）	state/saver.ts:1023
 common.moreEntries	 等 {n} 條	列表太長時接在後面	App.tsx:101
 common.moreItems	 等 {n} 個	列表太長時接在後面	App.tsx:112 App.tsx:123 state/saver.ts:1023 state/saver.ts:1023
-common.sheetError	「{name}」{msg}	某個頁簽有錯誤時，頁簽名稱接錯誤訊息	components/ImportDialog.tsx:188 components/ImportDialog.tsx:189 components/ManageDialogs.tsx:369 components/PasteDialog.tsx:116 plugins/cloud/index.tsx:220
+common.sheetError	「{name}」{msg}	某個頁簽有錯誤時，頁簽名稱接錯誤訊息	components/ImportDialog.tsx:188 components/ImportDialog.tsx:189 components/ManageDialogs.tsx:369 components/PasteDialog.tsx:117 plugins/cloud/index.tsx:220
 common.errorReason	{target}：{reason}	存檔失敗的項目與原因	components/TitleBar.tsx:58
 import.fieldRange	{range}（{n}）	匯入視窗：欄位選到的範圍和行數	components/ImportDialog.tsx:354
 save.longAt	{project} / {file} / {sheet} 第 {n} 條	存檔時格子太長的條目位置	state/saver.ts:211
@@ -252,34 +253,34 @@ error.001	Verso 發生錯誤	錯誤畫面	components/ErrorBoundary.tsx:17
 error.002	發生錯誤	錯誤畫面	components/ErrorBoundary.tsx:25
 error.003	目前的內容已經存進暫存，重新載入後可以恢復。	錯誤畫面	components/ErrorBoundary.tsx:26
 error.004	重新載入	錯誤畫面	components/ErrorBoundary.tsx:28
-nav.001	頁簽與檔案	檔案與頁簽列	components/FileNav.tsx:105
-nav.002	上一個頁簽	檔案與頁簽列	components/FileNav.tsx:106
-nav.003	頁簽名稱	檔案與頁簽列	components/FileNav.tsx:141
-nav.004	這個頁簽都翻完了	檔案與頁簽列	components/FileNav.tsx:148
-nav.005	下一個頁簽	檔案與頁簽列	components/FileNav.tsx:166
-nav.006	選擇檔案	檔案與頁簽列	components/FileNav.tsx:171 components/FileNav.tsx:186
-nav.007	新增檔案	檔案與頁簽列	components/FileNav.tsx:178
-nav.008	這個檔案都翻完了	檔案與頁簽列	components/FileNav.tsx:179 components/FileNav.tsx:206
-nav.009	繁中	檔案與頁簽列	components/FileNav.tsx:181
-nav.010	譯為	檔案與頁簽列	components/FileNav.tsx:181
-nav.targetLang	EN	檔案與頁簽列：檔案的目標語言	components/FileNav.tsx:181
-nav.011	{n} 個頁簽	檔案與頁簽列	components/FileNav.tsx:207
-nav.012	手動貼入…	檔案與頁簽列	components/FileNav.tsx:221
-nav.013	匯入檔案…	檔案與頁簽列	components/FileNav.tsx:224
-nav.014	管理專案…	檔案與頁簽列	components/FileNav.tsx:227
-nav.015	隱藏檔案欄	檔案與頁簽列	components/FileNav.tsx:233 components/FileNav.tsx:233
-nav.016	頁簽「{v1}」	檔案與頁簽列	components/FileNav.tsx:238
-nav.017	重新命名	檔案與頁簽列	components/FileNav.tsx:240
-nav.018	清除	檔案與頁簽列	components/FileNav.tsx:241 components/FileNav.tsx:260
-nav.019	刪除	檔案與頁簽列	components/FileNav.tsx:242 components/FileNav.tsx:260
-nav.020	插入	檔案與頁簽列	components/FileNav.tsx:243
-nav.021	更新原文（實驗性功能）	檔案與頁簽列	components/FileNav.tsx:244
-nav.022	檔案「{v1}」	檔案與頁簽列	components/FileNav.tsx:249
-nav.023	更改專案	檔案與頁簽列	components/FileNav.tsx:250
-nav.clearSheetAsk	清除頁簽「{name}」？	檔案與頁簽列	components/FileNav.tsx:256
-nav.deleteSheetAsk	刪除頁簽「{name}」？	檔案與頁簽列	components/FileNav.tsx:256
-nav.025	頁簽裡的條目會全部拿掉，頁簽保留。	檔案與頁簽列	components/FileNav.tsx:257
-nav.026	取消	檔案與頁簽列	components/FileNav.tsx:259
+nav.001	頁簽與檔案	檔案與頁簽列	components/FileNav.tsx:108
+nav.002	上一個頁簽	檔案與頁簽列	components/FileNav.tsx:109
+nav.003	頁簽名稱	檔案與頁簽列	components/FileNav.tsx:144
+nav.004	這個頁簽都翻完了	檔案與頁簽列	components/FileNav.tsx:151
+nav.005	下一個頁簽	檔案與頁簽列	components/FileNav.tsx:169
+nav.006	選擇檔案	檔案與頁簽列	components/FileNav.tsx:174 components/FileNav.tsx:189
+nav.007	新增檔案	檔案與頁簽列	components/FileNav.tsx:181
+nav.008	這個檔案都翻完了	檔案與頁簽列	components/FileNav.tsx:182 components/FileNav.tsx:209
+nav.009	繁中	檔案與頁簽列	components/FileNav.tsx:184
+nav.010	譯為	檔案與頁簽列	components/FileNav.tsx:184
+nav.targetLang	EN	檔案與頁簽列：檔案的目標語言	components/FileNav.tsx:184
+nav.011	{n} 個頁簽	檔案與頁簽列	components/FileNav.tsx:210
+nav.012	手動貼入…	檔案與頁簽列	components/FileNav.tsx:224
+nav.013	匯入檔案…	檔案與頁簽列	components/FileNav.tsx:227
+nav.014	管理專案…	檔案與頁簽列	components/FileNav.tsx:230
+nav.015	隱藏檔案欄	檔案與頁簽列	components/FileNav.tsx:236 components/FileNav.tsx:236
+nav.016	頁簽「{v1}」	檔案與頁簽列	components/FileNav.tsx:241
+nav.017	重新命名	檔案與頁簽列	components/FileNav.tsx:243
+nav.018	清除	檔案與頁簽列	components/FileNav.tsx:245 components/FileNav.tsx:264
+nav.019	刪除	檔案與頁簽列	components/FileNav.tsx:246 components/FileNav.tsx:264
+nav.020	插入	檔案與頁簽列	components/FileNav.tsx:247
+nav.021	更新原文（實驗性功能）	檔案與頁簽列	components/FileNav.tsx:248
+nav.022	檔案「{v1}」	檔案與頁簽列	components/FileNav.tsx:253
+nav.023	更改專案	檔案與頁簽列	components/FileNav.tsx:254
+nav.clearSheetAsk	清除頁簽「{name}」？	檔案與頁簽列	components/FileNav.tsx:260
+nav.deleteSheetAsk	刪除頁簽「{name}」？	檔案與頁簽列	components/FileNav.tsx:260
+nav.025	頁簽裡的條目會全部拿掉，頁簽保留。	檔案與頁簽列	components/FileNav.tsx:261
+nav.026	取消	檔案與頁簽列	components/FileNav.tsx:263
 font.001	預設	字形選單	components/FontSelect.tsx:45 components/FontSelect.tsx:57 components/FontSelect.tsx:74
 font.002	{label}字形	字形選單	components/FontSelect.tsx:52 components/FontSelect.tsx:63
 font.003	搜尋字形	字形選單	components/FontSelect.tsx:67
@@ -415,24 +416,24 @@ pastebox.008	編輯	貼入框	components/PasteBox.tsx:252
 pastebox.009	清空	貼入框	components/PasteBox.tsx:253
 pastebox.010	刪除	貼入框	components/PasteBox.tsx:254
 pastebox.011	插入	貼入框	components/PasteBox.tsx:255
-paste.004	插入頁簽	手動貼入視窗	components/PasteDialog.tsx:240
-paste.005	手動貼入	手動貼入視窗	components/PasteDialog.tsx:240
-paste.006	關閉	手動貼入視窗	components/PasteDialog.tsx:241
-paste.007	檔名	手動貼入視窗	components/PasteDialog.tsx:249
-paste.008	專案	手動貼入視窗	components/PasteDialog.tsx:252
-paste.009	頁簽	手動貼入視窗	components/PasteDialog.tsx:257
-paste.010	頁簽名稱	手動貼入視窗	components/PasteDialog.tsx:273
-paste.011	雙擊改名	手動貼入視窗	components/PasteDialog.tsx:278
-paste.012	移除頁簽「{name}」	手動貼入視窗	components/PasteDialog.tsx:292
-paste.013	移除	手動貼入視窗	components/PasteDialog.tsx:292
-paste.014	新增頁簽	手動貼入視窗	components/PasteDialog.tsx:301 components/PasteDialog.tsx:301
-paste.015	取消	手動貼入視窗	components/PasteDialog.tsx:321
-paste.016	建立	手動貼入視窗	components/PasteDialog.tsx:323
-paste.017	頁簽「{v1}」	手動貼入視窗	components/PasteDialog.tsx:328
-paste.018	重新命名	手動貼入視窗	components/PasteDialog.tsx:330
-paste.019	清空	手動貼入視窗	components/PasteDialog.tsx:331
-paste.020	刪除	手動貼入視窗	components/PasteDialog.tsx:332
-paste.021	插入	手動貼入視窗	components/PasteDialog.tsx:333
+paste.004	插入頁簽	手動貼入視窗	components/PasteDialog.tsx:245
+paste.005	手動貼入	手動貼入視窗	components/PasteDialog.tsx:245
+paste.006	關閉	手動貼入視窗	components/PasteDialog.tsx:246
+paste.007	檔名	手動貼入視窗	components/PasteDialog.tsx:254
+paste.008	專案	手動貼入視窗	components/PasteDialog.tsx:257
+paste.009	頁簽	手動貼入視窗	components/PasteDialog.tsx:262
+paste.010	頁簽名稱	手動貼入視窗	components/PasteDialog.tsx:278
+paste.011	雙擊改名	手動貼入視窗	components/PasteDialog.tsx:283
+paste.012	移除頁簽「{name}」	手動貼入視窗	components/PasteDialog.tsx:297
+paste.013	移除	手動貼入視窗	components/PasteDialog.tsx:297
+paste.014	新增頁簽	手動貼入視窗	components/PasteDialog.tsx:306 components/PasteDialog.tsx:306
+paste.015	取消	手動貼入視窗	components/PasteDialog.tsx:326
+paste.016	建立	手動貼入視窗	components/PasteDialog.tsx:328
+paste.017	頁簽「{v1}」	手動貼入視窗	components/PasteDialog.tsx:333
+paste.018	重新命名	手動貼入視窗	components/PasteDialog.tsx:335
+paste.019	清空	手動貼入視窗	components/PasteDialog.tsx:336
+paste.020	刪除	手動貼入視窗	components/PasteDialog.tsx:337
+paste.021	插入	手動貼入視窗	components/PasteDialog.tsx:338
 picker.001	新增專案	專案／字典選單	components/Pickers.tsx:42
 picker.002	專案名稱	專案／字典選單	components/Pickers.tsx:42
 picker.003	新字典	專案／字典選單	components/Pickers.tsx:49

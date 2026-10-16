@@ -1,5 +1,6 @@
 import { tx } from '../i18n';
 import { blankEntry } from '../model/cells';
+import { tabHook } from '../plugins/hooks';
 import { DEFAULT_FILE_NAME, defaultSheetName, freeSheetName } from '../model/names';
 import { useEffect, useRef, useState } from 'react';
 import { currentOf, currentProjectOf, useStore } from '../state/store';
@@ -122,7 +123,11 @@ export function PasteDialog() {
   const create = () => {
     if (blocked) return;
     if (insert) {
-      insertSheets(insert.after, sheets.map((sh, i) => ({ name: sh.name.trim() || defaultSheetName(existingSheets + i + 1), entries: entriesOf(sh) })));
+      const add = sheets.map((sh, i) => ({ name: sh.name.trim() || defaultSheetName(existingSheets + i + 1), entries: entriesOf(sh) }));
+      // 雲端檔案：交給雲端外掛在 Google 試算表新增分頁
+      const s0 = useStore.getState();
+      if (s0.project?.files[s0.file]?.cloud && tabHook.insert?.(insert.after, add)) { close(); return; }
+      insertSheets(insert.after, add);
       return;
     }
     const doc = {

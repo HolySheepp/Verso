@@ -2,6 +2,7 @@ import { tx } from '../i18n';
 import { useRef, useState } from 'react';
 import { currentOf, isShown, shownCount, useStore, useStorePick } from '../state/store';
 import { plugins } from '../plugins/registry';
+import { tabHook } from '../plugins/hooks';
 import { requestFile } from '../state/saver';
 import { ContextMenu } from './ContextMenu';
 import { ConfirmDialog } from './ConfirmDialog';
@@ -54,6 +55,8 @@ export function FileNav({ tabW }: { tabW: number }) {
   const onTabMenu = (k: string, i: number) => {
     setTabMenu(null);
     if (k === 'rename') setRenaming({ i, name: fileDoc.sheets[i].name });
+    // 雲端檔案：刪除交給雲端外掛（先預覽 Google 上的內容）
+    if (k === 'delete' && cloudFile && tabHook.delete?.(i)) return;
     if (k === 'clear' || k === 'delete') setAsk({ kind: k, i });
     if (k === 'insert') s.set({ pasteOpen: true, pasteInsert: { after: i } });
     if (k === 'srcupd') { s.setSheet(i); s.set({ srcUpdate: i }); }
@@ -126,7 +129,7 @@ export function FileNav({ tabW }: { tabW: number }) {
             const tip = kinds.map((k) => markName(project.customMarks, k.id) + ' ' + k.n).join(tx('common.sep'));
             return (
               <button key={s.file + ':' + i} type="button" className="tb" aria-current={on ? 'page' : undefined} onClick={() => { lastClicks.current = [...lastClicks.current.slice(-1), i]; s.setSheet(i); }}
-                onDoubleClick={() => { const c = lastClicks.current; if (!cloudFile && c.length === 2 && c[0] === i && c[1] === i) setRenaming({ i, name: sh.name }); }}
+                onDoubleClick={() => { const c = lastClicks.current; if (c.length === 2 && c[0] === i && c[1] === i) setRenaming({ i, name: sh.name }); }}
                 onContextMenu={(ev) => { ev.preventDefault(); s.setSheet(i); setTabMenu({ i, x: ev.clientX, y: ev.clientY }); }}
                 tabIndex={on || near ? 0 : -1}
                 style={{
@@ -140,7 +143,7 @@ export function FileNav({ tabW }: { tabW: number }) {
                   {renaming?.i === i ? (
                     <RenameInput initial={renaming.name} label={tx('nav.003')}
                       validate={(v) => sheetNameError(v, fileDoc.sheets.filter((_, j) => j !== i).map((x) => x.name))}
-                      onDone={(v) => { if (v) s.renameSheet(i, v); setRenaming(null); }}
+                      onDone={(v) => { if (v && !(cloudFile && tabHook.rename?.(i, v))) s.renameSheet(i, v); setRenaming(null); }}
                       style={{ flexGrow: 1, minWidth: 0, width: '100%', height: 22, padding: '0 6px', fontSize: fz(12.5) }} />
                   ) : (
                     <span style={{ flexGrow: 1, minWidth: 0, fontSize: fz(12.5), fontWeight: 500, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{sh.name}</span>
@@ -237,10 +240,11 @@ export function FileNav({ tabW }: { tabW: number }) {
       {tabMenu && (
         <ContextMenu x={tabMenu.x} y={tabMenu.y} label={tx('nav.016', { v1: fileDoc.sheets[tabMenu.i]?.name ?? '' })}
           items={[
-            { key: 'rename', label: tx('nav.017'), disabled: cloudFile },
-            { key: 'clear', label: tx('nav.018') },
-            { key: 'delete', label: tx('nav.019'), danger: true, disabled: fileDoc.sheets.length <= 1 || cloudFile },
-            { key: 'insert', label: tx('nav.020'), disabled: cloudFile },
+            { key: 'rename', label: tx('nav.017') },
+            // 雲端模式不能清除頁簽
+            ...(cloudFile ? [] : [{ key: 'clear', label: tx('nav.018') }]),
+            { key: 'delete', label: tx('nav.019'), danger: true, disabled: fileDoc.sheets.length <= 1 },
+            { key: 'insert', label: tx('nav.020') },
             { key: 'srcupd', label: tx('nav.021'), disabled: cloudFile },
           ]}
           onPick={(k) => onTabMenu(k, tabMenu.i)} onClose={() => setTabMenu(null)} />

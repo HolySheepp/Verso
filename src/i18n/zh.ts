@@ -1,6 +1,7 @@
 // 介面文字（中文）：程式裡只寫代號，用 tx('代號') 取文字。由程式整理產生，改字句請改這裡。
 // 存檔裡的名稱（欄位標題、資料夾名稱等）不在這裡，維持中文。
 export const ZH = {
+  'cloud.deleteTabAsk': '刪除 Google 上的分頁「{name}」？（共 {n} 列，下面是前幾列）', // 雲端模式：刪除頁簽前的預覽
   'cloud.deleteRowsAsk': '刪除 Google 上的 {n} 列？', // 雲端模式：刪除條目前的預覽
   'cloud.deleteHint': '這些是 Google 表上這幾列的全部內容（包括 Verso 沒讀的欄），刪掉後 Verso 也不能復原。', // 雲端模式：刪除前的預覽
   'cloud.rowNo': '第 {n} 列', // 雲端模式：刪除前的預覽
