@@ -52,7 +52,9 @@ export function DictPasteDialog() {
   const pairs: [string, string][] = src && tgt && !error
     ? src.rows.map((s, i): [string, string] => [s.trim(), (tgt.rows[i] ?? '').trim()]).filter(([a, b]) => a && b)
     : [];
-  const canSave = !error && !!projName && !!dictName && pairs.length > 0;
+  // 什麼都沒貼：建立空的字典（之後自己加詞條）；貼了但沒有完整的一行就不能存
+  const blank = !src?.rows.some((x) => x.trim()) && !tgt?.rows.some((x) => x.trim());
+  const canSave = !error && !!projName && !!dictName && (pairs.length > 0 || blank);
 
   return (
     <div className="scrim" style={{ zIndex: 45 }} onMouseDown={dragWindow}

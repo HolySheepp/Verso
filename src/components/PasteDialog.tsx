@@ -1,4 +1,5 @@
 import { tx } from '../i18n';
+import { blankEntry } from '../model/cells';
 import { DEFAULT_FILE_NAME, defaultSheetName, freeSheetName } from '../model/names';
 import { useEffect, useRef, useState } from 'react';
 import { currentOf, currentProjectOf, useStore } from '../state/store';
@@ -103,7 +104,10 @@ export function PasteDialog() {
     if (record) commit(next);
     else { sheetsRef.current = next; setSheetsState(next); }
   };
-  const results = sheets.map((sh) => checkColumns(sh.cols));
+  // 什麼都沒貼的頁簽：建立只有一條空白條目的頁簽，讓使用者自己加條目或之後再貼
+  const isBlank = (sh: DraftSheet) => !COLS.some((c) => sh.cols[c.key]?.rows.some((x) => x.trim()));
+  const entriesOf = (sh: DraftSheet) => (isBlank(sh) ? [blankEntry()] : columnsToEntries(sh.cols));
+  const results = sheets.map((sh) => (isBlank(sh) ? { ok: true, msg: '' } : checkColumns(sh.cols)));
   const firstBad = results.findIndex((r) => !r.ok);
   const projName = picked(projSel, newProj);
   const projError = insert ? '' : nameError('project', projSel, newProj, projects);
@@ -118,13 +122,13 @@ export function PasteDialog() {
   const create = () => {
     if (blocked) return;
     if (insert) {
-      insertSheets(insert.after, sheets.map((sh, i) => ({ name: sh.name.trim() || defaultSheetName(existingSheets + i + 1), entries: columnsToEntries(sh.cols) })));
+      insertSheets(insert.after, sheets.map((sh, i) => ({ name: sh.name.trim() || defaultSheetName(existingSheets + i + 1), entries: entriesOf(sh) })));
       return;
     }
     const doc = {
       name: name.trim() || DEFAULT_FILE_NAME,
       project: projName,
-      sheets: sheets.map((sh, i) => ({ name: sh.name.trim() || defaultSheetName(i + 1), entries: columnsToEntries(sh.cols) })),
+      sheets: sheets.map((sh, i) => ({ name: sh.name.trim() || defaultSheetName(i + 1), entries: entriesOf(sh) })),
     };
     // 建立新檔案會換到新檔案：目前的檔案有未存的修改就先問
     leaveFile(null, () => addFile(doc));

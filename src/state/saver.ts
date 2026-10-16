@@ -16,7 +16,7 @@ import {
 } from '../data/persist';
 import { emptyHistory } from '../model/history';
 import { dictKey, newFileId, type CustomMark, type DictInfo, type FileDoc, type GlossaryTerm, type ProjectData } from '../model/types';
-import { aiAllows, currentOf, showToast, useStore, type SaveError } from './store';
+import { aiAllows, currentOf, currentProjectOf, dictEnabledIn, showToast, useStore, type SaveError } from './store';
 import { applyLang, setPacks, systemLang } from '../i18n/lang';
 import { setIdMarks } from '../i18n';
 import { appLangDir, copyOldPacks, readLangPacks } from '../data/langpacks';
@@ -95,16 +95,75 @@ const dictSignature = (terms: GlossaryTerm[], did = '') => JSON.stringify([did, 
 /** 各本字典的 ID（依「專案/字典」） */
 const dictIds = (p: ProjectData) => new Map(p.dicts.map((d) => [dictKey(d.project, d.name), d.did ?? '']));
 
-/** 依「專案/字典」分組的詞條；沒有詞條的字典也算一組 */
+/**
+ * 依「專案/字典」分組的詞條；沒有詞條的字典也算一組。
+ * 還沒讀內容的字典、雲端字典不在存檔資料夾的管理範圍：不算（不會被當成空的寫掉）
+ */
 function dictGroups(p: ProjectData) {
   const groups = new Map<string, GlossaryTerm[]>();
-  p.dicts.forEach((d) => groups.set(dictKey(d.project, d.name), []));
+  const skip = new Set(p.dicts.filter((d) => d.unloaded || d.cloud).map((d) => dictKey(d.project, d.name)));
+  p.dicts.forEach((d) => { if (!d.unloaded && !d.cloud) groups.set(dictKey(d.project, d.name), []); });
   p.glossary.forEach((t) => {
     const k = dictKey(t.proj, t.dict);
+    if (skip.has(k)) return;
     if (!groups.has(k)) groups.set(k, []);
     groups.get(k)!.push(t);
   });
   return groups;
+}
+
+/** 正在讀的字典（同一本不重複讀） */
+const readingDicts = new Set<string>();
+/**
+ * 讀還沒讀內容的字典（打開開關、或要整理字典之前）。
+ * 讀之前就加進去的詞條保留，跟讀到的合在一起（之後照常存檔）
+ */
+export async function loadDictContents(list: DictInfo[]) {
+  const root = useStore.getState().saveRoot;
+  const todo = list.filter((d) => d.unloaded && !d.cloud && !readingDicts.has(dictKey(d.project, d.name)));
+  if (!root || !todo.length) return;
+  todo.forEach((d) => readingDicts.add(dictKey(d.project, d.name)));
+  const got = new Map<string, { terms: GlossaryTerm[]; did: string }>();
+  const bad: string[] = [];
+  for (const d of todo) {
+    try { got.set(dictKey(d.project, d.name), await readDictFull(root, d.project, d.name)); } catch { bad.push(tx('load.001', { name: d.project, v1: d.name + '.xlsx' })); }
+  }
+  todo.forEach((d) => readingDicts.delete(dictKey(d.project, d.name)));
+  const p = useStore.getState().project;
+  if (!p || useStore.getState().saveRoot !== root) return;
+  const used = new Set(p.dicts.map((d) => d.did).filter(Boolean));
+  const dicts = p.dicts.map((d) => {
+    const g = d.unloaded ? got.get(dictKey(d.project, d.name)) : undefined;
+    if (!g) return d;
+    // ID：檔案裡有、而且沒跟別本重複就沿用，不然配新的（存檔時寫進去）
+    const did = g.did && !used.has(g.did) ? g.did : newFileId();
+    used.add(did);
+    const k = dictKey(d.project, d.name);
+    if (did === g.did) saved = { ...saved, dicts: new Map(saved.dicts).set(k, dictSignature(g.terms, did)) };
+    return { project: d.project, name: d.name, did };
+  });
+  const terms = [...got.values()].flatMap((g) => g.terms);
+  useStore.setState({ project: { ...p, dicts, glossary: [...p.glossary, ...terms] } });
+  if (bad.length) useStore.setState((st) => ({ unreadable: [...(st.unreadable ?? []), ...bad] }));
+  // 讀之前就加了詞條、或剛配了 ID：存一次
+  if (dictsDirty()) void saveDicts();
+}
+
+/** 全部還沒讀的字典都讀進來（整理字典、管理專案、換存檔資料夾之前） */
+export const loadAllDicts = () => loadDictContents(useStore.getState().project?.dicts ?? []);
+
+/** 啟用中的字典還沒讀：讀進來；要整理字典的視窗打開時全部讀 */
+function watchDictLoads() {
+  useStore.subscribe((s, prev) => {
+    if (!s.project) return;
+    const opened = (s.manageDictsOpen && !prev.manageDictsOpen) || (s.manageProjectsOpen && !prev.manageProjectsOpen)
+      || (s.dictPasteOpen && !prev.dictPasteOpen) || (!!s.termDraft && !prev.termDraft) || (!!s.moveTarget && !prev.moveTarget);
+    if (opened) { void loadAllDicts(); return; }
+    if (s.project.dicts === prev.project?.dicts && s.file === prev.file && s.dictOverrides === prev.dictOverrides && s.cloudMode === prev.cloudMode) return;
+    if (!s.project.dicts.some((d) => d.unloaded)) return;
+    const cur = currentProjectOf(s);
+    void loadDictContents(s.project.dicts.filter((d) => d.unloaded && dictEnabledIn(cur, s.dictOverrides, d)));
+  });
 }
 
 /**
@@ -446,7 +505,7 @@ export async function startApp() {
     }
     await refreshLangPacks().catch(() => undefined);
     step(0.12, tx('save.012'));
-    const r = await loadWorkspace(saveRoot, step);
+    const r = await loadWorkspace(saveRoot, step, useStore.getState().dictOverrides);
     project = r.data; last = r.last; migrated = r.remapped; newIds = r.newIds;
     if (r.unreadable.length) useStore.setState({ unreadable: r.unreadable });
   } catch { /* 讀不到就從空的開始 */ }
@@ -483,6 +542,7 @@ let watching = false;
 function watch() {
   if (watching) return;
   watching = true;
+  watchDictLoads();
 
   // 換語言：之後的文字都用新語言（畫面由 App 整個重畫）
   useStore.subscribe((s, prev) => { if (s.uiLang !== prev.uiLang) applyLang(s.uiLang); });
@@ -709,6 +769,8 @@ const samePath = (a: string, b: string) => {
 };
 
 async function changeSaveRootNow(picked: string) {
+  // 還沒讀的字典先讀進來，才會一起存到新資料夾
+  await loadAllDicts();
   // 選的資料夾裡有別的東西：改存到裡面的「Verso」資料夾
   const root = await saveRootFor(picked).catch(() => picked);
   if (root !== picked) showToast(tx('save.014'));

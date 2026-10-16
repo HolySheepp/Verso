@@ -110,6 +110,10 @@ export interface DictInfo {
   name: string;
   /** 字典 ID：在外面改名、搬專案也認得出是同一本 */
   did?: string;
+  /** 還沒讀內容（沒啟用的字典只列名字，打開開關時才讀）；沒讀的字典存檔時不碰 */
+  unloaded?: boolean;
+  /** 雲端字典（Google 試算表的一個分頁）：不存進存檔資料夾 */
+  cloud?: { sid: string; gid: number };
 }
 
 /** 新的檔案、字典 ID */

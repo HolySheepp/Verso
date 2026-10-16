@@ -1,61 +1,61 @@
 ﻿代號	中文	畫面區域	程式位置
-cloud.enabled	雲端模式（測試版）	開發者選項	plugins/cloud/index.tsx:61
-cloud.hint	打開後直接讀寫 Google 試算表，檔案選單只列設定過的表；關掉回到本地檔案（本地檔案和存檔都不受影響）	開發者選項：雲端模式的說明	plugins/cloud/index.tsx:63
-cloud.clientId	用戶端 ID	雲端模式：Google OAuth 用戶端 ID	plugins/cloud/index.tsx:66
-cloud.clientSecret	用戶端密鑰	雲端模式：Google OAuth 用戶端密鑰	plugins/cloud/index.tsx:68
-cloud.account	Google 帳號	雲端模式	plugins/cloud/index.tsx:73
-cloud.signedIn	已登入：{email}	雲端模式：登入狀態	plugins/cloud/index.tsx:75
-cloud.signedOut	還沒登入	雲端模式：登入狀態	plugins/cloud/index.tsx:75
-cloud.login	登入	雲端模式：按鈕	plugins/cloud/index.tsx:78
-cloud.loggingIn	請在瀏覽器完成登入…	雲端模式：登入中	plugins/cloud/index.tsx:78
-cloud.logout	登出	雲端模式：按鈕	plugins/cloud/index.tsx:77
-cloud.addSheet	新增 Google 表	檔案選單（雲端模式）	plugins/cloud/index.tsx:108
-cloud.manage	管理 Google 表	檔案選單（雲端模式）；對話框標題	plugins/cloud/index.tsx:111 plugins/cloud/index.tsx:273
-cloud.refresh	重新讀取	檔案選單（雲端模式）	plugins/cloud/index.tsx:114
-cloud.dataUrl	Verso 資料表	開發者選項（雲端模式）：共用的資料表網址	plugins/cloud/index.tsx:70 plugins/cloud/sync.ts:393 plugins/cloud/sync.ts:448 plugins/cloud/sync.ts:463
-cloud.dataHint	標記、建議翻譯、修改存在這張 Google 表，大家共用（建一張空白試算表、分享給同專案的人，把網址貼在這裡）	開發者選項（雲端模式）	plugins/cloud/index.tsx:72
-cloud.conflictNote	#{id} 的備註已經被別人改過	雲端模式：寫回衝突	plugins/cloud/index.tsx:308
-cloud.sync	同步	條目欄上方的按鈕（雲端模式）：寫回並重新讀取 Google 表	plugins/cloud/index.tsx:94 plugins/cloud/index.tsx:96 plugins/cloud/index.tsx:98
-cloud.syncing	同步中…	同步按鈕	plugins/cloud/index.tsx:98
-cloud.lastSync	上次同步：{time}	同步按鈕的提示	plugins/cloud/index.tsx:94
-cloud.refreshed	已重新讀取	雲端模式：提示	plugins/cloud/index.tsx:113
-cloud.close	關閉	雲端模式：對話框的關閉按鈕	plugins/cloud/index.tsx:127
-cloud.setupTitle	設定 Google 表	雲端模式：對話框標題	plugins/cloud/index.tsx:190 plugins/cloud/index.tsx:233
-cloud.url	網址	雲端模式：試算表網址	plugins/cloud/index.tsx:180
-cloud.project	所屬專案	雲端模式	plugins/cloud/index.tsx:182
-cloud.read	讀取	雲端模式：按鈕	plugins/cloud/index.tsx:184
-cloud.reading	讀取中…	雲端模式：按鈕	plugins/cloud/index.tsx:184
-cloud.setupHint	貼上 Google 試算表的網址後按「讀取」，再選各欄的範圍	雲端模式：設定說明	plugins/cloud/index.tsx:193
-cloud.pickHint	「{title}」：在每個要翻譯的分頁選 id、發話者、原文、備註的範圍（可以是空的）；譯文不選的話，會在原文右邊插入一欄。沒選範圍的分頁不會出現在 Verso	雲端模式：設定說明	plugins/cloud/index.tsx:245
-cloud.needFields	「{name}」還沒選：{fields}	雲端模式：設定錯誤	plugins/cloud/index.tsx:204
-cloud.noTabs	至少要在一個分頁選範圍	雲端模式：設定錯誤	plugins/cloud/index.tsx:208
-cloud.badUrl	看不懂這個網址，請貼 Google 試算表的網址	雲端模式：設定錯誤	plugins/cloud/index.tsx:161
-cloud.cancel	取消	雲端模式：按鈕	plugins/cloud/index.tsx:238 plugins/cloud/index.tsx:288
-cloud.save	儲存	雲端模式：按鈕	plugins/cloud/index.tsx:239
-cloud.saving	儲存中…	雲端模式：按鈕	plugins/cloud/index.tsx:239
-cloud.noSheets	還沒有設定過的 Google 表	雲端模式：管理	plugins/cloud/index.tsx:275
-cloud.tabCount	{n} 個分頁	雲端模式：管理	plugins/cloud/index.tsx:280
-cloud.resetup	重新設定	雲端模式：管理	plugins/cloud/index.tsx:281
-cloud.remove	不再使用	雲端模式：管理	plugins/cloud/index.tsx:282 plugins/cloud/index.tsx:288
-cloud.removeAsk	不再使用「{name}」？	雲端模式：確認	plugins/cloud/index.tsx:287
-cloud.removeBody	只是從 Verso 拿掉，Google 上的表不會動。	雲端模式：確認	plugins/cloud/index.tsx:287
-cloud.conflictTitle	#{id} 已經被別人改過	雲端模式：寫回衝突	plugins/cloud/index.tsx:308
-cloud.conflictSrc	原文	雲端模式：寫回衝突	plugins/cloud/index.tsx:309
-cloud.conflictMine	我的	雲端模式：寫回衝突	plugins/cloud/index.tsx:310
-cloud.conflictTheirs	對方的	雲端模式：寫回衝突	plugins/cloud/index.tsx:311
-cloud.empty	（空白）	雲端模式：寫回衝突	plugins/cloud/index.tsx:301
-cloud.useMine	用我的	雲端模式：寫回衝突	plugins/cloud/index.tsx:315
-cloud.useTheirs	用對方的	雲端模式：寫回衝突	plugins/cloud/index.tsx:314
-cloud.loadFailed	讀不到「{name}」：{reason}	雲端模式：警告	plugins/cloud/sync.ts:253 plugins/cloud/sync.ts:393 plugins/cloud/sync.ts:463
+cloud.enabled	雲端模式（測試版）	開發者選項	plugins/cloud/index.tsx:62
+cloud.hint	打開後直接讀寫 Google 試算表，檔案選單只列設定過的表；關掉回到本地檔案（本地檔案和存檔都不受影響）	開發者選項：雲端模式的說明	plugins/cloud/index.tsx:64
+cloud.clientId	用戶端 ID	雲端模式：Google OAuth 用戶端 ID	plugins/cloud/index.tsx:69
+cloud.clientSecret	用戶端密鑰	雲端模式：Google OAuth 用戶端密鑰	plugins/cloud/index.tsx:71
+cloud.account	Google 帳號	雲端模式	plugins/cloud/index.tsx:77
+cloud.signedIn	已登入：{email}	雲端模式：登入狀態	plugins/cloud/index.tsx:79
+cloud.signedOut	還沒登入	雲端模式：登入狀態	plugins/cloud/index.tsx:79
+cloud.login	登入	雲端模式：按鈕	plugins/cloud/index.tsx:82
+cloud.loggingIn	請在瀏覽器完成登入…	雲端模式：登入中	plugins/cloud/index.tsx:82
+cloud.logout	登出	雲端模式：按鈕	plugins/cloud/index.tsx:81
+cloud.addSheet	新增 Google 表	檔案選單（雲端模式）	plugins/cloud/index.tsx:112
+cloud.manage	管理 Google 表	檔案選單（雲端模式）；對話框標題	plugins/cloud/index.tsx:115 plugins/cloud/index.tsx:277
+cloud.refresh	重新讀取	檔案選單（雲端模式）	plugins/cloud/index.tsx:118
+cloud.dataUrl	Verso 資料表	開發者選項（雲端模式）：共用的資料表網址	plugins/cloud/index.tsx:74 plugins/cloud/sync.ts:393 plugins/cloud/sync.ts:448 plugins/cloud/sync.ts:468
+cloud.dataHint	標記、建議翻譯、修改存在這張 Google 表，大家共用（建一張空白試算表、分享給同專案的人，把網址貼在這裡）	開發者選項（雲端模式）	plugins/cloud/index.tsx:76
+cloud.conflictNote	#{id} 的備註已經被別人改過	雲端模式：寫回衝突	plugins/cloud/index.tsx:312
+cloud.sync	同步	條目欄上方的按鈕（雲端模式）：寫回並重新讀取 Google 表	plugins/cloud/index.tsx:98 plugins/cloud/index.tsx:100 plugins/cloud/index.tsx:102
+cloud.syncing	同步中…	同步按鈕	plugins/cloud/index.tsx:102
+cloud.lastSync	上次同步：{time}	同步按鈕的提示	plugins/cloud/index.tsx:98
+cloud.refreshed	已重新讀取	雲端模式：提示	plugins/cloud/index.tsx:117
+cloud.close	關閉	雲端模式：對話框的關閉按鈕	plugins/cloud/index.tsx:131
+cloud.setupTitle	設定 Google 表	雲端模式：對話框標題	plugins/cloud/index.tsx:194 plugins/cloud/index.tsx:237
+cloud.url	網址	雲端模式：試算表網址	plugins/cloud/index.tsx:184
+cloud.project	所屬專案	雲端模式	plugins/cloud/index.tsx:186
+cloud.read	讀取	雲端模式：按鈕	plugins/cloud/index.tsx:188
+cloud.reading	讀取中…	雲端模式：按鈕	plugins/cloud/index.tsx:188
+cloud.setupHint	貼上 Google 試算表的網址後按「讀取」，再選各欄的範圍	雲端模式：設定說明	plugins/cloud/index.tsx:197
+cloud.pickHint	「{title}」：在每個要翻譯的分頁選 id、發話者、原文、備註的範圍（可以是空的）；譯文不選的話，會在原文右邊插入一欄。沒選範圍的分頁不會出現在 Verso	雲端模式：設定說明	plugins/cloud/index.tsx:249
+cloud.needFields	「{name}」還沒選：{fields}	雲端模式：設定錯誤	plugins/cloud/index.tsx:208
+cloud.noTabs	至少要在一個分頁選範圍	雲端模式：設定錯誤	plugins/cloud/index.tsx:212
+cloud.badUrl	看不懂這個網址，請貼 Google 試算表的網址	雲端模式：設定錯誤	plugins/cloud/index.tsx:165
+cloud.cancel	取消	雲端模式：按鈕	plugins/cloud/index.tsx:242 plugins/cloud/index.tsx:292
+cloud.save	儲存	雲端模式：按鈕	plugins/cloud/index.tsx:243
+cloud.saving	儲存中…	雲端模式：按鈕	plugins/cloud/index.tsx:243
+cloud.noSheets	還沒有設定過的 Google 表	雲端模式：管理	plugins/cloud/index.tsx:279
+cloud.tabCount	{n} 個分頁	雲端模式：管理	plugins/cloud/index.tsx:284
+cloud.resetup	重新設定	雲端模式：管理	plugins/cloud/index.tsx:285
+cloud.remove	不再使用	雲端模式：管理	plugins/cloud/index.tsx:286 plugins/cloud/index.tsx:292
+cloud.removeAsk	不再使用「{name}」？	雲端模式：確認	plugins/cloud/index.tsx:291
+cloud.removeBody	只是從 Verso 拿掉，Google 上的表不會動。	雲端模式：確認	plugins/cloud/index.tsx:291
+cloud.conflictTitle	#{id} 已經被別人改過	雲端模式：寫回衝突	plugins/cloud/index.tsx:312
+cloud.conflictSrc	原文	雲端模式：寫回衝突	plugins/cloud/index.tsx:313
+cloud.conflictMine	我的	雲端模式：寫回衝突	plugins/cloud/index.tsx:314
+cloud.conflictTheirs	對方的	雲端模式：寫回衝突	plugins/cloud/index.tsx:315
+cloud.empty	（空白）	雲端模式：寫回衝突	plugins/cloud/index.tsx:305
+cloud.useMine	用我的	雲端模式：寫回衝突	plugins/cloud/index.tsx:319
+cloud.useTheirs	用對方的	雲端模式：寫回衝突	plugins/cloud/index.tsx:318
+cloud.loadFailed	讀不到「{name}」：{reason}	雲端模式：警告	plugins/cloud/sync.ts:253 plugins/cloud/sync.ts:393 plugins/cloud/sync.ts:468
 cloud.writeFailed	「{name}」的譯文沒有寫回：{reason}	雲端模式：警告	plugins/cloud/sync.ts:354 plugins/cloud/sync.ts:448
 cloud.missingId	「{name}」找不到這些 ID，譯文沒有寫回：{ids}	雲端模式：警告	plugins/cloud/sync.ts:352
-cloud.errLogin	還沒登入 Google，請到設定 > 開發者選項登入	雲端模式：錯誤	plugins/cloud/api.ts:72
-cloud.errClient	請先填用戶端 ID	雲端模式：錯誤	plugins/cloud/api.ts:73
-cloud.errTimeout	等太久沒有完成登入，請再試一次	雲端模式：錯誤	plugins/cloud/api.ts:74
-cloud.errDenied	沒有權限（這個帳號不能開這張表，或公司還沒允許）	雲端模式：錯誤	plugins/cloud/api.ts:75
-cloud.errNotFound	找不到這張表	雲端模式：錯誤	plugins/cloud/api.ts:76
-cloud.errNetwork	連不上 Google，請檢查網路	雲端模式：錯誤	plugins/cloud/api.ts:77
-cloud.errOther	Google 回報錯誤：{msg}	雲端模式：錯誤	plugins/cloud/api.ts:78
+cloud.errLogin	還沒登入 Google，請到設定 > 開發者選項登入	雲端模式：錯誤	plugins/cloud/api.ts:74
+cloud.errClient	請先填用戶端 ID	雲端模式：錯誤	plugins/cloud/api.ts:75
+cloud.errTimeout	等太久沒有完成登入，請再試一次	雲端模式：錯誤	plugins/cloud/api.ts:76
+cloud.errDenied	沒有權限（這個帳號不能開這張表，或公司還沒允許）	雲端模式：錯誤	plugins/cloud/api.ts:77
+cloud.errNotFound	找不到這張表	雲端模式：錯誤	plugins/cloud/api.ts:78
+cloud.errNetwork	連不上 Google，請檢查網路	雲端模式：錯誤	plugins/cloud/api.ts:79
+cloud.errOther	Google 回報錯誤：{msg}	雲端模式：錯誤	plugins/cloud/api.ts:80
 projset.title	專案設定：{name}	管理專案：點專案名稱後右邊的標題	components/ProjectSettings.tsx:36
 projset.dicts	自動啟用的字典	專案設定	components/ProjectSettings.tsx:39
 projset.dictsHint	打開這個專案的檔案時，勾起來的字典會自動啟用（跟字典頁的開關是同一份）	專案設定	components/ProjectSettings.tsx:40
@@ -111,16 +111,16 @@ settings.packsFailed	語言包加不進去，主程式資料夾可能沒有寫�
 settings.packReplace	已經有語言包「{name}」，要取代嗎？	設定 > 一般：加入同名語言包時	components/SettingsDialog.tsx:460
 settings.packReplaceNo	取消	設定 > 一般：同名語言包的詢問	components/SettingsDialog.tsx:461
 settings.packReplaceYes	取代	設定 > 一般：同名語言包的詢問	components/SettingsDialog.tsx:461
-common.sep	、	列出好幾個名稱時的分隔符號	App.tsx:101 App.tsx:112 App.tsx:123 components/CopyConfirm.tsx:19 components/EntryList.tsx:197 components/EntryList.tsx:197 components/FileNav.tsx:126 components/ManageDialogs.tsx:176 components/SettingsDialog.tsx:427 components/SettingsDialog.tsx:428 components/SidePanel.tsx:342 components/WorkPanel.tsx:96 model/importSel.ts:59 model/importSel.ts:59 model/paste.ts:79 plugins/cloud/index.tsx:204 plugins/cloud/sync.ts:352 state/saver.ts:947 state/saver.ts:947
-common.join	；	把兩段提示接成一句時的分隔符號（英文用「; 」）	state/saver.ts:947
+common.sep	、	列出好幾個名稱時的分隔符號	App.tsx:101 App.tsx:112 App.tsx:123 components/CopyConfirm.tsx:19 components/EntryList.tsx:197 components/EntryList.tsx:197 components/FileNav.tsx:126 components/ManageDialogs.tsx:176 components/SettingsDialog.tsx:427 components/SettingsDialog.tsx:428 components/SidePanel.tsx:342 components/WorkPanel.tsx:96 model/importSel.ts:59 model/importSel.ts:59 model/paste.ts:79 plugins/cloud/index.tsx:208 plugins/cloud/sync.ts:352 state/saver.ts:1009 state/saver.ts:1009
+common.join	；	把兩段提示接成一句時的分隔符號（英文用「; 」）	state/saver.ts:1009
 common.moreEntries	 等 {n} 條	列表太長時接在後面	App.tsx:101
-common.moreItems	 等 {n} 個	列表太長時接在後面	App.tsx:112 App.tsx:123 state/saver.ts:947 state/saver.ts:947
-common.sheetError	「{name}」{msg}	某個頁簽有錯誤時，頁簽名稱接錯誤訊息	components/ImportDialog.tsx:188 components/ImportDialog.tsx:189 components/ManageDialogs.tsx:369 components/PasteDialog.tsx:112 plugins/cloud/index.tsx:206
+common.moreItems	 等 {n} 個	列表太長時接在後面	App.tsx:112 App.tsx:123 state/saver.ts:1009 state/saver.ts:1009
+common.sheetError	「{name}」{msg}	某個頁簽有錯誤時，頁簽名稱接錯誤訊息	components/ImportDialog.tsx:188 components/ImportDialog.tsx:189 components/ManageDialogs.tsx:369 components/PasteDialog.tsx:116 plugins/cloud/index.tsx:210
 common.errorReason	{target}：{reason}	存檔失敗的項目與原因	components/TitleBar.tsx:58
 import.fieldRange	{range}（{n}）	匯入視窗：欄位選到的範圍和行數	components/ImportDialog.tsx:354
-save.longAt	{project} / {file} / {sheet} 第 {n} 條	存檔時格子太長的條目位置	state/saver.ts:140
+save.longAt	{project} / {file} / {sheet} 第 {n} 條	存檔時格子太長的條目位置	state/saver.ts:199
 work.tooLong	譯文加上修改會超過 Excel 一格 32767 字的上限，沒有改	驗證模式的修改框	components/WorkPanel.tsx:253 components/WorkPanel.tsx:343
-save.sameRoot	已經是目前的存檔資料夾	設定 > 一般：換存檔資料夾時選到同一個	state/saver.ts:700
+save.sameRoot	已經是目前的存檔資料夾	設定 > 一般：換存檔資料夾時選到同一個	state/saver.ts:760
 check.fullwidthSpace	全形空格	檢查項目與訊息	model/checks.ts:139
 app.001	Excel 一格最多 32767 字，貼上後會超過，沒有貼上	主畫面	App.tsx:66
 app.002	有格子超過 Excel 的單格上限	主畫面	App.tsx:100
@@ -169,15 +169,15 @@ copy.003	還有條目沒完成	複製譯文確認	components/CopyConfirm.tsx:18
 copy.004	取消	複製譯文確認	components/CopyConfirm.tsx:23
 copy.005	仍要複製	複製譯文確認	components/CopyConfirm.tsx:25
 dictpaste.001	兩欄行數不一致：原文 {sn}、譯文 {length}	貼入字典視窗	components/DictPasteDialog.tsx:50
-dictpaste.002	貼入字典	貼入字典視窗	components/DictPasteDialog.tsx:63
-dictpaste.003	關閉	貼入字典視窗	components/DictPasteDialog.tsx:64
-dictpaste.004	專案	貼入字典視窗	components/DictPasteDialog.tsx:72
-dictpaste.005	字典	貼入字典視窗	components/DictPasteDialog.tsx:76
-dictpaste.006	原文	貼入字典視窗	components/DictPasteDialog.tsx:80
-dictpaste.007	譯文	貼入字典視窗	components/DictPasteDialog.tsx:82
-dictpaste.008	{length} 筆	貼入字典視窗	components/DictPasteDialog.tsx:89
-dictpaste.009	取消	貼入字典視窗	components/DictPasteDialog.tsx:93
-dictpaste.010	加入	貼入字典視窗	components/DictPasteDialog.tsx:95
+dictpaste.002	貼入字典	貼入字典視窗	components/DictPasteDialog.tsx:65
+dictpaste.003	關閉	貼入字典視窗	components/DictPasteDialog.tsx:66
+dictpaste.004	專案	貼入字典視窗	components/DictPasteDialog.tsx:74
+dictpaste.005	字典	貼入字典視窗	components/DictPasteDialog.tsx:78
+dictpaste.006	原文	貼入字典視窗	components/DictPasteDialog.tsx:82
+dictpaste.007	譯文	貼入字典視窗	components/DictPasteDialog.tsx:84
+dictpaste.008	{length} 筆	貼入字典視窗	components/DictPasteDialog.tsx:91
+dictpaste.009	取消	貼入字典視窗	components/DictPasteDialog.tsx:95
+dictpaste.010	加入	貼入字典視窗	components/DictPasteDialog.tsx:97
 list.001	發話者	條目欄	components/EntryList.tsx:30
 list.002	原文	條目欄	components/EntryList.tsx:30
 list.003	譯文	條目欄	components/EntryList.tsx:30
@@ -385,24 +385,24 @@ pastebox.008	編輯	貼入框	components/PasteBox.tsx:252
 pastebox.009	清空	貼入框	components/PasteBox.tsx:253
 pastebox.010	刪除	貼入框	components/PasteBox.tsx:254
 pastebox.011	插入	貼入框	components/PasteBox.tsx:255
-paste.004	插入頁簽	手動貼入視窗	components/PasteDialog.tsx:236
-paste.005	手動貼入	手動貼入視窗	components/PasteDialog.tsx:236
-paste.006	關閉	手動貼入視窗	components/PasteDialog.tsx:237
-paste.007	檔名	手動貼入視窗	components/PasteDialog.tsx:245
-paste.008	專案	手動貼入視窗	components/PasteDialog.tsx:248
-paste.009	頁簽	手動貼入視窗	components/PasteDialog.tsx:253
-paste.010	頁簽名稱	手動貼入視窗	components/PasteDialog.tsx:269
-paste.011	雙擊改名	手動貼入視窗	components/PasteDialog.tsx:274
-paste.012	移除頁簽「{name}」	手動貼入視窗	components/PasteDialog.tsx:288
-paste.013	移除	手動貼入視窗	components/PasteDialog.tsx:288
-paste.014	新增頁簽	手動貼入視窗	components/PasteDialog.tsx:297 components/PasteDialog.tsx:297
-paste.015	取消	手動貼入視窗	components/PasteDialog.tsx:317
-paste.016	建立	手動貼入視窗	components/PasteDialog.tsx:319
-paste.017	頁簽「{v1}」	手動貼入視窗	components/PasteDialog.tsx:324
-paste.018	重新命名	手動貼入視窗	components/PasteDialog.tsx:326
-paste.019	清空	手動貼入視窗	components/PasteDialog.tsx:327
-paste.020	刪除	手動貼入視窗	components/PasteDialog.tsx:328
-paste.021	插入	手動貼入視窗	components/PasteDialog.tsx:329
+paste.004	插入頁簽	手動貼入視窗	components/PasteDialog.tsx:240
+paste.005	手動貼入	手動貼入視窗	components/PasteDialog.tsx:240
+paste.006	關閉	手動貼入視窗	components/PasteDialog.tsx:241
+paste.007	檔名	手動貼入視窗	components/PasteDialog.tsx:249
+paste.008	專案	手動貼入視窗	components/PasteDialog.tsx:252
+paste.009	頁簽	手動貼入視窗	components/PasteDialog.tsx:257
+paste.010	頁簽名稱	手動貼入視窗	components/PasteDialog.tsx:273
+paste.011	雙擊改名	手動貼入視窗	components/PasteDialog.tsx:278
+paste.012	移除頁簽「{name}」	手動貼入視窗	components/PasteDialog.tsx:292
+paste.013	移除	手動貼入視窗	components/PasteDialog.tsx:292
+paste.014	新增頁簽	手動貼入視窗	components/PasteDialog.tsx:301 components/PasteDialog.tsx:301
+paste.015	取消	手動貼入視窗	components/PasteDialog.tsx:321
+paste.016	建立	手動貼入視窗	components/PasteDialog.tsx:323
+paste.017	頁簽「{v1}」	手動貼入視窗	components/PasteDialog.tsx:328
+paste.018	重新命名	手動貼入視窗	components/PasteDialog.tsx:330
+paste.019	清空	手動貼入視窗	components/PasteDialog.tsx:331
+paste.020	刪除	手動貼入視窗	components/PasteDialog.tsx:332
+paste.021	插入	手動貼入視窗	components/PasteDialog.tsx:333
 picker.001	新增專案	專案／字典選單	components/Pickers.tsx:42
 picker.002	專案名稱	專案／字典選單	components/Pickers.tsx:42
 picker.003	新字典	專案／字典選單	components/Pickers.tsx:49
@@ -661,9 +661,9 @@ importfile.001	不支援這種檔案	匯入檔案訊息	data/importio.ts:39
 importfile.002	無法讀取這個檔案	匯入檔案訊息	data/importio.ts:58
 importfile.003	檔案裡沒有內容	匯入檔案訊息	data/importio.ts:61
 importfile.tooLong	Excel 一格最多 32767 字，檔案裡有一格超過了，沒有匯入	匯入檔案訊息	data/importio.ts:63
-load.001	字典 / {name} / {v1}	讀取訊息	data/persist.ts:130
-load.002	讀取專案「{name}」	讀取訊息	data/persist.ts:222
-load.003	讀取字典	讀取訊息	data/persist.ts:264
+load.001	字典 / {name} / {v1}	讀取訊息	data/persist.ts:132 state/saver.ts:129
+load.002	讀取專案「{name}」	讀取訊息	data/persist.ts:224
+load.003	讀取字典	讀取訊息	data/persist.ts:266
 xlsx.001	轉檔失敗	存檔轉檔	data/xlsxAsync.ts:19 data/xlsxAsync.ts:23
 align.001	比對失敗	原文更新比對	model/alignAsync.ts:41 model/alignAsync.ts:46
 srcupd.alignFailed	自動比對失敗，目前照順序對應	原文更新比對	components/SrcUpdateDialog.tsx:99
@@ -788,22 +788,22 @@ shortcut.021	套用這條的新原文	快捷鍵	model/shortcuts.ts:34
 shortcut.022	按住查看舊原文	快捷鍵	model/shortcuts.ts:35
 shortcut.023	套用這條的全部修改	快捷鍵	model/shortcuts.ts:36
 save.001	清除暫存復原失敗	存檔訊息	state/saver.ts:47
-save.002	檔案被其他程式開著（例如 Excel），關掉後會自動重試	存檔訊息	state/saver.ts:127
-save.003	沒有寫入權限	存檔訊息	state/saver.ts:128
-save.004	名稱不合法	存檔訊息	state/saver.ts:129
-save.005	磁碟空間不足	存檔訊息	state/saver.ts:130
-save.006	找不到存檔資料夾	存檔訊息	state/saver.ts:131
-save.007	字典 {k}	存檔訊息	state/saver.ts:223 state/saver.ts:230 state/saver.ts:268 state/saver.ts:321
-save.008	專案資料夾「{x}」	存檔訊息	state/saver.ts:329
-save.009	專案設定檔	存檔訊息	state/saver.ts:312
-save.010	已儲存	存檔訊息	state/saver.ts:356
-save.011	讀取設定	存檔訊息	state/saver.ts:405
-save.012	讀取專案	存檔訊息	state/saver.ts:448
-save.013	完成	存檔訊息	state/saver.ts:475
-save.014	資料夾裡有其他東西，改存到裡面的「Verso」資料夾	存檔訊息	state/saver.ts:714
-save.015	已載入：{v1}{v2}	存檔訊息	state/saver.ts:947
-save.016	已改名：{v1}{v2}	存檔訊息	state/saver.ts:947
-save.017	字典 / {project} / {name}	存檔訊息	state/saver.ts:949
+save.002	檔案被其他程式開著（例如 Excel），關掉後會自動重試	存檔訊息	state/saver.ts:186
+save.003	沒有寫入權限	存檔訊息	state/saver.ts:187
+save.004	名稱不合法	存檔訊息	state/saver.ts:188
+save.005	磁碟空間不足	存檔訊息	state/saver.ts:189
+save.006	找不到存檔資料夾	存檔訊息	state/saver.ts:190
+save.007	字典 {k}	存檔訊息	state/saver.ts:282 state/saver.ts:289 state/saver.ts:327 state/saver.ts:380
+save.008	專案資料夾「{x}」	存檔訊息	state/saver.ts:388
+save.009	專案設定檔	存檔訊息	state/saver.ts:371
+save.010	已儲存	存檔訊息	state/saver.ts:415
+save.011	讀取設定	存檔訊息	state/saver.ts:464
+save.012	讀取專案	存檔訊息	state/saver.ts:507
+save.013	完成	存檔訊息	state/saver.ts:534
+save.014	資料夾裡有其他東西，改存到裡面的「Verso」資料夾	存檔訊息	state/saver.ts:776
+save.015	已載入：{v1}{v2}	存檔訊息	state/saver.ts:1009
+save.016	已改名：{v1}{v2}	存檔訊息	state/saver.ts:1009
+save.017	字典 / {project} / {name}	存檔訊息	state/saver.ts:1011
 store.001	啟動中	狀態訊息	main.tsx:23 state/store.ts:696
 update.001	檢查更新	自動更新	state/updater.ts:33
 update.002	下載太久沒有進度	自動更新	state/updater.ts:57 state/updater.ts:58

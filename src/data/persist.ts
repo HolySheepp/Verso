@@ -12,7 +12,7 @@ import { isVersoDictData, isVersoFileData, readDictBook, quickFileIdOf, xlsxToVe
 import type { CheckSettings } from '../model/checks';
 import type { FontSettings } from '../model/fonts';
 import type { Bindings } from '../model/shortcuts';
-import { SHARED, newFileId, type CustomMark, type DictInfo, type FileDoc, type GlossaryTerm, type ProjectData } from '../model/types';
+import { SHARED, dictKey, newFileId, type CustomMark, type DictInfo, type FileDoc, type GlossaryTerm, type ProjectData } from '../model/types';
 
 const META = 'project.json';
 const WORKSPACE = 'verso.json';
@@ -110,7 +110,7 @@ async function migrateDicts(root: string) {
   }
 }
 
-async function loadDicts(root: string): Promise<{ dicts: DictInfo[]; terms: GlossaryTerm[]; projects: string[]; unreadable: string[] }> {
+async function loadDicts(root: string, want: (d: DictInfo) => boolean = () => true): Promise<{ dicts: DictInfo[]; terms: GlossaryTerm[]; projects: string[]; unreadable: string[] }> {
   const dir = io.join(root, DICT_DIR);
   const dicts: DictInfo[] = [];
   const terms: GlossaryTerm[] = [];
@@ -122,6 +122,8 @@ async function loadDicts(root: string): Promise<{ dicts: DictInfo[]; terms: Glos
     await recoverBackups(io.join(dir, p.name));
     for (const f of (await io.list(io.join(dir, p.name))).filter((e) => !e.dir && isXlsx(e.name))) {
       const name = f.name.slice(0, -5);
+      // 沒啟用的字典只記名字，打開開關時才讀
+      if (!want({ project: p.name, name })) { dicts.push({ project: p.name, name, unloaded: true }); continue; }
       dicts.push({ project: p.name, name });
       try {
         const book = readDictBook(p.name, name, await io.readBinary(io.join(dir, p.name, f.name)));
@@ -197,7 +199,7 @@ export async function fixProjectCase(root: string, projects: string[]): Promise<
 }
 
 /** 載入整個存檔資料夾 */
-export async function loadWorkspace(root: string, onProgress?: (p: number, text: string) => void): Promise<{ data: ProjectData; last?: LastPosition; remapped: boolean; unreadable: string[]; newIds: string[] }> {
+export async function loadWorkspace(root: string, onProgress?: (p: number, text: string) => void, overrides: Record<string, boolean> = {}): Promise<{ data: ProjectData; last?: LastPosition; remapped: boolean; unreadable: string[]; newIds: string[] }> {
   const unreadable: string[] = [];
   await recoverBackups(root);
   let ws: WorkspaceMeta | null = null;
@@ -262,7 +264,9 @@ export async function loadWorkspace(root: string, onProgress?: (p: number, text:
   }
 
   onProgress?.(0.88, tx('load.003'));
-  const d = await loadDicts(root);
+  // 只讀上次所在專案啟用中的字典（目前專案和共用預設啟用，可手動開關）
+  const cur = ws?.last?.project ?? SHARED;
+  const d = await loadDicts(root, (x) => overrides[cur + '>' + dictKey(x.project, x.name)] ?? (x.project === cur || x.project === SHARED));
   // 檔案、字典 ID：沒有的（舊檔案）或重複的（在外面複製出來的）給新的，下次存檔寫進去
   const newIds: string[] = [];
   const seenF = new Set<string>();
@@ -274,6 +278,8 @@ export async function loadWorkspace(root: string, onProgress?: (p: number, text:
   });
   const seenD = new Set<string>();
   d.dicts.forEach((x) => {
+    // 還沒讀的字典不知道 ID，讀進來時再配
+    if (x.unloaded) return;
     if (x.did && !seenD.has(x.did)) { seenD.add(x.did); return; }
     x.did = newFileId();
     seenD.add(x.did);
