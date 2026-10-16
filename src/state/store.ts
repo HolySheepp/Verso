@@ -8,7 +8,7 @@ import { effectiveMark, findCustom, toStoredMark } from '../model/marks';
 import { TGT_COL, cellKey, parseKey, rectKeys, type Cell, type CellCol } from '../model/cells';
 import { DEFAULT_FONTS, type FontSettings } from '../model/fonts';
 import { defaultBindings, type ActionId, type Bindings, type ShortcutContext } from '../model/shortcuts';
-import { defaultCheckSettings, enabledIssues, type CheckId, type CheckSettings, type Issue } from '../model/checks';
+import { defaultCheckSettings, enabledIssues, type CheckId, type CheckSettings, type Issue, setChecksEnabled } from '../model/checks';
 import { SHARED, dictKey, newFileId, projectTag, type CustomMark, type DictInfo, type Entry, type FileDoc, type GlossaryTerm, type MarkId, type Mode, type ProjectData, type Sheet } from '../model/types';
 import { sortProjects, type RootConflict } from '../data/persist';
 import { DICT_DIR, safeName, sameName, sheetNameError } from '../model/names';
@@ -220,6 +220,8 @@ interface State {
   aiEnabled: boolean;
   /** 雲端模式（雲端外掛設定）：只顯示 Google 試算表的檔案；關掉時只顯示本地檔案 */
   cloudMode: boolean;
+  /** 自動檢查的總開關（設定 > 檢查最上面）；關掉時什麼都不檢查，檢查項目也不顯示 */
+  checksOn: boolean;
   /** 雲端模式：各專案的雲端字典檔（專案名稱 → 試算表 ID）；有的專案新增字典時是雲端字典 */
   cloudDictFile: Record<string, string>;
   /** 雲端模式：各專案預設的長度標準（雲端檔案沒設定自己的長度標準時用） */
@@ -729,6 +731,7 @@ export const useStore = create<Store>((set, get) => {
     showIds: false,
     aiEnabled: false,
     cloudMode: false,
+    checksOn: true,
     cloudDictFile: {},
     cloudProjectStd: {},
     cloudProjects: [],
@@ -1537,3 +1540,7 @@ export function useStorePick<K extends keyof Store>(...keys: K[]): Pick<Store, K
 
 // 字型載入好時（量測快取已經清掉）：重新檢查已經報過問題的條目，行長結果才會照新字型算
 if (typeof document !== 'undefined' && document.fonts) document.fonts.addEventListener('loadingdone', () => useStore.getState().recheckReported());
+
+// 自動檢查總開關：跟著設定（檢查結果的快取靠 checkSettings 換成新的物件重算）
+setChecksEnabled(useStore.getState().checksOn);
+useStore.subscribe((s, prev) => { if (s.checksOn !== prev.checksOn) setChecksEnabled(s.checksOn); });

@@ -41,6 +41,9 @@ export function SettingsDialog() {
   const [text, setText] = useState('');
   const [color, setColor] = useState('#4fb3a9');
   const [section, setSection] = useState('general');
+  // 外掛的設定分類（例如「雲端」）
+  const pluginSections = plugins.flatMap((p) => (p.SettingsSection ? [p.SettingsSection] : []));
+  const pluginSection = pluginSections.find((p) => p.id === section);
   const devMode = useStore((s) => s.devMode);
   const devClicks = useRef<{ n: number; t: number }>({ n: 0, t: 0 });
   const [devShake, setDevShake] = useState({ k: 0, n: 0 });
@@ -53,7 +56,7 @@ export function SettingsDialog() {
       c.n = 0;
       const on = !useStore.getState().devMode;
       // 關掉開發者模式時「顯示字句 ID」也一起關
-      useStore.getState().set(on ? { devMode: true } : { devMode: false, showIds: false, aiEnabled: false, cloudMode: false });
+      useStore.getState().set(on ? { devMode: true } : { devMode: false, showIds: false, aiEnabled: false });
       if (!on && section === 'dev') setSection('general');
       showToast(on ? tx('settings.devOn') : tx('settings.devOff'));
     }
@@ -106,19 +109,19 @@ export function SettingsDialog() {
         </div>
         <div style={{ flexGrow: 1, minHeight: 0, display: 'flex' }}>
           <nav aria-label={tx('settings.009')} style={{ width: 180, flexShrink: 0, display: 'flex', flexDirection: 'column', gap: 2, padding: 12, borderRight: '1px solid var(--line)', background: 'var(--bar)' }}>
-            {(devMode ? [...SECTIONS, 'dev'] : SECTIONS).map((sec) => {
+            {[...SECTIONS, ...pluginSections.map((p) => p.id), ...(devMode ? ['dev'] : [])].map((sec) => {
               const on = sec === section;
               return (
                 <button key={sec} type="button" className="dd" aria-current={on ? 'page' : undefined}
-                  onClick={() => { if (READY.includes(sec) || sec === 'dev') setSection(sec); }}
+                  onClick={() => { if (READY.includes(sec) || sec === 'dev' || pluginSections.some((p) => p.id === sec)) setSection(sec); }}
                   style={{ height: 34, padding: '0 12px', border: 0, borderRadius: 7, textAlign: 'left', background: on ? 'var(--sel)' : 'transparent', color: on ? 'var(--text)' : 'var(--text2)', fontWeight: on ? 500 : 400 }}>
-                  {sectionLabel(sec)}
+                  {pluginSections.find((p) => p.id === sec)?.label() ?? sectionLabel(sec)}
                 </button>
               );
             })}
           </nav>
           <div style={{ flexGrow: 1, minWidth: 0, overflowY: 'auto', padding: '20px 24px', display: 'flex', flexDirection: 'column', gap: 22 }}>
-            {section === 'dev' && devMode ? <DevSection /> : section === 'appearance' ? <AppearanceSection onPick={() => setPicking(true)} /> : section === 'general' ? <GeneralSection /> : section === 'checks' ? <ChecksSection /> : section === 'shortcuts' ? <ShortcutsSection /> : <>
+            {pluginSection ? <pluginSection.Component /> : section === 'dev' && devMode ? <DevSection /> : section === 'appearance' ? <AppearanceSection onPick={() => setPicking(true)} /> : section === 'general' ? <GeneralSection /> : section === 'checks' ? <ChecksSection /> : section === 'shortcuts' ? <ShortcutsSection /> : <>
             <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
               <h3 style={h3}>{tx('settings.010')}</h3>
               <div style={{ display: 'grid', gridTemplateColumns: 'repeat(2, minmax(0, 1fr))', gap: 8 }}>
@@ -240,10 +243,20 @@ function ChecksSection() {
   const settings = useStore((s) => s.checkSettings);
   const setCheck = useStore((s) => s.setCheck);
   const finishLine = useStore((s) => s.finishLine);
+  const checksOn = useStore((s) => s.checksOn);
   const set = useStore((s) => s.set);
   return (
     <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
-      <h3 style={h3}>{tx('settings.035')}</h3>
+      {/* 總開關：關掉就不做任何檢查，不用一個一個關 */}
+      <label style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 10, minHeight: 52, padding: '8px 12px', background: 'var(--card)', border: '1px solid var(--line2)', borderRadius: 8, cursor: 'pointer' }}>
+        <span style={{ display: 'flex', flexDirection: 'column', gap: 3 }}>
+          <span style={{ fontSize: fz(13.5), fontWeight: 600 }}>{tx('settings.checksOn')}</span>
+          <span style={{ fontSize: fz(12), color: 'var(--mute)' }}>{tx('settings.checksOnHint')}</span>
+        </span>
+        <input type="checkbox" role="switch" className="switch" checked={checksOn} onChange={(e) => set({ checksOn: e.target.checked, checkSettings: { ...settings } })} />
+      </label>
+      {checksOn && <>
+      <h3 style={{ ...h3, marginTop: 8 }}>{tx('settings.035')}</h3>
       <div style={{ display: 'grid', gridTemplateColumns: 'repeat(2, minmax(0, 1fr))', gap: 8 }}>
         {CHECKS.filter((c) => c.id !== 'overflow').map((c) => {
           const on = settings[c.id];
@@ -261,6 +274,10 @@ function ChecksSection() {
           <span style={{ fontSize: fz(13) }}>{tx('settings.037')}</span>
           <input type="checkbox" role="switch" className="switch" checked={settings.overflow} onChange={(e) => setCheck('overflow', e.target.checked)} />
         </label>
+      </div>
+      </>}
+      {!checksOn && <h3 style={{ ...h3, marginTop: 8 }}>{tx('settings.036')}</h3>}
+      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(2, minmax(0, 1fr))', gap: 8 }}>
         <label style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 10, height: 44, padding: '0 12px', background: 'var(--card)', border: '1px solid var(--line2)', borderRadius: 8, cursor: 'pointer' }}>
           <span style={{ fontSize: fz(13) }}>{tx('settings.038')}</span>
           <input type="checkbox" role="switch" className="switch" checked={finishLine} onChange={(e) => set({ finishLine: e.target.checked })} />

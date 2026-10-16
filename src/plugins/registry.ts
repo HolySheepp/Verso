@@ -8,6 +8,8 @@ export interface VersoPlugin {
   ListToolbar?: ComponentType;
   /** 設定 > 開發者選項裡的開關 */
   DevOptions?: ComponentType;
+  /** 設定左邊多一個分類（例如「雲端」） */
+  SettingsSection?: { id: string; label(): string; Component: ComponentType };
   /** 管理專案 > 專案設定裡的一區（tag 是這個專案的標籤） */
   ProjectSettings?: ComponentType<{ tag: string }>;
   /** 檔案選單底下的項目（雲端模式時取代「手動貼入、新增檔案、管理專案」）；close 關掉檔案選單 */

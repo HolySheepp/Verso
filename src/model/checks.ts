@@ -184,7 +184,12 @@ function dashCapitals(tgt: string): number[] {
 }
 
 /** 依開關過濾 */
+/** 自動檢查的總開關（設定 > 檢查）：關掉時什麼都不檢查 */
+let checksEnabled = true;
+export const setChecksEnabled = (on: boolean) => { checksEnabled = on; };
+
 export function enabledIssues(src: string, tgt: string, settings: CheckSettings, std?: LengthStd | null): Issue[] {
+  if (!checksEnabled) return [];
   const out = runChecks(src, tgt).filter((i) => settings[i.check]);
   // 超框：用長度標準實際排版，超過行數上限就報
   if (std && settings.overflow && overflows(tgt, std)) out.push({ check: 'overflow', key: '', msg: tx('check.031', { lines: std.lines }) });

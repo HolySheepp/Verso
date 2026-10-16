@@ -20,6 +20,8 @@ const WORKSPACE = 'verso.json';
 /** App 層級的設定（存在系統的設定資料夾，不在存檔資料夾裡） */
 export interface AppConfig {
   saveRoot?: string;
+  /** 自動檢查的總開關 */
+  checksOn?: boolean;
   /** 自動存檔間隔（分鐘） */
   autosaveMin?: number;
   theme?: 'dark' | 'light' | 'system';
