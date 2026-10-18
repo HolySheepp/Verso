@@ -615,6 +615,7 @@ export const EN: Partial<Record<TextKey, string>> = {
   'fonts.005': 'Truncate',
   'fonts.006': 'Wrap',
   'fonts.007': 'Shrink to Fit',
+  'fonts.autoSize': '(Auto)',
   'importsel.001': 'No range selected yet',
   'importsel.002': 'Each field can use only one column',
   'len.001': 'Not set',

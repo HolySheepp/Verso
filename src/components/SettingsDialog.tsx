@@ -629,8 +629,12 @@ function FontsSection() {
             <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
               <span style={{ width: 52, flexShrink: 0, fontSize: fz(13) }}>{label}</span>
               <FontSelect value={shown.family} recent={recent} label={label} disabled={f.inherit} onChange={(family) => update(id, { family })} />
-              <Select ariaLabel={tx('settings.060', { label })} value={String(shown.size)} onChange={(v) => update(id, { size: Number(v) })} disabled={f.inherit}
-                options={sizes.map((n) => ({ value: String(n), label: n + ' pt' }))} style={{ width: 84, height: 34, flexShrink: 0 }} />
+              {/* id 欄自動縮放：字級照欄寬自動調整，不能選 */}
+              {id === 'id' && overflowOf(fonts, id) === 'shrink'
+                ? <Select ariaLabel={tx('settings.060', { label })} value="auto" onChange={() => {}} disabled
+                  options={[{ value: 'auto', label: tx('fonts.autoSize') }]} style={{ minWidth: 84, height: 34, flexShrink: 0 }} />
+                : <Select ariaLabel={tx('settings.060', { label })} value={String(shown.size)} onChange={(v) => update(id, { size: Number(v) })} disabled={f.inherit}
+                  options={sizes.map((n) => ({ value: String(n), label: n + ' pt' }))} style={{ width: 84, height: 34, flexShrink: 0 }} />}
               <button type="button" className="btn btn-ghost" disabled={isDefault} onClick={() => set({ fonts: { ...fonts, [id]: DEFAULT_FONTS[id] } })}
                 style={{ height: 34, padding: '0 12px', flexShrink: 0, background: 'var(--btn)', border: '1px solid var(--line4)', borderRadius: 8, fontSize: fz(12.5), opacity: isDefault ? 0.5 : 1 }}>{tx('settings.041')}</button>
             </div>

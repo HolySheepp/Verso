@@ -1493,13 +1493,14 @@ export function currentStamp(s: Pick<State, 'mode' | 'stamps' | 'project'>): Mar
   return stamp;
 }
 
-/** 看得到的條目裡待處理的：未翻譯、疑慮或有問題 */
+/** 看得到的條目裡待處理的：未翻譯、疑慮或有問題（驗證模式另加已翻譯還沒驗證的） */
 function pendingRows(s: State): number[] {
   const { sheet, fileDoc } = currentOf(s);
   return visibleRows(s).filter((i) => {
     const e = sheet.entries[i];
     const m = effectiveMark(e);
-    return m === 'untranslated' || m === 'doubt' || m === 'srcupd' || visibleIssues(e, s.reported, s.checkSettings, fileStdFor(s.project, fileDoc)).length > 0;
+    // 驗證模式：已翻譯還沒驗證的也要處理
+    return m === 'untranslated' || m === 'doubt' || m === 'srcupd' || (s.mode === 'verify' && m === 'translated') || visibleIssues(e, s.reported, s.checkSettings, fileStdFor(s.project, fileDoc)).length > 0;
   });
 }
 

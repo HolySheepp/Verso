@@ -17,7 +17,7 @@ import { rowMenuPos } from './rowMenu';
 import { CopyConfirm } from './CopyConfirm';
 import { IconCheck, IconCopy, IconNote, IconRuler, IconScan, IconSrcApplyAll, IconWarn } from './icons';
 import { stdLabel } from '../model/length';
-import { cellFontCss, fz, overflowOf, type Overflow } from '../model/fonts';
+import { cellFontCss, fz, idAutoPx, overflowOf, type Overflow } from '../model/fonts';
 import type { CustomMark, Entry, MarkId } from '../model/types';
 import type { Issue } from '../model/checks';
 import { CellText } from './CellText';
@@ -106,6 +106,8 @@ interface RowProps {
   /** 各欄能放文字的寬度（自動縮放用） */
   fitId: number; fitSpk: number; fitSrc: number; fitTgt: number;
   fontId: string; fontSpk: string; fontSrc: string; fontTgt: string;
+  /** id 欄的字級（CSS 寫法） */
+  fsId: string;
   ovfId: Overflow; ovfSpk: Overflow; ovfSrc: Overflow; ovfTgt: Overflow;
   h: React.RefObject<RowHandlers>;
 }
@@ -133,7 +135,7 @@ function CellEditor({ text, h, uid, c }: { text: string; h: React.RefObject<RowH
 }
 
 /** 條目欄的一行：只有自己的內容、選取、標記等變了才重畫 */
-const EntryRow = memo(function EntryRow({ e, i, aiLock, k, m, issues, on, hit, selCols, editing, customs, cols, fitId, fitSpk, fitSrc, fitTgt, fontId, fontSpk, fontSrc, fontTgt, ovfId, ovfSpk, ovfSrc, ovfTgt, h }: RowProps) {
+const EntryRow = memo(function EntryRow({ e, i, aiLock, k, m, issues, on, hit, selCols, editing, customs, cols, fitId, fitSpk, fitSrc, fitTgt, fontId, fsId, fontSpk, fontSrc, fontTgt, ovfId, ovfSpk, ovfSrc, ovfTgt, h }: RowProps) {
   const doubt = m === 'doubt', ver = m === 'verified', ign = m === 'ignore';
   const label = tx('list.010', { v1: markName(customs, m) });
   const cellProps = (c: CellCol) => {
@@ -176,7 +178,7 @@ const EntryRow = memo(function EntryRow({ e, i, aiLock, k, m, issues, on, hit, s
       </span>
       <div role="row" style={{ minWidth: 0, minHeight: 38, display: 'grid', gridTemplateColumns: cols, alignItems: 'stretch', fontSize: fz(13) }}>
         <span {...cellProps(0)} title={e.id} style={{ display: 'flex', alignItems: 'center', justifyContent: 'flex-end', minWidth: 0, padding: '4px 0', fontFamily: 'var(--font-id)', fontSize: 'var(--fs-id)' }}>
-          {editor(0) ?? <CellText mode={ovfId} fontSize="var(--fs-id)" fit={{ width: fitId, font: fontId, text: e.id }} style={{ paddingRight: 2, textAlign: 'right', color: ver ? 'var(--mute3)' : 'var(--mute)' }}>{e.id}</CellText>}
+          {editor(0) ?? <CellText mode={ovfId} fontSize={fsId} fit={{ width: fitId, font: fontId, text: e.id }} style={{ paddingRight: 2, textAlign: 'right', color: ver ? 'var(--mute3)' : 'var(--mute)' }}>{e.id}</CellText>}
         </span>
         <span {...cellProps(1)} title={e.speaker} style={{ display: 'flex', alignItems: 'center', minWidth: 0, padding: '4px 8px 4px 4px', fontFamily: 'var(--font-spk)', fontSize: 'var(--fs-spk)', color: ver ? 'var(--mute3)' : 'var(--text2)' }}>
           {editor(1) ?? <CellText mode={ovfSpk} fontSize="var(--fs-spk)" fit={{ width: fitSpk, font: fontSpk, text: e.speaker }}>{e.speaker}</CellText>}
@@ -260,6 +262,10 @@ export function EntryList() {
   // AI 處理中的條目鎖住（AI 外掛不在時永遠是空的）
   const aiLocked = useStore((st) => st.aiLocked);
   const ovf = { id: overflowOf(s.fonts, 'id'), speaker: overflowOf(s.fonts, 'speaker'), src: overflowOf(s.fonts, 'src'), tgt: overflowOf(s.fonts, 'tgt') };
+  // id 欄自動縮放：不看字級設定，照欄寬放大縮小，最大跟原文、譯文一樣大（列高不會變）
+  const idAuto = ovf.id === 'shrink' ? idAutoPx(s.fonts) : 0;
+  const fontId = idAuto ? cellFontCss(s.fonts, 'id').replace(/^[\d.]+px/, idAuto + 'px') : cellFontCss(s.fonts, 'id');
+  const fsId = idAuto ? idAuto + 'px' : 'var(--fs-id)';
 
 
   // 複製譯文欄：未翻譯的留空，待確認的照原本譯文輸出
@@ -801,7 +807,7 @@ export function EntryList() {
           <EntryRow key={e.uid} e={e} i={i} aiLock={aiLocked.includes(e.uid)} k={start + j} m={m} issues={issues} on={i === sel} hit={searchOn && searchHit(e, searchQ)}
             selCols={selColsOf(i)} editing={editing && editing.uid === e.uid ? editing : null}
             customs={customs} cols={cols} fitId={colPx[0] - 2} fitSpk={colPx[1] - 12} fitSrc={colPx[2] - 16} fitTgt={colPx[3] - 32}
-            fontId={cellFontCss(s.fonts, 'id')} fontSpk={cellFontCss(s.fonts, 'speaker')} fontSrc={cellFontCss(s.fonts, 'src')} fontTgt={cellFontCss(s.fonts, 'tgt')}
+            fontId={fontId} fsId={fsId} fontSpk={cellFontCss(s.fonts, 'speaker')} fontSrc={cellFontCss(s.fonts, 'src')} fontTgt={cellFontCss(s.fonts, 'tgt')}
             ovfId={ovf.id} ovfSpk={ovf.speaker} ovfSrc={ovf.src} ovfTgt={ovf.tgt} h={handlers} />
         ))}
         {end < rows.length && <div aria-hidden="true" style={{ height: offsets[rows.length] - offsets[end] }} />}

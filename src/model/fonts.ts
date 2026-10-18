@@ -99,6 +99,11 @@ export function cellFontCss(f: FontSettings, slot: 'id' | 'speaker' | 'src' | 't
   return `${(ptToPx(f[slot].size) * 13) / 15}px ${fontStack(f[slot].family)}`;
 }
 
+/** id 欄自動縮放時最大的字級（px）：跟條目欄的原文、譯文一樣大 */
+export function idAutoPx(f: FontSettings): number {
+  return Math.max(parseFloat(cellFontCss(f, 'src')), parseFloat(cellFontCss(f, 'tgt')));
+}
+
 let ctx: CanvasRenderingContext2D | null = null;
 const widths = new Map<string, number>();
 // 字型晚一點才載入完成時，之前量的寬度可能不準，清掉重量

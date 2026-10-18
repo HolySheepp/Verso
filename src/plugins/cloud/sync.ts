@@ -43,6 +43,21 @@ const loading = new Set<string>();
 const fileOf = (sid: string) => useStore.getState().project?.files.find((f) => f.fid === fidOf(sid));
 const confOf = (sid: string) => allSheets().find((x) => x.sid === sid);
 
+/**
+ * 這台電腦剛移除的頁簽、條目：在讀資料表的途中移除時，讀回來的可能是移除前的設定，
+ * 合併進去才不會又讀回來
+ */
+const localRemoved = new Map<string, NonNullable<CloudSheet['removed']>>();
+function mergeRemoved(a: CloudSheet['removed'], b: CloudSheet['removed']): CloudSheet['removed'] {
+  if (!a) return b;
+  if (!b) return a;
+  const rows: Record<string, string[]> = { ...(a.rows ?? {}) };
+  for (const [g, ks] of Object.entries(b.rows ?? {})) rows[g] = [...new Set([...(rows[g] ?? []), ...ks])];
+  return { tabs: [...new Set([...(a.tabs ?? []), ...(b.tabs ?? [])])], rows };
+}
+/** 目前要略過的頁簽、條目（資料表上的加上這台電腦剛移除的） */
+const removedOf = (sid: string) => mergeRemoved(confOf(sid)?.removed, localRemoved.get(sid));
+
 /** 同一個 ID 第幾次出現：讀取時、寫回時都用它對條目和列 */
 const keysOf = (entries: { id: string }[]) => {
   const seen = new Map<string, number>();
@@ -108,6 +123,7 @@ export async function readShared() {
       filesRows.set(v[0], r);
       let removed: CloudSheet['removed'];
       try { removed = v[7] ? JSON.parse(v[7]) : undefined; } catch { removed = undefined; }
+      removed = mergeRemoved(removed, localRemoved.get(v[0]));
       shared.push({ sid: v[0], title: v[1] ?? '', project: v[2] || SHARED, tabs, ...(v[6] ? { lengthStd: textToStd(v[6]) } : {}), ...(removed ? { removed } : {}) });
     } catch { /* 壞掉的列不理 */ }
   });
@@ -289,7 +305,7 @@ export async function loadSheet(sid: string, quiet = false): Promise<boolean> {
     const m = await meta(sid);
     // 分頁改名：跟著 Google 的名稱；被刪掉的分頁不讀
     // 移除的頁簽不讀
-    const tabs = conf.tabs.map((t) => ({ ...t, title: m.tabs.find((x) => x.gid === t.gid)?.title ?? '' })).filter((t) => t.title && !conf.removed?.tabs?.includes(t.gid));
+    const tabs = conf.tabs.map((t) => ({ ...t, title: m.tabs.find((x) => x.gid === t.gid)?.title ?? '' })).filter((t) => t.title && !removedOf(sid)?.tabs?.includes(t.gid));
     if (m.title !== conf.title || tabs.some((t, i) => t.title !== conf.tabs[i]?.title)) {
       const fixed = { ...conf, title: m.title, tabs: conf.tabs.map((t) => tabs.find((y) => y.gid === t.gid) ?? t) };
       const { cfg, shared } = useCloud.getState();
@@ -302,7 +318,10 @@ export async function loadSheet(sid: string, quiet = false): Promise<boolean> {
     const cur0 = fileOf(sid);
     const prev = cur0 && !cur0.cloud?.stub ? cur0 : undefined;
     const kept = prev ? undefined : await readCache(sid);
-    const sheets = tabs.map((t, i) => buildSheet(t, values[i], prev?.sheets.find((s) => s.gid === t.gid), kept?.[String(t.gid)], fd, rich[i], new Set(conf.removed?.rows?.[String(t.gid)] ?? [])));
+    // 用讀完時最新的移除紀錄（讀的途中可能剛移除了條目或頁簽）
+    const rm = removedOf(sid);
+    const sheets = tabs.map((t, i) => (rm?.tabs?.includes(t.gid) ? null : buildSheet(t, values[i], prev?.sheets.find((s) => s.gid === t.gid), kept?.[String(t.gid)], fd, rich[i], new Set(rm?.rows?.[String(t.gid)] ?? []))))
+      .filter((x): x is Sheet => !!x);
     if (!sheets.length) return false;
     const p = useStore.getState().project!;
     ensureProjects([conf.project]);
@@ -1033,7 +1052,8 @@ export async function createR15(sid: string, link: string, linkTitle: string, ta
 async function saveRemoved(sid: string, removed: NonNullable<CloudSheet['removed']>) {
   const conf = confOf(sid);
   if (!conf) return;
-  const next = { ...conf, removed };
+  localRemoved.set(sid, mergeRemoved(localRemoved.get(sid), removed)!);
+  const next = { ...conf, removed: mergeRemoved(conf.removed, removed) };
   const { cfg, shared } = useCloud.getState();
   if (cfg.sheets.some((x) => x.sid === sid)) setConfig({ sheets: cfg.sheets.map((x) => (x.sid === sid ? next : x)) });
   useCloud.setState({ shared: shared.map((x) => (x.sid === sid ? next : x)) });
@@ -1055,8 +1075,7 @@ export function removeRows(rows: number[]): boolean {
       await flush(sid, true);
       const keys = pick.map((e) => base.get(e.uid)?.key).filter((k): k is string => !!k);
       const g = String(sheet.gid);
-      const removed = { ...(conf.removed ?? {}), rows: { ...(conf.removed?.rows ?? {}), [g]: [...new Set([...(conf.removed?.rows?.[g] ?? []), ...keys])] } };
-      await saveRemoved(sid, removed);
+      await saveRemoved(sid, { rows: { [g]: keys } });
       const gone = new Set(pick.map((e) => e.uid));
       asInternal(() => useStore.getState().editSheet((es) => ({ entries: es.filter((e) => !gone.has(e.uid)), keys: [] }), at, true));
       useStore.getState().dropUndo(fidOf(sid));
@@ -1078,7 +1097,7 @@ export function tabRemove(i: number): boolean {
   useCloud.setState({ confirm: { title: tx('cloud.removeTabAsk', { name: sh.name }), body: tx('cloud.removeTabBody'), ok: tx('cloud.removeOk'), run: async () => {
     try {
       await flush(sid, true);
-      await saveRemoved(sid, { ...(conf.removed ?? {}), tabs: [...new Set([...(conf.removed?.tabs ?? []), sh.gid!])] });
+      await saveRemoved(sid, { tabs: [sh.gid!] });
       const st = useStore.getState();
       if (st.file === fileIdx) asInternal(() => st.deleteSheet(i));
       useStore.getState().dropUndo(fidOf(sid));
