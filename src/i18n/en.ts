@@ -502,8 +502,6 @@ export const EN: Partial<Record<TextKey, string>> = {
   'title.019': 'Minimize',
   'title.020': 'Maximize',
   'title.021': 'Close',
-  'work.001': 'Only the translation can be edited',
-  'work.002': 'Fix the translation in the edit box',
   'work.003': 'Cannot edit under Read-Only mode',
   'work.004': 'Source Edit Mode',
   'work.005': 'Resize Work Panel',

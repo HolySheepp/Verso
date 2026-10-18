@@ -168,7 +168,7 @@ settings.packsFailed	無法添加語言包，主程式資料夾可能沒有寫�
 settings.packReplace	已經有語言包「{name}」，要取代嗎？	設定 > 一般：加入同名語言包時	components/SettingsDialog.tsx:477
 settings.packReplaceNo	取消	設定 > 一般：同名語言包的詢問	components/SettingsDialog.tsx:478
 settings.packReplaceYes	取代	設定 > 一般：同名語言包的詢問	components/SettingsDialog.tsx:478
-common.sep	、	列出好幾個名稱時的分隔符號	App.tsx:101 App.tsx:112 App.tsx:123 components/CopyConfirm.tsx:19 components/EntryList.tsx:198 components/EntryList.tsx:198 components/FileNav.tsx:131 components/ManageDialogs.tsx:176 components/SettingsDialog.tsx:444 components/SettingsDialog.tsx:445 components/SidePanel.tsx:363 components/WorkPanel.tsx:96 model/importSel.ts:59 model/importSel.ts:59 model/paste.ts:79 plugins/cloud/index.tsx:229 plugins/cloud/sync.ts:438 state/saver.ts:1024 state/saver.ts:1024
+common.sep	、	列出好幾個名稱時的分隔符號	App.tsx:101 App.tsx:112 App.tsx:123 components/CopyConfirm.tsx:19 components/EntryList.tsx:198 components/EntryList.tsx:198 components/FileNav.tsx:131 components/ManageDialogs.tsx:176 components/SettingsDialog.tsx:444 components/SettingsDialog.tsx:445 components/SidePanel.tsx:363 components/WorkPanel.tsx:94 model/importSel.ts:59 model/importSel.ts:59 model/paste.ts:79 plugins/cloud/index.tsx:229 plugins/cloud/sync.ts:438 state/saver.ts:1024 state/saver.ts:1024
 common.join	；	把兩段提示接成一句時的分隔符號（英文用「; 」）	state/saver.ts:1024
 common.moreEntries	 等 {n} 條	列表太長時接在後面	App.tsx:101
 common.moreItems	 等 {n} 個	列表太長時接在後面	App.tsx:112 App.tsx:123 state/saver.ts:1024 state/saver.ts:1024
@@ -176,7 +176,7 @@ common.sheetError	「{name}」{msg}	某個頁簽有錯誤時，頁簽名稱接�
 common.errorReason	{target}：{reason}	存檔失敗的項目與原因	components/TitleBar.tsx:58
 import.fieldRange	{range}（{n}）	匯入視窗：欄位選到的範圍和行數	components/ImportDialog.tsx:354
 save.longAt	{project} / {file} / {sheet} 第 {n} 條	存檔時格子太長的條目位置	state/saver.ts:211
-work.tooLong	修改失敗，超過32767 字。	驗證模式的修改框	components/WorkPanel.tsx:253 components/WorkPanel.tsx:343
+work.tooLong	修改失敗，超過32767 字。	驗證模式的修改框	components/WorkPanel.tsx:251 components/WorkPanel.tsx:341
 save.sameRoot	已經是目前的存檔資料夾	設定 > 一般：換存檔資料夾時選到同一個	state/saver.ts:775
 check.fullwidthSpace	全形空格	檢查項目與訊息	model/checks.ts:139
 app.001	Excel 一格最多 32767 字，貼上後會超過，沒有貼上	主畫面	App.tsx:66
@@ -653,65 +653,63 @@ title.018	設定	標題列	components/TitleBar.tsx:103 components/TitleBar.tsx:1
 title.019	最小化	標題列	components/TitleBar.tsx:108
 title.020	最大化	標題列	components/TitleBar.tsx:109
 title.021	關閉	標題列	components/TitleBar.tsx:110
-work.001	只能編輯譯文	工作欄	components/WorkPanel.tsx:29
-work.002	在修改框修正譯文	工作欄	components/WorkPanel.tsx:30
-work.003	唯讀模式無法編輯	工作欄	components/WorkPanel.tsx:31 components/WorkPanel.tsx:568
-work.004	原文修正模式	工作欄	components/WorkPanel.tsx:32
-work.005	調整工作欄高度	工作欄	components/WorkPanel.tsx:66 components/WorkPanel.tsx:502
-work.006	工作欄	工作欄	components/WorkPanel.tsx:67 components/WorkPanel.tsx:503
-work.007	選擇標記，當前：{v1}	工作欄	components/WorkPanel.tsx:200
-work.008	略過	工作欄	components/WorkPanel.tsx:437
-work.009	返回目前譯文	工作欄	components/WorkPanel.tsx:441
-work.010	查看修改（按住預覽）	工作欄	components/WorkPanel.tsx:441
-work.011	查看修改（尚無記錄）	工作欄	components/WorkPanel.tsx:441
-work.012	譯文記錄	工作欄	components/WorkPanel.tsx:446
-work.013	記錄	工作欄	components/WorkPanel.tsx:447 components/WorkPanel.tsx:447 components/WorkPanel.tsx:480
-work.014	查看修改	工作欄	components/WorkPanel.tsx:451
-work.015	使用此內容	工作欄	components/WorkPanel.tsx:471 components/WorkPanel.tsx:471
-work.016	選擇記錄槽位	工作欄	components/WorkPanel.tsx:481
-work.017	記錄 {v1}	工作欄	components/WorkPanel.tsx:485
-work.018	原文	工作欄	components/WorkPanel.tsx:511
-work.019	可編輯	工作欄	components/WorkPanel.tsx:514
-work.020	新版已移除	工作欄	components/WorkPanel.tsx:519
-work.021	已套用新原文	工作欄	components/WorkPanel.tsx:519
-work.022	原文已更新	工作欄	components/WorkPanel.tsx:519
-work.023	舊原文	工作欄	components/WorkPanel.tsx:519
-work.024	{n} 字	工作欄	components/WorkPanel.tsx:523
-work.025	原文更新	工作欄	components/WorkPanel.tsx:539
-work.026	按住查看舊原文	工作欄	components/WorkPanel.tsx:540 components/WorkPanel.tsx:540
-work.027	套用（刪除這條）	工作欄	components/WorkPanel.tsx:551
-work.028	套用新原文	工作欄	components/WorkPanel.tsx:551 components/WorkPanel.tsx:551
-work.029	譯文	工作欄	components/WorkPanel.tsx:565
-work.030	已記錄 {length} / 3	工作欄	components/WorkPanel.tsx:574
-work.031	{n} 字元	工作欄	components/WorkPanel.tsx:575 components/WorkPanel.tsx:610
-work.032	修改	工作欄	components/WorkPanel.tsx:601 components/WorkPanel.tsx:630
-work.033	套用全部修改	工作欄	components/WorkPanel.tsx:605
-work.034	全部套用	工作欄	components/WorkPanel.tsx:606
-work.035	已記錄 {n} / 3	工作欄	components/WorkPanel.tsx:609
-work.036	編輯	工作欄	components/WorkPanel.tsx:632
-work.037	忽略	工作欄	components/WorkPanel.tsx:632
-work.038	套用	工作欄	components/WorkPanel.tsx:632 components/WorkPanel.tsx:633
-work.039	忽略修改	工作欄	components/WorkPanel.tsx:633
-work.040	條目功能	工作欄	components/WorkPanel.tsx:647
-work.041	複製原文和譯文	工作欄	components/WorkPanel.tsx:648 components/WorkPanel.tsx:648
-work.042	清除譯文	工作欄	components/WorkPanel.tsx:653 components/WorkPanel.tsx:653
-work.043	全部忽略	工作欄：修改框上方，「全部套用」旁的按鈕	components/WorkPanel.tsx:608
-work.044	清除本條所有修改	工作欄：「全部忽略」的滑鼠提示	components/WorkPanel.tsx:607
-work.045	插入標籤	工作欄	components/WorkPanel.tsx:659
-work.046	插入標籤，例如 {0}	工作欄	components/WorkPanel.tsx:659
-work.047	複製譯文	工作欄	components/WorkPanel.tsx:664
-work.048	複製譯文到剪貼簿	工作欄	components/WorkPanel.tsx:664
-work.049	第 {n} / {total} 條	工作欄	components/WorkPanel.tsx:674
-work.051	設定這一條的長度標準	工作欄	components/WorkPanel.tsx:675
-work.052	這一條的長度標準	工作欄	components/WorkPanel.tsx:675
-work.053	已套用獨立長度標準	工作欄	components/WorkPanel.tsx:677
-work.054	上一條	工作欄	components/WorkPanel.tsx:683
-work.055	標記並下一條	工作欄	components/WorkPanel.tsx:695
-work.056	標記	工作欄	components/WorkPanel.tsx:697
-work.057	選擇按鈕要留下的標記	工作欄	components/WorkPanel.tsx:697
-work.058	疑慮並下一條	工作欄	components/WorkPanel.tsx:705
-work.059	驗證並下一條	工作欄	components/WorkPanel.tsx:705
-work.060	下一條	工作欄	components/WorkPanel.tsx:710
+work.003	唯讀模式無法編輯	工作欄	components/WorkPanel.tsx:29 components/WorkPanel.tsx:566
+work.004	原文修正模式	工作欄	components/WorkPanel.tsx:30
+work.005	調整工作欄高度	工作欄	components/WorkPanel.tsx:64 components/WorkPanel.tsx:500
+work.006	工作欄	工作欄	components/WorkPanel.tsx:65 components/WorkPanel.tsx:501
+work.007	選擇標記，當前：{v1}	工作欄	components/WorkPanel.tsx:198
+work.008	略過	工作欄	components/WorkPanel.tsx:435
+work.009	返回目前譯文	工作欄	components/WorkPanel.tsx:439
+work.010	查看修改（按住預覽）	工作欄	components/WorkPanel.tsx:439
+work.011	查看修改（尚無記錄）	工作欄	components/WorkPanel.tsx:439
+work.012	譯文記錄	工作欄	components/WorkPanel.tsx:444
+work.013	記錄	工作欄	components/WorkPanel.tsx:445 components/WorkPanel.tsx:445 components/WorkPanel.tsx:478
+work.014	查看修改	工作欄	components/WorkPanel.tsx:449
+work.015	使用此內容	工作欄	components/WorkPanel.tsx:469 components/WorkPanel.tsx:469
+work.016	選擇記錄槽位	工作欄	components/WorkPanel.tsx:479
+work.017	記錄 {v1}	工作欄	components/WorkPanel.tsx:483
+work.018	原文	工作欄	components/WorkPanel.tsx:509
+work.019	可編輯	工作欄	components/WorkPanel.tsx:512
+work.020	新版已移除	工作欄	components/WorkPanel.tsx:517
+work.021	已套用新原文	工作欄	components/WorkPanel.tsx:517
+work.022	原文已更新	工作欄	components/WorkPanel.tsx:517
+work.023	舊原文	工作欄	components/WorkPanel.tsx:517
+work.024	{n} 字	工作欄	components/WorkPanel.tsx:521
+work.025	原文更新	工作欄	components/WorkPanel.tsx:537
+work.026	按住查看舊原文	工作欄	components/WorkPanel.tsx:538 components/WorkPanel.tsx:538
+work.027	套用（刪除這條）	工作欄	components/WorkPanel.tsx:549
+work.028	套用新原文	工作欄	components/WorkPanel.tsx:549 components/WorkPanel.tsx:549
+work.029	譯文	工作欄	components/WorkPanel.tsx:563
+work.030	已記錄 {length} / 3	工作欄	components/WorkPanel.tsx:572
+work.031	{n} 字元	工作欄	components/WorkPanel.tsx:573 components/WorkPanel.tsx:608
+work.032	修改	工作欄	components/WorkPanel.tsx:599 components/WorkPanel.tsx:628
+work.033	套用全部修改	工作欄	components/WorkPanel.tsx:603
+work.034	全部套用	工作欄	components/WorkPanel.tsx:604
+work.035	已記錄 {n} / 3	工作欄	components/WorkPanel.tsx:607
+work.036	編輯	工作欄	components/WorkPanel.tsx:630
+work.037	忽略	工作欄	components/WorkPanel.tsx:630
+work.038	套用	工作欄	components/WorkPanel.tsx:630 components/WorkPanel.tsx:631
+work.039	忽略修改	工作欄	components/WorkPanel.tsx:631
+work.040	條目功能	工作欄	components/WorkPanel.tsx:645
+work.041	複製原文和譯文	工作欄	components/WorkPanel.tsx:646 components/WorkPanel.tsx:646
+work.042	清除譯文	工作欄	components/WorkPanel.tsx:651 components/WorkPanel.tsx:651
+work.043	全部忽略	工作欄：修改框上方，「全部套用」旁的按鈕	components/WorkPanel.tsx:606
+work.044	清除本條所有修改	工作欄：「全部忽略」的滑鼠提示	components/WorkPanel.tsx:605
+work.045	插入標籤	工作欄	components/WorkPanel.tsx:657
+work.046	插入標籤，例如 {0}	工作欄	components/WorkPanel.tsx:657
+work.047	複製譯文	工作欄	components/WorkPanel.tsx:662
+work.048	複製譯文到剪貼簿	工作欄	components/WorkPanel.tsx:662
+work.049	第 {n} / {total} 條	工作欄	components/WorkPanel.tsx:672
+work.051	設定這一條的長度標準	工作欄	components/WorkPanel.tsx:673
+work.052	這一條的長度標準	工作欄	components/WorkPanel.tsx:673
+work.053	已套用獨立長度標準	工作欄	components/WorkPanel.tsx:675
+work.054	上一條	工作欄	components/WorkPanel.tsx:681
+work.055	標記並下一條	工作欄	components/WorkPanel.tsx:693
+work.056	標記	工作欄	components/WorkPanel.tsx:695
+work.057	選擇按鈕要留下的標記	工作欄	components/WorkPanel.tsx:695
+work.058	疑慮並下一條	工作欄	components/WorkPanel.tsx:703
+work.059	驗證並下一條	工作欄	components/WorkPanel.tsx:703
+work.060	下一條	工作欄	components/WorkPanel.tsx:708
 fs.001	寫入的檔案不完整	檔案讀寫	data/fsio.ts:45
 importfile.001	不支援這種檔案	匯入檔案訊息	data/importio.ts:39
 importfile.002	無法讀取這個檔案	匯入檔案訊息	data/importio.ts:58

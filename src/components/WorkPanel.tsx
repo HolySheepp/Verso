@@ -25,9 +25,7 @@ import {
   IconBraces, IconCheck, IconChevL, IconChevR, IconCopy, IconEraser, IconEye, IconFeather, IconLock, IconPen, IconUse,
 } from './icons';
 
-const MODE_HINTS: Record<Mode, string> = {
-  get translate() { return tx('work.001'); },
-  get verify() { return tx('work.002'); },
+const MODE_HINTS: Partial<Record<Mode, string>> = {
   get view() { return tx('work.003'); },
   get source() { return tx('work.004'); },
 };
@@ -671,7 +669,7 @@ function WorkPanelInner({ height, maxH }: { height: number; maxH: number }) {
 
       <div style={{ height: 40, flexShrink: 0, display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
         <span style={{ display: 'flex', gap: 14, fontSize: fz(12), color: 'var(--mute)' }}>
-          <span>{tx('work.049', { n: sel + 1, total })}</span><span>{MODE_HINTS[mode]}</span>
+          <span>{tx('work.049', { n: sel + 1, total })}</span>{MODE_HINTS[mode] && <span>{MODE_HINTS[mode]}</span>}
           <button type="button" className="ib" aria-label={tx('work.051')} title={tx('work.052')} onClick={() => s.set({ lengthDialog: 'entry' })}
             style={{ height: 24, display: 'flex', alignItems: 'center', gap: 5, padding: '0 6px', margin: '-4px 0', background: 'transparent', border: 0, borderRadius: 6, color: cur.lengthStd !== undefined ? 'var(--accent2)' : 'var(--mute)', fontSize: fz(12) }}>
             <IconRuler size={14} />{cur.lengthStd !== undefined && tx('work.053')}
