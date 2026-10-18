@@ -18,10 +18,10 @@ describe('介面語言', () => {
     expect(tx('list.018', { n: 0 })).toBe('0 entries');
   });
 
-  it('空字串不算缺字；語言包沒有的用中文補（英文還沒有時）', () => {
+  it('空字串不算缺字；語言包沒有的用英文補', () => {
     useDictionary({ 'app.032': '' });
     expect(tx('app.032')).toBe('');
-    expect(tx('app.031')).toBe('不儲存');
+    expect(tx('app.031')).toBe("Don't Save");
   });
 
   it('語言包：空白、少了 {名稱}、不認得的代號都不收', () => {
@@ -49,7 +49,7 @@ describe('介面語言', () => {
     expect(pairs).toEqual([['app.031', 'Nicht speichern'], ['app.032', '']]);
     useDictionary(cleanPack(pairs));
     expect(tx('app.031')).toBe('Nicht speichern');
-    expect(tx('app.032')).toBe('儲存');
+    expect(tx('app.032')).toBe('Save');
   });
 });
 

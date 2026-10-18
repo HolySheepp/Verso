@@ -23,7 +23,7 @@ describe('importSel', () => {
 
   it('跨欄不行', () => {
     expect(rectsToField([rectOf({ c: 0, r: 1 }, { c: 1, r: 2 })], rows.length)).toBe('一個欄位只能選一欄');
-    expect(rectsToField([], rows.length)).toBe('還沒選範圍');
+    expect(rectsToField([], rows.length)).toBe('未選取範圍');
   });
 
   it('整欄超出資料的列不算', () => {
