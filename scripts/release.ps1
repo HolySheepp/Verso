@@ -18,13 +18,10 @@ if (-not (Test-Path $key)) { throw "找不到簽章私鑰：$key" }
 $env:CARGO_TARGET_DIR = Join-Path $outer '建置暫存'
 $env:TAURI_SIGNING_PRIVATE_KEY = (Get-Content $key -Raw).Trim()
 $env:TAURI_SIGNING_PRIVATE_KEY_PASSWORD = ''
-$extra = Join-Path $env:CARGO_TARGET_DIR 'release-config.json'
 New-Item -ItemType Directory -Force $env:CARGO_TARGET_DIR | Out-Null
 if (-not $SkipBuild) {
-  [IO.File]::WriteAllText($extra, '{"bundle":{"createUpdaterArtifacts":true}}')
-  # 私鑰沒有密碼：送一個空白行給它，打包時就不會停在 password: 等人按 Enter
-  '' | npx tauri build --config $extra
-  if ($LASTEXITCODE -ne 0) { throw '打包失敗' }
+  # 跟「打包成安裝包與攜帶版.bat」用同一個打包程式（設定、環境變數完全一樣）
+  & (Join-Path $PSScriptRoot 'build.ps1')
 }
 $nsis = Join-Path $env:CARGO_TARGET_DIR 'release\bundle\nsis'
 $setup = Get-ChildItem $nsis -Filter "Verso_${version}_x64-setup.exe" | Select-Object -First 1

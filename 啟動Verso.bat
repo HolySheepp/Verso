@@ -6,8 +6,8 @@ cd /d "%~dp0"
 rem Check GitHub for a newer version first (asks before updating; skipped when offline)
 powershell -NoProfile -ExecutionPolicy Bypass -File "scripts\check-update.ps1"
 
-rem Install or update dependencies first (needed after git pull)
-call npm install --no-audit --no-fund
+rem Install or update dependencies only when package-lock.json changed (for example after git pull)
+powershell -NoProfile -ExecutionPolicy Bypass -File "scripts\npm-install.ps1"
 if errorlevel 1 goto fail
 
 call npm run tauri dev

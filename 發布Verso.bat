@@ -23,7 +23,21 @@ echo       Version: %VER%
 echo [2/5] Checking the version tag...
 set "TAGGED="
 for /f "delims=" %%t in ('git tag --points-at HEAD') do if "%%t"=="v%VER%" set "TAGGED=1"
-if not defined TAGGED ( echo HEAD has no tag v%VER%. Ask the main developer to tag it. & goto fail )
+if defined TAGGED goto tagok
+rem No tag on HEAD: add it, unless GitHub already has this tag on another commit (never tag through the GitHub website or API)
+for /f "delims=" %%h in ('git rev-parse HEAD') do set "HEADSHA=%%h"
+set "REMOTESHA="
+for /f "tokens=1" %%r in ('git ls-remote --tags origin refs/tags/v%VER%') do set "REMOTESHA=%%r"
+if defined REMOTESHA (
+  if /i "%REMOTESHA%"=="%HEADSHA%" ( git fetch origin tag v%VER% >nul 2>&1 & echo       Tag v%VER% is already on GitHub. & goto tagok )
+  echo Tag v%VER% on GitHub points to another commit. Ask the main developer to check the version. & goto fail
+)
+echo       Adding tag v%VER%...
+git tag v%VER%
+if errorlevel 1 ( echo Could not create tag v%VER%. & goto fail )
+git push origin v%VER%
+if errorlevel 1 ( echo Could not push tag v%VER% to GitHub. & goto fail )
+:tagok
 
 echo [3/5] Checking GitHub for an existing release...
 rem Check the GitHub login before building, so a long build is not wasted
