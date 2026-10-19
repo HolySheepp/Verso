@@ -251,7 +251,6 @@ function ChecksSection() {
       <label style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 10, minHeight: 52, padding: '8px 12px', background: 'var(--card)', border: '1px solid var(--line2)', borderRadius: 8, cursor: 'pointer' }}>
         <span style={{ display: 'flex', flexDirection: 'column', gap: 3 }}>
           <span style={{ fontSize: fz(13.5), fontWeight: 600 }}>{tx('settings.checksOn')}</span>
-          <span style={{ fontSize: fz(12), color: 'var(--mute)' }}>{tx('settings.checksOnHint')}</span>
         </span>
         <input type="checkbox" role="switch" className="switch" checked={checksOn} onChange={(e) => set({ checksOn: e.target.checked, checkSettings: { ...settings } })} />
       </label>

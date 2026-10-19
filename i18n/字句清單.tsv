@@ -3,7 +3,6 @@ cloud.versoConvert	偵測到 Verso 存檔格式的分頁：已自動選好範圍
 cloud.versoNoData	偵測到 Verso 存檔格式的分頁：已自動選好範圍。要把標記等也搬過去，請先在設定 > 雲端填 Verso 資料表。	雲端模式：設定 Google 表	plugins/cloud/index.tsx:276
 cloud.section	雲端	設定左邊的分類	plugins/cloud/index.tsx:441
 settings.checksOn	自動檢查	設定 > 檢查：總開關	components/SettingsDialog.tsx:253
-settings.checksOnHint	關掉後不做任何檢查（標點、機器驗證、超框）；打開後才能設定各個檢查項目	設定 > 檢查	components/SettingsDialog.tsx:254
 cloud.removeRowsAsk	移除這 {n} 條？	雲端模式：移除條目的確認	plugins/cloud/sync.ts:1073
 cloud.removeRowsBody	移除後 Verso 不再讀取這幾條（Google 上不動），同專案的人也不會再讀到。之後要恢復，只能重新設定這份表。	雲端模式：移除條目的確認	plugins/cloud/sync.ts:1073
 cloud.removeTabAsk	移除頁簽「{name}」？	雲端模式：移除頁簽的確認	plugins/cloud/sync.ts:1097
@@ -152,23 +151,23 @@ list.aiStop	停止	AI 處理中時，AI 按鈕變成這個	plugins/ai/index.tsx:
 ai.done	AI 處理完成	AI 做完時的提示	plugins/ai/ai.ts:254
 ai.desktopOnly	AI 協助只能在桌面版使用	瀏覽器預覽裡按 AI 按鈕	plugins/ai/ai.ts:317
 settings.devSection	開發者選項	設定左邊的分類（開發者模式才有）	components/SettingsDialog.tsx:28
-settings.showIds	顯示字句 ID	設定 > 開發者選項：開關	components/SettingsDialog.tsx:411
-settings.showIdsHint	滑鼠移到介面文字上，旁邊會顯示它的字句 ID	設定 > 開發者選項：開關下面的說明	components/SettingsDialog.tsx:413
+settings.showIds	顯示字句 ID	設定 > 開發者選項：開關	components/SettingsDialog.tsx:410
+settings.showIdsHint	滑鼠移到介面文字上，旁邊會顯示它的字句 ID	設定 > 開發者選項：開關下面的說明	components/SettingsDialog.tsx:412
 settings.devOn	已開啟開發者模式	連點設定標題 5 次時的提示	components/SettingsDialog.tsx:61
 settings.devOff	已關閉開發者模式	再連點 5 次時的提示	components/SettingsDialog.tsx:61
 shortcut.toggleIds	顯示字句 ID（開發者模式）	設定 > 快捷鍵：動作名稱	model/shortcuts.ts:37
 app.toastDismiss	點一下關閉	一直留著的警告提示，滑鼠停在上面時	App.tsx:81
-settings.language	語言	設定 > 一般	components/SettingsDialog.tsx:458
-settings.addPack	添加語言包	設定 > 一般：語言選單下面的按鈕	components/SettingsDialog.tsx:472
-settings.packLabel	{name}（語言包）	設定 > 一般：語言包跟內建語言同名時，選單裡這樣顯示	components/SettingsDialog.tsx:465
-settings.addPackHint	也可以把語言包檔案拖進這裡	設定 > 一般：添加語言包按鈕旁的說明	components/SettingsDialog.tsx:473
-settings.packsAdded	已加入語言包：{names}	設定 > 一般：加好語言包後的提示	components/SettingsDialog.tsx:444
-settings.packsBad	這些檔案不是語言包：{names}	設定 > 一般：加入的檔案讀不出語言包內容時	components/SettingsDialog.tsx:445
-settings.packsFailed	無法添加語言包，主程式資料夾可能沒有寫入權限	設定 > 一般：複製語言包失敗時	components/SettingsDialog.tsx:447
-settings.packReplace	已經有語言包「{name}」，要取代嗎？	設定 > 一般：加入同名語言包時	components/SettingsDialog.tsx:477
-settings.packReplaceNo	取消	設定 > 一般：同名語言包的詢問	components/SettingsDialog.tsx:478
-settings.packReplaceYes	取代	設定 > 一般：同名語言包的詢問	components/SettingsDialog.tsx:478
-common.sep	、	列出好幾個名稱時的分隔符號	App.tsx:101 App.tsx:112 App.tsx:123 components/CopyConfirm.tsx:19 components/EntryList.tsx:200 components/EntryList.tsx:200 components/FileNav.tsx:131 components/ManageDialogs.tsx:177 components/SettingsDialog.tsx:444 components/SettingsDialog.tsx:445 components/SidePanel.tsx:363 components/WorkPanel.tsx:94 model/importSel.ts:59 model/importSel.ts:59 model/paste.ts:79 plugins/cloud/index.tsx:232 plugins/cloud/sync.ts:457 state/saver.ts:1024 state/saver.ts:1024
+settings.language	語言	設定 > 一般	components/SettingsDialog.tsx:457
+settings.addPack	添加語言包	設定 > 一般：語言選單下面的按鈕	components/SettingsDialog.tsx:471
+settings.packLabel	{name}（語言包）	設定 > 一般：語言包跟內建語言同名時，選單裡這樣顯示	components/SettingsDialog.tsx:464
+settings.addPackHint	也可以把語言包檔案拖進這裡	設定 > 一般：添加語言包按鈕旁的說明	components/SettingsDialog.tsx:472
+settings.packsAdded	已加入語言包：{names}	設定 > 一般：加好語言包後的提示	components/SettingsDialog.tsx:443
+settings.packsBad	這些檔案不是語言包：{names}	設定 > 一般：加入的檔案讀不出語言包內容時	components/SettingsDialog.tsx:444
+settings.packsFailed	無法添加語言包，主程式資料夾可能沒有寫入權限	設定 > 一般：複製語言包失敗時	components/SettingsDialog.tsx:446
+settings.packReplace	已經有語言包「{name}」，要取代嗎？	設定 > 一般：加入同名語言包時	components/SettingsDialog.tsx:476
+settings.packReplaceNo	取消	設定 > 一般：同名語言包的詢問	components/SettingsDialog.tsx:477
+settings.packReplaceYes	取代	設定 > 一般：同名語言包的詢問	components/SettingsDialog.tsx:477
+common.sep	、	列出好幾個名稱時的分隔符號	App.tsx:101 App.tsx:112 App.tsx:123 components/CopyConfirm.tsx:19 components/EntryList.tsx:200 components/EntryList.tsx:200 components/FileNav.tsx:131 components/ManageDialogs.tsx:177 components/SettingsDialog.tsx:443 components/SettingsDialog.tsx:444 components/SidePanel.tsx:363 components/WorkPanel.tsx:94 model/importSel.ts:59 model/importSel.ts:59 model/paste.ts:79 plugins/cloud/index.tsx:232 plugins/cloud/sync.ts:457 state/saver.ts:1024 state/saver.ts:1024
 common.join	；	把兩段提示接成一句時的分隔符號（英文用「; 」）	state/saver.ts:1024
 common.moreEntries	 等 {n} 條	列表太長時接在後面	App.tsx:101
 common.moreItems	 等 {n} 個	列表太長時接在後面	App.tsx:112 App.tsx:123 state/saver.ts:1024 state/saver.ts:1024
@@ -513,38 +512,38 @@ settings.028	未命名標記	設定	components/SettingsDialog.tsx:216
 settings.029	新增標記	設定	components/SettingsDialog.tsx:221
 settings.030	要一起清掉條目上的這個標記嗎？	設定	components/SettingsDialog.tsx:230
 settings.031	若選擇「保留」，標記將會留在檔案裡，但畫面上不會顯示。	設定	components/SettingsDialog.tsx:231
-settings.032	取消	設定	components/SettingsDialog.tsx:233 components/SettingsDialog.tsx:372
+settings.032	取消	設定	components/SettingsDialog.tsx:233 components/SettingsDialog.tsx:371
 settings.033	保留	設定	components/SettingsDialog.tsx:234
 settings.034	一起清掉	設定	components/SettingsDialog.tsx:235
-settings.035	標點與機器驗證	設定	components/SettingsDialog.tsx:259
-settings.036	句子長度	設定	components/SettingsDialog.tsx:271 components/SettingsDialog.tsx:279
-settings.037	超框	設定	components/SettingsDialog.tsx:274
-settings.038	終點線	設定	components/SettingsDialog.tsx:282
-settings.039	「{combo}」已被「{v1}」使用	設定	components/SettingsDialog.tsx:317
-settings.comboReserved	「{combo}」已被佔用	設定 > 快捷鍵：錄到條目欄固定的組合（復原、重做、方向鍵）時	components/SettingsDialog.tsx:312
-settings.040	情境	設定	components/SettingsDialog.tsx:364
-settings.041	還原預設	設定	components/SettingsDialog.tsx:368 components/SettingsDialog.tsx:639
-settings.042	把「{v1}」的快捷鍵還原成預設？	設定	components/SettingsDialog.tsx:371
-settings.043	還原	設定	components/SettingsDialog.tsx:372
-settings.044	按下新的組合鍵	設定	components/SettingsDialog.tsx:389
-settings.045	存檔資料夾	設定	components/SettingsDialog.tsx:482
-settings.046	更改…	設定	components/SettingsDialog.tsx:490
-settings.047	自動存檔	設定	components/SettingsDialog.tsx:494
-settings.048	每 {input} 分鐘	設定	components/SettingsDialog.tsx:451
-settings.049	自動存檔間隔（分鐘）	設定	components/SettingsDialog.tsx:497
-settings.051	色彩模式	設定	components/SettingsDialog.tsx:562 components/SettingsDialog.tsx:563
-settings.052	深色	設定	components/SettingsDialog.tsx:564
-settings.053	淺色	設定	components/SettingsDialog.tsx:564
-settings.054	跟隨系統	設定	components/SettingsDialog.tsx:564
-settings.055	主題色	設定	components/SettingsDialog.tsx:571 components/SettingsDialog.tsx:572
-settings.056	迷幻	設定	components/SettingsDialog.tsx:578 components/SettingsDialog.tsx:578
-settings.057	自訂主題色	設定	components/SettingsDialog.tsx:593 components/SettingsDialog.tsx:593
-settings.058	迷幻主題色會不停重繪畫面，比較舊的電腦或開著很大的檔案時，可能會稍微變慢、比較耗電。	設定	components/SettingsDialog.tsx:600
-settings.059	字體	設定	components/SettingsDialog.tsx:620
-settings.060	{label}字型大小	設定	components/SettingsDialog.tsx:634 components/SettingsDialog.tsx:636
-settings.061	跟隨系統字	設定	components/SettingsDialog.tsx:647
-settings.062	超框時	設定	components/SettingsDialog.tsx:651
-settings.063	{label}超框時	設定	components/SettingsDialog.tsx:652
+settings.035	標點與機器驗證	設定	components/SettingsDialog.tsx:258
+settings.036	句子長度	設定	components/SettingsDialog.tsx:270 components/SettingsDialog.tsx:278
+settings.037	超框	設定	components/SettingsDialog.tsx:273
+settings.038	終點線	設定	components/SettingsDialog.tsx:281
+settings.039	「{combo}」已被「{v1}」使用	設定	components/SettingsDialog.tsx:316
+settings.comboReserved	「{combo}」已被佔用	設定 > 快捷鍵：錄到條目欄固定的組合（復原、重做、方向鍵）時	components/SettingsDialog.tsx:311
+settings.040	情境	設定	components/SettingsDialog.tsx:363
+settings.041	還原預設	設定	components/SettingsDialog.tsx:367 components/SettingsDialog.tsx:638
+settings.042	把「{v1}」的快捷鍵還原成預設？	設定	components/SettingsDialog.tsx:370
+settings.043	還原	設定	components/SettingsDialog.tsx:371
+settings.044	按下新的組合鍵	設定	components/SettingsDialog.tsx:388
+settings.045	存檔資料夾	設定	components/SettingsDialog.tsx:481
+settings.046	更改…	設定	components/SettingsDialog.tsx:489
+settings.047	自動存檔	設定	components/SettingsDialog.tsx:493
+settings.048	每 {input} 分鐘	設定	components/SettingsDialog.tsx:450
+settings.049	自動存檔間隔（分鐘）	設定	components/SettingsDialog.tsx:496
+settings.051	色彩模式	設定	components/SettingsDialog.tsx:561 components/SettingsDialog.tsx:562
+settings.052	深色	設定	components/SettingsDialog.tsx:563
+settings.053	淺色	設定	components/SettingsDialog.tsx:563
+settings.054	跟隨系統	設定	components/SettingsDialog.tsx:563
+settings.055	主題色	設定	components/SettingsDialog.tsx:570 components/SettingsDialog.tsx:571
+settings.056	迷幻	設定	components/SettingsDialog.tsx:577 components/SettingsDialog.tsx:577
+settings.057	自訂主題色	設定	components/SettingsDialog.tsx:592 components/SettingsDialog.tsx:592
+settings.058	迷幻主題色會不停重繪畫面，比較舊的電腦或開著很大的檔案時，可能會稍微變慢、比較耗電。	設定	components/SettingsDialog.tsx:599
+settings.059	字體	設定	components/SettingsDialog.tsx:619
+settings.060	{label}字型大小	設定	components/SettingsDialog.tsx:633 components/SettingsDialog.tsx:635
+settings.061	跟隨系統字	設定	components/SettingsDialog.tsx:646
+settings.062	超框時	設定	components/SettingsDialog.tsx:650
+settings.063	{label}超框時	設定	components/SettingsDialog.tsx:651
 side.001	字典	工具欄	components/SidePanel.tsx:20
 side.002	搜尋	工具欄	components/SidePanel.tsx:21
 side.003	瀏覽器	工具欄	components/SidePanel.tsx:22
@@ -766,7 +765,7 @@ fonts.004	譯文	字體設定	model/fonts.ts:28
 fonts.005	省略	字體設定	model/fonts.ts:32
 fonts.006	自動換行	字體設定	model/fonts.ts:33
 fonts.007	自動縮放	字體設定	model/fonts.ts:34
-fonts.autoSize	（自動縮放）	字體設定：id 設成自動縮放時，字級選單顯示這個	components/SettingsDialog.tsx:635
+fonts.autoSize	（自動縮放）	字體設定：id 設成自動縮放時，字級選單顯示這個	components/SettingsDialog.tsx:634
 importsel.001	未選取範圍	匯入選範圍	model/importSel.ts:31 model/importSel.ts:37
 importsel.002	一個欄位只能選一欄	匯入選範圍	model/importSel.ts:34
 len.001	未設定	長度標準	model/length.ts:46

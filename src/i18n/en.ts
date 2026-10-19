@@ -874,7 +874,6 @@ export const EN: Partial<Record<TextKey, string>> = {
   'cloud.rowsOnly': 'To add, delete or move entries in a cloud file, use Delete Row, Insert, Move Up or Move Down in the right-click menu',
   'cloud.section': 'Cloud',
   'settings.checksOn': 'Auto Check',
-  'settings.checksOnHint': 'When off, no checks run (punctuation, machine review, overflow). Turn it on to set up each check.',
   'cloud.versoConvert': 'Tabs in Verso save format detected: ranges have been selected automatically. When you save, marks, suggested translations, edits and so on move to the Verso Data Sheet, and the Verso-only columns on this sheet are deleted (converted to a cloud file).',
   'cloud.versoNoData': 'Tabs in Verso save format detected: ranges have been selected automatically. To move marks and other data too, fill in the Verso Data Sheet under Settings > Cloud first.',
 };

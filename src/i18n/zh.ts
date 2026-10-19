@@ -5,7 +5,6 @@ export const ZH = {
   'cloud.versoNoData': '偵測到 Verso 存檔格式的分頁：已自動選好範圍。要把標記等也搬過去，請先在設定 > 雲端填 Verso 資料表。', // 雲端模式：設定 Google 表
   'cloud.section': '雲端', // 設定左邊的分類
   'settings.checksOn': '自動檢查', // 設定 > 檢查：總開關
-  'settings.checksOnHint': '關掉後不做任何檢查（標點、機器驗證、超框）；打開後才能設定各個檢查項目', // 設定 > 檢查
   'cloud.removeRowsAsk': '移除這 {n} 條？', // 雲端模式：移除條目的確認
   'cloud.removeRowsBody': '移除後 Verso 不再讀取這幾條（Google 上不動），同專案的人也不會再讀到。之後要恢復，只能重新設定這份表。', // 雲端模式：移除條目的確認
   'cloud.removeTabAsk': '移除頁簽「{name}」？', // 雲端模式：移除頁簽的確認
