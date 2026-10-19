@@ -501,7 +501,7 @@ export const ZH = {
   'settings.015': '刪除', // 設定
   'settings.016': '還沒有自訂標記', // 設定
   'settings.017': '新增自訂標記', // 設定
-  'settings.018': '名稱...\\n', // 設定
+  'settings.018': '名稱...', // 設定
   'settings.019': '例如：R15需注意', // 設定
   'settings.020': '標記樣式', // 設定
   'settings.021': '符號庫', // 設定
