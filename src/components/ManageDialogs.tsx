@@ -1,4 +1,5 @@
 import { tx } from '../i18n';
+import { useScrollTabs } from './ScrollTabs';
 import { ProjectSettings } from './ProjectSettings';
 import { NO_SPEAKER, defaultSheetName, fitsCell, freeSheetName, tooLongMsg } from '../model/names';
 import { useEffect, useState } from 'react';
@@ -355,6 +356,8 @@ function FileEditor({ file, index, onDirty, onSaved }: { file: FileDoc; index: n
   const [cur, setCur] = useState(0);
   const [selRow, setSelRow] = useState<{ key: string; sel: BoxSel } | null>(null);
   const [renaming, setRenaming] = useState<number | null>(null);
+  // 頁簽列：滾輪左右捲動，放不下時兩邊淡出
+  const tabsScroll = useScrollTabs();
   const [tabMenu, setTabMenu] = useState<{ i: number; x: number; y: number } | null>(null);
   const sheets = draft.value;
   const sheetIdx = Math.min(cur, sheets.length - 1);
@@ -394,7 +397,7 @@ function FileEditor({ file, index, onDirty, onSaved }: { file: FileDoc; index: n
     <div style={{ flexGrow: 1, minHeight: 0, display: 'flex', flexDirection: 'column' }}
       onKeyDown={(ev) => handleUndoKeys(ev, () => { if (draft.undo()) setSelRow(null); }, () => { if (draft.redo()) setSelRow(null); })}>
       <div style={{ flexShrink: 0, padding: '14px 20px 0', fontSize: fz(13), color: 'var(--text2)' }}>{file.project} / <span style={{ color: 'var(--text)', fontWeight: 600 }}>{file.name}</span></div>
-      <div role="tablist" aria-label={tx('manage.036')} className="no-scrollbar" style={{ flexShrink: 0, display: 'flex', alignItems: 'center', gap: 4, padding: '10px 20px 0', overflowX: 'auto', borderBottom: '1px solid var(--line)' }}>
+      <div role="tablist" aria-label={tx('manage.036')} className="no-scrollbar" ref={tabsScroll.ref} style={{ flexShrink: 0, display: 'flex', alignItems: 'center', gap: 4, padding: '10px 20px 0', overflowX: 'auto', borderBottom: '1px solid var(--line)', ...tabsScroll.style }}>
         {sheets.map((sh, i) => (
           renaming === i
             ? <RenameInput key={i} initial={sh.name} label={tx('manage.037')} style={{ height: 30, width: 140 }}

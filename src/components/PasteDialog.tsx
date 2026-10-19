@@ -1,4 +1,5 @@
 import { tx } from '../i18n';
+import { useScrollTabs } from './ScrollTabs';
 import { blankEntry } from '../model/cells';
 import { tabHook } from '../plugins/hooks';
 import { DEFAULT_FILE_NAME, defaultSheetName, freeSheetName } from '../model/names';
@@ -34,6 +35,8 @@ export function PasteDialog() {
   const open = useStore((s) => s.pasteOpen);
   // 從頁簽右鍵「插入」打開時，是在目前的檔案插入頁簽，不建立新檔案
   const insert = useStore((s) => s.pasteInsert);
+  // 頁簽列：滾輪左右捲動，放不下時兩邊淡出
+  const tabsScroll = useScrollTabs();
   // 插入頁簽：檔案原有的頁簽（取陣列本身，參照不變就不會一直重畫）
   const existing = useStore((s) => (s.project && s.pasteInsert ? currentOf(s).fileDoc.sheets : NO_SHEETS));
   const existingSheets = existing.length;
@@ -259,7 +262,7 @@ export function PasteDialog() {
           </div>}
 
           <div style={{ display: 'flex', alignItems: 'center', gap: TAB_GAP, borderBottom: '1px solid var(--line)' }}>
-          <div role="tablist" aria-label={tx('paste.009')} className="no-scrollbar" style={{ display: 'flex', alignItems: 'center', gap: TAB_GAP, minWidth: 0, overflowX: 'auto', overflowY: 'hidden' }}>
+          <div role="tablist" aria-label={tx('paste.009')} className="no-scrollbar" ref={tabsScroll.ref} style={{ display: 'flex', alignItems: 'center', gap: TAB_GAP, minWidth: 0, overflowX: 'auto', overflowY: 'hidden', ...tabsScroll.style }}>
             {sheets.map((sh, i) => {
               const on = i === cur;
               const dragging = tabDrag?.from === i;

@@ -11,6 +11,7 @@ import { isDirty, saveNow } from '../../state/saver';
 import { ConfirmDialog } from '../../components/ConfirmDialog';
 import { Select } from '../../components/Select';
 import { Preview, type DraftSheet } from '../../components/ImportDialog';
+import { useScrollTabs } from '../../components/ScrollTabs';
 import { dragWindow } from '../../components/windowDrag';
 import { IconFolder, IconList, IconPlus, IconRefresh, IconWinClose } from '../../components/icons';
 import { flushDicts, removeDicts, watchDicts } from './dicts';
@@ -180,6 +181,8 @@ function SetupDialog({ sid0 }: { sid0?: string }) {
   const [cur, setCur] = useState(0);
   const [err, setErr] = useState('');
   const [busy, setBusy] = useState(false);
+  // 頁簽列：滾輪左右捲動，放不下時兩邊淡出
+  const tabsScroll = useScrollTabs();
 
   const read = async () => {
     const sid = sidOf(url);
@@ -271,7 +274,7 @@ function SetupDialog({ sid0 }: { sid0?: string }) {
         {projectRow}
         <div style={{ fontSize: fz(12), color: 'var(--mute)' }}>{tx('cloud.pickHint', { title })}</div>
         {drafts.some((d) => isVersoTab(d.rows)) && <div style={{ fontSize: fz(12), color: 'var(--accent2)' }}>{sidOf(useCloud.getState().cfg.dataUrl ?? '') ? tx('cloud.versoConvert') : tx('cloud.versoNoData')}</div>}
-        <div role="tablist" className="no-scrollbar" style={{ display: 'flex', gap: 6, overflowX: 'auto', borderBottom: '1px solid var(--line)', flexShrink: 0 }}>
+        <div role="tablist" className="no-scrollbar" ref={tabsScroll.ref} style={{ display: 'flex', gap: 6, overflowX: 'auto', borderBottom: '1px solid var(--line)', flexShrink: 0, ...tabsScroll.style }}>
           {drafts.map((d, i) => {
             const on = i === cur;
             const set = Object.values(d.fields).some(Boolean);

@@ -1,4 +1,5 @@
 import { tx } from '../i18n';
+import { useScrollTabs } from './ScrollTabs';
 import { DEFAULT_FILE_NAME } from '../model/names';
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { currentProjectOf, useStore } from '../state/store';
@@ -11,7 +12,7 @@ import { IconWinClose } from './icons';
 import { fz } from '../model/fonts';
 import { sheetNameError } from '../model/names';
 import { COLS as ALL_COLS, checkColumns, columnsToEntries, type ColKey } from '../model/paste';
-import { colName, emptyFields, fieldLabel, fieldsToColumns, inRect, rectOf, rectsToField, type FieldMap, type Rect } from '../model/importSel';
+import { colName, emptyFields, fieldLabel, fieldsToColumns, inRect, rectOf, rectsToField, type FieldMap, type FieldSel, type Rect } from '../model/importSel';
 import { IMPORT_EXTS, readImport, type ImportBook } from '../data/importio';
 import { xlsxToFile } from '../data/xlsxio';
 import { maxOf } from '../model/num';
@@ -42,6 +43,8 @@ export function ImportDialog() {
   const [renaming, setRenaming] = useState<number | null>(null);
   const [tabMenu, setTabMenu] = useState<{ i: number; x: number; y: number } | null>(null);
   const picker = useRef<HTMLInputElement>(null);
+  // 頁簽列：滾輪左右捲動，放不下時兩邊淡出
+  const tabsScroll = useScrollTabs();
 
   useEffect(() => {
     if (open) {
@@ -205,8 +208,8 @@ export function ImportDialog() {
   return shell(tx('import.003'), 1040, 700,
     <div style={{ flexGrow: 1, minHeight: 0, display: 'flex', flexDirection: 'column', gap: 14, padding: '16px 20px' }}>
       {nameRow}
-      <div role="tablist" aria-label={tx('import.014')} className="no-scrollbar"
-        style={{ display: 'flex', alignItems: 'center', gap: TAB_GAP, minWidth: 0, overflowX: 'auto', overflowY: 'hidden', borderBottom: '1px solid var(--line)', flexShrink: 0 }}>
+      <div role="tablist" aria-label={tx('import.014')} className="no-scrollbar" ref={tabsScroll.ref}
+        style={{ display: 'flex', alignItems: 'center', gap: TAB_GAP, minWidth: 0, overflowX: 'auto', overflowY: 'hidden', borderBottom: '1px solid var(--line)', flexShrink: 0, ...tabsScroll.style }}>
         {sheets.map((sh, i) => {
           const on = i === cur;
           return (
@@ -316,12 +319,9 @@ export function Preview({ sheet, onFields }: { sheet: DraftSheet; onFields(f: Fi
     else if (ev.clientY < b.top + ROW_H + 24) el.scrollTop -= ROW_H;
   };
 
-  const assign = (k: ColKey) => {
-    setMenu(null);
-    const f = rectsToField(rects, rows.length);
-    if (typeof f === 'string') { setMsg(f); return; }
-    // 同一格不能同時是兩個欄位
-    const next = { ...fields, [k]: f };
+  /** 把一欄的範圍設成某個欄位；同一格不能同時是兩個欄位 */
+  const put = (base: FieldMap, k: ColKey, f: FieldSel): FieldMap => {
+    const next = { ...base, [k]: f };
     (Object.keys(next) as ColKey[]).forEach((o) => {
       const g = next[o];
       if (o === k || !g || g.col !== f.col) return;
@@ -329,6 +329,27 @@ export function Preview({ sheet, onFields }: { sheet: DraftSheet; onFields(f: Fi
       const rest = g.rows.filter((r) => !taken.has(r));
       next[o] = rest.length ? { col: g.col, rows: rest } : null;
     });
+    return next;
+  };
+  const assign = (k: ColKey) => {
+    setMenu(null);
+    const cols = [...new Set(rects.flatMap((x) => Array.from({ length: x.c1 - x.c0 + 1 }, (_, j) => x.c0 + j)))].sort((a, b) => a - b);
+    let next: FieldMap;
+    if (cols.length > 1) {
+      // 選了好幾欄：從按的欄位開始依序填（id → 發話者 → 原文 → 譯文 → 備註），多出來的欄不填
+      const start = COLS.findIndex((c) => c.key === k);
+      next = fields;
+      for (const [j, col] of cols.entries()) {
+        const key = COLS[start + j]?.key;
+        if (!key) break;
+        const f = rectsToField(rects.filter((x) => x.c0 <= col && col <= x.c1).map((x) => ({ ...x, c0: col, c1: col })), rows.length);
+        if (typeof f !== 'string') next = put(next, key, f);
+      }
+    } else {
+      const f = rectsToField(rects, rows.length);
+      if (typeof f === 'string') { setMsg(f); return; }
+      next = put(fields, k, f);
+    }
     onFields(next);
     setRects([]);
     setMsg('');
