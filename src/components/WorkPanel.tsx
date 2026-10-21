@@ -193,11 +193,17 @@ function WorkPanelInner({ height, maxH }: { height: number; maxH: number }) {
   const modBlock = showMod ? 36 + boxH.mod : 0;
   const [tempH, setTempH] = useState<number | null>(null);
   useEffect(() => { if (!showEdits) setTempH(null); }, [showEdits]);
-  // 隱藏原文框、譯文框時，工作欄少掉一個框（標題加一行高的框）的高度；三個都關時只留最下排
+  // 隱藏原文框、譯文框時，工作欄少掉那個框隱藏前在畫面上的高度（按右鍵關掉的那一刻量）；
+  // 不知道時（例如重開軟體）當作標題加一行高的框。三個都關時只留最下排
   const HIDDEN_BLOCK = 36 + 42;
-  const hiddenH = (showSrc ? 0 : HIDDEN_BLOCK) + (showTgt ? 0 : HIDDEN_BLOCK);
+  const blockH = useRef<Partial<Record<Mode, { src?: number; tgt?: number }>>>({});
+  const srcBlockRef = useRef<HTMLDivElement>(null);
+  const tgtBlockRef = useRef<HTMLDivElement>(null);
+  const hiddenH = (showSrc ? 0 : blockH.current[mode]?.src ?? HIDDEN_BLOCK) + (showTgt ? 0 : blockH.current[mode]?.tgt ?? HIDDEN_BLOCK);
   const BOTTOM_ONLY = 14 * 2 + 40;
   const minH = anyBox ? Math.max(BOTTOM_ONLY, Math.min(maxH, (tempH ?? height + modBlock) - hiddenH)) : BOTTOM_ONLY;
+  // 拉高度的下限也扣掉隱藏的框，不然一按拉桿工作欄就跳回三個框時的最矮高度
+  const dragMin = Math.max(BOTTOM_ONLY, WORK_MIN + (mode === 'translate' && showEdits ? 0 : modBlock) - hiddenH);
   const onDrag = (v: number) => {
     if (mode === 'translate' && showEdits) setTempH(v + hiddenH);
     else if (showMod) { setTempH(null); s.set({ workH: Math.max(WORK_MIN, v + hiddenH - modBlock) }); }
@@ -207,6 +213,9 @@ function WorkPanelInner({ height, maxH }: { height: number; maxH: number }) {
   const [boxMenu, setBoxMenu] = useState<{ x: number; y: number } | null>(null);
   const toggleBox = (k: 'src' | 'tgt' | 'mod') => {
     const cur0 = { src: showSrc, tgt: showTgt, mod: showMod };
+    // 關掉前記下它現在的高度（含框之間的間距），工作欄就剛好縮掉這麼多
+    const el = k === 'src' ? srcBlockRef.current : k === 'tgt' ? tgtBlockRef.current : null;
+    if (el && cur0[k]) blockH.current[mode] = { ...blockH.current[mode], [k]: el.offsetHeight + (k === 'src' ? (showTgt || showMod ? 12 : 0) : showSrc ? 6 : showMod ? 12 : 0) };
     const all = useStore.getState().workBoxes;
     s.set({ workBoxes: { ...all, [mode]: { ...(all[mode] ?? {}), [k]: !cur0[k] } } });
   };
@@ -539,7 +548,7 @@ function WorkPanelInner({ height, maxH }: { height: number; maxH: number }) {
 
   return (
     <>
-    {anyBox ? <Splitter dir="h" label={tx('work.005')} value={actualH} min={WORK_MIN} max={maxH} onChange={onDrag} /> : <div style={{ height: 12, flexShrink: 0 }} />}
+    {anyBox ? <Splitter dir="h" label={tx('work.005')} value={actualH} min={dragMin} max={maxH} onChange={onDrag} /> : <div style={{ height: 12, flexShrink: 0 }} />}
     <section ref={sectionRef} aria-label={tx('work.006')} onContextMenu={onPanelMenu} style={{
       position: 'relative', minHeight: minH, maxHeight: maxH, flexShrink: 0, display: 'flex', flexDirection: 'column', gap: 10, padding: anyBox ? '14px 16px' : '14px 40px 14px 16px', boxSizing: 'border-box',
       background: 'var(--panel)', border: '1px solid var(--line)', borderRadius: 10,
@@ -551,7 +560,7 @@ function WorkPanelInner({ height, maxH }: { height: number; maxH: number }) {
       </button>
       {anyBox && <div style={{ flexGrow: 1, minHeight: 0, display: 'flex', gap: 12 }}>
         <div style={{ flexGrow: 1, minWidth: 0, display: 'flex', flexDirection: 'column', gap: 6 }}>
-          {showSrc && <div style={{ display: 'flex', flexDirection: 'column', gap: 6, flex: `${growKey === 'src' ? 1 : 0} 1 auto`, minHeight: 0 }}>
+          {showSrc && <div ref={srcBlockRef} style={{ display: 'flex', flexDirection: 'column', gap: 6, flex: `${growKey === 'src' ? 1 : 0} 1 auto`, minHeight: 0 }}>
           <div style={labelRow}>
             <span style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
               <label htmlFor="verso-source" className="sec-label">{tx('work.018')}</label>
@@ -607,7 +616,7 @@ function WorkPanelInner({ height, maxH }: { height: number; maxH: number }) {
           </div>
           </div>}
 
-          {showTgt && <div style={{ display: 'flex', flexDirection: 'column', gap: 6, flex: `${growKey === 'tgt' ? 1 : 0} 1 auto`, minHeight: 0 }}>
+          {showTgt && <div ref={tgtBlockRef} style={{ display: 'flex', flexDirection: 'column', gap: 6, flex: `${growKey === 'tgt' ? 1 : 0} 1 auto`, minHeight: 0 }}>
           <div style={{ ...labelRow, marginTop: showSrc ? 6 : 0, gap: 12 }}>
             <span style={{ display: 'flex', alignItems: 'center', gap: 8, minWidth: 0 }}>
               <label htmlFor="verso-target" className="sec-label">{tx('work.029')}</label>
