@@ -22,7 +22,7 @@ import { beforeExit, rowHook, tabHook } from '../hooks';
 import type { VersoPlugin } from '../registry';
 import { builtinClient, errText, insertCol, login, loginStatus, logout, meta, readTabs, sidOf } from './api';
 import { allSheets, loadConfig, setConfig, toFields, toFieldMap, useCloud, type CloudSheet, type CloudTab } from './config';
-import { isVersoTab, convertVersoTab, removeRows, tabRemove, rowOp, tabRename, tabDelete, tabInsert, currentSid, enterCloud, flushAll, pickShown, putSheet, refreshAll, removeSheet, resolveConflict, watchStore } from './sync';
+import { rememberPos, isVersoTab, convertVersoTab, removeRows, tabRemove, rowOp, tabRename, tabDelete, tabInsert, currentSid, enterCloud, flushAll, pickShown, putSheet, refreshAll, removeSheet, resolveConflict, watchStore } from './sync';
 
 const btn: React.CSSProperties = { height: 32, padding: '0 14px', background: 'var(--btn)', border: '1px solid var(--line4)', borderRadius: 8, fontSize: fz(12.5) };
 const primary: React.CSSProperties = { height: 36, padding: '0 18px', background: 'var(--primary)', border: 0, borderRadius: 8, color: '#ffffff', fontSize: fz(13), fontWeight: 600 };
@@ -412,7 +412,15 @@ async function start() {
   tabHook.delete = tabDelete;
   tabHook.insert = tabInsert;
   tabHook.srcUpdate = openSrcUpdate;
+  beforeExit.add(rememberPos);
   beforeExit.add(flushAll);
+  // 換條目、頁簽、檔案後稍等一下記下位置（當機也不會差太遠）
+  let posTimer: ReturnType<typeof setTimeout> | undefined;
+  useStore.subscribe((s, prev) => {
+    if (!s.cloudMode || (s.file === prev.file && s.sheetBy === prev.sheetBy && s.selBy === prev.selBy)) return;
+    clearTimeout(posTimer);
+    posTimer = setTimeout(() => void rememberPos(), 3000);
+  });
   beforeExit.add(flushDicts);
   // 雲端模式改了常用標準：寫進資料表
   useStore.subscribe((s, prev) => { if (s.cloudMode && prev.cloudMode && s.lengthPresets !== prev.lengthPresets) void writePresets(s.lengthPresets); });

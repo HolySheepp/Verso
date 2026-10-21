@@ -27,6 +27,8 @@ export interface CloudConfig {
   hidden?: string[];
   /** 上次打開的試算表（打開雲端模式時先讀這份） */
   last?: string;
+  /** 上次停在哪個頁簽（gid、第幾個）、哪一條（第幾條、對話 id）；開雲端模式時回到這裡 */
+  lastPos?: { sid: string; gid: number; tab: number; index: number; id: string };
   /** 雲端模式時，這台電腦原本的常用標準（關掉雲端模式時換回來） */
   localPresets?: { name: string; std: LengthStd }[];
 }
@@ -93,6 +95,9 @@ export function setConfig(patch: Partial<CloudConfig>) {
   useCloud.setState({ cfg });
   saving = saving.then(async () => { try { await writeTextFile(await file(), JSON.stringify(cfg, null, 2)); } catch { /* 下次再寫 */ } });
 }
+
+/** 設定檔寫完（結束前要等它） */
+export const configSaved = () => saving;
 
 /** 預覽裡選的範圍 → 記下來的範圍；選到最後一列的算「到底」 */
 export function toFields(fields: FieldMap, lastRow: number): Fields {

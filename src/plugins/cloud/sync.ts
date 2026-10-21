@@ -28,7 +28,7 @@ import { backupPresets, ensureProjects, readProjects } from './projects';
 import { listDicts, loadEnabled, reloadDicts } from './dicts';
 import { addTab, appendRows, errText, meta, readCols, readRich, readTabs, sidOf, writeRich, writeRows, type Rich } from './api';
 import { blueStart, markToText, noteCell, richSig, stripMarkup, textToMark, tgtCell } from './format';
-import { allSheets, setConfig, toFieldMap, useCloud, type CloudSheet, type CloudTab, type Conflict, type FieldRange, type Fields } from './config';
+import { allSheets, configSaved, setConfig, toFieldMap, useCloud, type CloudSheet, type CloudTab, type Conflict, type FieldRange, type Fields } from './config';
 
 export const fidOf = (sid: string) => 'g:' + sid;
 
@@ -577,10 +577,47 @@ export async function enterCloud() {
   ensureStubs();
   // 專案（字典檔、預設長度標準）、常用標準、雲端字典的頁簽名稱（勾選的才讀內容）
   try { backupPresets(); await readProjects(); await listDicts(); loadEnabled(); } catch (e) { showToast(tx('cloud.loadFailed', { name: tx('cloud.dataUrl'), reason: errText(e) }), { warn: true }); }
-  const last = useCloud.getState().cfg.last;
-  if (last && fileOf(last)) selectSheet(last); else pickShown();
+  const { last, lastPos } = useCloud.getState().cfg;
+  // 上次的檔案不在了：留空（不自動換到別的檔案）
+  if (last && fileOf(last)) selectSheet(last); else if (!last) pickShown();
   const sid = currentSid();
   if (sid && fileOf(sid)?.cloud?.stub) await loadSheet(sid);
+  if (sid && lastPos?.sid === sid) restorePos(lastPos);
+}
+
+/** 回到上次停的頁簽與條目；頁簽不在就到上一個頁簽，條目不在就到上一條（不跳提示） */
+function restorePos(pos: NonNullable<CloudConfigPos>) {
+  const s = useStore.getState();
+  const doc = s.project?.files[s.file];
+  if (!doc || doc.cloud?.sid !== pos.sid || doc.cloud.stub || !doc.sheets.length) return;
+  let sh = doc.sheets.findIndex((x) => x.gid === pos.gid);
+  let i = 0;
+  if (sh < 0) sh = Math.max(0, Math.min(pos.tab - 1, doc.sheets.length - 1));
+  else {
+    const es = doc.sheets[sh].entries;
+    if (es[pos.index]?.id === pos.id) i = pos.index;
+    else {
+      // 條目前後移動了：找同一個 id 裡最靠近的；找不到就是被刪了，停在上一條
+      let best = -1;
+      es.forEach((e, k) => { if (e.id === pos.id && pos.id && (best < 0 || Math.abs(k - pos.index) < Math.abs(best - pos.index))) best = k; });
+      i = best >= 0 ? best : Math.max(0, Math.min(pos.index - 1, es.length - 1));
+    }
+  }
+  useStore.setState({ sheetBy: { ...s.sheetBy, [s.file]: sh }, selBy: { ...s.selBy, [s.file + ':' + sh]: i } });
+}
+type CloudConfigPos = ReturnType<typeof useCloud.getState>['cfg']['lastPos'];
+
+/** 記下目前停的位置（換條目後稍等一下、結束前） */
+export function rememberPos(): Promise<void> {
+  const s = useStore.getState();
+  if (!s.cloudMode || !s.project) return Promise.resolve();
+  const { fileDoc, sheetIdx, sheet, sel, entry } = currentOf(s);
+  const sid = fileDoc.cloud?.sid;
+  if (!sid || fileDoc.cloud?.stub) return Promise.resolve();
+  const pos = { sid, gid: sheet.gid ?? -1, tab: sheetIdx, index: sel, id: entry?.id ?? '' };
+  const old = useCloud.getState().cfg.lastPos;
+  if (!old || JSON.stringify(old) !== JSON.stringify(pos)) setConfig({ last: sid, lastPos: pos });
+  return configSaved();
 }
 
 /** 目前的檔案在這個模式看不到：換到看得到的第一個 */
