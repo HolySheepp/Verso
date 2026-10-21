@@ -134,6 +134,10 @@ interface State {
   accentPreview: string | null;
   hideNav: boolean;
   hideSide: boolean;
+  /** 收起工作欄（右上角的按鈕） */
+  hideWork: boolean;
+  /** 各模式顯示哪些輸入框（工作欄右鍵切換）；沒記的照預設：原文、譯文顯示，修改框有修改或驗證模式才顯示 */
+  workBoxes: Partial<Record<Mode, { src?: boolean; tgt?: boolean; mod?: boolean }>>;
   sideW: number | null;
   workH: number | null;
   dictQuery: string;
@@ -681,6 +685,8 @@ export const useStore = create<Store>((set, get) => {
     accentPreview: null,
     hideNav: false,
     hideSide: false,
+    hideWork: false,
+    workBoxes: {},
     sideW: null,
     workH: null,
     dictQuery: '',

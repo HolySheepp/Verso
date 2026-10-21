@@ -22,7 +22,7 @@ import { srcDiff } from '../model/srcUpdate';
 import { fz } from '../model/fonts';
 import {
   IconWarn, IconCopyPair, IconRuler,
-  IconBraces, IconCheck, IconChevL, IconChevR, IconCopy, IconEraser, IconEye, IconFeather, IconLock, IconPen, IconUse,
+  IconBraces, IconCheck, IconChevD, IconChevL, IconChevR, IconCopy, IconEraser, IconEye, IconFeather, IconLock, IconPen, IconUse,
 } from './icons';
 
 const MODE_HINTS: Partial<Record<Mode, string>> = {
@@ -112,6 +112,14 @@ function WorkPanelInner({ height, maxH }: { height: number; maxH: number }) {
   // 驗證修改：每組修改在譯文框和修改框的位置。翻譯模式打開驗證過的條目時也顯示，讓譯者處理
   const edits = verify || mode === 'translate' ? editsOf(cur) : NO_EDITS;
   const showEdits = verify || edits.length > 0;
+  // 各模式顯示哪些輸入框（右鍵切換）：沒記的照預設，修改框有修改或驗證模式才出現
+  const boxes = useStore((st) => st.workBoxes[st.mode]);
+  const showSrc = boxes?.src ?? true;
+  const showTgt = boxes?.tgt ?? true;
+  const showMod = boxes?.mod ?? showEdits;
+  const anyBox = showSrc || showTgt || showMod;
+  // 最下面看得到的框：發話者、ID 顯示在它的標題旁；問題提示也放這裡
+  const bottom = showMod ? 'mod' : showTgt ? 'tgt' : showSrc ? 'src' : null;
   const spans = useMemo(() => spansOf(edits), [edits]);
   const modText = useMemo(() => compose(cur.tgt, edits), [cur.tgt, edits]);
   const [modEl, setModEl] = useState<HTMLTextAreaElement | null>(null);
@@ -170,7 +178,9 @@ function WorkPanelInner({ height, maxH }: { height: number; maxH: number }) {
     return () => ro.disconnect();
   }, []);
   // 內容少時多出來的空間給哪個框：驗證模式給修改框，原文修正模式給原文框，其他給譯文框
-  const growKey: keyof typeof boxH = mode === 'verify' ? 'mod' : mode === 'source' ? 'src' : 'tgt';
+  const growPref: keyof typeof boxH = mode === 'verify' ? 'mod' : mode === 'source' ? 'src' : 'tgt';
+  // 那個框隱藏時，給看得到的框（譯文、修改、原文的順序）
+  const growKey: keyof typeof boxH = { src: showSrc, tgt: showTgt, mod: showMod }[growPref] ? growPref : showTgt ? 'tgt' : showMod ? 'mod' : 'src';
   // 原文框右邊有原文更新的兩個按鈕時，框至少要放得下它們
   const srcButtons = (cur.upd?.src !== undefined ? 1 : 0) + (cur.upd?.removed || cur.upd?.src !== undefined ? (mode === 'view' ? 0 : 1) : 0);
   const srcToolH = srcButtons ? 14 + srcButtons * 26 : 0;
@@ -180,15 +190,34 @@ function WorkPanelInner({ height, maxH }: { height: number; maxH: number }) {
   };
   // 修改框出現時加在上面，工作欄跟著變高；離開有修改的條目就回到使用者拉的高度。
   // 翻譯模式在有修改的條目上拉的高度只是暫時的。
-  const modBlock = showEdits ? 36 + boxH.mod : 0;
+  const modBlock = showMod ? 36 + boxH.mod : 0;
   const [tempH, setTempH] = useState<number | null>(null);
   useEffect(() => { if (!showEdits) setTempH(null); }, [showEdits]);
-  const minH = Math.min(maxH, tempH ?? height + modBlock);
+  // 隱藏原文框、譯文框時，工作欄少掉一個框（標題加一行高的框）的高度；三個都關時只留最下排
+  const HIDDEN_BLOCK = 36 + 42;
+  const hiddenH = (showSrc ? 0 : HIDDEN_BLOCK) + (showTgt ? 0 : HIDDEN_BLOCK);
+  const BOTTOM_ONLY = 14 * 2 + 40;
+  const minH = anyBox ? Math.max(BOTTOM_ONLY, Math.min(maxH, (tempH ?? height + modBlock) - hiddenH)) : BOTTOM_ONLY;
   const onDrag = (v: number) => {
-    if (mode === 'translate' && showEdits) setTempH(v);
-    else if (verify) { setTempH(null); s.set({ workH: Math.max(WORK_MIN, v - modBlock) }); }
-    else s.set({ workH: v });
+    if (mode === 'translate' && showEdits) setTempH(v + hiddenH);
+    else if (showMod) { setTempH(null); s.set({ workH: Math.max(WORK_MIN, v + hiddenH - modBlock) }); }
+    else s.set({ workH: Math.max(WORK_MIN, v + hiddenH) });
   };
+  // 工作欄空白處右鍵：切換顯示原文、譯文、修改框（各模式分開記住）
+  const [boxMenu, setBoxMenu] = useState<{ x: number; y: number } | null>(null);
+  const toggleBox = (k: 'src' | 'tgt' | 'mod') => {
+    const cur0 = { src: showSrc, tgt: showTgt, mod: showMod };
+    const all = useStore.getState().workBoxes;
+    s.set({ workBoxes: { ...all, [mode]: { ...(all[mode] ?? {}), [k]: !cur0[k] } } });
+  };
+  const onPanelMenu = (ev: React.MouseEvent) => {
+    if ((ev.target as HTMLElement).closest('textarea, button, input, [role=menu]')) return;
+    ev.preventDefault();
+    setBoxMenu({ x: ev.clientX, y: ev.clientY });
+  };
+  // 另一個框隱藏時：滑鼠移到修改上，字的上方顯示另一框對應的內容
+  const [peekTip, setPeekTip] = useState<{ x: number; y: number; text: string } | null>(null);
+  useEffect(() => setPeekTip(null), [mode, cur, showSrc, showTgt, showMod]);
 
   // 標記並下一條：各模式分別記住選的標記
   const exclude = STAMP_EXCLUDE[mode];
@@ -299,14 +328,22 @@ function WorkPanelInner({ height, maxH }: { height: number; maxH: number }) {
     const { clientX, clientY } = ev;
     const box = ev.currentTarget.parentElement;
     if (vFrame.current) return;
+    const inMod = ev.currentTarget.id === 'verso-edit';
     vFrame.current = requestAnimationFrame(() => {
       vFrame.current = 0;
       const m = markUnder(box, 'mark.tm-edit, mark.tm-gap', clientX, clientY);
       const i = m ? Number(m.dataset.ref) : null;
       setVHover((h) => (h === i ? h : i));
+      // 另一框沒顯示：譯文框上看修改後的內容，修改框上看原本的譯文
+      const sp = i !== null ? spans[i] : undefined;
+      const other = inMod ? !showTgt : !showMod;
+      if (!m || !sp || !other) { setPeekTip((t) => (t ? null : t)); return; }
+      const r = m.getBoundingClientRect();
+      const text = (inMod ? cur.tgt.slice(sp.s, sp.e) : sp.t) || tx('cloud.empty');
+      setPeekTip((t) => (t && t.text === text && t.x === r.left && t.y === r.top ? t : { x: r.left, y: r.top - 2, text }));
     });
   };
-  const onVLeave = () => { cancelAnimationFrame(vFrame.current); vFrame.current = 0; setVHover(null); };
+  const onVLeave = () => { cancelAnimationFrame(vFrame.current); vFrame.current = 0; setVHover(null); setPeekTip(null); };
   // 驗證模式：點譯文框裡的修改到修改框重新編輯；點修改框裡的修改，游標照常放，這組高亮
   // 翻譯模式：點任一框的修改就套用
   const onTgtDown = (ev: React.MouseEvent) => {
@@ -437,6 +474,11 @@ function WorkPanelInner({ height, maxH }: { height: number; maxH: number }) {
   );
 
   const viewTip = viewOn ? tx('work.009') : texts.length ? tx('work.010') : tx('work.011');
+  const who = (
+    <span style={{ display: 'flex', gap: 10, color: 'var(--text)' }}>
+      <span>{cur.speaker}</span>{cur.id && <span className="mono">#{cur.id}</span>}
+    </span>
+  );
 
   /** 記錄、查看修改的按鈕與記錄槽位：翻譯模式放在譯文框，驗證模式放在修改框 */
   const histUI = (
@@ -497,13 +539,19 @@ function WorkPanelInner({ height, maxH }: { height: number; maxH: number }) {
 
   return (
     <>
-    <Splitter dir="h" label={tx('work.005')} value={actualH} min={WORK_MIN} max={maxH} onChange={onDrag} />
-    <section ref={sectionRef} aria-label={tx('work.006')} style={{
-      minHeight: minH, maxHeight: maxH, flexShrink: 0, display: 'flex', flexDirection: 'column', gap: 10, padding: '14px 16px', boxSizing: 'border-box',
+    {anyBox ? <Splitter dir="h" label={tx('work.005')} value={actualH} min={WORK_MIN} max={maxH} onChange={onDrag} /> : <div style={{ height: 12, flexShrink: 0 }} />}
+    <section ref={sectionRef} aria-label={tx('work.006')} onContextMenu={onPanelMenu} style={{
+      position: 'relative', minHeight: minH, maxHeight: maxH, flexShrink: 0, display: 'flex', flexDirection: 'column', gap: 10, padding: anyBox ? '14px 16px' : '14px 40px 14px 16px', boxSizing: 'border-box',
       background: 'var(--panel)', border: '1px solid var(--line)', borderRadius: 10,
     }}>
-      <div style={{ flexGrow: 1, minHeight: 0, display: 'flex', gap: 12 }}>
+      {/* 收起工作欄（跟收起檔案欄、右側欄一樣） */}
+      <button type="button" className="ib" aria-label={tx('work.hide')} title={tx('work.hide')} onClick={() => s.set({ hideWork: true })}
+        style={{ position: 'absolute', top: anyBox ? 6 : 'calc(50% - 10px)', right: 8, width: 26, height: 20, display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 0, background: 'transparent', border: 0, borderRadius: 6, color: 'var(--mute)', zIndex: 2 }}>
+        <IconChevD size={12} sw={2.4} />
+      </button>
+      {anyBox && <div style={{ flexGrow: 1, minHeight: 0, display: 'flex', gap: 12 }}>
         <div style={{ flexGrow: 1, minWidth: 0, display: 'flex', flexDirection: 'column', gap: 6 }}>
+          {showSrc && <div style={{ display: 'flex', flexDirection: 'column', gap: 6, flex: `${growKey === 'src' ? 1 : 0} 1 auto`, minHeight: 0 }}>
           <div style={labelRow}>
             <span style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
               <label htmlFor="verso-source" className="sec-label">{tx('work.018')}</label>
@@ -518,7 +566,7 @@ function WorkPanelInner({ height, maxH }: { height: number; maxH: number }) {
                 </span>
               )}
             </span>
-            <span style={meta}>{cur.id && <span className="mono">#{cur.id}</span>}<span>{cur.speaker}</span><span>{tx('work.024', { n: (showNewSrc ? newSrc! : cur.src).length })}</span></span>
+            <span style={meta}>{bottom === 'src' && who}{bottom === 'src' && issueNote}<span>{tx('work.024', { n: (showNewSrc ? newSrc! : cur.src).length })}</span></span>
           </div>
           <div style={boxStyle('src')}>
           <textarea maxLength={MAX_CELL_CHARS} id="verso-source" ref={setSrcEl} value={showNewSrc ? newSrc : cur.src} readOnly={!srcEditable || showNewSrc} onFocus={editFocus} onBlur={editBlur}
@@ -557,8 +605,10 @@ function WorkPanelInner({ height, maxH }: { height: number; maxH: number }) {
               <div className="hit-tip" style={{ left: hover.x, top: hover.y - 2 }}>{[...new Set(hits[hover.hit].terms.map((t) => t.en))].join(' / ')}</div>
             )}
           </div>
+          </div>}
 
-          <div style={{ ...labelRow, marginTop: 6, gap: 12 }}>
+          {showTgt && <div style={{ display: 'flex', flexDirection: 'column', gap: 6, flex: `${growKey === 'tgt' ? 1 : 0} 1 auto`, minHeight: 0 }}>
+          <div style={{ ...labelRow, marginTop: showSrc ? 6 : 0, gap: 12 }}>
             <span style={{ display: 'flex', alignItems: 'center', gap: 8, minWidth: 0 }}>
               <label htmlFor="verso-target" className="sec-label">{tx('work.029')}</label>
               {!tgtEditable && !verify && (
@@ -566,9 +616,10 @@ function WorkPanelInner({ height, maxH }: { height: number; maxH: number }) {
                   <IconLock size={10} sw={2.6} />{tx('work.003')}
                 </span>
               )}
-              {!showEdits && issueNote}
+              {bottom === 'tgt' && issueNote}
             </span>
             <span style={{ ...meta, flexShrink: 0 }}>
+              {bottom === 'tgt' && who}
               <span>{!verify && texts.length ? tx('work.030', { length: texts.length }) : ''}</span>
               <span>{tx('work.031', { n: cur.tgt.length })}</span>
             </span>
@@ -577,7 +628,7 @@ function WorkPanelInner({ height, maxH }: { height: number; maxH: number }) {
             <textarea maxLength={MAX_CELL_CHARS} id="verso-target" ref={setTgtEl} onFocus={editFocus} onBlur={editBlur} data-hist={tgtHist ? '1' : '0'} value={tgtHist ? texts[slot] : cur.tgt}
               readOnly={!tgtEditable || tgtHist}
               onChange={(ev) => onTarget(ev.target.value)} onPaste={onPaste}
-              onMouseMove={showEdits ? onVMove : undefined} onMouseLeave={showEdits ? onVLeave : undefined} onMouseDown={onTgtDown} onContextMenu={onVMenu}
+              onMouseMove={edits.length ? onVMove : undefined} onMouseLeave={edits.length ? onVLeave : undefined} onMouseDown={onTgtDown} onContextMenu={onVMenu}
               style={{
                 cursor: showEdits && vHover !== null ? 'pointer' : undefined,
                 flexGrow: 1, minHeight: 0, resize: 'none', boxSizing: 'border-box', padding: verify ? '10px 12px' : '10px 44px 10px 12px',
@@ -590,16 +641,18 @@ function WorkPanelInner({ height, maxH }: { height: number; maxH: number }) {
             {s.finishLine && !tgtHist && <FinishLine target={tgtEl} text={cur.tgt} std={effectiveStd(cur.lengthStd, currentFileStd(s))} />}
             {!verify && histUI}
           </div>
+          </div>}
 
-          {showEdits && (
-            <>
-              <div style={{ ...labelRow, marginTop: 6, gap: 12 }}>
+          {showMod && (
+            <div style={{ display: 'flex', flexDirection: 'column', gap: 6, flex: `${growKey === 'mod' ? 1 : 0} 1 auto`, minHeight: 0 }}>
+              <div style={{ ...labelRow, marginTop: showSrc || showTgt ? 6 : 0, gap: 12 }}>
                 {/* 有修改框時檢查的是修改框，問題提示也放在這裡 */}
                 <span style={{ display: 'flex', alignItems: 'center', gap: 8, minWidth: 0 }}>
                   <label htmlFor="verso-edit" className="sec-label">{tx('work.032')}</label>
-                  {issueNote}
+                  {bottom === 'mod' && issueNote}
                 </span>
                 <span style={{ ...meta, flexShrink: 0, alignItems: 'center' }}>
+                  {bottom === 'mod' && who}
                   <button type="button" className="ib" disabled={!edits.length} onClick={() => asStep(() => s.setVerify([], modText))} title={tx('work.033')}
                     style={{ ...smallBtn, opacity: edits.length ? 1 : 0.5 }}>{tx('work.034')}</button>
                   <button type="button" className="ib" disabled={!edits.length} onClick={() => asStep(() => s.setVerify([]))} title={tx('work.044')}
@@ -624,20 +677,7 @@ function WorkPanelInner({ height, maxH }: { height: number; maxH: number }) {
                 {s.finishLine && !modHist && <FinishLine target={modEl} text={modText} std={effectiveStd(cur.lengthStd, currentFileStd(s))} />}
                 {verify && histUI}
               </div>
-              {vMenu && spans[vMenu.i] && (
-                <ContextMenu x={vMenu.x} y={vMenu.y} label={tx('work.032')} onClose={() => setVMenu(null)}
-                  items={verify
-                    ? [{ key: 'edit', label: tx('work.036') }, { key: 'del', label: tx('work.037') }, { key: 'apply', label: tx('work.038') }]
-                    : [{ key: 'apply', label: tx('work.038') }, { key: 'del', label: tx('work.039') }]}
-                  onPick={(k) => {
-                    const i = vMenu.i;
-                    setVMenu(null);
-                    if (k === 'edit') requestAnimationFrame(() => editGroup(i));
-                    else if (k === 'del') removeGroup(i);
-                    else applyGroup(i);
-                  }} />
-              )}
-            </>
+            </div>
           )}
         </div>
 
@@ -665,7 +705,30 @@ function WorkPanelInner({ height, maxH }: { height: number; maxH: number }) {
             </button>
           )}
         </div>
-      </div>
+      </div>}
+      {vMenu && spans[vMenu.i] && (
+        <ContextMenu x={vMenu.x} y={vMenu.y} label={tx('work.032')} onClose={() => setVMenu(null)}
+          items={verify
+            ? [{ key: 'edit', label: tx('work.036') }, { key: 'del', label: tx('work.037') }, { key: 'apply', label: tx('work.038') }]
+            : [{ key: 'apply', label: tx('work.038') }, { key: 'del', label: tx('work.039') }]}
+          onPick={(k) => {
+            const i = vMenu.i;
+            setVMenu(null);
+            if (k === 'edit') requestAnimationFrame(() => editGroup(i));
+            else if (k === 'del') removeGroup(i);
+            else applyGroup(i);
+          }} />
+      )}
+      {peekTip && <div className="hit-tip" style={{ left: peekTip.x, top: peekTip.y }}>{peekTip.text}</div>}
+      {boxMenu && (
+        <ContextMenu x={boxMenu.x} y={boxMenu.y} label={tx('work.boxes')} onClose={() => setBoxMenu(null)}
+          items={[
+            { key: 'src', label: tx('work.018'), checked: showSrc },
+            { key: 'tgt', label: tx('work.029'), checked: showTgt },
+            { key: 'mod', label: tx('work.032'), checked: showMod },
+          ]}
+          onPick={(k) => { setBoxMenu(null); toggleBox(k as 'src' | 'tgt' | 'mod'); }} />
+      )}
 
       <div style={{ height: 40, flexShrink: 0, display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
         <span style={{ display: 'flex', gap: 14, fontSize: fz(12), color: 'var(--mute)' }}>

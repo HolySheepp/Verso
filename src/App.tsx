@@ -211,7 +211,7 @@ function RowMarkMenu() {
 
 export default function App() {
   // 主畫面只訂閱版面、主題、選單開關；條目內容由各區塊自己訂閱，打字時主畫面不重畫
-  const s = useStorePick('accent', 'accentPreview', 'fonts', 'hideNav', 'hideSide', 'sideW', 'workH', 'rowMenu', 'stampOpen', 'fileMenuOpen', 'askSave', 'set', 'closePopups');
+  const s = useStorePick('accent', 'accentPreview', 'fonts', 'hideNav', 'hideSide', 'hideWork', 'sideW', 'workH', 'rowMenu', 'stampOpen', 'fileMenuOpen', 'askSave', 'set', 'closePopups');
   const hasProject = useStore((st) => !!st.project);
   const { w, h } = useWindowSize();
 
@@ -274,7 +274,15 @@ export default function App() {
             </div>
           )}
           <EntryList />
-          <WorkPanel height={workH} maxH={workMax} />
+          {s.hideWork ? (
+            // 工作欄收起來了：下面留一個小按鈕叫回來（跟檔案欄一樣）
+            <div style={{ height: 14, flexShrink: 0, display: 'flex', justifyContent: 'flex-end', margin: '8px 0 -6px' }}>
+              <button type="button" className="ib" aria-label={tx('work.show')} title={tx('work.show')} onClick={() => s.set({ hideWork: false })}
+                style={{ width: 32, height: 16, display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 0, background: 'var(--panel)', border: '1px solid var(--line)', borderRadius: '8px 8px 0 0', color: 'var(--text2)' }}>
+                <IconChevD size={12} sw={2.4} style={{ transform: 'rotate(180deg)' }} />
+              </button>
+            </div>
+          ) : <WorkPanel height={workH} maxH={workMax} />}
         </main>
 
         {showSide ? (

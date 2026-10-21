@@ -436,7 +436,7 @@ async function persistConfig(patch: Partial<AppConfig> = {}) {
   config = {
     ...config, ...patch,
     saveRoot: s.saveRoot, autosaveMin: s.autosaveMin, uiLang: s.uiLang, devMode: s.devMode, showIds: s.showIds, aiEnabled: s.aiEnabled, aiSkillTranslate: s.aiSkillTranslate, aiSkillVerify: s.aiSkillVerify, theme: s.theme, accent: s.accent, customAccents: s.customAccents, rainbowUnlocked: s.rainbowUnlocked, fonts: s.fonts, recentFonts: s.recentFonts,
-    shortcuts: s.shortcuts, checkSettings: s.checkSettings, checksOn: s.checksOn, dictOverrides: s.dictOverrides, collapsedProjects: s.collapsedProjects, colWidths: s.colWidths, finishLine: s.finishLine, lengthPresets: s.lengthPresets,
+    shortcuts: s.shortcuts, checkSettings: s.checkSettings, checksOn: s.checksOn, workBoxes: s.workBoxes, dictOverrides: s.dictOverrides, collapsedProjects: s.collapsedProjects, colWidths: s.colWidths, finishLine: s.finishLine, lengthPresets: s.lengthPresets,
   };
   try { await saveConfig(config); } catch { /* 設定存不下不影響使用 */ }
   // 啟動畫面用：下次一開就知道要鋪什麼底色
@@ -493,6 +493,7 @@ export async function startApp() {
     colWidths: config.colWidths?.length === 4 ? config.colWidths : st.colWidths,
     finishLine: config.finishLine ?? true,
     checksOn: config.checksOn ?? true,
+    workBoxes: config.workBoxes ?? {},
     lengthPresets: config.lengthPresets ?? [],
     // 第一次開啟（設定裡沒有）時跟系統語言
     uiLang: config.uiLang || systemLang(),
@@ -585,7 +586,7 @@ function watch() {
     }
     // 設定改了就存到設定檔
     if (s.theme !== prev.theme || s.accent !== prev.accent || s.customAccents !== prev.customAccents || s.rainbowUnlocked !== prev.rainbowUnlocked || s.fonts !== prev.fonts || s.recentFonts !== prev.recentFonts || s.shortcuts !== prev.shortcuts || s.checkSettings !== prev.checkSettings
-      || s.dictOverrides !== prev.dictOverrides || s.collapsedProjects !== prev.collapsedProjects || s.colWidths !== prev.colWidths || s.finishLine !== prev.finishLine || s.checksOn !== prev.checksOn || s.lengthPresets !== prev.lengthPresets || s.autosaveMin !== prev.autosaveMin || s.saveRoot !== prev.saveRoot || s.uiLang !== prev.uiLang || s.devMode !== prev.devMode || s.showIds !== prev.showIds || s.aiEnabled !== prev.aiEnabled || s.aiSkillTranslate !== prev.aiSkillTranslate || s.aiSkillVerify !== prev.aiSkillVerify) {
+      || s.dictOverrides !== prev.dictOverrides || s.collapsedProjects !== prev.collapsedProjects || s.colWidths !== prev.colWidths || s.finishLine !== prev.finishLine || s.checksOn !== prev.checksOn || s.workBoxes !== prev.workBoxes || s.lengthPresets !== prev.lengthPresets || s.autosaveMin !== prev.autosaveMin || s.saveRoot !== prev.saveRoot || s.uiLang !== prev.uiLang || s.devMode !== prev.devMode || s.showIds !== prev.showIds || s.aiEnabled !== prev.aiEnabled || s.aiSkillTranslate !== prev.aiSkillTranslate || s.aiSkillVerify !== prev.aiSkillVerify) {
       clearTimeout(configTimer);
       configTimer = setTimeout(() => void persistConfig(), 400);
     }

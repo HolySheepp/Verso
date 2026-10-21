@@ -4,6 +4,8 @@ export interface MenuItem {
   label: string;
   danger?: boolean;
   disabled?: boolean;
+  /** 有值時左邊顯示勾勾（true 打勾、false 留空），用在切換顯示的項目 */
+  checked?: boolean;
   /** 項目右邊的數字與上下箭頭（例如插入幾列） */
   stepper?: { value: number; min: number; max: number; onChange(v: number): void };
 }
@@ -28,7 +30,7 @@ export function ContextMenu({ x, y, label, items, onPick, onClose }: Props) {
         style={{ position: 'fixed', left: Math.min(x, window.innerWidth - 150), top: Math.min(y, window.innerHeight - (items.length * 32 + 20)), zIndex: 61, width: items.some((it) => it.stepper) ? 156 : 128 }}>
         {items.map((it, j) => {
           const btn = (
-            <button key={it.key} type="button" role="menuitem" className="dd pop-item" autoFocus={j === 0} disabled={it.disabled}
+            <button key={it.key} type="button" role={it.checked !== undefined ? 'menuitemcheckbox' : 'menuitem'} aria-checked={it.checked} className="dd pop-item" autoFocus={j === 0} disabled={it.disabled}
               onClick={() => onPick(it.key)}
               onKeyDown={it.stepper ? (ev) => {
                 const st = it.stepper!;
@@ -38,7 +40,7 @@ export function ContextMenu({ x, y, label, items, onPick, onClose }: Props) {
               style={{
                 background: 'transparent', color: it.disabled ? 'var(--dis)' : it.danger ? 'var(--errtx)' : undefined,
                 cursor: it.disabled ? 'default' : undefined, flexGrow: 1, minWidth: 0,
-              }}>{it.label}</button>
+              }}>{it.checked !== undefined && <span aria-hidden="true" style={{ display: 'inline-block', width: 18 }}>{it.checked ? '✓' : ''}</span>}{it.label}</button>
           );
           if (!it.stepper) return btn;
           const st = it.stepper;

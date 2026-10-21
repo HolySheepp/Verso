@@ -1,4 +1,7 @@
 ﻿代號	中文	畫面區域	程式位置
+work.hide	隱藏工作欄	工作欄右上角的按鈕	components/WorkPanel.tsx:553 components/WorkPanel.tsx:553
+work.show	顯示工作欄	工作欄收起來後，叫回來的按鈕	App.tsx:280 App.tsx:280
+work.boxes	顯示的輸入框	工作欄空白處右鍵選單的名稱（讀螢幕軟體用）	components/WorkPanel.tsx:729
 cloud.versoConvert	偵測到 Verso 存檔格式的分頁：已自動選好範圍。儲存時標記、建議翻譯、修改等會搬進 Verso 資料表，表上這些 Verso 用的欄會刪掉（轉成雲端檔）。	雲端模式：設定 Google 表	plugins/cloud/index.tsx:276
 cloud.versoNoData	偵測到 Verso 存檔格式的分頁：已自動選好範圍。要把標記等也搬過去，請先在設定 > 雲端填 Verso 資料表。	雲端模式：設定 Google 表	plugins/cloud/index.tsx:276
 cloud.section	雲端	設定左邊的分類	plugins/cloud/index.tsx:441
@@ -31,7 +34,7 @@ cloud.rowNo	第 {n} 列	雲端模式：刪除前的預覽	plugins/cloud/index.ts
 cloud.deleteConfirm	刪除	雲端模式：刪除前的預覽	plugins/cloud/index.tsx:346
 cloud.conflictSpeaker	#{id} 的發話者已經被別人改過	雲端模式：寫回衝突	plugins/cloud/index.tsx:367
 cloud.conflictSrcText	#{id} 的原文已經被別人改過	雲端模式：寫回衝突	plugins/cloud/index.tsx:367
-cloud.rowsOnly	雲端檔案要增刪、搬動條目，請用右鍵的整列刪除、插入、上移、下移	雲端模式：擋下會改變條目數量或順序的操作	state/store.ts:806 state/store.ts:814
+cloud.rowsOnly	雲端檔案要增刪、搬動條目，請用右鍵的整列刪除、插入、上移、下移	雲端模式：擋下會改變條目數量或順序的操作	state/store.ts:812 state/store.ts:820
 side.scope	搜尋範圍：{scope}（點一下換範圍）	搜尋分頁：範圍按鈕	components/SidePanel.tsx:282
 side.scope.sheet	當前頁簽	搜尋分頁：範圍	
 side.scope.file	當前檔案	搜尋分頁：範圍	
@@ -54,7 +57,7 @@ cloud.deleteProjectAsk	刪除專案「{name}」？	雲端模式：管理專案	p
 cloud.deleteProjectBody	只會從 Verso 資料表拿掉這個專案，Google 上的字典檔不會動。	雲端模式：管理專案	plugins/cloud/ProjectsDialog.tsx:143
 dict.cloud	雲端	啟用的字典、字典管理：雲端字典的標示	components/ManageDialogs.tsx:549 components/SidePanel.tsx:175
 dict.local	本地	啟用的字典、字典管理：本地字典的標示	components/ManageDialogs.tsx:549 components/SidePanel.tsx:175
-dict.cloudNoMove	雲端字典不能搬到別的專案	想把雲端字典移到別的專案時的提示	state/store.ts:1355
+dict.cloudNoMove	雲端字典不能搬到別的專案	想把雲端字典移到別的專案時的提示	state/store.ts:1361
 cloud.enabled	雲端模式	設定 > 雲端：開關	plugins/cloud/index.tsx:70
 cloud.hint	打開後直接讀寫 Google 試算表，檔案選單只列設定過的表；關掉回到本地檔案（本地檔案和存檔都不受影響）	開發者選項：雲端模式的說明	plugins/cloud/index.tsx:73
 cloud.clientId	用戶端 ID	雲端模式：Google OAuth 用戶端 ID	plugins/cloud/index.tsx:78
@@ -99,7 +102,7 @@ cloud.conflictTitle	#{id} 已經被別人改過	雲端模式：寫回衝突	plug
 cloud.conflictSrc	原文	雲端模式：寫回衝突	plugins/cloud/index.tsx:368
 cloud.conflictMine	我的	雲端模式：寫回衝突	plugins/cloud/index.tsx:369
 cloud.conflictTheirs	對方的	雲端模式：寫回衝突	plugins/cloud/index.tsx:370
-cloud.empty	（空白）	雲端模式：寫回衝突	plugins/cloud/index.tsx:339 plugins/cloud/index.tsx:360
+cloud.empty	（空白）	雲端模式：寫回衝突	components/WorkPanel.tsx:347 plugins/cloud/index.tsx:339 plugins/cloud/index.tsx:360
 cloud.useMine	用我的	雲端模式：寫回衝突	plugins/cloud/index.tsx:374
 cloud.useTheirs	用對方的	雲端模式：寫回衝突	plugins/cloud/index.tsx:373
 cloud.loadFailed	讀不到「{name}」：{reason}	雲端模式：警告	plugins/cloud/dicts.ts:24 plugins/cloud/dicts.ts:90 plugins/cloud/sync.ts:341 plugins/cloud/sync.ts:500 plugins/cloud/sync.ts:576 plugins/cloud/sync.ts:579 plugins/cloud/sync.ts:839
@@ -133,10 +136,10 @@ ai.errQuota	Token用盡	AI 失敗原因	plugins/ai/ai.ts:233
 ai.errSkill	找不到Skill	AI 失敗原因	plugins/ai/ai.ts:327
 ai.errOther	AI工作未完成，請重試	AI 失敗原因：其他	plugins/ai/ai.ts:234 plugins/ai/ai.ts:337
 shortcut.ignoreEdits	忽略這條的全部修改	設定 > 快捷鍵：動作名稱	model/shortcuts.ts:38
-mark.suggHoldsDoubt	有建議翻譯，維持疑慮	有建議翻譯時想改成別的標記：被擋下的提示	state/store.ts:957 state/store.ts:982
+mark.suggHoldsDoubt	有建議翻譯，維持疑慮	有建議翻譯時想改成別的標記：被擋下的提示	state/store.ts:963 state/store.ts:988
 mark.ai	AI 翻譯	標記名稱：AI 翻好、還沒確認的條目	model/marks.ts:84
 list.aiLocked	AI 處理中	條目欄：AI 正在處理的條目旁的小字提示	components/EntryList.tsx:168 components/EntryList.tsx:168
-ai.locked	AI 正在處理的條目不能刪除	想刪掉 AI 處理中的條目時	state/store.ts:819
+ai.locked	AI 正在處理的條目不能刪除	想刪掉 AI 處理中的條目時	state/store.ts:825
 ai.stopped	已停止 AI，已經寫回的內容保留	按了停止之後	plugins/ai/ai.ts:253
 ai.askMany	要讓 AI 處理 {n} 條嗎？	選了超過 50 條按 AI 時	plugins/ai/index.tsx:25
 ai.askNo	取消	上面那句的按鈕	plugins/ai/index.tsx:26
@@ -167,16 +170,16 @@ settings.packsFailed	無法添加語言包，主程式資料夾可能沒有寫�
 settings.packReplace	已經有語言包「{name}」，要取代嗎？	設定 > 一般：加入同名語言包時	components/SettingsDialog.tsx:476
 settings.packReplaceNo	取消	設定 > 一般：同名語言包的詢問	components/SettingsDialog.tsx:477
 settings.packReplaceYes	取代	設定 > 一般：同名語言包的詢問	components/SettingsDialog.tsx:477
-common.sep	、	列出好幾個名稱時的分隔符號	App.tsx:101 App.tsx:112 App.tsx:123 components/CopyConfirm.tsx:19 components/EntryList.tsx:200 components/EntryList.tsx:200 components/FileNav.tsx:131 components/ManageDialogs.tsx:177 components/SettingsDialog.tsx:443 components/SettingsDialog.tsx:444 components/SidePanel.tsx:363 components/WorkPanel.tsx:94 model/importSel.ts:59 model/importSel.ts:59 model/paste.ts:79 plugins/cloud/index.tsx:232 plugins/cloud/sync.ts:457 state/saver.ts:1024 state/saver.ts:1024
-common.join	；	把兩段提示接成一句時的分隔符號（英文用「; 」）	state/saver.ts:1024
+common.sep	、	列出好幾個名稱時的分隔符號	App.tsx:101 App.tsx:112 App.tsx:123 components/CopyConfirm.tsx:19 components/EntryList.tsx:200 components/EntryList.tsx:200 components/FileNav.tsx:131 components/ManageDialogs.tsx:177 components/SettingsDialog.tsx:443 components/SettingsDialog.tsx:444 components/SidePanel.tsx:363 components/WorkPanel.tsx:94 model/importSel.ts:59 model/importSel.ts:59 model/paste.ts:79 plugins/cloud/index.tsx:232 plugins/cloud/sync.ts:457 state/saver.ts:1025 state/saver.ts:1025
+common.join	；	把兩段提示接成一句時的分隔符號（英文用「; 」）	state/saver.ts:1025
 common.moreEntries	 等 {n} 條	列表太長時接在後面	App.tsx:101
-common.moreItems	 等 {n} 個	列表太長時接在後面	App.tsx:112 App.tsx:123 state/saver.ts:1024 state/saver.ts:1024
+common.moreItems	 等 {n} 個	列表太長時接在後面	App.tsx:112 App.tsx:123 state/saver.ts:1025 state/saver.ts:1025
 common.sheetError	「{name}」{msg}	某個頁簽有錯誤時，頁簽名稱接錯誤訊息	components/ImportDialog.tsx:191 components/ImportDialog.tsx:192 components/ManageDialogs.tsx:372 components/PasteDialog.tsx:120 plugins/cloud/index.tsx:234
 common.errorReason	{target}：{reason}	存檔失敗的項目與原因	components/TitleBar.tsx:58
 import.fieldRange	{range}（{n}）	匯入視窗：欄位選到的範圍和行數	components/ImportDialog.tsx:375
 save.longAt	{project} / {file} / {sheet} 第 {n} 條	存檔時格子太長的條目位置	state/saver.ts:211
-work.tooLong	修改失敗，超過32767 字。	驗證模式的修改框	components/WorkPanel.tsx:251 components/WorkPanel.tsx:341
-save.sameRoot	已經是目前的存檔資料夾	設定 > 一般：換存檔資料夾時選到同一個	state/saver.ts:775
+work.tooLong	修改失敗，超過32767 字。	驗證模式的修改框	components/WorkPanel.tsx:285 components/WorkPanel.tsx:383
+save.sameRoot	已經是目前的存檔資料夾	設定 > 一般：換存檔資料夾時選到同一個	state/saver.ts:776
 check.fullwidthSpace	全形空格	檢查項目與訊息	model/checks.ts:139
 app.001	Excel 一格最多 32767 字，貼上後會超過，沒有貼上	主畫面	App.tsx:66
 app.002	有格子超過 Excel 的單格上限	主畫面	App.tsx:100
@@ -198,17 +201,17 @@ app.017	檔案進度 {done} / {total} 條	主畫面	App.tsx:180
 app.019	模式：	主畫面	App.tsx:190
 app.020	標記	主畫面	App.tsx:204 App.tsx:204
 app.021	顯示檔案欄	主畫面	App.tsx:270 App.tsx:270
-app.022	調整右側欄寬度	主畫面	App.tsx:282
-app.023	顯示右側欄	主畫面	App.tsx:287 App.tsx:287
-app.024	關閉選單	主畫面	App.tsx:299
-app.025	有未儲存的修改	主畫面	App.tsx:318
-app.026	關閉前要儲存嗎？	主畫面	App.tsx:319
-app.027	更新前要儲存嗎？	主畫面	App.tsx:319
-app.028	換存檔資料夾前要儲存嗎？	主畫面	App.tsx:319
-app.029	離開這個檔案前要儲存嗎？	主畫面	App.tsx:319
-app.030	取消	主畫面	App.tsx:149 App.tsx:321
-app.031	不儲存	主畫面	App.tsx:322
-app.032	儲存	主畫面	App.tsx:323
+app.022	調整右側欄寬度	主畫面	App.tsx:290
+app.023	顯示右側欄	主畫面	App.tsx:295 App.tsx:295
+app.024	關閉選單	主畫面	App.tsx:307
+app.025	有未儲存的修改	主畫面	App.tsx:326
+app.026	關閉前要儲存嗎？	主畫面	App.tsx:327
+app.027	更新前要儲存嗎？	主畫面	App.tsx:327
+app.028	換存檔資料夾前要儲存嗎？	主畫面	App.tsx:327
+app.029	離開這個檔案前要儲存嗎？	主畫面	App.tsx:327
+app.030	取消	主畫面	App.tsx:149 App.tsx:329
+app.031	不儲存	主畫面	App.tsx:330
+app.032	儲存	主畫面	App.tsx:331
 app.clashTitle	已經有同名的檔案	存檔時新位置已經有別的檔案	App.tsx:147
 app.clashBody	存檔資料夾已包含「{project} / {name}.xlsx」，覆蓋會把原本的檔案移到資源回收筒。	存檔時新位置已經有別的檔案	App.tsx:147
 app.clashRename	重新命名	存檔時新位置已經有別的檔案	App.tsx:151
@@ -217,8 +220,8 @@ color.001	自訂主題色	色盤	components/ColorPicker.tsx:69 components/ColorP
 color.002	色碼	色盤	components/ColorPicker.tsx:98
 color.003	取消	色盤	components/ColorPicker.tsx:105
 color.004	儲存	色盤	components/ColorPicker.tsx:107
-menu.001	增加	右鍵選單	components/ContextMenu.tsx:51
-menu.002	減少	右鍵選單	components/ContextMenu.tsx:52
+menu.001	增加	右鍵選單	components/ContextMenu.tsx:53
+menu.002	減少	右鍵選單	components/ContextMenu.tsx:54
 copy.001	未翻譯 {untranslated} 條	複製譯文確認	components/CopyConfirm.tsx:12
 copy.002	待確認 {pending} 條	複製譯文確認	components/CopyConfirm.tsx:12
 copy.003	還有條目沒完成	複製譯文確認	components/CopyConfirm.tsx:18
@@ -652,71 +655,71 @@ title.018	設定	標題列	components/TitleBar.tsx:103 components/TitleBar.tsx:1
 title.019	最小化	標題列	components/TitleBar.tsx:108
 title.020	最大化	標題列	components/TitleBar.tsx:109
 title.021	關閉	標題列	components/TitleBar.tsx:110
-work.003	唯讀模式無法編輯	工作欄	components/WorkPanel.tsx:29 components/WorkPanel.tsx:566
+work.003	唯讀模式無法編輯	工作欄	components/WorkPanel.tsx:29 components/WorkPanel.tsx:621
 work.004	原文修正模式	工作欄	components/WorkPanel.tsx:30
-work.005	調整工作欄高度	工作欄	components/WorkPanel.tsx:64 components/WorkPanel.tsx:500
-work.006	工作欄	工作欄	components/WorkPanel.tsx:65 components/WorkPanel.tsx:501
-work.007	選擇標記，當前：{v1}	工作欄	components/WorkPanel.tsx:198
-work.008	略過	工作欄	components/WorkPanel.tsx:435
-work.009	返回目前譯文	工作欄	components/WorkPanel.tsx:439
-work.010	查看修改（按住預覽）	工作欄	components/WorkPanel.tsx:439
-work.011	查看修改（尚無記錄）	工作欄	components/WorkPanel.tsx:439
-work.012	譯文記錄	工作欄	components/WorkPanel.tsx:444
-work.013	記錄	工作欄	components/WorkPanel.tsx:445 components/WorkPanel.tsx:445 components/WorkPanel.tsx:478
-work.014	查看修改	工作欄	components/WorkPanel.tsx:449
-work.015	使用此內容	工作欄	components/WorkPanel.tsx:469 components/WorkPanel.tsx:469
-work.016	選擇記錄槽位	工作欄	components/WorkPanel.tsx:479
-work.017	記錄 {v1}	工作欄	components/WorkPanel.tsx:483
-work.018	原文	工作欄	components/WorkPanel.tsx:509
-work.019	可編輯	工作欄	components/WorkPanel.tsx:512
-work.020	新版已移除	工作欄	components/WorkPanel.tsx:517
-work.021	已套用新原文	工作欄	components/WorkPanel.tsx:517
-work.022	原文已更新	工作欄	components/WorkPanel.tsx:517
-work.023	舊原文	工作欄	components/WorkPanel.tsx:517
-work.024	{n} 字	工作欄	components/WorkPanel.tsx:521
-work.025	原文更新	工作欄	components/WorkPanel.tsx:537
-work.026	按住查看舊原文	工作欄	components/WorkPanel.tsx:538 components/WorkPanel.tsx:538
-work.027	套用（刪除這條）	工作欄	components/WorkPanel.tsx:549
-work.028	套用新原文	工作欄	components/WorkPanel.tsx:549 components/WorkPanel.tsx:549
-work.029	譯文	工作欄	components/WorkPanel.tsx:563
-work.030	已記錄 {length} / 3	工作欄	components/WorkPanel.tsx:572
-work.031	{n} 字元	工作欄	components/WorkPanel.tsx:573 components/WorkPanel.tsx:608
-work.032	修改	工作欄	components/WorkPanel.tsx:599 components/WorkPanel.tsx:628
-work.033	套用全部修改	工作欄	components/WorkPanel.tsx:603
-work.034	全部套用	工作欄	components/WorkPanel.tsx:604
-work.035	已記錄 {n} / 3	工作欄	components/WorkPanel.tsx:607
-work.036	編輯	工作欄	components/WorkPanel.tsx:630
-work.037	忽略	工作欄	components/WorkPanel.tsx:630
-work.038	套用	工作欄	components/WorkPanel.tsx:630 components/WorkPanel.tsx:631
-work.039	忽略修改	工作欄	components/WorkPanel.tsx:631
-work.040	條目功能	工作欄	components/WorkPanel.tsx:645
-work.041	複製原文和譯文	工作欄	components/WorkPanel.tsx:646 components/WorkPanel.tsx:646
-work.042	清除譯文	工作欄	components/WorkPanel.tsx:651 components/WorkPanel.tsx:651
-work.043	全部忽略	工作欄：修改框上方，「全部套用」旁的按鈕	components/WorkPanel.tsx:606
-work.044	清除本條所有修改	工作欄：「全部忽略」的滑鼠提示	components/WorkPanel.tsx:605
-work.045	插入標籤	工作欄	components/WorkPanel.tsx:657
-work.046	插入標籤，例如 {0}	工作欄	components/WorkPanel.tsx:657
-work.047	複製譯文	工作欄	components/WorkPanel.tsx:662
-work.048	複製譯文到剪貼簿	工作欄	components/WorkPanel.tsx:662
-work.049	第 {n} / {total} 條	工作欄	components/WorkPanel.tsx:672
-work.051	設定這一條的長度標準	工作欄	components/WorkPanel.tsx:673
-work.052	這一條的長度標準	工作欄	components/WorkPanel.tsx:673
-work.053	已套用獨立長度標準	工作欄	components/WorkPanel.tsx:675
-work.054	上一條	工作欄	components/WorkPanel.tsx:681
-work.055	標記並下一條	工作欄	components/WorkPanel.tsx:693
-work.056	標記	工作欄	components/WorkPanel.tsx:695
-work.057	選擇按鈕要留下的標記	工作欄	components/WorkPanel.tsx:695
-work.058	疑慮並下一條	工作欄	components/WorkPanel.tsx:703
-work.059	驗證並下一條	工作欄	components/WorkPanel.tsx:703
-work.060	下一條	工作欄	components/WorkPanel.tsx:708
+work.005	調整工作欄高度	工作欄	components/WorkPanel.tsx:64 components/WorkPanel.tsx:547
+work.006	工作欄	工作欄	components/WorkPanel.tsx:65 components/WorkPanel.tsx:548
+work.007	選擇標記，當前：{v1}	工作欄	components/WorkPanel.tsx:232
+work.008	略過	工作欄	components/WorkPanel.tsx:477
+work.009	返回目前譯文	工作欄	components/WorkPanel.tsx:481
+work.010	查看修改（按住預覽）	工作欄	components/WorkPanel.tsx:481
+work.011	查看修改（尚無記錄）	工作欄	components/WorkPanel.tsx:481
+work.012	譯文記錄	工作欄	components/WorkPanel.tsx:491
+work.013	記錄	工作欄	components/WorkPanel.tsx:492 components/WorkPanel.tsx:492 components/WorkPanel.tsx:525
+work.014	查看修改	工作欄	components/WorkPanel.tsx:496
+work.015	使用此內容	工作欄	components/WorkPanel.tsx:516 components/WorkPanel.tsx:516
+work.016	選擇記錄槽位	工作欄	components/WorkPanel.tsx:526
+work.017	記錄 {v1}	工作欄	components/WorkPanel.tsx:530
+work.018	原文	工作欄	components/WorkPanel.tsx:562 components/WorkPanel.tsx:731
+work.019	可編輯	工作欄	components/WorkPanel.tsx:565
+work.020	新版已移除	工作欄	components/WorkPanel.tsx:570
+work.021	已套用新原文	工作欄	components/WorkPanel.tsx:570
+work.022	原文已更新	工作欄	components/WorkPanel.tsx:570
+work.023	舊原文	工作欄	components/WorkPanel.tsx:570
+work.024	{n} 字	工作欄	components/WorkPanel.tsx:574
+work.025	原文更新	工作欄	components/WorkPanel.tsx:590
+work.026	按住查看舊原文	工作欄	components/WorkPanel.tsx:591 components/WorkPanel.tsx:591
+work.027	套用（刪除這條）	工作欄	components/WorkPanel.tsx:602
+work.028	套用新原文	工作欄	components/WorkPanel.tsx:602 components/WorkPanel.tsx:602
+work.029	譯文	工作欄	components/WorkPanel.tsx:618 components/WorkPanel.tsx:732
+work.030	已記錄 {length} / 3	工作欄	components/WorkPanel.tsx:628
+work.031	{n} 字元	工作欄	components/WorkPanel.tsx:629 components/WorkPanel.tsx:666
+work.032	修改	工作欄	components/WorkPanel.tsx:656 components/WorkPanel.tsx:715 components/WorkPanel.tsx:733
+work.033	套用全部修改	工作欄	components/WorkPanel.tsx:661
+work.034	全部套用	工作欄	components/WorkPanel.tsx:662
+work.035	已記錄 {n} / 3	工作欄	components/WorkPanel.tsx:665
+work.036	編輯	工作欄	components/WorkPanel.tsx:717
+work.037	忽略	工作欄	components/WorkPanel.tsx:717
+work.038	套用	工作欄	components/WorkPanel.tsx:717 components/WorkPanel.tsx:718
+work.039	忽略修改	工作欄	components/WorkPanel.tsx:718
+work.040	條目功能	工作欄	components/WorkPanel.tsx:690
+work.041	複製原文和譯文	工作欄	components/WorkPanel.tsx:691 components/WorkPanel.tsx:691
+work.042	清除譯文	工作欄	components/WorkPanel.tsx:696 components/WorkPanel.tsx:696
+work.043	全部忽略	工作欄：修改框上方，「全部套用」旁的按鈕	components/WorkPanel.tsx:664
+work.044	清除本條所有修改	工作欄：「全部忽略」的滑鼠提示	components/WorkPanel.tsx:663
+work.045	插入標籤	工作欄	components/WorkPanel.tsx:702
+work.046	插入標籤，例如 {0}	工作欄	components/WorkPanel.tsx:702
+work.047	複製譯文	工作欄	components/WorkPanel.tsx:707
+work.048	複製譯文到剪貼簿	工作欄	components/WorkPanel.tsx:707
+work.049	第 {n} / {total} 條	工作欄	components/WorkPanel.tsx:740
+work.051	設定這一條的長度標準	工作欄	components/WorkPanel.tsx:741
+work.052	這一條的長度標準	工作欄	components/WorkPanel.tsx:741
+work.053	已套用獨立長度標準	工作欄	components/WorkPanel.tsx:743
+work.054	上一條	工作欄	components/WorkPanel.tsx:749
+work.055	標記並下一條	工作欄	components/WorkPanel.tsx:761
+work.056	標記	工作欄	components/WorkPanel.tsx:763
+work.057	選擇按鈕要留下的標記	工作欄	components/WorkPanel.tsx:763
+work.058	疑慮並下一條	工作欄	components/WorkPanel.tsx:771
+work.059	驗證並下一條	工作欄	components/WorkPanel.tsx:771
+work.060	下一條	工作欄	components/WorkPanel.tsx:776
 fs.001	寫入的檔案不完整	檔案讀寫	data/fsio.ts:45
 importfile.001	不支援這種檔案	匯入檔案訊息	data/importio.ts:39
 importfile.002	無法讀取這個檔案	匯入檔案訊息	data/importio.ts:58
 importfile.003	檔案無內容	匯入檔案訊息	data/importio.ts:61
 importfile.tooLong	檔案特定儲存格超過32767字數上限	匯入檔案訊息	data/importio.ts:63
-load.001	字典 / {name} / {v1}	讀取訊息	data/persist.ts:134 state/saver.ts:141
-load.002	讀取專案「{name}」	讀取訊息	data/persist.ts:226
-load.003	讀取字典	讀取訊息	data/persist.ts:268
+load.001	字典 / {name} / {v1}	讀取訊息	data/persist.ts:136 state/saver.ts:141
+load.002	讀取專案「{name}」	讀取訊息	data/persist.ts:228
+load.003	讀取字典	讀取訊息	data/persist.ts:270
 xlsx.001	轉檔失敗	存檔轉檔	data/xlsxAsync.ts:19 data/xlsxAsync.ts:23
 align.001	比對失敗	原文更新比對	model/alignAsync.ts:41 model/alignAsync.ts:46
 srcupd.alignFailed	自動比對失敗，當前照順序對應	原文更新比對	components/SrcUpdateDialog.tsx:99 plugins/cloud/SrcUpdateCloud.tsx:101
@@ -751,7 +754,7 @@ check.027	句首要大寫	檢查項目與訊息	model/checks.ts:161
 check.028	句號、問號、驚嘆號後要大寫	檢查項目與訊息	model/checks.ts:163
 check.029	破折號後要小寫	檢查項目與訊息	model/checks.ts:164
 check.030	譯文裡有中文字	檢查項目與訊息	model/checks.ts:167
-check.031	超框（超過 {lines} 行）	檢查項目與訊息	model/checks.ts:195
+check.031	超框（超過 {lines} 行）	檢查項目與訊息	model/checks.ts:196
 colors.001	喬治	主題色名稱	model/color.ts:58
 colors.002	恐龍先生	主題色名稱	model/color.ts:59
 colors.003	溫蒂狼	主題色名稱	model/color.ts:60
@@ -852,13 +855,13 @@ save.008	專案資料夾「{x}」	存檔訊息	state/saver.ts:400
 save.009	專案設定檔	存檔訊息	state/saver.ts:383
 save.010	已儲存	存檔訊息	state/saver.ts:427
 save.011	讀取設定	存檔訊息	state/saver.ts:476
-save.012	讀取專案	存檔訊息	state/saver.ts:520
-save.013	完成	存檔訊息	state/saver.ts:547
-save.014	資料夾包含其他內容，已新建「Verso」資料夾	存檔訊息	state/saver.ts:791
-save.015	已載入：{v1}{v2}	存檔訊息	state/saver.ts:1024
-save.016	已改名：{v1}{v2}	存檔訊息	state/saver.ts:1024
-save.017	字典 / {project} / {name}	存檔訊息	state/saver.ts:1026
-store.001	啟動中	狀態訊息	main.tsx:23 state/store.ts:714
+save.012	讀取專案	存檔訊息	state/saver.ts:521
+save.013	完成	存檔訊息	state/saver.ts:548
+save.014	資料夾包含其他內容，已新建「Verso」資料夾	存檔訊息	state/saver.ts:792
+save.015	已載入：{v1}{v2}	存檔訊息	state/saver.ts:1025
+save.016	已改名：{v1}{v2}	存檔訊息	state/saver.ts:1025
+save.017	字典 / {project} / {name}	存檔訊息	state/saver.ts:1027
+store.001	啟動中	狀態訊息	main.tsx:23 state/store.ts:720
 update.001	檢查更新	自動更新	state/updater.ts:33
 update.002	下載無進度	自動更新	state/updater.ts:57 state/updater.ts:58
 update.003	下載更新 0%	自動更新	state/updater.ts:60

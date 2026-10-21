@@ -22,6 +22,8 @@ export interface AppConfig {
   saveRoot?: string;
   /** 自動檢查的總開關 */
   checksOn?: boolean;
+  /** 各模式顯示哪些輸入框 */
+  workBoxes?: Partial<Record<'translate' | 'verify' | 'view' | 'source', { src?: boolean; tgt?: boolean; mod?: boolean }>>;
   /** 自動存檔間隔（分鐘） */
   autosaveMin?: number;
   theme?: 'dark' | 'light' | 'system';
