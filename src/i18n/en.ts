@@ -876,4 +876,10 @@ export const EN: Partial<Record<TextKey, string>> = {
   'settings.checksOn': 'Auto Check',
   'cloud.versoConvert': 'Tabs in Verso save format detected: ranges have been selected automatically. When you save, marks, suggested translations, edits and so on move to the Verso Data Sheet, and the Verso-only columns on this sheet are deleted (converted to a cloud file).',
   'cloud.versoNoData': 'Tabs in Verso save format detected: ranges have been selected automatically. To move marks and other data too, fill in the Verso Data Sheet under Settings > Cloud first.',
+  'work.hide': 'Hide Work Panel',
+  'work.show': 'Show Work Panel',
+  'work.boxes': 'Visible Fields',
+  'work.fit': 'Panel Height',
+  'work.fitAuto': 'Auto Adjust',
+  'work.fitFixed': 'Fixed Height',
 };
