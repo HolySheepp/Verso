@@ -294,7 +294,17 @@ function needRich(tab: CloudTab, rows: string[][], fd: FileData | undefined): bo
 }
 
 /** 讀一份試算表（點開時、重新讀取時）；回傳有沒有讀到 */
-export async function loadSheet(sid: string, quiet = false): Promise<boolean> {
+// 同一份正在讀時，再叫一次就等同一次讀完（例如開雲端模式時換檔案觸發的讀取，跟回到上次位置要等的是同一次）
+const inflight = new Map<string, Promise<boolean>>();
+export function loadSheet(sid: string, quiet = false): Promise<boolean> {
+  const now = inflight.get(sid);
+  if (now) return now;
+  const run = loadSheetInner(sid, quiet).finally(() => inflight.delete(sid));
+  inflight.set(sid, run);
+  return run;
+}
+
+async function loadSheetInner(sid: string, quiet: boolean): Promise<boolean> {
   const conf = confOf(sid);
   if (!conf || loading.has(sid)) return false;
   // 有剛插入、還沒寫進內容的條目：先不重讀（Google 上是空白列，可能讀不到）
