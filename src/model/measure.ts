@@ -35,9 +35,15 @@ function cell(std: LengthStd) {
   return box;
 }
 
+/**
+ * Google Sheets 換行時，連字號、破折號、斜線（- – — /）跟前後的字黏在一起當成一個字（例如 well-known、and/or 會整個換到下一行）；
+ * 瀏覽器會在這些符號後面斷行，所以量之前在符號前後加上看不見的「不斷行」字元（U+2060），量法才跟 Google Sheets 一樣（譯文本身不動）
+ */
+export const glueBreaks = (text: string) => text.replace(/[-–—/]/g, (c) => '⁠' + c + '⁠');
+
 /** 排版後的行數與最後一行的剩餘寬度 */
 function layout(el: HTMLDivElement, text: string): { lines: number; remain: number } {
-  el.textContent = text;
+  el.textContent = glueBreaks(text);
   const node = el.firstChild;
   if (!node || !text) return { lines: 0, remain: el.clientWidth - CELL_PADDING * 2 };
   const range = document.createRange();
