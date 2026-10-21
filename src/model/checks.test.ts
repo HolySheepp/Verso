@@ -88,6 +88,11 @@ describe('標點檢測', () => {
     expect(msgs('', 'Stop. —Go now.')).toEqual([]);
     expect(ids('', 'Wait—go now.')).toEqual([]);
     expect(ids('', 'Wait—I know.')).toEqual([]);
+    // 破折號後有空格：大小寫都可以；句首（前面只有符號）不用小寫
+    expect(ids('', 'Wait— Go now.')).toEqual([]);
+    expect(ids('', 'Wait — Go now.')).toEqual([]);
+    expect(ids('', '("—What?!")')).toEqual([]);
+    expect(msgs('', 'He said—"Go."')).toEqual(['破折號後要小寫']);
   });
 
   it('只有刪節號時必須剛好 6 個句點', () => {

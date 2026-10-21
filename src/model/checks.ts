@@ -170,14 +170,15 @@ export function runChecks(src: string, tgt: string): Issue[] {
 }
 
 /**
- * 破折號後的大寫字母位置（I 除外）。
- * 破折號在句子開頭時（整段開頭，或句號、問號、驚嘆號之後），後面本來就是句首，大寫不算錯。
+ * 破折號後的大寫字母位置（I 除外）：破折號在句中、後面直接接字母（中間沒有空格）時要小寫。
+ * - 破折號後面有空格：大小寫都可以
+ * - 破折號在句子開頭（前面只有符號、沒有字母，例如 —What?!、"—What?!"，或句號、問號、驚嘆號之後）：後面本來就是句首，大寫不算錯
  */
 function dashCapitals(tgt: string): number[] {
   const out: number[] = [];
-  for (const m of tgt.matchAll(/—\s*["'(]*(?!I\b|I')([A-Z])/g)) {
-    const before = tgt.slice(0, m.index).replace(/[\s"'(\[]+$/, '');
-    if (before === '' || /[.?!]["')\]]*$/.test(before)) continue;
+  for (const m of tgt.matchAll(/—["'(]*(?!I\b|I')([A-Z])/g)) {
+    const before = tgt.slice(0, m.index);
+    if (!/[\p{L}\p{N}]/u.test(before) || /[.?!]["')\]]*\s*["'(\[]*$/.test(before)) continue;
     out.push(m.index! + m[0].length - 1);
   }
   return out;
