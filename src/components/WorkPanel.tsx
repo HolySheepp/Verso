@@ -564,18 +564,20 @@ function WorkPanelInner({ height, maxH }: { height: number; maxH: number }) {
           <div style={labelRow}>
             <span style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
               <label htmlFor="verso-source" className="sec-label">{tx('work.018')}</label>
+              {bottom === 'src' && who}
               {srcEditable && (
                 <span style={{ display: 'flex', alignItems: 'center', gap: 4, fontSize: fz(11), color: 'var(--warntx)', padding: '1px 7px', borderRadius: 9, background: 'rgba(240,165,74,0.12)' }}>
                   <IconPen size={10} sw={2.6} />{tx('work.019')}
                 </span>
               )}
+              {bottom === 'src' && issueNote}
               {cur.upd && (
                 <span style={{ fontSize: fz(11), color: 'var(--accent2)', padding: '1px 7px', borderRadius: 9, background: 'var(--acc-soft)' }}>
                   {cur.upd.removed ? tx('work.020') : cur.upd.applied ? tx('work.021') : showNewSrc ? tx('work.022') : tx('work.023')}
                 </span>
               )}
             </span>
-            <span style={meta}>{bottom === 'src' && who}{bottom === 'src' && issueNote}<span>{tx('work.024', { n: (showNewSrc ? newSrc! : cur.src).length })}</span></span>
+            <span style={meta}><span>{tx('work.024', { n: (showNewSrc ? newSrc! : cur.src).length })}</span></span>
           </div>
           <div style={boxStyle('src')}>
           <textarea maxLength={MAX_CELL_CHARS} id="verso-source" ref={setSrcEl} value={showNewSrc ? newSrc : cur.src} readOnly={!srcEditable || showNewSrc} onFocus={editFocus} onBlur={editBlur}
@@ -620,6 +622,7 @@ function WorkPanelInner({ height, maxH }: { height: number; maxH: number }) {
           <div style={{ ...labelRow, marginTop: showSrc ? 6 : 0, gap: 12 }}>
             <span style={{ display: 'flex', alignItems: 'center', gap: 8, minWidth: 0 }}>
               <label htmlFor="verso-target" className="sec-label">{tx('work.029')}</label>
+              {bottom === 'tgt' && who}
               {!tgtEditable && !verify && (
                 <span style={{ display: 'flex', alignItems: 'center', gap: 4, fontSize: fz(11), color: 'var(--text2)', padding: '1px 7px', borderRadius: 9, background: 'var(--chip)' }}>
                   <IconLock size={10} sw={2.6} />{tx('work.003')}
@@ -628,7 +631,6 @@ function WorkPanelInner({ height, maxH }: { height: number; maxH: number }) {
               {bottom === 'tgt' && issueNote}
             </span>
             <span style={{ ...meta, flexShrink: 0 }}>
-              {bottom === 'tgt' && who}
               <span>{!verify && texts.length ? tx('work.030', { length: texts.length }) : ''}</span>
               <span>{tx('work.031', { n: cur.tgt.length })}</span>
             </span>
@@ -658,10 +660,10 @@ function WorkPanelInner({ height, maxH }: { height: number; maxH: number }) {
                 {/* 有修改框時檢查的是修改框，問題提示也放在這裡 */}
                 <span style={{ display: 'flex', alignItems: 'center', gap: 8, minWidth: 0 }}>
                   <label htmlFor="verso-edit" className="sec-label">{tx('work.032')}</label>
+                  {bottom === 'mod' && who}
                   {bottom === 'mod' && issueNote}
                 </span>
                 <span style={{ ...meta, flexShrink: 0, alignItems: 'center' }}>
-                  {bottom === 'mod' && who}
                   <button type="button" className="ib" disabled={!edits.length} onClick={() => asStep(() => s.setVerify([], modText))} title={tx('work.033')}
                     style={{ ...smallBtn, opacity: edits.length ? 1 : 0.5 }}>{tx('work.034')}</button>
                   <button type="button" className="ib" disabled={!edits.length} onClick={() => asStep(() => s.setVerify([]))} title={tx('work.044')}
