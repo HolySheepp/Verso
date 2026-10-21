@@ -5,5 +5,8 @@ describe('量行數時連字號、破折號、斜線跟前後的字黏在一起�
   it('符號前後加上不斷行字元，其他字不動', () => {
     expect(glueBreaks('well-known and/or a—b c–d')).toBe('well\u2060-\u2060known and\u2060/\u2060or a\u2060—\u2060b c\u2060–\u2060d');
     expect(glueBreaks('沒有符號')).toBe('沒有符號');
+    // 旁邊是空白的那一邊不黏（空白那裡照樣可以換行）
+    expect(glueBreaks('burgers— you')).toBe('burgers⁠— you');
+    expect(glueBreaks('burgers —you')).toBe('burgers —⁠you');
   });
 });

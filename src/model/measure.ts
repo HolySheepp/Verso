@@ -39,7 +39,9 @@ function cell(std: LengthStd) {
  * Google Sheets 換行時，連字號、破折號、斜線（- – — /）跟前後的字黏在一起當成一個字（例如 well-known、and/or 會整個換到下一行）；
  * 瀏覽器會在這些符號後面斷行，所以量之前在符號前後加上看不見的「不斷行」字元（U+2060），量法才跟 Google Sheets 一樣（譯文本身不動）
  */
-export const glueBreaks = (text: string) => text.replace(/[-–—/]/g, (c) => '⁠' + c + '⁠');
+// 只黏有字的那一邊：旁邊是空白時不加（空白那裡 Google Sheets 照樣可以換行，例如「burgers— you」）
+export const glueBreaks = (text: string) => text.replace(/[-–—/]/g, (c, i: number) =>
+  (i > 0 && !/\s/.test(text[i - 1]) ? '⁠' : '') + c + (i + 1 < text.length && !/\s/.test(text[i + 1]) ? '⁠' : ''));
 
 /** 排版後的行數與最後一行的剩餘寬度 */
 function layout(el: HTMLDivElement, text: string): { lines: number; remain: number } {
