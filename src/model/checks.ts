@@ -162,6 +162,9 @@ export function runChecks(src: string, tgt: string): Issue[] {
   // 刪節號後不檢查（例如 Are you... are you mad?），只有整句以刪節號開頭時，刪節號後的字算句首
   if (/(?:^|[^.])[.?!]["')]*\s+["'(]*[a-z]/.test(tgt)) add('capital', 'sentence', tx('check.028'));
   if (dashCapitals(tgt).length) add('capital', 'dash', tx('check.029'));
+  const ds = dashStarts(tgt);
+  if (ds.lower.length && !out.some((i) => i.key === 'capital:start')) add('capital', 'start', tx('check.027'));
+  if (ds.spaces.length && !out.some((i) => i.check === 'edgeSpace')) add('edgeSpace', '', tx('check.023'));
 
   // 殘留中文
   if (/[㐀-䶿一-鿿]/.test(tgt)) add('cjk', '', tx('check.030'));
@@ -182,6 +185,22 @@ function dashCapitals(tgt: string): number[] {
     out.push(m.index! + m[0].length - 1);
   }
   return out;
+}
+
+/**
+ * 破折號後是新句子的情況：
+ * - 破折號後面有空格：後面的字算句首，要大寫（lower 是小寫字母的位置）
+ * - 破折號在整句開頭（前面只有符號、標籤，沒有字母數字）：後面不能有空格（spaces 是空格的範圍），字母要大寫
+ */
+function dashStarts(tgt: string): { lower: number[]; spaces: { start: number; end: number }[] } {
+  const lower: number[] = [], spaces: { start: number; end: number }[] = [];
+  for (const m of tgt.matchAll(/—(\s*)["'(\[]*([A-Za-z])?/g)) {
+    const at = m.index!, gap = m[1].length;
+    const atStart = !/[\p{L}\p{N}]/u.test(tgt.slice(0, at).replace(TOKEN, ''));
+    if (atStart && gap) spaces.push({ start: at + 1, end: at + 1 + gap });
+    if (m[2] && /[a-z]/.test(m[2]) && (atStart || gap)) lower.push(at + m[0].length - 1);
+  }
+  return { lower, spaces };
 }
 
 /** 依開關過濾 */
@@ -211,7 +230,7 @@ export function locateIssues(tgt: string, checks: Set<CheckId>): { start: number
   const all = (re: RegExp) => { for (const m of tgt.matchAll(re)) out.push({ start: m.index!, end: m.index! + m[0].length }); };
   if (checks.has('fullwidth')) all(/[　-〿＀-￯…‥]/g);
   if (checks.has('doubleSpace')) all(/ {2,}/g);
-  if (checks.has('edgeSpace')) all(/^\s+|\s+$/g);
+  if (checks.has('edgeSpace')) { all(/^\s+|\s+$/g); out.push(...dashStarts(tgt).spaces); }
   if (checks.has('repeatPunct')) {
     all(/([,;:—-])\1+/g);
     if (!onlyDots(tgt)) for (const m of badDots(tgt)) out.push({ start: m.index, end: m.index + m.text.length });
@@ -227,6 +246,7 @@ export function locateIssues(tgt: string, checks: Set<CheckId>): { start: number
     if (first) { const i = lead + first[0].length - 1; out.push({ start: i, end: i + 1 }); }
     for (const m of tgt.matchAll(/(?:^|[^.])[.?!]["')]*\s+["'(]*([a-z])/g)) { const i = m.index! + m[0].length - 1; out.push({ start: i, end: i + 1 }); }
     for (const i of dashCapitals(tgt)) out.push({ start: i, end: i + 1 });
+    for (const i of dashStarts(tgt).lower) out.push({ start: i, end: i + 1 });
   }
   return out;
 }

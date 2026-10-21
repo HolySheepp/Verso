@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { runChecks } from './checks';
+import { locateIssues, runChecks } from './checks';
 
 const ids = (src: string, tgt: string) => runChecks(src, tgt).map((i) => i.check);
 const msgs = (src: string, tgt: string) => runChecks(src, tgt).map((i) => i.msg);
@@ -57,7 +57,7 @@ describe('標點檢測', () => {
     expect(ids('', 'Hello......')).toEqual(['repeatPunct']);
     expect(ids('', '......')).toEqual([]);
     expect(ids('', '"......"')).toEqual([]);
-    expect(ids('', 'Wait—— go.')).toEqual(['repeatPunct']);
+    expect(ids('', 'Wait—— Go.')).toEqual(['repeatPunct']);
     expect(ids('', 'Well... Go.')).toEqual([]);
   });
 
@@ -88,10 +88,18 @@ describe('標點檢測', () => {
     expect(msgs('', 'Stop. —Go now.')).toEqual([]);
     expect(ids('', 'Wait—go now.')).toEqual([]);
     expect(ids('', 'Wait—I know.')).toEqual([]);
-    // 破折號後有空格：大小寫都可以；句首（前面只有符號）不用小寫
+    // 破折號後有空格：後面是新句子，要大寫；句首（前面只有符號）不用小寫
     expect(ids('', 'Wait— Go now.')).toEqual([]);
     expect(ids('', 'Wait — Go now.')).toEqual([]);
+    expect(msgs('', 'Wait— go now.')).toEqual(['句首要大寫']);
+    expect(msgs('', 'Wait — go now.')).toEqual(['句首要大寫']);
     expect(ids('', '("—What?!")')).toEqual([]);
+    // 破折號在句首：後面要大寫、不能有空格
+    expect(msgs('', '—go now.')).toEqual(['句首要大寫']);
+    expect(msgs('', '"—go now."')).toEqual(['句首要大寫']);
+    expect(msgs('', '— Go now.')).toEqual(['開頭或結尾有多餘空白']);
+    expect(msgs('', '— go now.').sort()).toEqual(['句首要大寫', '開頭或結尾有多餘空白'].sort());
+    expect(locateIssues('— go now.', new Set(['edgeSpace', 'capital']))).toEqual(expect.arrayContaining([{ start: 1, end: 2 }, { start: 2, end: 3 }]));
     expect(msgs('', 'He said—"Go."')).toEqual(['破折號後要小寫']);
   });
 
