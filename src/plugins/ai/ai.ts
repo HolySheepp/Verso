@@ -31,7 +31,9 @@ const TOOLS = [
     name: 'get_task',
     description: 'Get the task: the mode ("translate" or "verify") and the selected entries. Each entry has index, id, speaker, source text (src), current translation (tgt), suggestion, note, '
       + 'the 5 entries before and after it (context), the glossary terms found in its source text (glossary: term and its required translations), '
-      + 'and length_limit (max_lines the English must fit in, at the given width and font; null when there is no limit).',
+      + 'length_limit (max_lines the English must fit in, at the given width and font; null when there is no limit), '
+      + 'checks (problems Verso\'s checks already find in the current translation, with the edits applied; for overflows also max_lines, lines_now and about_chars_to_cut) '
+      + 'and suggestion_checks (the same for the suggestion). Both are left out when there is nothing to report.',
     inputSchema: obj({}),
   },
   {
@@ -96,28 +98,47 @@ function stdOf(j: Job, e: Entry): LengthStd | null {
 
 const limitOf = (std: LengthStd | null) => (std ? { max_lines: std.lines, width_px: std.width, font: `${std.family} ${std.size}pt` } : null);
 
-/** AI 寫的文字有沒有過檢查：超框的附上限、現在幾行、大約要刪幾個字元 */
+/**
+ * 一段文字的檢查結果（照使用者開的檢查項目，跟工作欄報的一樣）：超框的附上限、現在幾行、大約要刪幾個字元。
+ * 沒有問題回傳 null
+ */
+function issuesOf(j: Job, e: Entry, text: string) {
+  if (!text.trim()) return null;
+  const std = stdOf(j, e);
+  const issues = enabledIssues(shownSrc(e), text, useStore.getState().checkSettings, std);
+  if (!issues.length) return null;
+  const m = std && issues.some((x) => x.check === 'overflow') ? measure(text, std) : null;
+  return {
+    problems: issues.map((x) => ({ check: x.check, message: stripIds(x.msg) })),
+    ...(m && std ? { overflow: { max_lines: std.lines, lines_now: m.lines, about_chars_to_cut: Math.max(1, text.length - m.fitLen) } } : {}),
+  };
+}
+
+/** 譯文要不要檢查：使用者按過「略過」或標成忽略的不給 AI 看 */
+const tgtChecked = (e: Entry) => e.mark !== 'ignore' && !e.skipCheck;
+
+/** AI 寫的文字有沒有過檢查（略過的條目不報） */
 function getChecks(j: Job) {
   const sheet = sheetOf(j)!;
-  const settings = useStore.getState().checkSettings;
   const out: unknown[] = [];
   for (const i of j.indices) {
     const e = sheet.entries[i];
     if (!e || !j.wrote[e.uid]) continue;
     // 驗證時改很多的放在建議翻譯：檢查建議翻譯；其他檢查譯文（有修改的話是改好之後的樣子）
-    const text = j.wrote[e.uid] === 'sugg' ? e.sugg : checkText(e);
-    if (!text.trim()) continue;
-    const std = stdOf(j, e);
-    const issues = enabledIssues(shownSrc(e), text, settings, std);
-    if (!issues.length) continue;
-    const m = std && issues.some((x) => x.check === 'overflow') ? measure(text, std) : null;
-    out.push({
-      index: i, text,
-      problems: issues.map((x) => ({ check: x.check, message: stripIds(x.msg) })),
-      ...(m && std ? { overflow: { max_lines: std.lines, lines_now: m.lines, about_chars_to_cut: Math.max(1, text.length - m.fitLen) } } : {}),
-    });
+    const sugg = j.wrote[e.uid] === 'sugg';
+    if (sugg ? e.skipSugg : !tgtChecked(e)) continue;
+    const text = sugg ? e.sugg : checkText(e);
+    const found = issuesOf(j, e, text);
+    if (found) out.push({ index: i, text, ...found });
   }
   return out.length ? out : 'No problems.';
+}
+
+/** get_task 附上目前的檢查結果：譯文（套用修改後）和建議翻譯各一份，略過的、沒問題的不給 */
+function checksOf(j: Job, e: Entry) {
+  const tgt = tgtChecked(e) ? issuesOf(j, e, checkText(e)) : null;
+  const sugg = !e.skipSugg ? issuesOf(j, e, e.sugg) : null;
+  return { ...(tgt ? { checks: tgt } : {}), ...(sugg ? { suggestion_checks: sugg } : {}) };
 }
 
 function getTask(j: Job) {
@@ -135,6 +156,7 @@ function getTask(j: Job) {
         context_after: sheet.entries.slice(i + 1, i + 1 + CONTEXT).map(brief),
         glossary: hits.map((h) => ({ term: h.term.term, translations: [...new Set(h.terms.map((t) => t.en))] })),
         length_limit: limitOf(stdOf(j, e)),
+        ...checksOf(j, e),
       };
     }).filter(Boolean),
   };
@@ -289,12 +311,16 @@ export function aiTarget() {
   };
 }
 
+/** 條目有檢查結果時一定要處理 */
+const CHECKS_RULE = 'If get_task lists checks for an entry, that entry must be fixed even when its meaning is fine (for example, shorten it until it fits the length limit); only if it cannot be fixed without losing important meaning, leave it and explain why in write_note.';
+
 const prompts = {
   translate: (skill: string) => [
     'You are helping a game translator inside Verso, a translation tool. Use only the verso MCP tools.',
     skill ? `Use the "${skill}" skill for how to translate.` : 'Translate from the source language into English unless the entries clearly show another target language.',
     'Call get_task first. For every entry, translate its src, following the glossary translations, the speaker, the note and the surrounding context, then call write_translation(index, text) with the full translation.',
     'When all entries are written, call get_checks and rewrite the entries it reports (especially length overflows) until nothing is left.',
+    CHECKS_RULE,
     'Only after that, for entries that need the translator\'s attention (or a problem you could not fix without losing important meaning), call write_note(index, text) once with your final note in Traditional Chinese. Never write notes about intermediate attempts. Do not do anything else.',
   ].join(' '),
   verify: (skill: string) => [
@@ -302,6 +328,7 @@ const prompts = {
     skill ? `Use the "${skill}" skill for how to review.` : '',
     'Call get_task first. For every entry, check its tgt against src, the glossary, the speaker, the note and the surrounding context.',
     'If the translation needs changes, call write_revision(index, text) with the full corrected translation. If it is fine, leave it alone.',
+    CHECKS_RULE,
     'Then call get_checks and fix what it reports for the entries you revised (especially length overflows): rewrite them, or call undo_change(index) if your change was wrong and the original should stay.',
     'Only when every revision is final, call write_note(index, text) once per revised entry with the final reason in Traditional Chinese. Never write notes about intermediate attempts or ask the translator to ignore your own change. Do not do anything else.',
   ].filter(Boolean).join(' '),
