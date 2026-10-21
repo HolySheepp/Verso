@@ -576,8 +576,9 @@ export function selectSheet(sid: string) {
   if (i >= 0) useStore.getState().setFile(i);
 }
 
-/** 打開雲端模式：列出全部試算表（空殼），換到上次打開的那份，只讀那一份 */
-export async function enterCloud() {
+/** 打開雲端模式：列出全部試算表（空殼），換到上次打開的那份，只讀那一份；step 回報進度（啟動畫面用） */
+export async function enterCloud(step: (p: number, text: string) => void = () => {}) {
+  step(0.1, tx('cloud.boot1'));
   try {
     await readShared();
     // 這台電腦之前自己設定、資料表裡還沒有的：補寫進去，別人也看得到
@@ -585,14 +586,17 @@ export async function enterCloud() {
     if (dataSid()) for (const x of useCloud.getState().cfg.sheets) if (!shared.some((y) => y.sid === x.sid)) await writeShared(x);
   } catch (e) { showToast(tx('cloud.loadFailed', { name: tx('cloud.dataUrl'), reason: errText(e) }), { warn: true }); }
   ensureStubs();
+  step(0.35, tx('cloud.boot2'));
   // 專案（字典檔、預設長度標準）、常用標準、雲端字典的頁簽名稱（勾選的才讀內容）
   try { backupPresets(); await readProjects(); await listDicts(); loadEnabled(); } catch (e) { showToast(tx('cloud.loadFailed', { name: tx('cloud.dataUrl'), reason: errText(e) }), { warn: true }); }
   const { last, lastPos } = useCloud.getState().cfg;
   // 上次的檔案不在了：留空（不自動換到別的檔案）
   if (last && fileOf(last)) selectSheet(last); else if (!last) pickShown();
   const sid = currentSid();
+  step(0.65, tx('cloud.boot3'));
   if (sid && fileOf(sid)?.cloud?.stub) await loadSheet(sid);
   if (sid && lastPos?.sid === sid) restorePos(lastPos);
+  step(1, tx('cloud.boot3'));
 }
 
 /** 回到上次停的頁簽與條目；頁簽不在就到上一個頁簽，條目不在就到上一條（不跳提示） */

@@ -51,4 +51,4 @@ createRoot(document.getElementById('root')!).render(
 );
 
 // 啟動：讀設定、載入存檔資料夾（只跑一次，換語言重畫畫面時不會重來）
-void startApp().then(() => plugins.forEach((p) => p.start?.()));
+void startApp(plugins);

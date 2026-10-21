@@ -469,10 +469,16 @@ export async function refreshLangPacks() {
   if (changed) { applyLang(lang); useStore.setState((st) => ({ langStamp: st.langStamp + 1 })); }
 }
 
-export async function startApp() {
+/** 外掛的啟動（registry 的 VersoPlugin 只用到這兩個，避免互相 import） */
+interface Boot { start?: (step: (p: number, text: string) => void) => void | Promise<void>; slowStart?: () => Promise<boolean> }
+
+export async function startApp(boots: Boot[] = []) {
   // 先檢查更新：選了更新就會裝好並重開，不必繼續啟動
   if (await checkAtStartup()) return;
-  const step = (p: number, text: string) => useStore.setState({ loading: { p, text } });
+  // 外掛啟動要花時間（例如雲端模式讀 Google 表）：存檔資料夾的進度只走到 70%，後面留給外掛
+  const slow = (await Promise.all(boots.map((b) => b.slowStart?.().catch(() => false) ?? Promise.resolve(false)))).some(Boolean);
+  const local = slow ? 0.7 : 1;
+  const step = (p: number, text: string) => useStore.setState({ loading: { p: p * local, text } });
   step(0.05, tx('save.011'));
   config = await loadConfig();
   const saveRoot = config.saveRoot || await io.defaultRoot();
@@ -547,7 +553,15 @@ export async function startApp() {
     setTimeout(() => { void saveNow(); }, 0);
   }
   restorePosition(project, last);
-  step(1, tx('save.013'));
+  // 外掛啟動（雲端模式：讀雲端資料、打開上次的檔案、回到上次的條目）做完才進主畫面
+  let booted = false;
+  for (const b of boots) {
+    // 網路很慢時最多等 30 秒就先進主畫面（外掛照樣在背景做完）
+    const run = Promise.resolve().then(() => b.start?.((p, text) => !booted && useStore.setState({ loading: { p: local + (1 - local) * Math.min(1, Math.max(0, p)), text } }))).catch(() => undefined);
+    await Promise.race([run, new Promise((r) => setTimeout(r, 30_000))]);
+  }
+  booted = true;
+  useStore.setState({ loading: { p: 1, text: tx('save.013') } });
   startFolderWatch();
   // 讓進度條停在填滿的樣子一下再進主畫面
   setTimeout(() => useStore.setState({ loading: null }), 220);

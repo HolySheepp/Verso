@@ -16,8 +16,13 @@ export interface VersoPlugin {
   FileMenu?: ComponentType<{ close(): void }>;
   /** 一直掛著的畫面（外掛自己的對話框） */
   Overlay?: ComponentType;
-  /** 軟體開好、存檔資料夾載入後執行一次 */
-  start?: () => void;
+  /**
+   * 存檔資料夾載入後執行一次，啟動畫面等它做完才進主畫面。
+   * step 回報這一段的進度（0～1）和說明，進度條跟著走
+   */
+  start?: (step: (p: number, text: string) => void) => void | Promise<void>;
+  /** 啟動時要不要花時間做事（例如雲端模式要先讀 Google 表）：要的話進度條留一段給它 */
+  slowStart?: () => Promise<boolean>;
 }
 
 const found = import.meta.glob<{ plugin: VersoPlugin }>('./*/index.{ts,tsx}', { eager: true });

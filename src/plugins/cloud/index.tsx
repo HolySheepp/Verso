@@ -31,14 +31,14 @@ const menuItem: React.CSSProperties = {
   background: 'transparent', color: 'var(--text2)', textAlign: 'left',
 };
 
-/** 打開或關掉雲端模式（打開前本地檔案有沒存的修改就先問） */
-async function setCloud(on: boolean) {
+/** 打開或關掉雲端模式（打開前本地檔案有沒存的修改就先問）；step 是啟動畫面的進度 */
+async function setCloud(on: boolean, step?: (p: number, text: string) => void) {
   // 問「離開這個檔案前要儲存嗎？」：存或不存之後再打開
   if (on && isDirty()) { useStore.setState({ askSave: { kind: 'leave', target: null, go: () => void setCloud(true) }, fileMenuOpen: false }); return; }
   setConfig({ on });
   if (on) {
     useStore.getState().set({ cloudMode: true });
-    await enterCloud();
+    await enterCloud(step);
   } else {
     await flushAll();
     await flushDicts();
@@ -402,7 +402,7 @@ function Overlay() {
 }
 
 /** 軟體開好後：讀設定、登入狀態；上次開著雲端模式就打開，之後每分鐘重新讀取 */
-async function start() {
+async function start(step: (p: number, text: string) => void) {
   const cfg = await loadConfig();
   watchStore();
   watchDicts();
@@ -425,7 +425,7 @@ async function start() {
   // 雲端模式改了常用標準：寫進資料表
   useStore.subscribe((s, prev) => { if (s.cloudMode && prev.cloudMode && s.lengthPresets !== prev.lengthPresets) void writePresets(s.lengthPresets); });
   try { useCloud.setState({ email: await loginStatus(), builtin: await builtinClient() }); } catch { /* 沒有桌面外殼（瀏覽器預覽） */ }
-  if (cfg.on) await setCloud(true);
+  if (cfg.on) await setCloud(true, step);
   // 自動同步：打開的那份每 20 秒，其他的每 2 分鐘；從別的視窗（例如瀏覽器）回到 Verso 時馬上同步打開的那份
   let tick = 0;
   setInterval(() => {
@@ -446,4 +446,4 @@ async function start() {
   useStore.subscribe((s, prev) => { if (prev.cloudMode && !s.cloudMode && useCloud.getState().cfg.on) void setCloud(false); });
 }
 
-export const plugin: VersoPlugin = { id: 'cloud', ListToolbar: SyncButton, SettingsSection: { id: 'cloud', label: () => tx('cloud.section'), Component: CloudDevOption }, FileMenu: CloudFileMenu, Overlay, start: () => void start() };
+export const plugin: VersoPlugin = { id: 'cloud', ListToolbar: SyncButton, SettingsSection: { id: 'cloud', label: () => tx('cloud.section'), Component: CloudDevOption }, FileMenu: CloudFileMenu, Overlay, start, slowStart: async () => (await loadConfig()).on };
