@@ -425,7 +425,16 @@ async function start(step: (p: number, text: string) => void) {
   // 雲端模式改了常用標準：寫進資料表
   useStore.subscribe((s, prev) => { if (s.cloudMode && prev.cloudMode && s.lengthPresets !== prev.lengthPresets) void writePresets(s.lengthPresets); });
   try { useCloud.setState({ email: await loginStatus(), builtin: await builtinClient() }); } catch { /* 沒有桌面外殼（瀏覽器預覽） */ }
-  if (cfg.on) await setCloud(true, step);
+  if (cfg.on && navigator.onLine === false) {
+    // 沒有網路：不讀 Google 表，直接進主畫面，問要不要關掉雲端模式；連上網路後自動讀取
+    useStore.getState().set({ cloudMode: true });
+    useCloud.setState({ confirm: { title: tx('cloud.offlineTitle'), body: tx('cloud.offlineBody'), ok: tx('cloud.offlineOff'), run: () => setCloud(false) } });
+    window.addEventListener('online', () => {
+      if (!useStore.getState().cloudMode) return;
+      if (useCloud.getState().confirm?.title === tx('cloud.offlineTitle')) useCloud.setState({ confirm: null });
+      void enterCloud();
+    }, { once: true });
+  } else if (cfg.on) await setCloud(true, step);
   // 自動同步：打開的那份每 20 秒，其他的每 2 分鐘；從別的視窗（例如瀏覽器）回到 Verso 時馬上同步打開的那份
   let tick = 0;
   setInterval(() => {
@@ -446,4 +455,4 @@ async function start(step: (p: number, text: string) => void) {
   useStore.subscribe((s, prev) => { if (prev.cloudMode && !s.cloudMode && useCloud.getState().cfg.on) void setCloud(false); });
 }
 
-export const plugin: VersoPlugin = { id: 'cloud', ListToolbar: SyncButton, SettingsSection: { id: 'cloud', label: () => tx('cloud.section'), Component: CloudDevOption }, FileMenu: CloudFileMenu, Overlay, start, slowStart: async () => (await loadConfig()).on };
+export const plugin: VersoPlugin = { id: 'cloud', ListToolbar: SyncButton, SettingsSection: { id: 'cloud', label: () => tx('cloud.section'), Component: CloudDevOption }, FileMenu: CloudFileMenu, Overlay, start, slowStart: async () => (await loadConfig()).on && navigator.onLine !== false };
