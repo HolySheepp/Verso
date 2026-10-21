@@ -61,8 +61,8 @@ export function WorkPanel({ height, maxH }: { height: number; maxH: number }) {
   if (!hasEntry) {
     return (
       <>
-        <Splitter dir="h" label={tx('work.005')} value={height} min={WORK_MIN} max={maxH} onChange={(v) => set({ workH: v })} />
-        <section aria-label={tx('work.006')} style={{ height, flexShrink: 0, boxSizing: 'border-box', background: 'var(--panel)', border: '1px solid var(--line)', borderRadius: 10 }} />
+        <Splitter dir="h" label={tx('work.005')} value={Math.max(height, WORK_MIN)} min={WORK_MIN} max={maxH} onChange={(v) => set({ workFit: 'fixed', workH: v })} />
+        <section aria-label={tx('work.006')} style={{ height: Math.max(height, WORK_MIN), flexShrink: 0, boxSizing: 'border-box', background: 'var(--panel)', border: '1px solid var(--line)', borderRadius: 10 }} />
       </>
     );
   }
@@ -145,6 +145,9 @@ function WorkPanelInner({ height, maxH }: { height: number; maxH: number }) {
   const sectionRef = useRef<HTMLElement>(null);
   const [boxH, setBoxH] = useState({ src: 42, tgt: 42, mod: 42 });
   const [actualH, setActualH] = useState(height);
+  const [oneLine, setOneLine] = useState(42);
+  const [blockMin, setBlockMin] = useState<Record<string, number>>({});
+  const [minPanel, setMinPanel] = useState(14 * 2 + 40);
   const [widthVer, bump] = useState(0);
   const fonts = useStore((st) => st.fonts);
   useLayoutEffect(() => {
@@ -164,9 +167,37 @@ function WorkPanelInner({ height, maxH }: { height: number; maxH: number }) {
       return Math.ceil(h);
     };
     const next = { src: m(srcEl), tgt: m(tgtEl), mod: m(modEl) };
+    const ta = srcEl ?? tgtEl ?? modEl;
+    if (ta) {
+      const cs = getComputedStyle(ta);
+      const one = Math.ceil(parseFloat(cs.lineHeight) + parseFloat(cs.paddingTop) + parseFloat(cs.paddingBottom) + parseFloat(cs.borderTopWidth) + parseFloat(cs.borderBottomWidth));
+      if (one && one !== oneLine) setOneLine(one);
+    }
     setBoxH((o) => (o.src === next.src && o.tgt === next.tgt && o.mod === next.mod ? o : next));
-    const h = sectionRef.current?.offsetHeight;
+    const sec = sectionRef.current;
+    const h = sec?.offsetHeight;
     if (h && h !== actualH) setActualH(h);
+    // 每個框區塊最矮＝標題這些固定的部分＋框只剩一行；工作欄最矮＝全部加起來＋上下的空白、最下排
+    if (sec) {
+      const mins: Record<string, number> = {};
+      let total = 14 * 2 + 40;
+      const blocks = sec.querySelectorAll<HTMLElement>('[data-block]');
+      blocks.forEach((b) => {
+        // 區塊被擠扁時本身的高度不準：用標題列這些子元素的高度（含邊距、間距）加上框最矮的高度
+        const kids = [...b.children] as HTMLElement[];
+        let m = 6 * (kids.length - 1);
+        for (const c of kids) {
+          if (c.dataset.box) { m += Number(c.dataset.box); continue; }
+          const cs = getComputedStyle(c);
+          m += c.offsetHeight + parseFloat(cs.marginTop) + parseFloat(cs.marginBottom);
+        }
+        mins[b.dataset.block!] = Math.ceil(m);
+        total += mins[b.dataset.block!];
+      });
+      if (blocks.length) total += 10 + 6 * (blocks.length - 1);
+      setBlockMin((o) => (JSON.stringify(o) === JSON.stringify(mins) ? o : mins));
+      if (total !== minPanel) setMinPanel(total);
+    }
   });
   // 寬度變了（換行跟著變）就重新量
   useEffect(() => {
@@ -184,40 +215,43 @@ function WorkPanelInner({ height, maxH }: { height: number; maxH: number }) {
   // 原文框右邊有原文更新的兩個按鈕時，框至少要放得下它們
   const srcButtons = (cur.upd?.src !== undefined ? 1 : 0) + (cur.upd?.removed || cur.upd?.src !== undefined ? (mode === 'view' ? 0 : 1) : 0);
   const srcToolH = srcButtons ? 14 + srcButtons * 26 : 0;
-  const boxStyle = (k: keyof typeof boxH): React.CSSProperties => {
-    const h = k === 'src' ? Math.max(boxH.src, srcToolH) : boxH[k];
-    return { position: 'relative', display: 'flex', flex: `${growKey === k ? 1 : 0} 1 ${h}px`, minHeight: Math.min(h, k === 'src' && srcToolH ? srcToolH : 42) };
+  // 框最矮一行；框右上角有按鈕（記錄、歷史譯文）時至少放得下兩顆按鈕
+  const boxMin = (k: keyof typeof boxH) => (k === 'src' && srcToolH ? Math.max(srcToolH, oneLine) : (k === 'tgt' && !verify) || (k === 'mod' && verify) ? Math.max(66, oneLine) : oneLine);
+  const boxProps = (k: keyof typeof boxH) => {
+    const h = Math.max(boxH[k], boxMin(k));
+    return { 'data-box': boxMin(k), style: { position: 'relative', display: 'flex', flex: `${growKey === k ? 1 : 0} 1 ${h}px`, minHeight: boxMin(k) } as React.CSSProperties };
   };
-  // 修改框出現時加在上面，工作欄跟著變高；離開有修改的條目就回到使用者拉的高度。
-  // 翻譯模式在有修改的條目上拉的高度只是暫時的。
-  const modBlock = showMod ? 36 + boxH.mod : 0;
-  const [tempH, setTempH] = useState<number | null>(null);
-  useEffect(() => { if (!showEdits) setTempH(null); }, [showEdits]);
-  // 隱藏原文框、譯文框時，工作欄少掉那個框隱藏前在畫面上的高度（按右鍵關掉的那一刻量）；
-  // 不知道時（例如重開軟體）當作標題加一行高的框。三個都關時只留最下排
+  // 每個框區塊：空間不夠時原文框先縮，主要的框（多出來的空間給它的那個）最後縮；最矮到框剩一行
+  const blockStyle = (k: keyof typeof boxH): React.CSSProperties => ({
+    display: 'flex', flexDirection: 'column', gap: 6, minHeight: blockMin[k] ?? 0,
+    flex: `${growKey === k ? 1 : 0} ${k === growKey ? 1 : k === 'src' ? 100 : 10} auto`,
+  });
+  // 工作欄高度：自動調整＝框跟內容一樣高（最高到 maxH）；固定欄高＝使用者定的高度，換條目不變，放不下的框出現捲動條
+  const fixed = useStore((st) => st.workFit === 'fixed');
+  const fixedH = Math.min(maxH, Math.max(minPanel, height));
+  // 隱藏框時固定欄高少掉那個框隱藏前的高度（按右鍵關掉的那一刻量），再打開時加回去；不知道時當作標題加一行高的框
   const HIDDEN_BLOCK = 36 + 42;
-  const blockH = useRef<Partial<Record<Mode, { src?: number; tgt?: number }>>>({});
+  const blockH = useRef<Partial<Record<Mode, { src?: number; tgt?: number; mod?: number }>>>({});
   const srcBlockRef = useRef<HTMLDivElement>(null);
   const tgtBlockRef = useRef<HTMLDivElement>(null);
-  const hiddenH = (showSrc ? 0 : blockH.current[mode]?.src ?? HIDDEN_BLOCK) + (showTgt ? 0 : blockH.current[mode]?.tgt ?? HIDDEN_BLOCK);
-  const BOTTOM_ONLY = 14 * 2 + 40;
-  const minH = anyBox ? Math.max(BOTTOM_ONLY, Math.min(maxH, (tempH ?? height + modBlock) - hiddenH)) : BOTTOM_ONLY;
-  // 拉高度的下限也扣掉隱藏的框，不然一按拉桿工作欄就跳回三個框時的最矮高度
-  const dragMin = Math.max(BOTTOM_ONLY, WORK_MIN + (mode === 'translate' && showEdits ? 0 : modBlock) - hiddenH);
-  const onDrag = (v: number) => {
-    if (mode === 'translate' && showEdits) setTempH(v + hiddenH);
-    else if (showMod) { setTempH(null); s.set({ workH: Math.max(WORK_MIN, v + hiddenH - modBlock) }); }
-    else s.set({ workH: Math.max(WORK_MIN, v + hiddenH) });
-  };
+  const modBlockRef = useRef<HTMLDivElement>(null);
+  // 手動拉工作欄：自動切成固定欄高
+  const onDrag = (v: number) => s.set({ workFit: 'fixed', workH: v });
   // 工作欄空白處右鍵：切換顯示原文、譯文、修改框（各模式分開記住）
   const [boxMenu, setBoxMenu] = useState<{ x: number; y: number } | null>(null);
   const toggleBox = (k: 'src' | 'tgt' | 'mod') => {
     const cur0 = { src: showSrc, tgt: showTgt, mod: showMod };
-    // 關掉前記下它現在的高度（含框之間的間距），工作欄就剛好縮掉這麼多
-    const el = k === 'src' ? srcBlockRef.current : k === 'tgt' ? tgtBlockRef.current : null;
-    if (el && cur0[k]) blockH.current[mode] = { ...blockH.current[mode], [k]: el.offsetHeight + (k === 'src' ? (showTgt || showMod ? 12 : 0) : showSrc ? 6 : showMod ? 12 : 0) };
+    // 固定欄高：關掉前記下它現在的高度（含框之間的間距），工作欄就剛好縮掉這麼多；打開時加回去
+    const el = { src: srcBlockRef, tgt: tgtBlockRef, mod: modBlockRef }[k].current;
+    let gaps = 0;
+    if (k === 'src') gaps = showTgt || showMod ? 12 : 0; else if (k === 'tgt') gaps = showSrc ? 6 : showMod ? 12 : 0; else gaps = showSrc || showTgt ? 6 : 0;
+    if (el && cur0[k]) blockH.current[mode] = { ...blockH.current[mode], [k]: el.offsetHeight + gaps };
+    const delta = blockH.current[mode]?.[k] ?? HIDDEN_BLOCK;
     const all = useStore.getState().workBoxes;
-    s.set({ workBoxes: { ...all, [mode]: { ...(all[mode] ?? {}), [k]: !cur0[k] } } });
+    s.set({
+      workBoxes: { ...all, [mode]: { ...(all[mode] ?? {}), [k]: !cur0[k] } },
+      ...(fixed ? { workH: Math.max(0, fixedH + (cur0[k] ? -delta : delta)) } : {}),
+    });
   };
   const onPanelMenu = (ev: React.MouseEvent) => {
     if ((ev.target as HTMLElement).closest('textarea, button, input, [role=menu]')) return;
@@ -548,9 +582,9 @@ function WorkPanelInner({ height, maxH }: { height: number; maxH: number }) {
 
   return (
     <>
-    {anyBox ? <Splitter dir="h" label={tx('work.005')} value={actualH} min={dragMin} max={maxH} onChange={onDrag} /> : <div style={{ height: 12, flexShrink: 0 }} />}
+    {anyBox ? <Splitter dir="h" label={tx('work.005')} value={actualH} min={minPanel} max={maxH} onChange={onDrag} /> : <div style={{ height: 12, flexShrink: 0 }} />}
     <section ref={sectionRef} aria-label={tx('work.006')} onContextMenu={onPanelMenu} style={{
-      position: 'relative', minHeight: minH, maxHeight: maxH, flexShrink: 0, display: 'flex', flexDirection: 'column', gap: 10, padding: anyBox ? '14px 16px' : '14px 40px 14px 16px', boxSizing: 'border-box',
+      position: 'relative', ...(fixed && anyBox ? { height: fixedH } : {}), minHeight: Math.min(minPanel, maxH), maxHeight: maxH, flexShrink: 0, display: 'flex', flexDirection: 'column', gap: 10, padding: anyBox ? '14px 16px' : '14px 40px 14px 16px', boxSizing: 'border-box',
       background: 'var(--panel)', border: '1px solid var(--line)', borderRadius: 10,
     }}>
       {/* 收起工作欄（跟收起檔案欄、右側欄一樣） */}
@@ -560,7 +594,7 @@ function WorkPanelInner({ height, maxH }: { height: number; maxH: number }) {
       </button>
       {anyBox && <div style={{ flexGrow: 1, minHeight: 0, display: 'flex', gap: 12 }}>
         <div style={{ flexGrow: 1, minWidth: 0, display: 'flex', flexDirection: 'column', gap: 6 }}>
-          {showSrc && <div ref={srcBlockRef} style={{ display: 'flex', flexDirection: 'column', gap: 6, flex: `${growKey === 'src' ? 1 : 0} 1 auto`, minHeight: 0 }}>
+          {showSrc && <div ref={srcBlockRef} data-block="src" style={blockStyle('src')}>
           <div style={labelRow}>
             <span style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
               <label htmlFor="verso-source" className="sec-label">{tx('work.018')}</label>
@@ -579,7 +613,7 @@ function WorkPanelInner({ height, maxH }: { height: number; maxH: number }) {
             </span>
             <span style={meta}><span>{tx('work.024', { n: (showNewSrc ? newSrc! : cur.src).length })}</span></span>
           </div>
-          <div style={boxStyle('src')}>
+          <div {...boxProps('src')}>
           <textarea maxLength={MAX_CELL_CHARS} id="verso-source" ref={setSrcEl} value={showNewSrc ? newSrc : cur.src} readOnly={!srcEditable || showNewSrc} onFocus={editFocus} onBlur={editBlur}
             onMouseMove={onSrcMove} onMouseLeave={() => { cancelAnimationFrame(moveFrame.current); moveFrame.current = 0; setHover(null); }} onMouseDown={onSrcDown}
             onChange={(ev) => srcEditable && s.updateEntry({ src: ev.target.value })}
@@ -618,7 +652,7 @@ function WorkPanelInner({ height, maxH }: { height: number; maxH: number }) {
           </div>
           </div>}
 
-          {showTgt && <div ref={tgtBlockRef} style={{ display: 'flex', flexDirection: 'column', gap: 6, flex: `${growKey === 'tgt' ? 1 : 0} 1 auto`, minHeight: 0 }}>
+          {showTgt && <div ref={tgtBlockRef} data-block="tgt" style={blockStyle('tgt')}>
           <div style={{ ...labelRow, marginTop: showSrc ? 6 : 0, gap: 12 }}>
             <span style={{ display: 'flex', alignItems: 'center', gap: 8, minWidth: 0 }}>
               <label htmlFor="verso-target" className="sec-label">{tx('work.029')}</label>
@@ -635,7 +669,7 @@ function WorkPanelInner({ height, maxH }: { height: number; maxH: number }) {
               <span>{tx('work.031', { n: cur.tgt.length })}</span>
             </span>
           </div>
-          <div style={boxStyle('tgt')}>
+          <div {...boxProps('tgt')}>
             <textarea maxLength={MAX_CELL_CHARS} id="verso-target" ref={setTgtEl} onFocus={editFocus} onBlur={editBlur} data-hist={tgtHist ? '1' : '0'} value={tgtHist ? texts[slot] : cur.tgt}
               readOnly={!tgtEditable || tgtHist}
               onChange={(ev) => onTarget(ev.target.value)} onPaste={onPaste}
@@ -655,7 +689,7 @@ function WorkPanelInner({ height, maxH }: { height: number; maxH: number }) {
           </div>}
 
           {showMod && (
-            <div style={{ display: 'flex', flexDirection: 'column', gap: 6, flex: `${growKey === 'mod' ? 1 : 0} 1 auto`, minHeight: 0 }}>
+            <div ref={modBlockRef} data-block="mod" style={blockStyle('mod')}>
               <div style={{ ...labelRow, marginTop: showSrc || showTgt ? 6 : 0, gap: 12 }}>
                 {/* 有修改框時檢查的是修改框，問題提示也放在這裡 */}
                 <span style={{ display: 'flex', alignItems: 'center', gap: 8, minWidth: 0 }}>
@@ -672,7 +706,7 @@ function WorkPanelInner({ height, maxH }: { height: number; maxH: number }) {
                   <span>{tx('work.031', { n: modText.length })}</span>
                 </span>
               </div>
-              <div style={boxStyle('mod')}>
+              <div {...boxProps('mod')}>
                 {/* 翻譯模式：修改框只給譯者看，不能改 */}
                 <textarea maxLength={MAX_CELL_CHARS} id="verso-edit" ref={setModEl} value={modHist ? texts[slot] : modText} readOnly={!verify || modHist} onFocus={verify ? editFocus : undefined} onBlur={verify ? modBlur : undefined}
                   onChange={(ev) => verify && onModValue(ev.target.value, ev.target.selectionEnd)}
@@ -693,7 +727,8 @@ function WorkPanelInner({ height, maxH }: { height: number; maxH: number }) {
         </div>
 
         {/* 右側按鈕目前是示範用的暫代功能，之後再決定 */}
-        <div role="toolbar" aria-label={tx('work.040')} aria-orientation="vertical" style={{ width: 36, flexShrink: 0, display: 'flex', flexDirection: 'column', gap: 6, paddingTop: 24 }}>
+        <div style={{ width: 36, flexShrink: 0, position: 'relative' }}>
+        <div role="toolbar" aria-label={tx('work.040')} aria-orientation="vertical" className="no-scrollbar" style={{ position: 'absolute', inset: 0, overflowY: 'auto', display: 'flex', flexDirection: 'column', gap: 6, paddingTop: 24 }}>
           <button type="button" className="ib btn-side" aria-label={tx('work.041')} title={tx('work.041')}
             onClick={() => { void navigator.clipboard?.writeText((cur.upd?.src ?? cur.src) + '\n' + cur.tgt); }}>
             <IconCopyPair size={15} />
@@ -716,6 +751,7 @@ function WorkPanelInner({ height, maxH }: { height: number; maxH: number }) {
             </button>
           )}
         </div>
+        </div>
       </div>}
       {vMenu && spans[vMenu.i] && (
         <ContextMenu x={vMenu.x} y={vMenu.y} label={tx('work.032')} onClose={() => setVMenu(null)}
@@ -737,8 +773,18 @@ function WorkPanelInner({ height, maxH }: { height: number; maxH: number }) {
             { key: 'src', label: tx('work.018'), checked: showSrc },
             { key: 'tgt', label: tx('work.029'), checked: showTgt },
             { key: 'mod', label: tx('work.032'), checked: showMod },
+            { key: 'fit', label: tx('work.fit'), sub: [
+              { key: 'fit:auto', label: tx('work.fitAuto'), checked: !fixed },
+              { key: 'fit:fixed', label: tx('work.fitFixed'), checked: fixed },
+            ] },
           ]}
-          onPick={(k) => { setBoxMenu(null); toggleBox(k as 'src' | 'tgt' | 'mod'); }} />
+          onPick={(k) => {
+            setBoxMenu(null);
+            // 固定欄高：把現在的高度當作固定欄高
+            if (k === 'fit:auto') s.set({ workFit: 'auto' });
+            else if (k === 'fit:fixed') s.set({ workFit: 'fixed', workH: actualH });
+            else toggleBox(k as 'src' | 'tgt' | 'mod');
+          }} />
       )}
 
       <div style={{ height: 40, flexShrink: 0, display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>

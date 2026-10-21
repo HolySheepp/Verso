@@ -235,7 +235,7 @@ export default function App() {
   const sideMax = Math.min(600, W - 700);
   const sideW = Math.round(clamp(s.sideW ?? 340, 260, sideMax));
   const workMax = Math.max(220, H - 44 - 28 - 24 - 56 - 12 - 200) + (showNav ? 0 : 56);
-  const workH = Math.round(clamp(s.workH ?? 300, 220, workMax));
+  const workH = Math.round(clamp(s.workH ?? 300, 0, workMax));
   const mainW = showSide ? W - sideW : W;
   const tabW = mainW < 980 ? 150 : 200;
 

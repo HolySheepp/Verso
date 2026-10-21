@@ -3,6 +3,9 @@
 export const ZH = {
   'work.hide': '隱藏工作欄', // 工作欄右上角的按鈕
   'work.show': '顯示工作欄', // 工作欄收起來後，叫回來的按鈕
+  'work.fit': '工作欄高度', // 工作欄空白處右鍵選單，滑鼠移上去展開下面兩項
+  'work.fitAuto': '自動調整', // 框跟內容一樣高
+  'work.fitFixed': '固定欄高', // 用現在的高度，換條目不變
   'work.boxes': '顯示的輸入框', // 工作欄空白處右鍵選單的名稱（讀螢幕軟體用）
   'cloud.versoConvert': '偵測到 Verso 存檔格式的分頁：已自動選好範圍。儲存時標記、建議翻譯、修改等會搬進 Verso 資料表，表上這些 Verso 用的欄會刪掉（轉成雲端檔）。', // 雲端模式：設定 Google 表
   'cloud.versoNoData': '偵測到 Verso 存檔格式的分頁：已自動選好範圍。要把標記等也搬過去，請先在設定 > 雲端填 Verso 資料表。', // 雲端模式：設定 Google 表

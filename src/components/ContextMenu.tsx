@@ -1,3 +1,4 @@
+import { useState } from 'react';
 import { tx } from '../i18n';
 export interface MenuItem {
   key: string;
@@ -8,6 +9,8 @@ export interface MenuItem {
   checked?: boolean;
   /** 項目右邊的數字與上下箭頭（例如插入幾列） */
   stepper?: { value: number; min: number; max: number; onChange(v: number): void };
+  /** 子選單：滑鼠移上去（或按 → ）在右邊展開，選了照樣走 onPick(子項目的 key) */
+  sub?: MenuItem[];
 }
 
 interface Props {
@@ -21,6 +24,10 @@ interface Props {
 
 /** 右鍵選單：出現在滑鼠位置，點選單外面或按 Esc 關閉 */
 export function ContextMenu({ x, y, label, items, onPick, onClose }: Props) {
+  const [open, setOpen] = useState<{ key: string; x: number; y: number; kb?: boolean } | null>(null);
+  // 用鍵盤打開時焦點移進子選單；滑鼠移上去時不搶焦點
+  const openSub = (key: string, el: HTMLElement, kb = false) => { const r = el.getBoundingClientRect(); setOpen({ key, x: r.right + 2, y: r.top - 6, kb }); };
+  const sub = open ? items.find((it) => it.key === open.key)?.sub : undefined;
   return (
     <>
       <div onMouseDown={onClose} onContextMenu={(ev) => { ev.preventDefault(); onClose(); }}
@@ -31,8 +38,10 @@ export function ContextMenu({ x, y, label, items, onPick, onClose }: Props) {
         {items.map((it, j) => {
           const btn = (
             <button key={it.key} type="button" role={it.checked !== undefined ? 'menuitemcheckbox' : 'menuitem'} aria-checked={it.checked} className="dd pop-item" autoFocus={j === 0} disabled={it.disabled}
-              onClick={() => onPick(it.key)}
-              onKeyDown={it.stepper ? (ev) => {
+              onClick={(ev) => (it.sub ? openSub(it.key, ev.currentTarget) : onPick(it.key))}
+              onMouseEnter={(ev) => (it.sub ? openSub(it.key, ev.currentTarget) : setOpen(null))}
+              aria-haspopup={it.sub ? 'menu' : undefined} aria-expanded={it.sub ? open?.key === it.key : undefined}
+              onKeyDown={it.sub ? (ev) => { if (ev.key === 'ArrowRight' || ev.key === 'Enter') { ev.preventDefault(); openSub(it.key, ev.currentTarget, true); } } : it.stepper ? (ev) => {
                 const st = it.stepper!;
                 if (ev.key === 'ArrowRight' || ev.key === '+') { ev.preventDefault(); st.onChange(Math.min(st.max, st.value + 1)); }
                 if (ev.key === 'ArrowLeft' || ev.key === '-') { ev.preventDefault(); st.onChange(Math.max(st.min, st.value - 1)); }
@@ -40,7 +49,8 @@ export function ContextMenu({ x, y, label, items, onPick, onClose }: Props) {
               style={{
                 background: 'transparent', color: it.disabled ? 'var(--dis)' : it.danger ? 'var(--errtx)' : undefined,
                 cursor: it.disabled ? 'default' : undefined, flexGrow: 1, minWidth: 0,
-              }}>{it.checked !== undefined && <span aria-hidden="true" style={{ display: 'inline-block', width: 18 }}>{it.checked ? '✓' : ''}</span>}{it.label}</button>
+                ...(it.sub ? { display: 'flex', alignItems: 'center', justifyContent: 'space-between' } : {}),
+              }}>{it.checked !== undefined && <span aria-hidden="true" style={{ display: 'inline-block', width: 18 }}>{it.checked ? '✓' : ''}</span>}{it.sub ? <><span>{it.label}</span><span aria-hidden="true" style={{ color: 'var(--mute)' }}>›</span></> : it.label}</button>
           );
           if (!it.stepper) return btn;
           const st = it.stepper;
@@ -57,6 +67,18 @@ export function ContextMenu({ x, y, label, items, onPick, onClose }: Props) {
           );
         })}
       </div>
+      {open && sub && (
+        <div role="menu" aria-label={items.find((it) => it.key === open.key)?.label} className="pop"
+          onKeyDown={(ev) => { if (ev.key === 'Escape' || ev.key === 'ArrowLeft') { ev.stopPropagation(); setOpen(null); } }}
+          style={{ position: 'fixed', left: Math.min(open.x, window.innerWidth - 140), top: Math.min(open.y, window.innerHeight - (sub.length * 32 + 20)), zIndex: 62, width: 128 }}>
+          {sub.map((it, j) => (
+            <button key={it.key} type="button" role={it.checked !== undefined ? 'menuitemradio' : 'menuitem'} aria-checked={it.checked} className="dd pop-item" autoFocus={j === 0 && open.kb} disabled={it.disabled}
+              onClick={() => onPick(it.key)} style={{ background: 'transparent', width: '100%' }}>
+              {it.checked !== undefined && <span aria-hidden="true" style={{ display: 'inline-block', width: 18 }}>{it.checked ? '✓' : ''}</span>}{it.label}
+            </button>
+          ))}
+        </div>
+      )}
     </>
   );
 }

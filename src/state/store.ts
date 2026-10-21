@@ -136,6 +136,8 @@ interface State {
   hideSide: boolean;
   /** 收起工作欄（右上角的按鈕） */
   hideWork: boolean;
+  /** 工作欄高度：auto 自動調整（框跟內容一樣高），fixed 固定欄高（workH） */
+  workFit: 'auto' | 'fixed';
   /** 各模式顯示哪些輸入框（工作欄右鍵切換）；沒記的照預設：原文、譯文顯示，修改框有修改或驗證模式才顯示 */
   workBoxes: Partial<Record<Mode, { src?: boolean; tgt?: boolean; mod?: boolean }>>;
   sideW: number | null;
@@ -686,6 +688,7 @@ export const useStore = create<Store>((set, get) => {
     hideNav: false,
     hideSide: false,
     hideWork: false,
+    workFit: 'auto',
     workBoxes: {},
     sideW: null,
     workH: null,

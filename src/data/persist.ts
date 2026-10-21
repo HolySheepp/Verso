@@ -22,6 +22,10 @@ export interface AppConfig {
   saveRoot?: string;
   /** 自動檢查的總開關 */
   checksOn?: boolean;
+  /** 固定欄高的高度（px） */
+  workH?: number;
+  /** 工作欄高度：自動調整或固定欄高 */
+  workFit?: 'auto' | 'fixed';
   /** 各模式顯示哪些輸入框 */
   workBoxes?: Partial<Record<'translate' | 'verify' | 'view' | 'source', { src?: boolean; tgt?: boolean; mod?: boolean }>>;
   /** 自動存檔間隔（分鐘） */
