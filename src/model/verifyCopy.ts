@@ -12,11 +12,11 @@ const struck = (s: string) => `<span style="font-weight:normal;font-style:normal
 const WORD = /[\p{L}\p{N}]/u;
 const CJK = /[\p{Script=Han}\p{Script=Hiragana}\p{Script=Katakana}\p{Script=Hangul}]/u;
 
-/** 整句改：譯文裡每個字（不算空白和標點）都落在某組修改裡 */
+/** 整句改：譯文裡每個字元（不算空白；標點也算，例如只改 Caw! 的 Caw 不算整句）都落在某組修改裡 */
 export function wholeChanged(tgt: string, edits: { s: number; e: number }[]): boolean {
   let any = false;
   for (let i = 0; i < tgt.length; i++) {
-    if (!WORD.test(tgt[i])) continue;
+    if (/\s/.test(tgt[i])) continue;
     any = true;
     if (!edits.some((d) => d.s <= i && i < d.e)) return false;
   }

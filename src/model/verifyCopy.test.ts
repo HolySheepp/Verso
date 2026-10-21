@@ -19,7 +19,11 @@ describe('驗證模式複製譯文欄', () => {
     expect(c.html).toContain('line-through;color:#0000ff;">New Year</span><span');
   });
   it('整句改：換行寫新句子', () => {
-    expect(wholeChanged('Hi there!', [{ s: 0, e: 2 }, { s: 3, e: 8 }])).toBe(true);
+    expect(wholeChanged('Hi there!', [{ s: 0, e: 2 }, { s: 3, e: 9 }])).toBe(true);
+    // 標點沒改到就不算整句
+    expect(wholeChanged('Hi there!', [{ s: 0, e: 2 }, { s: 3, e: 8 }])).toBe(false);
+    expect(wholeChanged('Caw!', [{ s: 0, e: 3 }])).toBe(false);
+    expect(wholeChanged('Caw!', [{ s: 0, e: 4 }])).toBe(true);
     expect(wholeChanged('Hi there!', [{ s: 0, e: 2 }])).toBe(false);
     const c = verifyCell(entry('Hi', [{ s: 0, e: 2, t: 'Hello' }]));
     if (typeof c === 'string') throw new Error();
