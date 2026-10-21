@@ -343,8 +343,6 @@ async function loadSheetInner(sid: string, quiet: boolean): Promise<boolean> {
     const cur = useStore.getState().project!;
     const at = cur.files.findIndex((f) => f.fid === doc.fid);
     asInternal(() => useStore.setState({ project: { ...cur, files: at >= 0 ? cur.files.map((f, i) => (i === at ? doc : f)) : [...cur.files, doc] } }));
-    // 收到別人的修改：這個檔案的 Ctrl+Z 紀錄不要了（免得退回別人的修改）
-    if (prev) useStore.getState().dropUndo(doc.fid!);
     loaded.add(sid);
     return true;
   } catch (e) {

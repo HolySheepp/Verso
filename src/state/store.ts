@@ -591,7 +591,10 @@ export const useStore = create<Store>((set, get) => {
   // 條目欄與頁簽操作的復原／重做：每個檔案各自一份紀錄，換檔案再換回來還在。
   // 記下整個檔案的頁簽，但復原時只換回頁簽和條目內容；檔名、所屬專案、長度標準不跟著退。
   // id：用檔案 ID 認檔案，不靠位置（檔案增刪、不儲存之後位置會變）
-  type Snap = { file: number; id: string; doc: FileDoc; sheet: number; keys: string[] };
+  // 雲端檔案不記整個檔案：只記自己改了哪幾條、每條改前改後（changes），復原時只動那幾條，
+  // 別人同時改的其他條目不受影響；那條被別人改過也照樣退回自己改之前（跟 Google 試算表一樣）
+  type Change = { uid: string; before: Entry; after: Entry };
+  type Snap = { file: number; id: string; doc: FileDoc; sheet: number; keys: string[]; uid?: string; changes?: Change[] };
   const docId = (f: FileDoc) => f.fid ?? f.project + '/' + f.name;
   const stacks = new Map<string, { undo: Snap[]; redo: Snap[] }>();
   const stacksOf = (id: string) => { let st = stacks.get(id); if (!st) { st = { undo: [], redo: [] }; stacks.set(id, st); } return st; };
@@ -605,9 +608,29 @@ export const useStore = create<Store>((set, get) => {
   };
   const pushSnap = (snap: Snap) => {
     const st = stacksOf(snap.id);
-    st.undo.push(snap);
-    if (st.undo.length > 100) st.undo.shift();
-    st.redo.length = 0;
+    const add = (x: Snap) => {
+      st.undo.push(x);
+      if (st.undo.length > 100) st.undo.shift();
+      st.redo.length = 0;
+    };
+    if (!get().project?.files.find((f) => docId(f) === snap.id)?.cloud) { add(snap); return; }
+    // 雲端：這一步的修改做完（同一輪程式跑完）再比對改了哪幾條；沒改到內容（例如只增刪列）就不算一步
+    queueMicrotask(() => {
+      const now = get().project?.files.find((f) => docId(f) === snap.id);
+      const changes = now ? diffOf(snap.doc, now, snap.uid) : [];
+      if (changes.length) add({ ...snap, changes });
+    });
+  };
+  /** 兩個版本之間內容有變的條目（用 uid 對；新增、刪掉的不算）；only：只看這一條 */
+  const diffOf = (a: FileDoc, b: FileDoc, only?: string): Change[] => {
+    const old = new Map<string, Entry>();
+    a.sheets.forEach((sh) => sh.entries.forEach((e) => old.set(e.uid, e)));
+    const out: Change[] = [];
+    b.sheets.forEach((sh) => sh.entries.forEach((e) => {
+      const o = old.get(e.uid);
+      if (o && o !== e && (!only || e.uid === only) && JSON.stringify(o) !== JSON.stringify(e)) out.push({ uid: e.uid, before: o, after: e });
+    }));
+    return out;
   };
   const pushUndo = () => pushSnap(snapNow());
 
@@ -631,6 +654,32 @@ export const useStore = create<Store>((set, get) => {
     // 用檔案 ID 找回那個檔案；找不到（已經不在了）就丟掉這一步
     const fi = p.files.findIndex((f) => docId(f) === popped.id);
     if (fi < 0) return;
+    if (popped.changes) {
+      // 雲端：只把記下的那幾條換回去（找不到的條目，例如整列被刪了，就略過）
+      const f = p.files[fi];
+      const map = new Map(popped.changes.map((c) => [c.uid, c]));
+      const back: Change[] = [];
+      let at: { sheet: number; i: number } | null = null;
+      const sheets = f.sheets.map((sh, si) => {
+        if (!sh.entries.some((e) => map.has(e.uid))) return sh;
+        return { ...sh, entries: sh.entries.map((e, i) => {
+          const c = map.get(e.uid);
+          if (!c) return e;
+          at ??= { sheet: si, i };
+          back.push({ uid: e.uid, before: e, after: c.before });
+          return c.before;
+        }) };
+      });
+      if (!at) return;
+      const pos: { sheet: number; i: number } = at;
+      to.push({ ...popped, file: fi, changes: back });
+      replaceFile(fi, { ...f, sheets });
+      set({
+        file: fi, sheetBy: { ...get().sheetBy, [fi]: pos.sheet }, selBy: { ...get().selBy, [selKey(fi, pos.sheet)]: pos.i },
+        cellSel: null, ...noPopups, ...noView,
+      });
+      return;
+    }
     const snap = { ...popped, file: fi };
     const s = get();
     to.push({ file: fi, id: popped.id, doc: p.files[fi], sheet: s.file === fi ? currentOf(s).sheetIdx : snap.sheet, keys: s.cellSel?.keys ?? [] });
@@ -996,7 +1045,8 @@ export const useStore = create<Store>((set, get) => {
     },
 
     beginEdit() {
-      if (!editSnap && get().project?.files[get().file]) editSnap = snapNow();
+      // 雲端檔案只看正在編輯的這一條：編輯途中同步進來的別人的修改不算自己的一步
+      if (!editSnap && get().project?.files[get().file]) editSnap = { ...snapNow(), uid: cur().entry?.uid };
     },
 
     endEdit() {
