@@ -299,12 +299,22 @@ const inflight = new Map<string, Promise<boolean>>();
 export function loadSheet(sid: string, quiet = false): Promise<boolean> {
   const now = inflight.get(sid);
   if (now) return now;
-  const run = loadSheetInner(sid, quiet).finally(() => inflight.delete(sid));
+  const run = (async () => {
+    // 讀的途中有寫回：讀到的是寫回前的舊內容，丟掉重讀（最多三次）
+    for (let n = 0; ; n++) {
+      const r = await loadSheetInner(sid, quiet, n < 2);
+      if (r !== 'again') return r;
+    }
+  })().finally(() => inflight.delete(sid));
   inflight.set(sid, run);
   return run;
 }
 
-async function loadSheetInner(sid: string, quiet: boolean): Promise<boolean> {
+/** 每份試算表寫回了幾次：讀取前後不一樣，代表讀的途中有寫回 */
+const flushVer = new Map<string, number>();
+
+async function loadSheetInner(sid: string, quiet: boolean, retry: boolean): Promise<boolean | 'again'> {
+  const v0 = flushVer.get(sid) ?? 0;
   const conf = confOf(sid);
   if (!conf || loading.has(sid)) return false;
   // 有剛插入、還沒寫進內容的條目：先不重讀（Google 上是空白列，可能讀不到）
@@ -325,9 +335,13 @@ async function loadSheetInner(sid: string, quiet: boolean): Promise<boolean> {
     const values = await readTabs(sid, tabs.map((t) => t.title));
     const fd = await readData(sid, true);
     const rich = await Promise.all(tabs.map((t, i) => (needRich(t, values[i], fd) ? readRich(sid, t.title, t.fields.tgt!.col) : Promise.resolve(undefined))));
+    const kept = fileOf(sid) && !fileOf(sid)!.cloud?.stub ? undefined : await readCache(sid);
+    // 等正在寫回的做完；讀的途中有寫回（例如改完一條馬上換下一條）的話，這次讀到的是舊值，用了會把剛改的蓋回去，重讀。
+    // 這之後到換上新內容之間沒有 await，寫回不會插進來
+    await serial(async () => {});
+    if (retry && (flushVer.get(sid) ?? 0) !== v0) return 'again';
     const cur0 = fileOf(sid);
     const prev = cur0 && !cur0.cloud?.stub ? cur0 : undefined;
-    const kept = prev ? undefined : await readCache(sid);
     // 用讀完時最新的移除紀錄（讀的途中可能剛移除了條目或頁簽）
     const rm = removedOf(sid);
     const sheets = tabs.map((t, i) => (rm?.tabs?.includes(t.gid) ? null : buildSheet(t, values[i], prev?.sheets.find((s) => s.gid === t.gid), kept?.[String(t.gid)], fd, rich[i], new Set(rm?.rows?.[String(t.gid)] ?? []))))
@@ -382,6 +396,12 @@ function wanted(e: Entry, b: Base, customs: CustomMark[], useData: boolean) {
 /** 把改過的譯文、備註、標記等寫回 Google；all：連正在編輯的那條也寫（結束、關掉雲端模式時） */
 export function flush(sid: string, all = false): Promise<void> {
   return serial(async () => {
+    try { await flushInner(sid, all); } finally { flushVer.set(sid, (flushVer.get(sid) ?? 0) + 1); }
+  });
+}
+
+async function flushInner(sid: string, all: boolean): Promise<void> {
+  {
     const doc = fileOf(sid);
     const conf = confOf(sid);
     if (!doc || !conf || doc.cloud?.stub) return;
@@ -469,7 +489,7 @@ export function flush(sid: string, all = false): Promise<void> {
         showToast(msg, { warn: true });
       }
     }
-  });
+  }
 }
 
 function addConflict(c: Conflict) {
