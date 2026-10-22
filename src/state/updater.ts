@@ -41,7 +41,8 @@ export async function checkAtStartup(): Promise<boolean> {
   // 在啟動畫面上問，等使用者選
   const yes = await new Promise<boolean>((resolve) => useStore.setState({ updatePrompt: { version: found.version, resolve } }));
   useStore.setState({ updatePrompt: null });
-  if (!yes) { useStore.setState({ updateAvailable: found.version }); return false; }
+  // 先不更新：之後又發布了更新的版本也要查得到
+  if (!yes) { useStore.setState({ updateAvailable: found.version }); startBackgroundCheck(); return false; }
   return install();
 }
 
@@ -88,7 +89,7 @@ async function install(): Promise<boolean> {
   }
 }
 
-/** 背景檢查：每 10 分鐘一次，查到就在標題列顯示小圖示 */
+/** 背景檢查：每 10 分鐘一次，查到就在標題列顯示小圖示；查到之後也繼續查，又發布了更新的版本就換成新的 */
 function startBackgroundCheck() {
   if (retry) return;
   const run = async () => {
@@ -97,7 +98,6 @@ function startBackgroundCheck() {
       if (!u) return;
       pending = u;
       useStore.setState({ updateAvailable: u.version });
-      clearInterval(retry);
     } catch { /* 下次再試 */ }
   };
   retry = setInterval(() => { void run(); }, RETRY_EVERY);
@@ -111,6 +111,11 @@ export async function onUpdateIcon() {
     try { await invoke('open_url', { url: RELEASES_URL }); } catch { /* 打不開就算了 */ }
     return;
   }
+  // 按下去時再查一次（最多等 3 秒）：圖示出現之後又發布了新版本，就更新到最新的
+  try {
+    const u = await Promise.race([checkOnce(), new Promise<null>((r) => setTimeout(() => r(null), 3000))]);
+    if (u) { pending = u; useStore.setState({ updateAvailable: u.version }); }
+  } catch { /* 查不到就用之前查到的 */ }
   const v = useStore.getState().updateAvailable;
   if (!v) return;
   const yes = await new Promise<boolean>((resolve) => useStore.setState({ updatePrompt: { version: v, resolve } }));
