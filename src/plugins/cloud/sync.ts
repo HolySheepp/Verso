@@ -103,8 +103,9 @@ const is400 = (e: unknown) => /^400\b/.test(String((e as Error)?.message ?? e));
 
 /** 「Verso檔案」分頁：試算表ID、名稱、專案、欄位設定、更新者、更新時間、長度標準、移除、進度（新欄位一律加在右邊，舊資料不動） */
 const FILES_TAB = 'Verso檔案';
-const FILES_HEAD = ['試算表ID', '名稱', '專案', '欄位設定', '更新者', '更新時間', '長度標準', '移除', '進度'];
+const FILES_HEAD = ['試算表ID', '名稱', '專案', '欄位設定', '更新者', '更新時間', '長度標準', '移除', '進度', '全部頁簽'];
 const PROGRESS_COL = 8;
+const ALL_TABS_COL = 9;
 const textToProgress = (t?: string): CloudProgress | undefined => {
   try {
     const x = t ? JSON.parse(t) : null;
@@ -134,7 +135,7 @@ export async function readShared() {
       try { removed = v[7] ? JSON.parse(v[7]) : undefined; } catch { removed = undefined; }
       removed = mergeRemoved(removed, localRemoved.get(v[0]));
       const progress = textToProgress(v[PROGRESS_COL]);
-      shared.push({ sid: v[0], title: v[1] ?? '', project: v[2] || SHARED, tabs, ...(v[6] ? { lengthStd: textToStd(v[6]) } : {}), ...(removed ? { removed } : {}), ...(progress ? { progress } : {}) });
+      shared.push({ sid: v[0], title: v[1] ?? '', project: v[2] || SHARED, tabs, ...(v[6] ? { lengthStd: textToStd(v[6]) } : {}), ...(removed ? { removed } : {}), ...(progress ? { progress } : {}), ...(v[ALL_TABS_COL] === '1' ? { allTabs: true } : {}) });
     } catch { /* 壞掉的列不理 */ }
   });
   useCloud.setState({ shared });
@@ -148,7 +149,9 @@ export async function writeShared(conf: CloudSheet) {
   if (!filesExists) { await addTab(did, FILES_TAB, FILES_HEAD.length); await writeRows(did, FILES_TAB, [{ row: 0, values: FILES_HEAD }]); filesExists = true; }
   // 舊版建的分頁欄位比較少：在右邊補欄位、補標題
   else if (filesHeadLen < FILES_HEAD.length) { await ensureCols(did, FILES_TAB, FILES_HEAD.length); await writeRows(did, FILES_TAB, [{ row: 0, values: FILES_HEAD }]); }
-  const values = [conf.sid, conf.title, conf.project, JSON.stringify(conf.tabs), useCloud.getState().email ?? '', new Date().toISOString(), stdToText(conf.lengthStd), conf.removed ? JSON.stringify(conf.removed) : ''];
+  // 進度欄照資料表現在記的寫回去（這裡是整列一起寫）
+  const progress = progressSent.get(conf.sid) ?? (conf.progress ? JSON.stringify(conf.progress) : '');
+  const values = [conf.sid, conf.title, conf.project, JSON.stringify(conf.tabs), useCloud.getState().email ?? '', new Date().toISOString(), stdToText(conf.lengthStd), conf.removed ? JSON.stringify(conf.removed) : '', progress, conf.allTabs ? '1' : ''];
   const row = filesRows.get(conf.sid);
   if (row !== undefined) await writeRows(did, FILES_TAB, [{ row, values }]);
   else await appendRows(did, FILES_TAB, [values]);
@@ -377,8 +380,15 @@ async function loadSheetInner(sid: string, quiet: boolean, retry: boolean): Prom
     const prev = cur0 && !cur0.cloud?.stub ? cur0 : undefined;
     // 用讀完時最新的移除紀錄（讀的途中可能剛移除了條目或頁簽）
     const rm = removedOf(sid);
-    const sheets = tabs.map((t, i) => (rm?.tabs?.includes(t.gid) ? null : buildSheet(t, values[i], prev?.sheets.find((s) => s.gid === t.gid), kept?.[String(t.gid)], fd, rich[i], new Set(rm?.rows?.[String(t.gid)] ?? []))))
+    const built = tabs.map((t, i) => (rm?.tabs?.includes(t.gid) ? null : buildSheet(t, values[i], prev?.sheets.find((s) => s.gid === t.gid), kept?.[String(t.gid)], fd, rich[i], new Set(rm?.rows?.[String(t.gid)] ?? []))))
       .filter((x): x is Sheet => !!x);
+    // R15 檔：還沒設定欄位的分頁也列出來（空的，點開時選範圍），照 Google 上的順序
+    const extra = conf.allTabs ? m.tabs.filter((t) => !conf.tabs.some((c) => c.gid === t.gid) && !rm?.tabs?.includes(t.gid)).map((t): Sheet => {
+      const old = prev?.sheets.find((s) => s.gid === t.gid && s.setup && s.name === t.title);
+      return old ?? { name: t.title, gid: t.gid, entries: [], setup: true };
+    }) : [];
+    const order = (g?: number) => m.tabs.findIndex((t) => t.gid === g);
+    const sheets = extra.length ? [...built, ...extra].sort((a, b) => order(a.gid) - order(b.gid)) : built;
     if (!sheets.length) return false;
     const p = useStore.getState().project!;
     ensureProjects([conf.project]);
@@ -1130,25 +1140,7 @@ export async function createR15(sid: string, link: string, linkTitle: string, ta
     await writeRich(link, cells);
     newTabs.push({ gid: t.gid, title: t.title, fields: toFields(fields, t.rows.length - 1) });
   }
-  // 沒選範圍的頁簽：照舊原文整頁帶過去（在新連結裡新增分頁）
-  const used = new Set(tabs.map((t) => t.sheetIdx));
-  const linkMeta = await meta(link);
-  for (const [k, sh] of doc.sheets.entries()) {
-    if (used.has(k)) continue;
-    const old = conf.tabs.find((x) => x.gid === sh.gid);
-    if (!old) continue;
-    const [rows] = await readTabs(sid, [old.title]);
-    let name = old.title, n = 2;
-    while (linkMeta.tabs.some((x) => x.title === name)) name = `${old.title} (${n++})`;
-    const width = Math.max(1, ...rows.map((r) => r.length));
-    const gid = await addTab(link, name, width);
-    if (rows.length) {
-      await writeRows(link, name, [{ row: 0, values: rows[0] }]);
-      if (rows.length > 1) await appendRows(link, name, rows.slice(1).map((r) => (r.length ? r : [''])));
-    }
-    linkMeta.tabs.push({ gid, title: name });
-    newTabs.push({ gid, title: name, fields: old.fields });
-  }
+  // 原檔其他的頁簽不搬過去：R15 表保持原樣；R15 表上沒選範圍的分頁（例如對照用）照樣列出來，點開時選範圍
   // 原文更新的狀態寫進資料表（新檔案的分頁）
   if (did && dataRows.length) {
     const fd = await readData(link, true);
@@ -1156,7 +1148,7 @@ export async function createR15(sid: string, link: string, linkTitle: string, ta
     await appendRows(did, link, dataRows);
     fileData.delete(link);
   }
-  await putSheet({ sid: link, title: linkTitle, project: conf.project, tabs: newTabs, lengthStd: conf.lengthStd });
+  await putSheet({ sid: link, title: linkTitle, project: conf.project, tabs: newTabs, lengthStd: conf.lengthStd, allTabs: true });
 }
 
 // ---- 移除：Verso 不再讀取這些頁簽、條目（Google 上不動），紀錄存在資料表，同專案的人都不會再讀到 ----

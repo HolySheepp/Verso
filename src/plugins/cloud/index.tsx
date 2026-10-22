@@ -6,7 +6,7 @@ import { fz } from '../../model/fonts';
 import { checkColumns, COLS, type ColKey } from '../../model/paste';
 import { emptyFields, fieldsToColumns, isVersoHeader, type FieldMap } from '../../model/importSel';
 import { SHARED } from '../../model/types';
-import { showToast, useStore } from '../../state/store';
+import { currentOf, showToast, useStore } from '../../state/store';
 import { isDirty, saveNow } from '../../state/saver';
 import { ConfirmDialog } from '../../components/ConfirmDialog';
 import { Select } from '../../components/Select';
@@ -170,7 +170,7 @@ const REQUIRED: ColKey[] = ['id', 'speaker', 'src', 'note'];
 interface Draft extends DraftSheet { gid: number }
 
 /** 設定一份 Google 表：貼網址、選專案，再像匯入檔案一樣在預覽裡選各欄的範圍 */
-function SetupDialog({ sid0 }: { sid0?: string }) {
+function SetupDialog({ sid0, gid0 }: { sid0?: string; gid0?: number }) {
   const close = () => useCloud.setState({ setup: null });
   const projects = useStore((s) => s.project?.projects ?? NONE);
   const old = allSheets().find((x) => x.sid === sid0);
@@ -197,7 +197,8 @@ function SetupDialog({ sid0 }: { sid0?: string }) {
         const prev = old?.tabs.find((x) => x.gid === t.gid);
         return { id: 'g' + t.gid, gid: t.gid, name: t.title, rows, width: Math.max(1, ...rows.map((r) => r.length)), fields: prev ? toFieldMap(prev.fields, rows.length - 1) : versoFields(rows) ?? emptyFields() };
       }));
-      setCur(0);
+      // 從還沒設定的分頁點進來：直接停在那個分頁
+      setCur(Math.max(0, m.tabs.findIndex((t) => t.gid === gid0)));
     } catch (e) { setErr(errText(e)); }
     setBusy(false);
   };
@@ -253,7 +254,8 @@ function SetupDialog({ sid0 }: { sid0?: string }) {
         }
         tabs.push({ gid: d.gid, title: d.name, fields: toFields(fields, d.rows.length - 1) });
       }
-      const conf: CloudSheet = { sid, title, project, tabs };
+      // R15 檔照樣列出全部分頁
+      const conf: CloudSheet = { sid, title, project, tabs, ...(old?.allTabs ? { allTabs: true } : {}) };
       close();
       await putSheet(conf);
     } catch (e) { setErr(errText(e)); setBusy(false); }
@@ -387,7 +389,7 @@ function Overlay() {
   const confirm = useCloud((s) => s.confirm);
   return (
     <>
-      {setup && <SetupDialog key={setup.sid ?? 'new'} sid0={setup.sid} />}
+      {setup && <SetupDialog key={setup.sid ?? 'new'} sid0={setup.sid} gid0={setup.gid} />}
       {manage && <ManageDialog />}
       {projectsOpen && <ProjectsDialog />}
       {askDelete && <DeletePreview ask={askDelete} />}
@@ -422,6 +424,14 @@ async function start(step: (p: number, text: string) => void) {
     posTimer = setTimeout(() => void rememberPos(), 3000);
   });
   beforeExit.add(flushDicts);
+  // 點開還沒設定欄位的分頁（R15 表的其他分頁）：跳出設定視窗、停在那個分頁
+  useStore.subscribe((s, prev) => {
+    if (!s.cloudMode || (s.file === prev.file && s.sheetBy === prev.sheetBy && s.project?.files[s.file] === prev.project?.files[prev.file])) return;
+    const { fileDoc, sheet } = currentOf(s);
+    const was = prev.project ? currentOf(prev) : null;
+    if (!sheet?.setup || !fileDoc.cloud || (was?.sheet.gid === sheet.gid && was?.fileDoc.cloud?.sid === fileDoc.cloud.sid)) return;
+    if (!useCloud.getState().setup) useCloud.setState({ setup: { sid: fileDoc.cloud.sid, gid: sheet.gid } });
+  });
   // 雲端模式改了常用標準：寫進資料表
   useStore.subscribe((s, prev) => { if (s.cloudMode && prev.cloudMode && s.lengthPresets !== prev.lengthPresets) void writePresets(s.lengthPresets); });
   try { useCloud.setState({ email: await loginStatus(), builtin: await builtinClient() }); } catch { /* 沒有桌面外殼（瀏覽器預覽） */ }

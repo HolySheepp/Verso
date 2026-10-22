@@ -21,6 +21,8 @@ export interface CloudSheet {
   removed?: { tabs?: number[]; rows?: Record<string, string[]> };
   /** 資料表記的檔案進度（寫回條目時更新；還沒讀的檔案用它顯示） */
   progress?: CloudProgress;
+  /** 顯示 Google 表上全部的分頁（R15 檔）：沒設定欄位的也列出來，點開時選範圍 */
+  allTabs?: boolean;
 }
 export interface CloudConfig {
   on: boolean; clientId: string; clientSecret: string; sheets: CloudSheet[];
@@ -41,7 +43,7 @@ const EMPTY: CloudConfig = { on: false, clientId: '', clientSecret: '', sheets: 
 /** 設定、登入狀態與對話框（外掛自己的小 store） */
 export const useCloud = create<{
   cfg: CloudConfig; loaded: boolean; email: string | null;
-  setup: { sid?: string } | null; manage: boolean;
+  setup: { sid?: string; gid?: number } | null; manage: boolean;
   conflicts: Conflict[];
   /** 同步中、上次同步完成的時間、上次同步的錯誤（給同步按鈕顯示） */
   syncing: boolean; lastSync: number | null; syncError: string;

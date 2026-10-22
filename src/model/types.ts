@@ -68,6 +68,8 @@ export interface Sheet {
   entries: Entry[];
   /** 雲端模式：Google 試算表的分頁 ID（gid） */
   gid?: number;
+  /** 雲端模式：還沒選欄位範圍的分頁（R15 表裡沒對應原檔的頁簽），點開時選範圍 */
+  setup?: boolean;
 }
 
 /** 雲端檔案記在資料表的進度（還沒讀的檔案用它顯示）：翻譯／驗證模式各自的「完成、總數」，done 是整個檔案打勾 */
