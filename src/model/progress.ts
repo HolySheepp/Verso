@@ -45,6 +45,18 @@ export function sheetProgress(entries: Entry[], mode: Mode): Progress {
   return p;
 }
 
+/** 整個檔案（所有頁簽加起來）的進度；還沒讀的雲端檔案用資料表記的，沒記就是 null（顯示「—」） */
+export function fileProgressShown(f: FileDoc, mode: Mode): Progress | null {
+  if (!f.cloud?.stub) return fileProgress(f, mode);
+  const p = f.cloud.progress;
+  if (!p) return null;
+  const [done, total] = mode === 'verify' ? p.v : p.t;
+  return { done, total };
+}
+
+/** 檔案打勾（還沒讀的雲端檔案看資料表記的） */
+export const fileDoneShown = (f: FileDoc) => (f.cloud?.stub ? !!f.cloud.progress?.done : fileDone(f));
+
 /** 整個檔案（所有頁簽加起來）的進度 */
 export function fileProgress(f: FileDoc | undefined, mode: Mode): Progress {
   const out = { done: 0, total: 0 };

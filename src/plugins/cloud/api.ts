@@ -115,6 +115,11 @@ export async function writeRows(sid: string, title: string, rows: { row: number;
   });
 }
 
+/** 寫一格（row、col 從 0 起算） */
+export async function writeCell(sid: string, title: string, row: number, col: number, value: string) {
+  await call('POST', `${sid}/values:batchUpdate`, { valueInputOption: 'RAW', data: [{ range: `${q(title)}!${colName(col)}${row + 1}`, values: [[value]] }] });
+}
+
 /** 接在表的最後面加幾列；回傳第一列的位置（從 0 起算） */
 export async function appendRows(sid: string, title: string, rows: string[][]): Promise<number> {
   const r = await call<{ updates?: { updatedRange?: string } }>('POST',

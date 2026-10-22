@@ -70,11 +70,14 @@ export interface Sheet {
   gid?: number;
 }
 
+/** 雲端檔案記在資料表的進度（還沒讀的檔案用它顯示）：翻譯／驗證模式各自的「完成、總數」，done 是整個檔案打勾 */
+export interface CloudProgress { t: [number, number]; v: [number, number]; done: boolean }
+
 export interface FileDoc {
   /** 檔案 ID：軟體內部靠它認檔案；在外面改名、搬專案也還是同一個檔案（檔名只是顯示用） */
   fid?: string;
   /** 雲端模式的檔案（Google 試算表）：不存進存檔資料夾，只在雲端模式顯示 */
-  cloud?: { sid: string; stub?: boolean };
+  cloud?: { sid: string; stub?: boolean; progress?: CloudProgress };
   name: string;
   /** 檔案的長度標準（套用到全部條目）；沒設定是 undefined */
   lengthStd?: StdValue;

@@ -12,7 +12,7 @@ import { exists, mkdir, readTextFile, writeTextFile } from '@tauri-apps/plugin-f
 import { tx } from '../../i18n';
 import { fieldsToColumns } from '../../model/importSel';
 import { columnsToEntries } from '../../model/paste';
-import { SHARED, type CustomMark, type Entry, type FileDoc, type Sheet } from '../../model/types';
+import { SHARED, type CloudProgress, type CustomMark, type Entry, type FileDoc, type Sheet } from '../../model/types';
 import { textToVerify, verifyToText } from '../../model/verify';
 import { currentOf, isShown, showToast, useStore } from '../../state/store';
 import { ensureCols, insertRowsAt, moveRowsSeq, deleteRows, renameTab, deleteTab } from './api';
@@ -26,6 +26,8 @@ import type { FieldMap } from '../../model/importSel';
 import { textToStd, stdToText } from '../../model/length';
 import { backupPresets, ensureProjects, readProjects } from './projects';
 import { listDicts, loadEnabled, reloadDicts } from './dicts';
+import { writeCell } from './api';
+import { fileDone, fileProgress } from '../../model/progress';
 import { addTab, appendRows, errText, meta, readCols, readRich, readTabs, sidOf, writeRich, writeRows, type Rich } from './api';
 import { blueStart, markToText, noteCell, richSig, stripMarkup, textToMark, tgtCell } from './format';
 import { allSheets, configSaved, setConfig, toFieldMap, useCloud, type CloudSheet, type CloudTab, type Conflict, type FieldRange, type Fields } from './config';
@@ -99,9 +101,16 @@ function saveCacheSoon(doc: FileDoc) {
 const dataSid = () => sidOf(useCloud.getState().cfg.dataUrl ?? '') ?? '';
 const is400 = (e: unknown) => /^400\b/.test(String((e as Error)?.message ?? e));
 
-/** 「Verso檔案」分頁：試算表ID、名稱、專案、欄位設定、更新者、更新時間、長度標準（新欄位一律加在右邊，舊資料不動） */
+/** 「Verso檔案」分頁：試算表ID、名稱、專案、欄位設定、更新者、更新時間、長度標準、移除、進度（新欄位一律加在右邊，舊資料不動） */
 const FILES_TAB = 'Verso檔案';
-const FILES_HEAD = ['試算表ID', '名稱', '專案', '欄位設定', '更新者', '更新時間', '長度標準', '移除'];
+const FILES_HEAD = ['試算表ID', '名稱', '專案', '欄位設定', '更新者', '更新時間', '長度標準', '移除', '進度'];
+const PROGRESS_COL = 8;
+const textToProgress = (t?: string): CloudProgress | undefined => {
+  try {
+    const x = t ? JSON.parse(t) : null;
+    return x && Array.isArray(x.t) && Array.isArray(x.v) ? { t: [Number(x.t[0]) || 0, Number(x.t[1]) || 0], v: [Number(x.v[0]) || 0, Number(x.v[1]) || 0], done: !!x.done } : undefined;
+  } catch { return undefined; }
+};
 let filesHeadLen = 0;
 const filesRows = new Map<string, number>();
 let filesExists = false;
@@ -124,7 +133,8 @@ export async function readShared() {
       let removed: CloudSheet['removed'];
       try { removed = v[7] ? JSON.parse(v[7]) : undefined; } catch { removed = undefined; }
       removed = mergeRemoved(removed, localRemoved.get(v[0]));
-      shared.push({ sid: v[0], title: v[1] ?? '', project: v[2] || SHARED, tabs, ...(v[6] ? { lengthStd: textToStd(v[6]) } : {}), ...(removed ? { removed } : {}) });
+      const progress = textToProgress(v[PROGRESS_COL]);
+      shared.push({ sid: v[0], title: v[1] ?? '', project: v[2] || SHARED, tabs, ...(v[6] ? { lengthStd: textToStd(v[6]) } : {}), ...(removed ? { removed } : {}), ...(progress ? { progress } : {}) });
     } catch { /* 壞掉的列不理 */ }
   });
   useCloud.setState({ shared });
@@ -143,6 +153,29 @@ export async function writeShared(conf: CloudSheet) {
   if (row !== undefined) await writeRows(did, FILES_TAB, [{ row, values }]);
   else await appendRows(did, FILES_TAB, [values]);
   await readShared();
+}
+
+/** 上次寫進資料表的進度（一樣就不再寫） */
+const progressSent = new Map<string, string>();
+/**
+ * 把讀過的檔案的進度（翻譯、驗證模式各自的完成數／總數、整個檔案有沒有打勾）寫進「Verso檔案」分頁，
+ * 別人的檔案選單不用打開檔案就看得到。跟資料表記的一樣就不寫
+ */
+async function writeProgress(sid: string) {
+  const did = dataSid();
+  const doc = fileOf(sid);
+  if (!did || !doc || doc.cloud?.stub) return;
+  const t = fileProgress(doc, 'translate'), v = fileProgress(doc, 'verify');
+  const text = JSON.stringify({ t: [t.done, t.total], v: [v.done, v.total], done: fileDone(doc) });
+  const known = progressSent.get(sid) ?? JSON.stringify(useCloud.getState().shared.find((x) => x.sid === sid)?.progress ?? null);
+  if (known === text) return;
+  const row = filesRows.get(sid);
+  if (row === undefined) return;
+  try {
+    if (filesHeadLen < FILES_HEAD.length) { await ensureCols(did, FILES_TAB, FILES_HEAD.length); await writeRows(did, FILES_TAB, [{ row: 0, values: FILES_HEAD }]); filesHeadLen = FILES_HEAD.length; }
+    await writeCell(did, FILES_TAB, row, PROGRESS_COL, text);
+    progressSent.set(sid, text);
+  } catch { /* 進度寫不上去不影響工作，下次寫回時再試 */ }
 }
 
 /** 每個檔案在資料表裡的分頁（名稱是試算表 ID）：分頁ID、條目ID、第幾個、標記、建議翻譯、修改、譯文、寫入的譯文格、備註藍色起點、更新者、更新時間 */
@@ -397,6 +430,7 @@ function wanted(e: Entry, b: Base, customs: CustomMark[], useData: boolean) {
 export function flush(sid: string, all = false): Promise<void> {
   return serial(async () => {
     try { await flushInner(sid, all); } finally { flushVer.set(sid, (flushVer.get(sid) ?? 0) + 1); }
+    await writeProgress(sid);
   });
 }
 
@@ -554,8 +588,16 @@ export function ensureStubs() {
   const sheets = allSheets();
   const want = new Set(sheets.map((x) => fidOf(x.sid)));
   ensureProjects(sheets.map((x) => x.project || SHARED));
+  const progressOf = (sid: string) => useCloud.getState().shared.find((y) => y.sid === sid)?.progress;
+  // 還沒讀的檔案：進度換成資料表最新記的
+  const files = p.files.map((f) => {
+    if (!f.cloud?.stub) return f;
+    const pr = progressOf(f.cloud.sid);
+    return JSON.stringify(pr ?? null) === JSON.stringify(f.cloud.progress ?? null) ? f : { ...f, cloud: { ...f.cloud, progress: pr } };
+  });
+  if (files.some((f, i) => f !== p.files[i])) useStore.setState({ project: { ...p, files } });
   const add = sheets.filter((x) => !p.files.some((f) => f.fid === fidOf(x.sid))).map((x): FileDoc => ({
-    fid: fidOf(x.sid), cloud: { sid: x.sid, stub: true }, name: x.title || x.sid,
+    fid: fidOf(x.sid), cloud: { sid: x.sid, stub: true, ...(progressOf(x.sid) ? { progress: progressOf(x.sid) } : {}) }, name: x.title || x.sid,
     project: x.project || SHARED, lengthStd: x.lengthStd,
     sheets: x.tabs.filter((t) => !x.removed?.tabs?.includes(t.gid)).map((t) => ({ name: t.title, gid: t.gid, entries: [] })),
   }));

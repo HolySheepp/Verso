@@ -1,4 +1,5 @@
 // 雲端模式的設定（這台電腦的 Verso 資料夾裡的 cloud/config.json）：開關、Google 用戶端 ID、設定過的試算表
+import type { CloudProgress } from '../../model/types';
 import { appDataDir, join } from '@tauri-apps/api/path';
 import { exists, mkdir, readTextFile, writeTextFile } from '@tauri-apps/plugin-fs';
 import { create } from 'zustand';
@@ -18,6 +19,8 @@ export interface CloudSheet {
   lengthStd?: StdValue;
   /** 移除的頁簽（分頁 ID）和條目（分頁 ID → 「ID 第幾個」）：Verso 不再讀取，Google 上不動；重新設定時清掉 */
   removed?: { tabs?: number[]; rows?: Record<string, string[]> };
+  /** 資料表記的檔案進度（寫回條目時更新；還沒讀的檔案用它顯示） */
+  progress?: CloudProgress;
 }
 export interface CloudConfig {
   on: boolean; clientId: string; clientSecret: string; sheets: CloudSheet[];
