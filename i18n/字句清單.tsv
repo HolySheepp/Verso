@@ -1,4 +1,10 @@
 ﻿代號	中文	畫面區域	程式位置
+cloud.offlineTitle	沒有連接到網路	雲端模式開著、啟動時沒有網路的提示標題	plugins/cloud/index.tsx:431 plugins/cloud/index.tsx:434
+cloud.offlineBody	無法連接到網路，可先關閉雲端模式，網路連接恢復後會自動重試	同上的說明	plugins/cloud/index.tsx:431
+cloud.offlineOff	關閉雲端模式	同上的按鈕	plugins/cloud/index.tsx:431
+cloud.boot1	讀取雲端資料表	啟動畫面：雲端模式開著時的進度說明	plugins/cloud/sync.ts:641
+cloud.boot2	讀取雲端專案與字典	啟動畫面	plugins/cloud/sync.ts:649
+cloud.boot3	讀取工作進度	啟動畫面：讀取上次打開的 Google 表並回到上次的條目	plugins/cloud/sync.ts:656 plugins/cloud/sync.ts:659
 work.hide	隱藏工作欄	工作欄右上角的按鈕	components/WorkPanel.tsx:591 components/WorkPanel.tsx:591
 work.show	顯示工作欄	工作欄收起來後，叫回來的按鈕	App.tsx:280 App.tsx:280
 work.fit	工作欄高度	工作欄空白處右鍵選單，滑鼠移上去展開下面兩項	components/WorkPanel.tsx:776
@@ -7,14 +13,14 @@ work.fitFixed	固定欄高	用現在的高度，換條目不變	components/WorkP
 work.boxes	顯示的輸入框	工作欄空白處右鍵選單的名稱（讀螢幕軟體用）	components/WorkPanel.tsx:771
 cloud.versoConvert	偵測到 Verso 存檔格式的分頁：已自動選好範圍。儲存時標記、建議翻譯、修改等會搬進 Verso 資料表，表上這些 Verso 用的欄會刪掉（轉成雲端檔）。	雲端模式：設定 Google 表	plugins/cloud/index.tsx:276
 cloud.versoNoData	偵測到 Verso 存檔格式的分頁：已自動選好範圍。要把標記等也搬過去，請先在設定 > 雲端填 Verso 資料表。	雲端模式：設定 Google 表	plugins/cloud/index.tsx:276
-cloud.section	雲端	設定左邊的分類	plugins/cloud/index.tsx:449
+cloud.section	雲端	設定左邊的分類	plugins/cloud/index.tsx:458
 settings.checksOn	自動檢查	設定 > 檢查：總開關	components/SettingsDialog.tsx:253
-cloud.removeRowsAsk	移除這 {n} 條？	雲端模式：移除條目的確認	plugins/cloud/sync.ts:1110
-cloud.removeRowsBody	移除後 Verso 不再讀取這幾條（Google 上不動），同專案的人也不會再讀到。之後要恢復，只能重新設定這份表。	雲端模式：移除條目的確認	plugins/cloud/sync.ts:1110
-cloud.removeTabAsk	移除頁簽「{name}」？	雲端模式：移除頁簽的確認	plugins/cloud/sync.ts:1134
-cloud.removeTabBody	移除後 Verso 不再讀取這個頁簽（Google 上不動），同專案的人也不會再讀到。之後要恢復，只能重新設定這份表。	雲端模式：移除頁簽的確認	plugins/cloud/sync.ts:1134
-cloud.removeOk	移除	雲端模式：移除的確認按鈕	plugins/cloud/sync.ts:1110 plugins/cloud/sync.ts:1134
-cloud.removeLastTab	最後一個頁簽不能移除，要整份不用請到「管理 Google 表」選不再使用	雲端模式：移除頁簽	plugins/cloud/sync.ts:1133
+cloud.removeRowsAsk	移除這 {n} 條？	雲端模式：移除條目的確認	plugins/cloud/sync.ts:1184
+cloud.removeRowsBody	移除後 Verso 不再讀取這幾條（Google 上不動），同專案的人也不會再讀到。之後要恢復，只能重新設定這份表。	雲端模式：移除條目的確認	plugins/cloud/sync.ts:1184
+cloud.removeTabAsk	移除頁簽「{name}」？	雲端模式：移除頁簽的確認	plugins/cloud/sync.ts:1208
+cloud.removeTabBody	移除後 Verso 不再讀取這個頁簽（Google 上不動），同專案的人也不會再讀到。之後要恢復，只能重新設定這份表。	雲端模式：移除頁簽的確認	plugins/cloud/sync.ts:1208
+cloud.removeOk	移除	雲端模式：移除的確認按鈕	plugins/cloud/sync.ts:1184 plugins/cloud/sync.ts:1208
+cloud.removeLastTab	最後一個頁簽不能移除，要整份不用請到「管理 Google 表」選不再使用	雲端模式：移除頁簽	plugins/cloud/sync.ts:1207
 cloud.updSrc	更新原文	雲端模式：更新原文視窗	plugins/cloud/SrcUpdateCloud.tsx:131 plugins/cloud/SrcUpdateCloud.tsx:168
 cloud.r15	R15	雲端模式：更新原文視窗（R15 版本）	plugins/cloud/SrcUpdateCloud.tsx:131 plugins/cloud/SrcUpdateCloud.tsx:169
 cloud.updSrcHint	新原文套用到這份 Google 表：每個頁簽可以手動貼入，或從新連結選範圍。	雲端模式：更新原文視窗	plugins/cloud/SrcUpdateCloud.tsx:168
@@ -30,14 +36,14 @@ cloud.updNone	不更新	雲端模式：更新原文視窗（頁簽清單）	plug
 cloud.r15Carry	照舊原文帶過去	雲端模式：更新原文視窗（頁簽清單）	plugins/cloud/SrcUpdateCloud.tsx:188
 cloud.updConfirm	按確定後套用到這份 Google 表；新增的句子馬上插入，改過的句子按「套用新原文」才寫回。	雲端模式：更新原文視窗	plugins/cloud/SrcUpdateCloud.tsx:265
 cloud.r15Confirm	按確定後新增一個檔案連到新連結，原本的檔案不動。	雲端模式：更新原文視窗	plugins/cloud/SrcUpdateCloud.tsx:265
-cloud.deleteTabAsk	刪除 Google 上的分頁「{name}」？（共 {n} 列，下面是前幾列）	雲端模式：刪除頁簽前的預覽	plugins/cloud/sync.ts:867
-cloud.deleteRowsAsk	刪除 Google 上的 {n} 列？	雲端模式：刪除條目前的預覽	plugins/cloud/sync.ts:760
+cloud.deleteTabAsk	刪除 Google 上的分頁「{name}」？（共 {n} 列，下面是前幾列）	雲端模式：刪除頁簽前的預覽	plugins/cloud/sync.ts:941
+cloud.deleteRowsAsk	刪除 Google 上的 {n} 列？	雲端模式：刪除條目前的預覽	plugins/cloud/sync.ts:834
 cloud.deleteHint	這些是 Google 表上這幾列的全部內容（包括 Verso 沒讀的欄），刪掉後 Verso 也不能復原。	雲端模式：刪除前的預覽	plugins/cloud/index.tsx:334
 cloud.rowNo	第 {n} 列	雲端模式：刪除前的預覽	plugins/cloud/index.tsx:338
 cloud.deleteConfirm	刪除	雲端模式：刪除前的預覽	plugins/cloud/index.tsx:346
 cloud.conflictSpeaker	#{id} 的發話者已經被別人改過	雲端模式：寫回衝突	plugins/cloud/index.tsx:367
 cloud.conflictSrcText	#{id} 的原文已經被別人改過	雲端模式：寫回衝突	plugins/cloud/index.tsx:367
-cloud.rowsOnly	雲端檔案要增刪、搬動條目，請用右鍵的整列刪除、插入、上移、下移	雲端模式：擋下會改變條目數量或順序的操作	state/store.ts:815 state/store.ts:823
+cloud.rowsOnly	雲端檔案要增刪、搬動條目，請用右鍵的整列刪除、插入、上移、下移	雲端模式：擋下會改變條目數量或順序的操作	state/store.ts:864 state/store.ts:872
 side.scope	搜尋範圍：{scope}（點一下換範圍）	搜尋分頁：範圍按鈕	components/SidePanel.tsx:282
 side.scope.sheet	當前頁簽	搜尋分頁：範圍	
 side.scope.file	當前檔案	搜尋分頁：範圍	
@@ -60,7 +66,7 @@ cloud.deleteProjectAsk	刪除專案「{name}」？	雲端模式：管理專案	p
 cloud.deleteProjectBody	只會從 Verso 資料表拿掉這個專案，Google 上的字典檔不會動。	雲端模式：管理專案	plugins/cloud/ProjectsDialog.tsx:143
 dict.cloud	雲端	啟用的字典、字典管理：雲端字典的標示	components/ManageDialogs.tsx:549 components/SidePanel.tsx:175
 dict.local	本地	啟用的字典、字典管理：本地字典的標示	components/ManageDialogs.tsx:549 components/SidePanel.tsx:175
-dict.cloudNoMove	雲端字典不能搬到別的專案	想把雲端字典移到別的專案時的提示	state/store.ts:1364
+dict.cloudNoMove	雲端字典不能搬到別的專案	想把雲端字典移到別的專案時的提示	state/store.ts:1414
 cloud.enabled	雲端模式	設定 > 雲端：開關	plugins/cloud/index.tsx:70
 cloud.hint	打開後直接讀寫 Google 試算表，檔案選單只列設定過的表；關掉回到本地檔案（本地檔案和存檔都不受影響）	開發者選項：雲端模式的說明	plugins/cloud/index.tsx:73
 cloud.clientId	用戶端 ID	雲端模式：Google OAuth 用戶端 ID	plugins/cloud/index.tsx:78
@@ -74,7 +80,7 @@ cloud.logout	登出	雲端模式：按鈕	plugins/cloud/index.tsx:90
 cloud.addSheet	新增 Google 表	檔案選單（雲端模式）	plugins/cloud/index.tsx:121
 cloud.manage	管理 Google 表	檔案選單（雲端模式）；對話框標題	plugins/cloud/index.tsx:124 plugins/cloud/index.tsx:304
 cloud.refresh	重新讀取	檔案選單（雲端模式）	plugins/cloud/index.tsx:130
-cloud.dataUrl	Verso 資料表	開發者選項（雲端模式）：共用的資料表網址	plugins/cloud/index.tsx:83 plugins/cloud/projects.ts:130 plugins/cloud/ProjectsDialog.tsx:44 plugins/cloud/sync.ts:500 plugins/cloud/sync.ts:556 plugins/cloud/sync.ts:576 plugins/cloud/sync.ts:579
+cloud.dataUrl	Verso 資料表	開發者選項（雲端模式）：共用的資料表網址	plugins/cloud/index.tsx:83 plugins/cloud/projects.ts:130 plugins/cloud/ProjectsDialog.tsx:44 plugins/cloud/sync.ts:562 plugins/cloud/sync.ts:626 plugins/cloud/sync.ts:647 plugins/cloud/sync.ts:651
 cloud.dataHint	標記、建議翻譯、修改存在這張 Google 表，大家共用（建一張空白試算表、分享給同專案的人，把網址貼在這裡）	開發者選項（雲端模式）	plugins/cloud/index.tsx:85
 cloud.conflictNote	#{id} 的備註已經被別人改過	雲端模式：寫回衝突	plugins/cloud/index.tsx:367
 cloud.sync	同步	條目欄上方的按鈕（雲端模式）：寫回並重新讀取 Google 表	plugins/cloud/index.tsx:107 plugins/cloud/index.tsx:109 plugins/cloud/index.tsx:111
@@ -108,9 +114,9 @@ cloud.conflictTheirs	對方的	雲端模式：寫回衝突	plugins/cloud/index.t
 cloud.empty	（空白）	雲端模式：寫回衝突	components/WorkPanel.tsx:385 plugins/cloud/index.tsx:339 plugins/cloud/index.tsx:360
 cloud.useMine	用我的	雲端模式：寫回衝突	plugins/cloud/index.tsx:374
 cloud.useTheirs	用對方的	雲端模式：寫回衝突	plugins/cloud/index.tsx:373
-cloud.loadFailed	讀不到「{name}」：{reason}	雲端模式：警告	plugins/cloud/dicts.ts:24 plugins/cloud/dicts.ts:90 plugins/cloud/sync.ts:341 plugins/cloud/sync.ts:500 plugins/cloud/sync.ts:576 plugins/cloud/sync.ts:579 plugins/cloud/sync.ts:876
-cloud.writeFailed	「{name}」的譯文沒有寫回：{reason}	雲端模式：警告	plugins/cloud/dicts.ts:137 plugins/cloud/dicts.ts:145 plugins/cloud/dicts.ts:184 plugins/cloud/projects.ts:130 plugins/cloud/ProjectsDialog.tsx:44 plugins/cloud/SrcUpdateCloud.tsx:128 plugins/cloud/sync.ts:459 plugins/cloud/sync.ts:556 plugins/cloud/sync.ts:694 plugins/cloud/sync.ts:744 plugins/cloud/sync.ts:847 plugins/cloud/sync.ts:874 plugins/cloud/sync.ts:921 plugins/cloud/sync.ts:952 plugins/cloud/sync.ts:1119 plugins/cloud/sync.ts:1141
-cloud.missingId	「{name}」找不到這些 ID，譯文沒有寫回：{ids}	雲端模式：警告	plugins/cloud/sync.ts:457
+cloud.loadFailed	讀不到「{name}」：{reason}	雲端模式：警告	plugins/cloud/dicts.ts:24 plugins/cloud/dicts.ts:90 plugins/cloud/sync.ts:396 plugins/cloud/sync.ts:562 plugins/cloud/sync.ts:647 plugins/cloud/sync.ts:651 plugins/cloud/sync.ts:950
+cloud.writeFailed	「{name}」的譯文沒有寫回：{reason}	雲端模式：警告	plugins/cloud/dicts.ts:137 plugins/cloud/dicts.ts:145 plugins/cloud/dicts.ts:184 plugins/cloud/projects.ts:130 plugins/cloud/ProjectsDialog.tsx:44 plugins/cloud/SrcUpdateCloud.tsx:128 plugins/cloud/sync.ts:521 plugins/cloud/sync.ts:626 plugins/cloud/sync.ts:768 plugins/cloud/sync.ts:818 plugins/cloud/sync.ts:921 plugins/cloud/sync.ts:948 plugins/cloud/sync.ts:995 plugins/cloud/sync.ts:1026 plugins/cloud/sync.ts:1193 plugins/cloud/sync.ts:1215
+cloud.missingId	「{name}」找不到這些 ID，譯文沒有寫回：{ids}	雲端模式：警告	plugins/cloud/sync.ts:519
 cloud.errLogin	還沒登入 Google，請到設定 > 雲端登入	雲端模式：錯誤	plugins/cloud/api.ts:74
 cloud.errClient	請先填用戶端 ID	雲端模式：錯誤	plugins/cloud/api.ts:75
 cloud.errTimeout	等太久沒有完成登入，請再試一次	雲端模式：錯誤	plugins/cloud/api.ts:76
@@ -133,17 +139,17 @@ app.aiProgress	AI {done}/{total}	狀態列：AI 工作的進度（寫過幾條�
 app.aiStillWorking	AI 還在工作，要停止嗎？	AI 工作中要關閉 Verso、換存檔資料夾、改名或刪除專案時	App.tsx:49
 app.aiKeep	取消	上面那句的按鈕：不關閉，AI 繼續	App.tsx:50
 app.aiStop	停止 AI	上面那句的按鈕：停止 AI 再繼續	App.tsx:50
-ai.errNotInstalled	未安裝Claude Code	AI 失敗原因	plugins/ai/ai.ts:337
-ai.errLogin	未登入或登入過期	AI 失敗原因	plugins/ai/ai.ts:232
-ai.errQuota	Token用盡	AI 失敗原因	plugins/ai/ai.ts:233
-ai.errSkill	找不到Skill	AI 失敗原因	plugins/ai/ai.ts:327
-ai.errOther	AI工作未完成，請重試	AI 失敗原因：其他	plugins/ai/ai.ts:234 plugins/ai/ai.ts:337
+ai.errNotInstalled	未安裝Claude Code	AI 失敗原因	plugins/ai/ai.ts:364
+ai.errLogin	未登入或登入過期	AI 失敗原因	plugins/ai/ai.ts:254
+ai.errQuota	Token用盡	AI 失敗原因	plugins/ai/ai.ts:255
+ai.errSkill	找不到Skill	AI 失敗原因	plugins/ai/ai.ts:354
+ai.errOther	AI工作未完成，請重試	AI 失敗原因：其他	plugins/ai/ai.ts:256 plugins/ai/ai.ts:364
 shortcut.ignoreEdits	忽略這條的全部修改	設定 > 快捷鍵：動作名稱	model/shortcuts.ts:38
-mark.suggHoldsDoubt	有建議翻譯，維持疑慮	有建議翻譯時想改成別的標記：被擋下的提示	state/store.ts:966 state/store.ts:991
+mark.suggHoldsDoubt	有建議翻譯，維持疑慮	有建議翻譯時想改成別的標記：被擋下的提示	state/store.ts:1015 state/store.ts:1040
 mark.ai	AI 翻譯	標記名稱：AI 翻好、還沒確認的條目	model/marks.ts:84
 list.aiLocked	AI 處理中	條目欄：AI 正在處理的條目旁的小字提示	components/EntryList.tsx:168 components/EntryList.tsx:168
-ai.locked	AI 正在處理的條目不能刪除	想刪掉 AI 處理中的條目時	state/store.ts:828
-ai.stopped	已停止 AI，已經寫回的內容保留	按了停止之後	plugins/ai/ai.ts:253
+ai.locked	AI 正在處理的條目不能刪除	想刪掉 AI 處理中的條目時	state/store.ts:877
+ai.stopped	已停止 AI，已經寫回的內容保留	按了停止之後	plugins/ai/ai.ts:275
 ai.askMany	要讓 AI 處理 {n} 條嗎？	選了超過 50 條按 AI 時	plugins/ai/index.tsx:25
 ai.askNo	取消	上面那句的按鈕	plugins/ai/index.tsx:26
 ai.askYes	繼續	上面那句的按鈕	plugins/ai/index.tsx:26
@@ -154,8 +160,8 @@ settings.aiEnabled	AI 協助（測試中）	設定 > 開發者選項：開關	pl
 settings.aiHint	打開後條目欄上方會出現 AI 按鈕，按下時在背景用 Claude Code 處理選取的條目（需要先裝好、登入命令列版 Claude Code）	設定 > 開發者選項：說明	plugins/ai/index.tsx:42
 list.aiButton	讓 AI 處理選取的條目	條目欄上方 AI 按鈕的滑鼠提示	plugins/ai/index.tsx:20
 list.aiStop	停止	AI 處理中時，AI 按鈕變成這個	plugins/ai/index.tsx:20 plugins/ai/index.tsx:22
-ai.done	AI 處理完成	AI 做完時的提示	plugins/ai/ai.ts:254
-ai.desktopOnly	AI 協助只能在桌面版使用	瀏覽器預覽裡按 AI 按鈕	plugins/ai/ai.ts:317
+ai.done	AI 處理完成	AI 做完時的提示	plugins/ai/ai.ts:276
+ai.desktopOnly	AI 協助只能在桌面版使用	瀏覽器預覽裡按 AI 按鈕	plugins/ai/ai.ts:344
 settings.devSection	開發者選項	設定左邊的分類（開發者模式才有）	components/SettingsDialog.tsx:28
 settings.showIds	顯示字句 ID	設定 > 開發者選項：開關	components/SettingsDialog.tsx:410
 settings.showIdsHint	滑鼠移到介面文字上，旁邊會顯示它的字句 ID	設定 > 開發者選項：開關下面的說明	components/SettingsDialog.tsx:412
@@ -173,16 +179,16 @@ settings.packsFailed	無法添加語言包，主程式資料夾可能沒有寫�
 settings.packReplace	已經有語言包「{name}」，要取代嗎？	設定 > 一般：加入同名語言包時	components/SettingsDialog.tsx:476
 settings.packReplaceNo	取消	設定 > 一般：同名語言包的詢問	components/SettingsDialog.tsx:477
 settings.packReplaceYes	取代	設定 > 一般：同名語言包的詢問	components/SettingsDialog.tsx:477
-common.sep	、	列出好幾個名稱時的分隔符號	App.tsx:101 App.tsx:112 App.tsx:123 components/CopyConfirm.tsx:19 components/EntryList.tsx:200 components/EntryList.tsx:200 components/FileNav.tsx:131 components/ManageDialogs.tsx:177 components/SettingsDialog.tsx:443 components/SettingsDialog.tsx:444 components/SidePanel.tsx:363 components/WorkPanel.tsx:94 model/importSel.ts:59 model/importSel.ts:59 model/paste.ts:79 plugins/cloud/index.tsx:232 plugins/cloud/sync.ts:457 state/saver.ts:1027 state/saver.ts:1027
-common.join	；	把兩段提示接成一句時的分隔符號（英文用「; 」）	state/saver.ts:1027
+common.sep	、	列出好幾個名稱時的分隔符號	App.tsx:101 App.tsx:112 App.tsx:123 components/CopyConfirm.tsx:19 components/EntryList.tsx:200 components/EntryList.tsx:200 components/FileNav.tsx:131 components/ManageDialogs.tsx:177 components/SettingsDialog.tsx:443 components/SettingsDialog.tsx:444 components/SidePanel.tsx:363 components/WorkPanel.tsx:94 model/importSel.ts:59 model/importSel.ts:59 model/paste.ts:79 plugins/cloud/index.tsx:232 plugins/cloud/sync.ts:519 state/saver.ts:1041 state/saver.ts:1041
+common.join	；	把兩段提示接成一句時的分隔符號（英文用「; 」）	state/saver.ts:1041
 common.moreEntries	 等 {n} 條	列表太長時接在後面	App.tsx:101
-common.moreItems	 等 {n} 個	列表太長時接在後面	App.tsx:112 App.tsx:123 state/saver.ts:1027 state/saver.ts:1027
+common.moreItems	 等 {n} 個	列表太長時接在後面	App.tsx:112 App.tsx:123 state/saver.ts:1041 state/saver.ts:1041
 common.sheetError	「{name}」{msg}	某個頁簽有錯誤時，頁簽名稱接錯誤訊息	components/ImportDialog.tsx:191 components/ImportDialog.tsx:192 components/ManageDialogs.tsx:372 components/PasteDialog.tsx:120 plugins/cloud/index.tsx:234
 common.errorReason	{target}：{reason}	存檔失敗的項目與原因	components/TitleBar.tsx:58
 import.fieldRange	{range}（{n}）	匯入視窗：欄位選到的範圍和行數	components/ImportDialog.tsx:375
 save.longAt	{project} / {file} / {sheet} 第 {n} 條	存檔時格子太長的條目位置	state/saver.ts:211
 work.tooLong	修改失敗，超過32767 字。	驗證模式的修改框	components/WorkPanel.tsx:323 components/WorkPanel.tsx:421
-save.sameRoot	已經是目前的存檔資料夾	設定 > 一般：換存檔資料夾時選到同一個	state/saver.ts:778
+save.sameRoot	已經是目前的存檔資料夾	設定 > 一般：換存檔資料夾時選到同一個	state/saver.ts:792
 check.fullwidthSpace	全形空格	檢查項目與訊息	model/checks.ts:139
 app.001	Excel 一格最多 32767 字，貼上後會超過，沒有貼上	主畫面	App.tsx:66
 app.002	有格子超過 Excel 的單格上限	主畫面	App.tsx:100
@@ -749,15 +755,15 @@ check.019	有全形符號 {v1}	檢查項目與訊息	model/checks.ts:139
 check.020	括號 ( ) 沒有成對	檢查項目與訊息	model/checks.ts:143
 check.021	括號 [ ] 沒有成對	檢查項目與訊息	model/checks.ts:144
 check.022	引號 " 沒有成對	檢查項目與訊息	model/checks.ts:145
-check.023	開頭或結尾有多餘空白	檢查項目與訊息	model/checks.ts:148
+check.023	開頭或結尾有多餘空白	檢查項目與訊息	model/checks.ts:148 model/checks.ts:167
 check.024	有連續兩個空格	檢查項目與訊息	model/checks.ts:149
 check.025	重複標點 {v1}	檢查項目與訊息	model/checks.ts:153
 check.026	有中文引號 {v1}	檢查項目與訊息	model/checks.ts:157
-check.027	句首要大寫	檢查項目與訊息	model/checks.ts:161
+check.027	句首要大寫	檢查項目與訊息	model/checks.ts:161 model/checks.ts:166
 check.028	句號、問號、驚嘆號後要大寫	檢查項目與訊息	model/checks.ts:163
 check.029	破折號後要小寫	檢查項目與訊息	model/checks.ts:164
-check.030	譯文裡有中文字	檢查項目與訊息	model/checks.ts:167
-check.031	超框（超過 {lines} 行）	檢查項目與訊息	model/checks.ts:196
+check.030	譯文裡有中文字	檢查項目與訊息	model/checks.ts:170
+check.031	超框（超過 {lines} 行）	檢查項目與訊息	model/checks.ts:215
 colors.001	喬治	主題色名稱	model/color.ts:58
 colors.002	恐龍先生	主題色名稱	model/color.ts:59
 colors.003	溫蒂狼	主題色名稱	model/color.ts:60
@@ -857,14 +863,14 @@ save.007	字典 {k}	存檔訊息	state/saver.ts:294 state/saver.ts:301 state/sav
 save.008	專案資料夾「{x}」	存檔訊息	state/saver.ts:400
 save.009	專案設定檔	存檔訊息	state/saver.ts:383
 save.010	已儲存	存檔訊息	state/saver.ts:427
-save.011	讀取設定	存檔訊息	state/saver.ts:476
-save.012	讀取專案	存檔訊息	state/saver.ts:523
-save.013	完成	存檔訊息	state/saver.ts:550
-save.014	資料夾包含其他內容，已新建「Verso」資料夾	存檔訊息	state/saver.ts:794
-save.015	已載入：{v1}{v2}	存檔訊息	state/saver.ts:1027
-save.016	已改名：{v1}{v2}	存檔訊息	state/saver.ts:1027
-save.017	字典 / {project} / {name}	存檔訊息	state/saver.ts:1029
-store.001	啟動中	狀態訊息	main.tsx:23 state/store.ts:723
+save.011	讀取設定	存檔訊息	state/saver.ts:482
+save.012	讀取專案	存檔訊息	state/saver.ts:529
+save.013	完成	存檔訊息	state/saver.ts:564
+save.014	資料夾包含其他內容，已新建「Verso」資料夾	存檔訊息	state/saver.ts:808
+save.015	已載入：{v1}{v2}	存檔訊息	state/saver.ts:1041
+save.016	已改名：{v1}{v2}	存檔訊息	state/saver.ts:1041
+save.017	字典 / {project} / {name}	存檔訊息	state/saver.ts:1043
+store.001	啟動中	狀態訊息	main.tsx:23 state/store.ts:772
 update.001	檢查更新	自動更新	state/updater.ts:33
 update.002	下載無進度	自動更新	state/updater.ts:57 state/updater.ts:58
 update.003	下載更新 0%	自動更新	state/updater.ts:60

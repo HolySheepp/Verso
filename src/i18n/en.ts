@@ -882,4 +882,10 @@ export const EN: Partial<Record<TextKey, string>> = {
   'work.fit': 'Panel Height',
   'work.fitAuto': 'Auto Adjust',
   'work.fitFixed': 'Fixed Height',
+  'cloud.boot1': 'Loading cloud data sheet',
+  'cloud.boot2': 'Loading cloud projects and glossaries',
+  'cloud.boot3': 'Loading work progress',
+  'cloud.offlineTitle': 'No Internet Connection',
+  'cloud.offlineBody': 'No internet connection. You may turn off cloud mode for now. Verso will load the cloud files automatically once you\'re back online.',
+  'cloud.offlineOff': 'Turn Off Cloud Mode',
 };
