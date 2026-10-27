@@ -15,7 +15,14 @@ import { DICT_DIR, safeName, sameName, sheetNameError } from '../model/names';
 import { compose, editsOf, type VEdit } from '../model/verify';
 import { maxOf, minOf } from '../model/num';
 
-export type Filter = 'all' | 'untranslated' | 'doubt' | 'think' | 'issues' | 'srcupd';
+/** 條目欄的篩選：條件（標記 id 或 'issues'）→ 1 勾選、-1 排除；沒列的是不選，空的就是全部 */
+export type Filter = Record<string, 1 | -1>;
+/** 一條在篩選下看不看得到：符合任一排除的不顯示；有勾選時要符合其中之一 */
+export function passesFilter(f: Filter, mark: string, issues: boolean): boolean {
+  if (f[mark] === -1 || (issues && f.issues === -1)) return false;
+  const inc = Object.values(f).includes(1);
+  return !inc || f[mark] === 1 || (issues && f.issues === 1);
+}
 export type SideTab = 'dict' | 'search' | 'web' | 'ref';
 export type Theme = 'dark' | 'light' | 'system';
 export type SaveStatus = 'saved' | 'dirty' | 'saving' | 'error';
@@ -723,7 +730,7 @@ export const useStore = create<Store>((set, get) => {
     file: 0,
     sheetBy: {},
     selBy: {},
-    filter: 'all',
+    filter: {},
     side: 'dict',
     mode: 'translate',
     stamps: {},
@@ -960,7 +967,7 @@ export const useStore = create<Store>((set, get) => {
       replaceFile(s.file, { ...f, sheets: [...f.sheets.slice(0, after + 1), ...sheets, ...f.sheets.slice(after + 1)] });
       // 插入位置後面的頁簽，記著的選取位置跟著往後移；新頁簽從第一條開始
       const selBy = shiftSheetSel(get().selBy, s.file, (sh) => (sh > after ? sh + sheets.length : sh));
-      set({ selBy, sheetBy: { ...get().sheetBy, [s.file]: after + 1 }, cellSel: null, pasteInsert: null, pasteOpen: false, filter: 'all', ...noPopups, ...noView });
+      set({ selBy, sheetBy: { ...get().sheetBy, [s.file]: after + 1 }, cellSel: null, pasteInsert: null, pasteOpen: false, filter: {}, ...noPopups, ...noView });
     },
 
     next() {
@@ -1226,7 +1233,7 @@ export const useStore = create<Store>((set, get) => {
       const fid = f.fid && !project.files.some((x) => x.fid === f.fid) ? f.fid : newFileId();
       set({
         project: { ...project, projects: withProject(project.projects, f.project), files: [...project.files, { ...f, fid, name, ...(lengthStd ? { lengthStd } : {}) }] },
-        file: idx, sheetBy: { ...get().sheetBy, [idx]: 0 }, pasteOpen: false, importOpen: false, filter: 'all',
+        file: idx, sheetBy: { ...get().sheetBy, [idx]: 0 }, pasteOpen: false, importOpen: false, filter: {},
         ...noPopups, ...noView,
       });
     },
@@ -1576,10 +1583,12 @@ function pendingTarget(s: State, from: number, delta: number): number | undefine
 export function visibleRows(s: State): number[] {
   const { sheet } = currentOf(s);
   const out: number[] = [];
+  const keys = Object.keys(s.filter);
+  const fileStd = currentFileStd(s);
   sheet.entries.forEach((e, i) => {
-    if (s.filter === 'all') out.push(i);
-    else if (s.filter === 'issues') { if (visibleIssues(e, s.reported, s.checkSettings, currentFileStd(s)).length) out.push(i); }
-    else if (effectiveMark(e) === s.filter) out.push(i);
+    if (!keys.length) { out.push(i); return; }
+    const issues = s.filter.issues !== undefined && visibleIssues(e, s.reported, s.checkSettings, fileStd).length > 0;
+    if (passesFilter(s.filter, effectiveMark(e), issues)) out.push(i);
   });
   return out;
 }

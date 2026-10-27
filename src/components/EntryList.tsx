@@ -3,7 +3,8 @@ import { plugins } from '../plugins/registry';
 import { rowHook } from '../plugins/hooks';
 import { memo, useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react';
 import { flushSync } from 'react-dom';
-import { shownCount, currentOf, hasPendingUpdate, searchHit, useStorePick, visibleIssues, type Filter, currentFileStd } from '../state/store';
+import { shownCount, currentOf, hasPendingUpdate, passesFilter, searchHit, useStorePick, visibleIssues, currentFileStd } from '../state/store';
+import { FilterPanel } from './FilterPanel';
 import { effectiveMark, markName, markVisual } from '../model/marks';
 import { columnToClipboard, parseHtmlTable, parseTsv, writeColumn } from '../model/clipboard';
 import {
@@ -57,15 +58,6 @@ function rowAt(offsets: Float64Array, y: number): number {
 /** 讓某一條看得到（例如 Shift 延伸選取時）：條目欄登記的處理函式 */
 let revealHandler: ((i: number) => void) | null = null;
 export function revealRow(i: number) { revealHandler?.(i); }
-
-const FILTERS: { id: Filter; label: string }[] = [
-  { id: 'all', get label() { return tx('list.004'); } },
-  { id: 'untranslated', get label() { return tx('list.005'); } },
-  { id: 'doubt', get label() { return tx('list.006'); } },
-  { id: 'think', get label() { return tx('list.007'); } },
-  { id: 'issues', get label() { return tx('list.008'); } },
-  { id: 'srcupd', get label() { return tx('list.009'); } },
-];
 
 /** 條目欄一行要用到的操作；放在 ref 裡，行元件拿到的參照永遠不變，才不會因此整排重畫 */
 interface RowHandlers {
@@ -297,12 +289,12 @@ export function EntryList() {
   const searchOn = s.side === 'search' && !s.hideSide && !!searchQ;
   // 每一條的標記和問題、各篩選的數量：條目、檢查結果、篩選變了才重算（選取、捲動不用重算）
   const { all, cnt } = useMemo(() => {
-    const cnt: Record<string, number> = { untranslated: 0, doubt: 0, think: 0, issues: 0, srcupd: 0 };
+    const cnt: Record<string, number> = {};
     const all = sheet.entries.map((e, i) => {
       const m = effectiveMark(e);
       const issues = visibleIssues(e, s.reported, s.checkSettings, fileStd);
-      if (m in cnt) cnt[m]++;
-      if (issues.length) cnt.issues++;
+      cnt[m] = (cnt[m] ?? 0) + 1;
+      if (issues.length) cnt.issues = (cnt.issues ?? 0) + 1;
       return { e, i, m, issues };
     });
     return { all, cnt };
@@ -313,7 +305,7 @@ export function EntryList() {
   };
 
   const { rows, visible, posOf } = useMemo(() => {
-    const rows = filter === 'all' ? all : all.filter(({ m, issues }) => (filter === 'issues' ? issues.length > 0 : m === filter));
+    const rows = !Object.keys(filter).length ? all : all.filter(({ m, issues }) => passesFilter(filter, m, issues.length > 0));
     const visible = rows.map((x) => x.i);
     // 條目 → 在畫面上的第幾列
     const posOf = new Map(visible.map((i, k) => [i, k]));
@@ -743,23 +735,7 @@ export function EntryList() {
           style={{ width: 34, height: 34, display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 0, background: 'var(--btn)', border: '1px solid var(--line3)', borderRadius: 8, color: notesCopied ? 'var(--accent2)' : 'var(--text2)' }}>
           {notesCopied ? <IconCheck size={14} sw={2.4} /> : <IconNote size={14} />}
         </button>
-        <div role="group" aria-label={tx('list.026')} className="seg-group">
-          {FILTERS.map((f) => {
-            const on = filter === f.id;
-            return (
-              <button key={f.id} type="button" className="seg" aria-pressed={on} onClick={() => set({ filter: f.id, cellSel: null })}
-                style={{
-                  height: 26, display: 'flex', alignItems: 'center', gap: 6, padding: '0 10px', border: 0, borderRadius: 6, fontSize: fz(12),
-                  background: on ? 'var(--segon)' : 'transparent', color: on ? 'var(--text)' : 'var(--text2)',
-                }}>
-                {f.id === 'issues' ? <IconWarn size={12} sw={2.2} stroke="var(--warntx)" />
-                  : f.id !== 'all' && <MarkIcon mark={{ kind: f.id }} size={12} menu />}
-                {f.label}
-                <span style={{ fontSize: fz(11), color: 'var(--mute)' }}>{f.id === 'all' ? sheet.entries.length : cnt[f.id]}</span>
-              </button>
-            );
-          })}
-        </div>
+        <FilterPanel counts={cnt} />
         </div>
       </div>
       <div style={{
