@@ -13,16 +13,19 @@ import { SHARED, dictKey, newFileId, projectTag, type CustomMark, type DictInfo,
 import { sortProjects, type RootConflict } from '../data/persist';
 import { DICT_DIR, safeName, sameName, sheetNameError } from '../model/names';
 import { compose, editsOf, type VEdit } from '../model/verify';
+import { composeNote, parseNote, type CommentThread } from '../model/comments';
 import { maxOf, minOf } from '../model/num';
 
 /** 條目欄的篩選：條件（標記 id 或 'issues'）→ 1 勾選、-1 排除；沒列的是不選，空的就是全部 */
 export type Filter = Record<string, 1 | -1>;
 /** 一條在篩選下看不看得到：符合任一排除的不顯示；有勾選時要符合其中之一 */
-export function passesFilter(f: Filter, mark: string, issues: boolean): boolean {
-  if (f[mark] === -1 || (issues && f.issues === -1)) return false;
+export function passesFilter(f: Filter, mark: string, issues: boolean, note = false): boolean {
+  if (f[mark] === -1 || (issues && f.issues === -1) || (note && f.note === -1)) return false;
   const inc = Object.values(f).includes(1);
-  return !inc || f[mark] === 1 || (issues && f.issues === 1);
+  return !inc || f[mark] === 1 || (issues && f.issues === 1) || (note && f.note === 1);
 }
+/** 篩選「有備註」：雲端檔案看有沒有沒解決的留言，本機檔案看備註有沒有字 */
+export const hasNote = (e: Entry) => (e.comments ? e.comments.some((t) => !t.resolved) : !!e.note.trim());
 export type SideTab = 'dict' | 'search' | 'web' | 'ref';
 export type Theme = 'dark' | 'light' | 'system';
 export type SaveStatus = 'saved' | 'dirty' | 'saving' | 'error';
@@ -155,6 +158,12 @@ interface State {
   searchScope: 'sheet' | 'file' | 'project' | 'all';
   suggClosed: boolean;
   noteClosed: boolean;
+  /** 右側欄下方「建議翻譯＋備註」整區的高度（拖上方的分隔線調整） */
+  notesH: number;
+  /** 雲端模式留言用的用戶名（存在這台電腦的雲端設定） */
+  userName: string;
+  /** 正在問用戶名：輸入好了（或取消，null）就 resolve */
+  userNameAsk: { resolve(name: string | null): void } | null;
   /** 查看修改：切換模式 */
   viewOn: boolean;
   /** 查看修改：按住預覽 */
@@ -297,6 +306,8 @@ interface Actions {
   pickSlot(slot: number): void;
   useShownSlot(): void;
   applySuggestion(): void;
+  /** 雲端模式：改這條的留言（備註格的內容跟著重組；條目欄復原算一步）；index 不給就是目前這條 */
+  setComments(list: CommentThread[], index?: number): void;
   /** 套用這條的全部驗證修改（自己算一步） */
   applyAllEdits(): void;
   /** 忽略這條的全部修改（自己算一步） */
@@ -753,6 +764,9 @@ export const useStore = create<Store>((set, get) => {
     searchScope: 'sheet',
     suggClosed: false,
     noteClosed: false,
+    notesH: 300,
+    userName: '',
+    userNameAsk: null,
     viewOn: false,
     peek: false,
     fileMenuOpen: false,
@@ -1159,6 +1173,15 @@ export const useStore = create<Store>((set, get) => {
       if (editing) get().endEdit();
       get().setVerify([]);
       if (editing) get().beginEdit();
+    },
+
+    setComments(list, index) {
+      const at = index ?? cur().sel;
+      const e = cur().sheet.entries[at];
+      if (!e) return;
+      pushUndo();
+      const base = e.noteBase ?? parseNote(e.note, e.comments ?? []).base;
+      patchEntry(at, (x) => ({ ...x, comments: list, noteBase: base, note: composeNote(base, list) }));
     },
 
     applySuggestion() {
@@ -1588,7 +1611,7 @@ export function visibleRows(s: State): number[] {
   sheet.entries.forEach((e, i) => {
     if (!keys.length) { out.push(i); return; }
     const issues = s.filter.issues !== undefined && visibleIssues(e, s.reported, s.checkSettings, fileStd).length > 0;
-    if (passesFilter(s.filter, effectiveMark(e), issues)) out.push(i);
+    if (passesFilter(s.filter, effectiveMark(e), issues, hasNote(e))) out.push(i);
   });
   return out;
 }
@@ -1613,3 +1636,10 @@ if (typeof document !== 'undefined' && document.fonts) document.fonts.addEventLi
 // 自動檢查總開關：跟著設定（檢查結果的快取靠 checkSettings 換成新的物件重算）
 setChecksEnabled(useStore.getState().checksOn);
 useStore.subscribe((s, prev) => { if (s.checksOn !== prev.checksOn) setChecksEnabled(s.checksOn); });
+
+/** 雲端模式留言前確認有用戶名：沒有就彈出視窗請使用者輸入（取消回傳 null） */
+export function ensureUserName(): Promise<string | null> {
+  const n = useStore.getState().userName.trim();
+  if (n) return Promise.resolve(n);
+  return new Promise((resolve) => useStore.setState({ userNameAsk: { resolve } }));
+}

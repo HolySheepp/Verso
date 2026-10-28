@@ -27,6 +27,7 @@ import { textToStd, stdToText } from '../../model/length';
 import { backupPresets, ensureProjects, readProjects } from './projects';
 import { listDicts, loadEnabled, reloadDicts } from './dicts';
 import { writeCell } from './api';
+import { commentsToText, composeNote, mergeComments, parseNote, textToComments } from '../../model/comments';
 import { fileDone, fileProgress } from '../../model/progress';
 import { addTab, appendRows, errText, meta, readCols, readRich, readTabs, sidOf, writeRich, writeRows, type Rich } from './api';
 import { blueStart, markToText, noteCell, richSig, stripMarkup, textToMark, tgtCell } from './format';
@@ -182,8 +183,8 @@ async function writeProgress(sid: string) {
 }
 
 /** 每個檔案在資料表裡的分頁（名稱是試算表 ID）：分頁ID、條目ID、第幾個、標記、建議翻譯、修改、譯文、寫入的譯文格、備註藍色起點、更新者、更新時間 */
-const DATA_HEAD = ['分頁ID', '條目ID', '第幾個', '標記', '建議翻譯', '修改', '譯文', '寫入的譯文格', '備註藍色起點', '更新者', '更新時間', '原文更新'];
-const D = { mark: 3, sugg: 4, ver: 5, tgt: 6, written: 7, blue: 8, upd: 11 } as const;
+const DATA_HEAD = ['分頁ID', '條目ID', '第幾個', '標記', '建議翻譯', '修改', '譯文', '寫入的譯文格', '備註藍色起點', '更新者', '更新時間', '原文更新', '留言'];
+const D = { mark: 3, sugg: 4, ver: 5, tgt: 6, written: 7, blue: 8, upd: 11, comments: 12 } as const;
 
 /** Google 上這條的原文：R15 新檔案還沒套用新原文時，Google 上已經是新原文 */
 const effSrc = (e: Entry) => (e.upd?.cloudNew && e.upd.src !== undefined ? e.upd.src : e.src);
@@ -231,6 +232,8 @@ interface Base {
   row: number;
   /** 資料表裡這條的內容（標記、建議翻譯、修改）與整列（標記～備註藍色起點） */
   core: string; data: string;
+  /** 資料表裡這條的留言（上次對上的；合併別人同時留的留言用） */
+  comments?: string;
   /** 讀取時這條是「哪個 ID 的第幾個」（移除了別的條目也不會跑掉） */
   key?: string;
 }
@@ -265,14 +268,21 @@ function buildSheet(tab: CloudTab, rows: string[][], prev: Sheet | undefined, ke
     const rVer = textToVerify(d?.[D.ver] ?? '');
     const blue = d?.[D.blue] ? Number(d[D.blue]) : undefined;
     const rCore = JSON.stringify([d?.[D.mark] ?? '', rSugg, d?.[D.ver] ?? '']);
-    const rData = JSON.stringify([...(d ? d.slice(D.mark, D.blue + 1).map((x) => x ?? '') : ['', '', '', '', '', '']), d?.[D.upd] ?? '']);
+    const rData = JSON.stringify([...(d ? d.slice(D.mark, D.blue + 1).map((x) => x ?? '') : ['', '', '', '', '', '']), d?.[D.upd] ?? '', d?.[D.comments] ?? '']);
+    // 備註：資料表記的留言對上 Google 備註格，分出原備註和留言（Google 上直接打的 [名字] 內容 也算留言）
+    const rComments = textToComments(d?.[D.comments]);
+    const parsed = parseNote(n.note, rComments);
     const o = old.get(keys[i]);
     const b = o ? base.get(o.uid) : undefined;
     let e: Entry;
     if (o) {
       // 還沒寫回的譯文、備註、標記等留著；其他跟著 Google
       const tgt = b && o.tgt !== b.tgt ? o.tgt : rTgt;
-      const note = b && o.note !== b.note ? o.note : n.note;
+      // 自己的留言、備註還沒寫回：留著；否則照 Google 和資料表
+      const localNote = !!b && (o.note !== b.note || commentsToText(o.comments) !== (b.comments ?? ''));
+      const note = localNote ? o.note : n.note;
+      const comments = localNote ? o.comments : parsed.threads;
+      const noteBase = localNote ? o.noteBase : parsed.base;
       // ID、發話者、原文：自己改了還沒寫回的留著
       const id = b && o.id !== b.id ? o.id : n.id;
       const speaker = b && o.speaker !== b.speaker ? o.speaker : n.speaker;
@@ -282,13 +292,13 @@ function buildSheet(tab: CloudTab, rows: string[][], prev: Sheet | undefined, ke
       const updNow = cloudNew && !(b && effSrc(o) !== b.src) && o.upd!.src !== n.src ? { ...o.upd!, src: n.src } : o.upd;
       const localData = !fd || (b && JSON.stringify(dataCore(o, customs)) !== b.core);
       const marks = localData ? {} : { mark: rMark.mark, keptMark: rMark.keptMark, sugg: rSugg, ver: rVer };
-      const next = { ...o, id, speaker, src: srcNow, src0: n.src, tgt, note, upd: updNow, ...marks };
+      const next = { ...o, id, speaker, src: srcNow, src0: n.src, tgt, note, upd: updNow, ...marks, comments: sameComments(o.comments, comments) ? o.comments : comments, noteBase };
       if (!next.upd) delete next.upd;
       const same = (Object.keys(next) as (keyof Entry)[]).every((k) => next[k] === o[k]);
       e = same ? o : next;
     } else {
       const k = kept?.[keys[i]];
-      e = { ...n, tgt: rTgt, tgt0: rTgt, pending: false, ...(k ?? {}) };
+      e = { ...n, tgt: rTgt, tgt0: rTgt, pending: false, ...(k ?? {}), comments: parsed.threads, noteBase: parsed.base };
       // 有資料表：標記等以資料表為準（資料表裡還沒有的，用這台電腦之前記的，稍後寫上去）
       if (d) Object.assign(e, { mark: rMark.mark, keptMark: rMark.keptMark, sugg: rSugg, ver: rVer });
       // 原文更新：R15 的條目換回舊原文、新原文放在 upd（Google 上的新原文被人改過就用改過的）
@@ -301,7 +311,7 @@ function buildSheet(tab: CloudTab, rows: string[][], prev: Sheet | undefined, ke
       id: n.id, speaker: n.speaker, src: n.src,
       tgt: rTgt, cell: n.tgt, cellSig: composite ? richSig(tgtCell({ ...e, tgt: rTgt, sugg: rSugg, ver: rVer })) : plainSig(n.tgt),
       note: n.note, noteSig: richSig(noteCell(n.note, blue)), blueFrom: blue, row,
-      core: rCore, data: rData, key: keys[i],
+      core: rCore, data: rData, key: keys[i], comments: commentsToText(d ? rComments : parsed.threads),
     });
     return e;
   }).filter((e): e is Entry => !!e);
@@ -319,6 +329,8 @@ function buildSheet(tab: CloudTab, rows: string[][], prev: Sheet | undefined, ke
   const same = prev && prev.name === tab.title && prev.entries.length === entries.length && entries.every((e, i) => e === prev.entries[i]);
   return same ? prev! : { name: tab.title, gid: tab.gid, entries };
 }
+
+const sameComments = (a: Entry['comments'], b: Entry['comments']) => a === b || commentsToText(a) === commentsToText(b);
 
 /** 有驗證標示被人改過（跟 Verso 寫入時不一樣）的格子：要讀格式才能還原 */
 function needRich(tab: CloudTab, rows: string[][], fd: FileData | undefined): boolean {
@@ -433,7 +445,8 @@ function wanted(e: Entry, b: Base, customs: CustomMark[], useData: boolean) {
   const composite = cell.text !== e.tgt || cell.runs.length > 0;
   const row = [...dataCore(e, customs), composite ? e.tgt : '', composite ? cell.text : '', blueFrom === undefined ? '' : String(blueFrom)];
   const upd = updText(e);
-  return { cell, note, blueFrom, row, upd, core: JSON.stringify(dataCore(e, customs)), dataSig: JSON.stringify([...row, upd]) };
+  const comments = commentsToText(e.comments);
+  return { cell, note, blueFrom, row, upd, comments, core: JSON.stringify(dataCore(e, customs)), dataSig: JSON.stringify([...row, upd, comments]) };
 }
 
 /** 把改過的譯文、備註、標記等寫回 Google；all：連正在編輯的那條也寫（結束、關掉雲端模式時） */
@@ -477,6 +490,32 @@ async function flushInner(sid: string, all: boolean): Promise<void> {
         const cells: { gid: number; row: number; col: number; rich: Rich }[] = [];
         const done: { e: Entry; key: string; w: ReturnType<typeof wanted>; row: number }[] = [];
         const missing: string[] = [];
+        // 留言：資料表現在記的（別人可能同時留了）跟自己的合併
+        const fdNow = did && tab.fields.note ? await readData(sid, true) : undefined;
+        const merged: Entry[] = [];
+        for (const x of changed) {
+          const { e: e0, key, b } = x;
+          let e = e0, w = x.w;
+          if (tab.fields.note) {
+            const n = Number(key.split('\u0000')[1]);
+            const row0 = b.id.trim() ? rowsOf.get(b.id.trim())?.[n] : b.row;
+            const rn0 = row0 !== undefined ? notes[row0] ?? '' : b.note;
+            const theirs = parseNote(rn0, textToComments(fdNow?.rows.get(dataKey(sh.gid!, key))?.v[D.comments]));
+            const comments = mergeComments(textToComments(b.comments), e.comments ?? [], theirs.threads);
+            const note = composeNote(theirs.base, comments);
+            if (note !== e.note || !sameComments(comments, e.comments) || theirs.base !== e.noteBase) {
+              e = { ...e, note, comments, noteBase: theirs.base };
+              merged.push(e);
+              w = wanted(e, b, customs, !!did);
+            }
+          }
+          Object.assign(x, { e, w });
+        }
+        if (merged.length) {
+          const byUid = new Map(merged.map((m) => [m.uid, m]));
+          const p = useStore.getState().project!;
+          asInternal(() => useStore.setState({ project: { ...p, files: p.files.map((f) => (f.fid !== doc.fid ? f : { ...f, sheets: f.sheets.map((s2) => (s2.gid !== sh.gid ? s2 : { ...s2, entries: s2.entries.map((y) => { const m = byUid.get(y.uid); return m ? { ...y, note: m.note, comments: m.comments, noteBase: m.noteBase } : y; }) })) })) } }));
+        }
         for (const { e, key, b, w } of changed) {
           const n = Number(key.split('\u0000')[1]);
           // ID 是空的：只能用讀取時的列
@@ -496,7 +535,8 @@ async function flushInner(sid: string, all: boolean): Promise<void> {
           // 這格在讀取後被別人改過：先問（這條先不寫）
           const rc = tgts[row] ?? '', rn = notes[row] ?? '';
           if (writeCell && rc !== b.cell && rc !== w.cell.text) { addConflict({ sid, gid: sh.gid!, uid: e.uid, id: e.id, src: e.src, field: 'tgt', mine: w.cell.text, theirs: rc }); continue; }
-          if (writeNote && rn !== b.note && rn !== e.note) { addConflict({ sid, gid: sh.gid!, uid: e.uid, id: e.id, src: e.src, field: 'note', mine: e.note, theirs: rn }); continue; }
+          // 備註格：上面已經照 Google 現在的內容合併過留言，不用再問
+          if (writeNote && !tab.fields.note && rn !== b.note && rn !== e.note) { addConflict({ sid, gid: sh.gid!, uid: e.uid, id: e.id, src: e.src, field: 'note', mine: e.note, theirs: rn }); continue; }
           if (writeCell) cells.push({ gid: sh.gid!, row, col: tab.fields.tgt.col, rich: w.cell });
           if (writeNote) cells.push({ gid: sh.gid!, row, col: tab.fields.note!.col, rich: w.note });
           done.push({ e, key, w, row });
@@ -513,7 +553,7 @@ async function flushInner(sid: string, all: boolean): Promise<void> {
           const updates: { row: number; values: string[] }[] = [];
           const adds: string[][] = [];
           for (const { key, w } of dataDone) {
-            const values = [String(sh.gid), ...key.split('\u0000'), ...w.row, who, now, w.upd];
+            const values = [String(sh.gid), ...key.split('\u0000'), ...w.row, who, now, w.upd, w.comments];
             const hit = fd.rows.get(dataKey(sh.gid!, key));
             if (hit) updates.push({ row: hit.row, values }); else adds.push(values);
           }
@@ -524,7 +564,7 @@ async function flushInner(sid: string, all: boolean): Promise<void> {
         done.forEach(({ e }) => pendingNew.delete(e.uid));
         done.forEach(({ e, w, row }) => base.set(e.uid, {
           ...base.get(e.uid)!, id: e.id, speaker: e.speaker, src: effSrc(e), tgt: e.tgt, cell: w.cell.text, cellSig: richSig(w.cell), note: e.note, noteSig: richSig(w.note), blueFrom: w.blueFrom, row,
-          ...(did ? { core: w.core, data: w.dataSig } : {}),
+          ...(did ? { core: w.core, data: w.dataSig, comments: w.comments } : {}),
         }));
         if (missing.length) showToast(tx('cloud.missingId', { name: sh.name, ids: missing.slice(0, 5).join(tx('common.sep')) }), { warn: true });
       } catch (e) {

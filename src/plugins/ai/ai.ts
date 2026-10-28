@@ -9,6 +9,7 @@ import { effectiveStd, type LengthStd } from '../../model/length';
 import { measure } from '../../model/measure';
 import { TGT_COL, parseKey } from '../../model/cells';
 import { appendNote } from '../../model/paste';
+import { composeNote, newCommentId, parseNote } from '../../model/comments';
 import { ratio } from '../../model/srcUpdate';
 import { applyChange, compose, editsOf } from '../../model/verify';
 import { dictKey, projectTag, type Entry } from '../../model/types';
@@ -240,7 +241,13 @@ function finish() {
   job = null;
   if (j) {
     const { aiPatch } = useStore.getState();
-    for (const [uid, text] of Object.entries(j.notes)) aiPatch(j.fid, j.sheet, uid, (x) => ({ ...x, note: appendNote(x.note, 'AI：' + text) }));
+    // 雲端檔案：AI 的備註是一則作者叫「AI」的留言；本機檔案照舊接在備註後面
+    for (const [uid, text] of Object.entries(j.notes)) aiPatch(j.fid, j.sheet, uid, (x) => {
+      if (!x.comments) return { ...x, note: appendNote(x.note, 'AI：' + text) };
+      const comments = [...x.comments, { id: newCommentId(), author: 'AI', time: new Date().toISOString(), text, replies: [] }];
+      const base = x.noteBase ?? parseNote(x.note, x.comments).base;
+      return { ...x, comments, noteBase: base, note: composeNote(base, comments) };
+    });
     useStore.getState().aiFinish(j.fid, j.sheet, j.before);
   }
   useStore.setState({ aiBusy: false, aiLocked: [], aiProgress: null });

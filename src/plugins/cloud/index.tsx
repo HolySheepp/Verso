@@ -6,7 +6,7 @@ import { fz } from '../../model/fonts';
 import { checkColumns, COLS, type ColKey } from '../../model/paste';
 import { emptyFields, fieldsToColumns, isVersoHeader, type FieldMap } from '../../model/importSel';
 import { SHARED } from '../../model/types';
-import { currentOf, showToast, useStore } from '../../state/store';
+import { currentOf, ensureUserName, showToast, useStore } from '../../state/store';
 import { isDirty, saveNow } from '../../state/saver';
 import { ConfirmDialog } from '../../components/ConfirmDialog';
 import { Select } from '../../components/Select';
@@ -38,6 +38,7 @@ async function setCloud(on: boolean, step?: (p: number, text: string) => void) {
   setConfig({ on });
   if (on) {
     useStore.getState().set({ cloudMode: true });
+    if (!useCloud.getState().cfg.userName?.trim()) void ensureUserName();
     await enterCloud(step);
   } else {
     await flushAll();
@@ -80,6 +81,8 @@ function CloudDevOption() {
             <label htmlFor="verso-cloud-secret" style={label}>{tx('cloud.clientSecret')}</label>
             <input id="verso-cloud-secret" className="field" type="password" value={cfg.clientSecret} onChange={(e) => setConfig({ clientSecret: e.target.value })} />
           </>}
+          <label htmlFor="verso-cloud-user" style={label}>{tx('cloud.userName')}</label>
+          <input id="verso-cloud-user" className="field" value={cfg.userName ?? ''} placeholder={tx('cloud.userNameHint')} onChange={(e) => setConfig({ userName: e.target.value })} />
           <label htmlFor="verso-cloud-data" style={label}>{tx('cloud.dataUrl')}</label>
           <input id="verso-cloud-data" className="field" value={cfg.dataUrl ?? ''} placeholder="https://docs.google.com/spreadsheets/d/…" onChange={(e) => setConfig({ dataUrl: e.target.value })} />
           <span style={{ gridColumn: '2', fontSize: fz(12), color: 'var(--mute)', marginTop: -4 }}>{tx('cloud.dataHint')}</span>
@@ -380,6 +383,34 @@ function ConflictAsk() {
   );
 }
 
+/** 請使用者輸入用戶名（留言時顯示的名字） */
+function UserNameDialog() {
+  const ask = useStore((s) => s.userNameAsk);
+  const [name, setName] = useState(useCloud.getState().cfg.userName ?? '');
+  if (!ask) return null;
+  const done = (v: string | null) => {
+    useStore.setState({ userNameAsk: null });
+    if (v?.trim()) setConfig({ userName: v.trim() });
+    ask.resolve(v?.trim() || null);
+  };
+  return (
+    <div className="scrim" style={{ zIndex: 80 }}>
+      <div role="dialog" aria-modal="true" aria-labelledby="verso-user-title" className="dialog" style={{ width: 400, boxShadow: '0 24px 64px rgba(0,0,0,0.45)' }}>
+        <form onSubmit={(e) => { e.preventDefault(); if (name.trim()) done(name); }} style={{ padding: 20, display: 'flex', flexDirection: 'column', gap: 10 }}>
+          <h2 id="verso-user-title" style={{ margin: 0, fontSize: fz(15), fontWeight: 600 }}>{tx('cloud.userNameTitle')}</h2>
+          <div style={{ fontSize: fz(13), color: 'var(--text2)', lineHeight: 1.5 }}>{tx('cloud.userNameBody')}</div>
+          <label htmlFor="verso-user-input" className="sr-only">{tx('cloud.userName')}</label>
+          <input id="verso-user-input" className="field" autoFocus value={name} onChange={(e) => setName(e.target.value)} />
+          <div style={{ display: 'flex', justifyContent: 'flex-end', gap: 8, marginTop: 6 }}>
+            <button type="button" className="btn btn-ghost" style={{ ...btn, height: 36 }} onClick={() => done(null)}>{tx('cloud.cancel')}</button>
+            <button type="submit" className="btn btn-primary" style={primary} disabled={!name.trim()}>{tx('cloud.userNameOk')}</button>
+          </div>
+        </form>
+      </div>
+    </div>
+  );
+}
+
 function Overlay() {
   const setup = useCloud((s) => s.setup);
   const manage = useCloud((s) => s.manage);
@@ -389,6 +420,7 @@ function Overlay() {
   const confirm = useCloud((s) => s.confirm);
   return (
     <>
+      <UserNameDialog />
       {setup && <SetupDialog key={setup.sid ?? 'new'} sid0={setup.sid} gid0={setup.gid} />}
       {manage && <ManageDialog />}
       {projectsOpen && <ProjectsDialog />}
@@ -406,6 +438,8 @@ function Overlay() {
 /** 軟體開好後：讀設定、登入狀態；上次開著雲端模式就打開，之後每分鐘重新讀取 */
 async function start(step: (p: number, text: string) => void) {
   const cfg = await loadConfig();
+  useStore.setState({ userName: cfg.userName ?? '' });
+  useCloud.subscribe((c, prev) => { if (c.cfg.userName !== prev.cfg.userName) useStore.setState({ userName: c.cfg.userName ?? '' }); });
   watchStore();
   watchDicts();
   rowHook.fn = (kind, rows, count) => (kind === 'remove' ? removeRows(rows) : rowOp(kind, rows, count));

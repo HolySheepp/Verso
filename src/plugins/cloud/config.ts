@@ -30,6 +30,8 @@ export interface CloudConfig {
   dataUrl?: string;
   /** 這台電腦「不再使用」的試算表（資料表裡別人設定的也不列出來） */
   hidden?: string[];
+  /** 留言用的用戶名（個人設定，只存在這台電腦） */
+  userName?: string;
   /** 上次打開的試算表（打開雲端模式時先讀這份） */
   last?: string;
   /** 上次停在哪個頁簽（gid、第幾個）、哪一條（第幾條、對話 id）；開雲端模式時回到這裡 */

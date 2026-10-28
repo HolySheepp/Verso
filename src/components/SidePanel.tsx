@@ -1,8 +1,10 @@
 import { tx } from '../i18n';
 import { MAX_CELL_CHARS } from '../model/names';
-import { useDeferredValue, useEffect, useMemo, useRef, useState } from 'react';
+import { useDeferredValue, useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react';
 import { useShallow } from 'zustand/react/shallow';
-import { currentOf, shownSrc, currentProjectOf, dictEnabledIn, overrideKey, searchHit, useStore, useStorePick, type SideTab, currentFileStd, isShown, dictDefaultOn } from '../state/store';
+import { currentOf, shownSrc, currentProjectOf, dictEnabledIn, overrideKey, searchHit, useStore, useStorePick, type SideTab, currentFileStd, isShown, dictDefaultOn, ensureUserName } from '../state/store';
+import { CommentsPanel } from './comments/CommentsPanel';
+import { Splitter } from './Splitter';
 import { SHARED, dictKey, type DictInfo, type FileDoc, type GlossaryTerm } from '../model/types';
 import { fz } from '../model/fonts';
 import { enabledIssues } from '../model/checks';
@@ -351,8 +353,23 @@ function NotesSection() {
 
 function NotesSectionInner() {
   // 只訂閱這個區塊用到的資料（包含 currentOf 等輔助函式間接用到的）
-  const s = useStorePick('project', 'file', 'sheetBy', 'selBy', 'mode', 'suggClosed', 'noteClosed', 'set', 'updateEntry', 'applySuggestion', 'checkSettings', 'beginEdit', 'endEdit');
-  const cur = currentOf(s).entry!;
+  const s = useStorePick('project', 'file', 'sheetBy', 'selBy', 'mode', 'suggClosed', 'noteClosed', 'set', 'updateEntry', 'applySuggestion', 'checkSettings', 'beginEdit', 'endEdit', 'notesH', 'userName', 'setComments');
+  const { entry, fileDoc } = currentOf(s);
+  const cur = entry!;
+  // 雲端檔案的備註是留言對話框
+  const cloud = !!fileDoc.cloud;
+  // 建議翻譯框跟著內容變高（只有一行就只佔一行高）
+  const suggRef = useRef<HTMLTextAreaElement>(null);
+  const [suggH, setSuggH] = useState(40);
+  useLayoutEffect(() => {
+    const ta = suggRef.current;
+    if (!ta) return;
+    const prev = ta.style.height;
+    ta.style.height = '0px';
+    const h = ta.scrollHeight + 2;
+    ta.style.height = prev;
+    if (h !== suggH) setSuggH(h);
+  });
   const fileStd = currentFileStd(s);
   // 建議翻譯也檢查（跟譯文一樣的規則）；打字中不提示，離開輸入框才顯示
   const [suggFocus, setSuggFocus] = useState(false);
@@ -366,9 +383,13 @@ function NotesSectionInner() {
   const suggOpen = !s.suggClosed, noteOpen = !s.noteClosed;
   const verify = mode === 'verify';
 
+  const open = (suggVisible && suggOpen) || noteOpen;
+  const notesH = Math.max(noteOpen ? 170 : 120, s.notesH);
   return (
+    <>
+    {open && <Splitter dir="h" label={tx('side.notesResize')} value={notesH} min={noteOpen ? 170 : 120} max={Math.max(200, window.innerHeight - 260)} onChange={(v) => s.set({ notesH: v })} />}
     <section aria-label={tx('side.034')} style={{
-      height: (suggVisible && suggOpen) || noteOpen ? 300 : 'auto', flexShrink: 0, display: 'flex', flexDirection: 'column', gap: 8,
+      height: open ? notesH : 'auto', flexShrink: 0, display: 'flex', flexDirection: 'column', gap: 8, overflow: 'hidden',
       padding: '12px 14px 14px', boxSizing: 'border-box', borderTop: '1px solid var(--line)', background: 'var(--panel)',
     }}>
       {suggVisible && (
@@ -404,12 +425,12 @@ function NotesSectionInner() {
           {suggOpen && (
             <>
               <label htmlFor="verso-sugg" className="sr-only">{tx('side.035')}</label>
-              <textarea maxLength={MAX_CELL_CHARS} id="verso-sugg" value={cur.sugg} readOnly={!verify} onKeyDown={(ev) => sideFieldKey(ev, mode)}
+              <textarea ref={suggRef} rows={1} maxLength={MAX_CELL_CHARS} id="verso-sugg" value={cur.sugg} readOnly={!verify} onKeyDown={(ev) => sideFieldKey(ev, mode)}
                 // 整段輸入在條目欄的復原算一步
                 onFocus={() => { setSuggFocus(true); s.beginEdit(); }} onBlur={() => { setSuggFocus(false); s.endEdit(); }}
                 onChange={(ev) => verify && s.updateEntry({ sugg: ev.target.value })}
                 style={{
-                  ...area, flex: noteOpen ? '0 0 84px' : '1 1 auto',
+                  ...area, flex: noteOpen ? `0 1 ${suggH}px` : '1 1 auto', minHeight: 36,
                   // 跟譯文一樣用使用者設定的譯文字體
                   fontFamily: 'var(--font-tgt)', fontSize: 'var(--fs-tgt)',
                   background: verify ? 'var(--bg0)' : 'var(--bar)', border: `1px solid ${verify ? 'var(--line4)' : 'var(--line)'}`,
@@ -425,7 +446,14 @@ function NotesSectionInner() {
           {tx('side.042')}
         </button>
       </div>
-      {noteOpen && (
+      {noteOpen && cloud && (
+        <div style={{ position: 'relative', flex: '1 1 0', minHeight: 100 }}>
+          <CommentsPanel key={cur.uid} entryKey={cur.uid} notes={cur.comments ?? []} me={s.userName.trim()}
+            srcNotes={[{ name: tx('cm.srcNote'), text: cur.noteBase ?? '' }, ...(cur.extraNotes ?? [])]}
+            readOnly={mode === 'view'} ensureName={ensureUserName} onChange={(next) => s.setComments(next)} />
+        </div>
+      )}
+      {noteOpen && !cloud && (
         <>
           <label htmlFor="verso-note" className="sr-only">{tx('side.042')}</label>
           <textarea maxLength={MAX_CELL_CHARS} id="verso-note" value={cur.note} readOnly={mode === 'view'} onKeyDown={(ev) => sideFieldKey(ev, mode)}
@@ -435,6 +463,7 @@ function NotesSectionInner() {
         </>
       )}
     </section>
+    </>
   );
 }
 

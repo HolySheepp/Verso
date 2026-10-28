@@ -156,3 +156,5 @@ mark.tm-gap[data-on]::before{left:-4px;width:8px;opacity:1;background:var(--acc-
 .ai-busy { animation: ai-busy 1.2s ease-in-out infinite; }
 @keyframes ai-busy { 0%, 100% { opacity: 1; } 50% { opacity: 0.25; } }
 @keyframes verso-spin{to{transform:rotate(360deg)}}
+.vd{--bubo:#262a33;--bubd:#1c1f25;--bubhl:#4a3f1d}
+.vl{--bubo:#e6e9ee;--bubd:#eceef1;--bubhl:#f6e7b8}

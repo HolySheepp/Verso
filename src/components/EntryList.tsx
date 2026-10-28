@@ -3,7 +3,7 @@ import { plugins } from '../plugins/registry';
 import { rowHook } from '../plugins/hooks';
 import { memo, useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react';
 import { flushSync } from 'react-dom';
-import { shownCount, currentOf, hasPendingUpdate, passesFilter, searchHit, useStorePick, visibleIssues, currentFileStd } from '../state/store';
+import { shownCount, currentOf, hasNote, hasPendingUpdate, passesFilter, searchHit, useStorePick, visibleIssues, currentFileStd } from '../state/store';
 import { FilterPanel } from './FilterPanel';
 import { effectiveMark, markName, markVisual } from '../model/marks';
 import { columnToClipboard, parseHtmlTable, parseTsv, writeColumn } from '../model/clipboard';
@@ -162,7 +162,12 @@ const EntryRow = memo(function EntryRow({ e, i, aiLock, k, m, issues, on, hit, s
         {e.lengthStd !== undefined && (
           <span role="img" aria-label={tx('list.011')} title={tx('list.012', { v1: stdLabel(e.lengthStd) })} style={{ display: 'flex', color: 'var(--accent2)' }}><IconRuler size={11} sw={2.2} /></span>
         )}
-        {e.note && (
+        {/* 雲端檔案：有沒解決的留言是兩個交疊的對話氣泡；只有原備註、自訂欄是一個 */}
+        {e.comments?.some((t) => !t.resolved) ? (
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="var(--text2)" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" role="img" aria-label={tx('list.openComments')}>
+            <title>{tx('list.openComments')}</title><path d="M9 12H7l-4 3V4h11v5" /><path d="M9 9h12v11l-4-3H9z" />
+          </svg>
+        ) : (e.comments ? !!e.noteBase?.trim() || !!e.extraNotes?.some((x) => x.text.trim()) : !!e.note) && (
           <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="var(--text2)" strokeWidth="2.2" strokeLinejoin="round" role="img" aria-label={tx('list.013')}>
             <title>{tx('list.013')}</title><path d="M4 5h16v11H9.5L4 20.5z" />
           </svg>
@@ -295,7 +300,9 @@ export function EntryList() {
       const issues = visibleIssues(e, s.reported, s.checkSettings, fileStd);
       cnt[m] = (cnt[m] ?? 0) + 1;
       if (issues.length) cnt.issues = (cnt.issues ?? 0) + 1;
-      return { e, i, m, issues };
+      const note = hasNote(e);
+      if (note) cnt.note = (cnt.note ?? 0) + 1;
+      return { e, i, m, issues, note };
     });
     return { all, cnt };
   }, [sheet.entries, s.reported, s.checkSettings, fileStd]);
@@ -305,7 +312,7 @@ export function EntryList() {
   };
 
   const { rows, visible, posOf } = useMemo(() => {
-    const rows = !Object.keys(filter).length ? all : all.filter(({ m, issues }) => passesFilter(filter, m, issues.length > 0));
+    const rows = !Object.keys(filter).length ? all : all.filter(({ m, issues, note }) => passesFilter(filter, m, issues.length > 0, note));
     const visible = rows.map((x) => x.i);
     // 條目 → 在畫面上的第幾列
     const posOf = new Map(visible.map((i, k) => [i, k]));

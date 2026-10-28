@@ -1,5 +1,6 @@
 import type { StdValue } from './length';
 import type { VerifyData } from './verify';
+import type { CommentThread } from './comments';
 // 資料模型。之後接真正的檔案讀寫時，讀寫層只需要產生/接收這些型別。
 // 結構：專案 → 檔案 → 頁簽 → 條目
 
@@ -44,8 +45,14 @@ export interface Entry {
    * 畫面上當作沒有標記，存檔時照樣寫回去；使用者重新標記時就清掉。
    */
   keptMark?: string;
-  /** 我的備註 */
+  /** 我的備註（雲端模式：Google 備註格的內容＝原備註＋沒解決的留言） */
   note: string;
+  /** 雲端模式：留言（完整資料存在 Verso 資料表） */
+  comments?: CommentThread[];
+  /** 雲端模式：備註格裡原本就有、不是留言的內容（原備註，唯讀） */
+  noteBase?: string;
+  /** 雲端模式：設定 Google 表時另外抓的欄（名稱、內容），唯讀 */
+  extraNotes?: { name: string; text: string }[];
   /** 建議翻譯 */
   sugg: string;
   /** 建議翻譯的檢查誤報時按「略過」，之後不再檢查建議翻譯 */
