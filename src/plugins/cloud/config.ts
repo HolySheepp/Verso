@@ -11,7 +11,8 @@ import type { CloudProject } from './projects';
 /** 一個欄位在 Google 表上的範圍：哪一欄、哪幾段列；open 代表一直到表的最後一列（之後新增的列也算） */
 export interface FieldRange { col: number; runs: [number, number][]; open: boolean }
 export type Fields = Record<ColKey, FieldRange | null>;
-export interface CloudTab { gid: number; title: string; fields: Fields }
+/** extras：另外抓的欄（名稱、第幾欄），跟原文同一列的內容在備註對話框裡顯示成唯讀的虛線區塊 */
+export interface CloudTab { gid: number; title: string; fields: Fields; extras?: { name: string; col: number }[] }
 /** 設定過的一份試算表：sid 是試算表 ID，tabs 是有設定欄位的分頁 */
 export interface CloudSheet {
   sid: string; title: string; project: string; tabs: CloudTab[];

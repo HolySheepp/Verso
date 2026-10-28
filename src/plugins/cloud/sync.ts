@@ -272,6 +272,7 @@ function buildSheet(tab: CloudTab, rows: string[][], prev: Sheet | undefined, ke
     // 備註：資料表記的留言對上 Google 備註格，分出原備註和留言（Google 上直接打的 [名字] 內容 也算留言）
     const rComments = textToComments(d?.[D.comments]);
     const parsed = parseNote(n.note, rComments);
+    const extraNotes = tab.extras?.length ? tab.extras.map((x) => ({ name: x.name, text: rows[row]?.[x.col] ?? '' })) : undefined;
     const o = old.get(keys[i]);
     const b = o ? base.get(o.uid) : undefined;
     let e: Entry;
@@ -292,13 +293,15 @@ function buildSheet(tab: CloudTab, rows: string[][], prev: Sheet | undefined, ke
       const updNow = cloudNew && !(b && effSrc(o) !== b.src) && o.upd!.src !== n.src ? { ...o.upd!, src: n.src } : o.upd;
       const localData = !fd || (b && JSON.stringify(dataCore(o, customs)) !== b.core);
       const marks = localData ? {} : { mark: rMark.mark, keptMark: rMark.keptMark, sugg: rSugg, ver: rVer };
-      const next = { ...o, id, speaker, src: srcNow, src0: n.src, tgt, note, upd: updNow, ...marks, comments: sameComments(o.comments, comments) ? o.comments : comments, noteBase };
+      const next = { ...o, id, speaker, src: srcNow, src0: n.src, tgt, note, upd: updNow, ...marks, comments: sameComments(o.comments, comments) ? o.comments : comments, noteBase,
+        extraNotes: JSON.stringify(o.extraNotes) === JSON.stringify(extraNotes) ? o.extraNotes : extraNotes };
+      if (!next.extraNotes) delete next.extraNotes;
       if (!next.upd) delete next.upd;
       const same = (Object.keys(next) as (keyof Entry)[]).every((k) => next[k] === o[k]);
       e = same ? o : next;
     } else {
       const k = kept?.[keys[i]];
-      e = { ...n, tgt: rTgt, tgt0: rTgt, pending: false, ...(k ?? {}), comments: parsed.threads, noteBase: parsed.base };
+      e = { ...n, tgt: rTgt, tgt0: rTgt, pending: false, ...(k ?? {}), comments: parsed.threads, noteBase: parsed.base, ...(extraNotes ? { extraNotes } : {}) };
       // 有資料表：標記等以資料表為準（資料表裡還沒有的，用這台電腦之前記的，稍後寫上去）
       if (d) Object.assign(e, { mark: rMark.mark, keptMark: rMark.keptMark, sugg: rSugg, ver: rVer });
       // 原文更新：R15 的條目換回舊原文、新原文放在 upd（Google 上的新原文被人改過就用改過的）

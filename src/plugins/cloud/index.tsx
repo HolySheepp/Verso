@@ -170,7 +170,7 @@ function versoFields(rows: string[][]): FieldMap | null {
 /** 必選的欄位（可以是空的）；譯文不選就在原文右邊插入一欄 */
 const REQUIRED: ColKey[] = ['id', 'speaker', 'src', 'note'];
 
-interface Draft extends DraftSheet { gid: number }
+interface Draft extends DraftSheet { gid: number; extras: { name: string; col: number }[] }
 
 /** 設定一份 Google 表：貼網址、選專案，再像匯入檔案一樣在預覽裡選各欄的範圍 */
 function SetupDialog({ sid0, gid0 }: { sid0?: string; gid0?: number }) {
@@ -198,7 +198,7 @@ function SetupDialog({ sid0, gid0 }: { sid0?: string; gid0?: number }) {
       setDrafts(m.tabs.map((t, i) => {
         const rows = values[i];
         const prev = old?.tabs.find((x) => x.gid === t.gid);
-        return { id: 'g' + t.gid, gid: t.gid, name: t.title, rows, width: Math.max(1, ...rows.map((r) => r.length)), fields: prev ? toFieldMap(prev.fields, rows.length - 1) : versoFields(rows) ?? emptyFields() };
+        return { id: 'g' + t.gid, gid: t.gid, name: t.title, rows, width: Math.max(1, ...rows.map((r) => r.length)), fields: prev ? toFieldMap(prev.fields, rows.length - 1) : versoFields(rows) ?? emptyFields(), extras: prev?.extras ?? [] };
       }));
       // 從還沒設定的分頁點進來：直接停在那個分頁
       setCur(Math.max(0, m.tabs.findIndex((t) => t.gid === gid0)));
@@ -255,7 +255,10 @@ function SetupDialog({ sid0, gid0 }: { sid0?: string; gid0?: number }) {
           (Object.keys(shift) as ColKey[]).forEach((k) => { const f = shift[k]; if (f && f.col >= at) shift[k] = { ...f, col: f.col + 1 }; });
           fields = { ...shift, tgt: { col: at, rows: fields.src!.rows } };
         }
-        tabs.push({ gid: d.gid, title: d.name, fields: toFields(fields, d.rows.length - 1) });
+        // 譯文欄插在原文右邊時，另外抓的欄也跟著往右移
+        const shift = !d.fields.tgt && fields.tgt ? fields.tgt.col : Infinity;
+        const extras = d.extras.map((x) => ({ ...x, col: x.col >= shift ? x.col + 1 : x.col }));
+        tabs.push({ gid: d.gid, title: d.name, fields: toFields(fields, d.rows.length - 1), ...(extras.length ? { extras } : {}) });
       }
       // R15 檔照樣列出全部分頁
       const conf: CloudSheet = { sid, title, project, tabs, ...(old?.allTabs ? { allTabs: true } : {}) };
@@ -291,7 +294,8 @@ function SetupDialog({ sid0, gid0 }: { sid0?: string; gid0?: number }) {
             );
           })}
         </div>
-        {sheet && <Preview key={sheet.id} sheet={sheet} onFields={(fields) => setDrafts((all) => all!.map((d, j) => (j === cur ? { ...d, fields } : d)))} />}
+        {sheet && <Preview key={sheet.id} sheet={sheet} onFields={(fields) => setDrafts((all) => all!.map((d, j) => (j === cur ? { ...d, fields } : d)))}
+          extras={sheet.extras} onExtras={(extras) => setDrafts((all) => all!.map((d, j) => (j === cur ? { ...d, extras } : d)))} />}
       </div>
     </Shell>
   );

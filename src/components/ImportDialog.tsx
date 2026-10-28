@@ -252,8 +252,13 @@ export function ImportDialog() {
 }
 
 /** 預覽一個頁簽：像條目欄一樣點、拖、Shift、Ctrl 選範圍，再指定成某個欄位 */
-export function Preview({ sheet, onFields }: { sheet: DraftSheet; onFields(f: FieldMap): void }) {
+/** 另外抓的欄：名稱、第幾欄 */
+export interface ExtraCol { name: string; col: number }
+
+export function Preview({ sheet, onFields, extras, onExtras }: { sheet: DraftSheet; onFields(f: FieldMap): void; extras?: ExtraCol[]; onExtras?(e: ExtraCol[]): void }) {
   const { rows, width, fields } = sheet;
+  // 加號：先選好一欄（或那欄的格子），再輸入名稱
+  const [naming, setNaming] = useState<{ col: number; name: string } | null>(null);
   const [rects, setRects] = useState<Rect[]>([]);
   const [anchor, setAnchor] = useState<{ c: number; r: number } | null>(null);
   const [top, setTop] = useState(0);
@@ -383,6 +388,39 @@ export function Preview({ sheet, onFields }: { sheet: DraftSheet; onFields(f: Fi
             </div>
           );
         })}
+        {extras && onExtras && <>
+          {extras.map((x, i) => (
+            <div key={x.name + i} className="imp-chip" data-set="">
+              <span className="imp-chip-btn" style={{ cursor: 'default' }}>
+                <span style={{ fontWeight: 600 }}>{x.name}</span>
+                <span style={{ color: 'var(--text2)' }}>{tx('import.extraCol', { col: colName(x.col) })}</span>
+              </span>
+              <button type="button" className="ib" aria-label={tx('import.023', { label: x.name })} title={tx('import.024')} onClick={() => onExtras(extras.filter((_, j) => j !== i))}
+                style={{ width: 22, height: 22, display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 0, background: 'transparent', border: 0, borderRadius: 5, color: 'var(--mute)' }}>
+                <IconWinClose size={9} sw={1.4} />
+              </button>
+            </div>
+          ))}
+          {naming ? (
+            <form onSubmit={(ev) => { ev.preventDefault(); const n = naming.name.trim(); if (n && !extras.some((x) => x.name === n)) { onExtras([...extras, { name: n, col: naming.col }]); setNaming(null); setRects([]); } }}
+              style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+              <label htmlFor="verso-extra-name" style={{ fontSize: fz(12), color: 'var(--text2)' }}>{tx('import.extraName', { col: colName(naming.col) })}</label>
+              <input id="verso-extra-name" className="field" autoFocus value={naming.name} onChange={(ev) => setNaming({ ...naming, name: ev.target.value })}
+                onKeyDown={(ev) => { if (ev.key === 'Escape') { ev.stopPropagation(); setNaming(null); } }} style={{ width: 120, height: 28 }} />
+              <button type="submit" className="btn btn-ghost" disabled={!naming.name.trim() || extras.some((x) => x.name === naming.name.trim())}
+                style={{ height: 28, padding: '0 10px', background: 'var(--btn)', border: '1px solid var(--line4)', borderRadius: 6, fontSize: fz(12) }}>{tx('import.extraOk')}</button>
+            </form>
+          ) : (
+            <button type="button" className="ib" aria-label={tx('import.extraAdd')} title={tx('import.extraAdd')}
+              onClick={() => {
+                const cols = [...new Set(rects.flatMap((x) => Array.from({ length: x.c1 - x.c0 + 1 }, (_, j) => x.c0 + j)))];
+                if (cols.length !== 1) { setMsg(tx('import.extraPick')); return; }
+                setMsg('');
+                setNaming({ col: cols[0], name: '' });
+              }}
+              style={{ width: 28, height: 28, display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 0, background: 'var(--btn)', border: '1px solid var(--line4)', borderRadius: 6, color: 'var(--text2)', fontSize: 16 }}>+</button>
+          )}
+        </>}
         <span role="alert" style={{ fontSize: fz(12.5), color: 'var(--errtx)' }}>{msg}</span>
       </div>
 
