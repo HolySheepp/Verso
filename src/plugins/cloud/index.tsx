@@ -330,7 +330,6 @@ function SetupDialog({ sid0, gid0 }: { sid0?: string; gid0?: number }) {
             </button>
           </div>
         )}
-        {sheetGone.size > 0 && <div style={{ fontSize: fz(12), color: 'var(--mute)' }}>{tx('cloud.removedRowsHint', { n: [...sheetGone.values()].filter(Boolean).length })}</div>}
         {sheet && <Preview key={sheet.id} sheet={sheet} removed={sheetGone} onToggleRow={toggleRow} onFields={(fields) => setDrafts((all) => all!.map((d, j) => (j === cur ? { ...d, fields } : d)))}
           extras={sheet.extras} onExtras={(extras) => setDrafts((all) => all!.map((d, j) => (j === cur ? { ...d, extras } : d)))} />}
       </div>
