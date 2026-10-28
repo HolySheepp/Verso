@@ -22,7 +22,7 @@ import { beforeExit, rowHook, tabHook } from '../hooks';
 import type { VersoPlugin } from '../registry';
 import { builtinClient, errText, insertCol, login, loginStatus, logout, meta, readTabs, sidOf } from './api';
 import { allSheets, loadConfig, setConfig, toFields, toFieldMap, useCloud, type CloudSheet, type CloudTab } from './config';
-import { rememberPos, isVersoTab, convertVersoTab, removeRows, tabRemove, rowOp, tabRename, tabDelete, tabInsert, currentSid, enterCloud, flushAll, pickShown, putSheet, refreshAll, removeSheet, resolveConflict, watchStore } from './sync';
+import { previewKeys, removedNow, setRemoved, rememberPos, isVersoTab, convertVersoTab, removeRows, tabRemove, rowOp, tabRename, tabDelete, tabInsert, currentSid, enterCloud, flushAll, pickShown, putSheet, refreshAll, removeSheet, resolveConflict, watchStore } from './sync';
 
 const btn: React.CSSProperties = { height: 32, padding: '0 14px', background: 'var(--btn)', border: '1px solid var(--line4)', borderRadius: 8, fontSize: fz(12.5) };
 const primary: React.CSSProperties = { height: 36, padding: '0 18px', background: 'var(--primary)', border: 0, borderRadius: 8, color: '#ffffff', fontSize: fz(13), fontWeight: 600 };
@@ -170,7 +170,8 @@ function versoFields(rows: string[][]): FieldMap | null {
 /** 必選的欄位（可以是空的）；譯文不選就在原文右邊插入一欄 */
 const REQUIRED: ColKey[] = ['id', 'speaker', 'src', 'note'];
 
-interface Draft extends DraftSheet { gid: number; extras: { name: string; col: number }[] }
+/** removedTab：這個頁簽之前被移除了（true 維持移除，false 這次恢復）；restore：這次要恢復的條目（ID 第幾個） */
+interface Draft extends DraftSheet { gid: number; extras: { name: string; col: number }[]; removedTab?: boolean; restore: string[] }
 
 /** 設定一份 Google 表：貼網址、選專案，再像匯入檔案一樣在預覽裡選各欄的範圍 */
 function SetupDialog({ sid0, gid0 }: { sid0?: string; gid0?: number }) {
@@ -194,11 +195,14 @@ function SetupDialog({ sid0, gid0 }: { sid0?: string; gid0?: number }) {
     try {
       const m = await meta(sid);
       const values = await readTabs(sid, m.tabs.map((t) => t.title));
+      // 之前移除的頁簽、條目（預覽裡顯示灰色，可以逐條恢復）
+      const gone = sid0 ? removedNow(sid0) : undefined;
       setTitle(m.title);
       setDrafts(m.tabs.map((t, i) => {
         const rows = values[i];
         const prev = old?.tabs.find((x) => x.gid === t.gid);
-        return { id: 'g' + t.gid, gid: t.gid, name: t.title, rows, width: Math.max(1, ...rows.map((r) => r.length)), fields: prev ? toFieldMap(prev.fields, rows.length - 1) : versoFields(rows) ?? emptyFields(), extras: prev?.extras ?? [] };
+        return { id: 'g' + t.gid, gid: t.gid, name: t.title, rows, width: Math.max(1, ...rows.map((r) => r.length)), fields: prev ? toFieldMap(prev.fields, rows.length - 1) : versoFields(rows) ?? emptyFields(), extras: prev?.extras ?? [],
+          restore: [], ...(gone?.tabs?.includes(t.gid) ? { removedTab: true } : {}) };
       }));
       // 從還沒設定的分頁點進來：直接停在那個分頁
       setCur(Math.max(0, m.tabs.findIndex((t) => t.gid === gid0)));
@@ -230,6 +234,20 @@ function SetupDialog({ sid0, gid0 }: { sid0?: string; gid0?: number }) {
   }
 
   const sheet = drafts[Math.min(cur, drafts.length - 1)];
+  // 之前移除的條目：列 → 維持移除（true）／恢復（false）
+  const goneRows = (d: Draft) => {
+    const keys = new Set(removedNow(sid0 ?? '')?.rows?.[String(d.gid)] ?? []);
+    const out = new Map<number, boolean>();
+    if (!keys.size) return out;
+    for (const x of previewKeys(d.rows, d.fields)) if (keys.has(x.key)) out.set(x.row, !d.restore.includes(x.key));
+    return out;
+  };
+  const sheetGone = sheet ? goneRows(sheet) : new Map<number, boolean>();
+  const toggleRow = (r: number) => {
+    const key = previewKeys(sheet.rows, sheet.fields).find((x) => x.row === r)?.key;
+    if (!key) return;
+    setDrafts((all) => all!.map((d, j) => (j !== cur ? d : { ...d, restore: d.restore.includes(key) ? d.restore.filter((k) => k !== key) : [...d.restore, key] })));
+  };
   const used = drafts.filter((d) => Object.values(d.fields).some(Boolean));
   const problem = (d: Draft): string => {
     const lack = REQUIRED.filter((k) => !d.fields[k]);
@@ -260,8 +278,18 @@ function SetupDialog({ sid0, gid0 }: { sid0?: string; gid0?: number }) {
         const extras = d.extras.map((x) => ({ ...x, col: x.col >= shift ? x.col + 1 : x.col }));
         tabs.push({ gid: d.gid, title: d.name, fields: toFields(fields, d.rows.length - 1), ...(extras.length ? { extras } : {}) });
       }
-      // R15 檔照樣列出全部分頁
-      const conf: CloudSheet = { sid, title, project, tabs, ...(old?.allTabs ? { allTabs: true } : {}) };
+      // 移除紀錄：沒恢復的留著，恢復的拿掉；長度標準、R15 檔列出全部分頁都照舊
+      const was = removedNow(sid);
+      const rows: Record<string, string[]> = {};
+      for (const [g, ks] of Object.entries(was?.rows ?? {})) {
+        const d = drafts.find((x) => String(x.gid) === g);
+        const left = ks.filter((k) => !d?.restore.includes(k));
+        if (left.length) rows[g] = left;
+      }
+      const tabsGone = (was?.tabs ?? []).filter((g) => drafts.find((x) => x.gid === g)?.removedTab !== false);
+      const removed = tabsGone.length || Object.keys(rows).length ? { tabs: tabsGone, rows } : undefined;
+      const conf: CloudSheet = { sid, title, project, tabs, ...(old?.allTabs ? { allTabs: true } : {}), ...(old?.lengthStd !== undefined ? { lengthStd: old.lengthStd } : {}), ...(removed ? { removed } : {}) };
+      setRemoved(sid, removed);
       close();
       await putSheet(conf);
     } catch (e) { setErr(errText(e)); setBusy(false); }
@@ -289,12 +317,21 @@ function SetupDialog({ sid0, gid0 }: { sid0?: string; gid0?: number }) {
             return (
               <button key={d.id} type="button" role="tab" className="stab" aria-selected={on} onClick={() => setCur(i)}
                 style={{ height: 36, padding: '0 10px', background: 'transparent', border: 0, borderBottom: `2px solid ${on ? 'var(--accent)' : 'transparent'}`, fontSize: fz(13), fontWeight: 500, color: on ? 'var(--text)' : 'var(--mute)', whiteSpace: 'nowrap' }}>
-                {d.name}{set ? ' ✓' : ''}
+                <span style={d.removedTab ? { textDecoration: 'line-through', color: 'var(--mute3)' } : undefined}>{d.name}</span>{set ? ' ✓' : ''}
               </button>
             );
           })}
         </div>
-        {sheet && <Preview key={sheet.id} sheet={sheet} onFields={(fields) => setDrafts((all) => all!.map((d, j) => (j === cur ? { ...d, fields } : d)))}
+        {sheet?.removedTab !== undefined && (
+          <div role="status" style={{ display: 'flex', alignItems: 'center', gap: 10, fontSize: fz(12.5), color: 'var(--text2)' }}>
+            {sheet.removedTab ? tx('cloud.removedTabNote') : tx('cloud.restoredTabNote')}
+            <button type="button" className="btn btn-ghost" style={btn} onClick={() => setDrafts((all) => all!.map((d, j) => (j === cur ? { ...d, removedTab: !d.removedTab } : d)))}>
+              {sheet.removedTab ? tx('cloud.restoreTab') : tx('cloud.keepRemoved')}
+            </button>
+          </div>
+        )}
+        {sheetGone.size > 0 && <div style={{ fontSize: fz(12), color: 'var(--mute)' }}>{tx('cloud.removedRowsHint', { n: [...sheetGone.values()].filter(Boolean).length })}</div>}
+        {sheet && <Preview key={sheet.id} sheet={sheet} removed={sheetGone} onToggleRow={toggleRow} onFields={(fields) => setDrafts((all) => all!.map((d, j) => (j === cur ? { ...d, fields } : d)))}
           extras={sheet.extras} onExtras={(extras) => setDrafts((all) => all!.map((d, j) => (j === cur ? { ...d, extras } : d)))} />}
       </div>
     </Shell>

@@ -1,6 +1,13 @@
 // 介面文字（中文）：程式裡只寫代號，用 tx('代號') 取文字。由程式整理產生，改字句請改這裡。
 // 存檔裡的名稱（欄位標題、資料夾名稱等）不在這裡，維持中文。
 export const ZH = {
+  'cloud.removedRow': '已移除，點一下恢復', // 重新設定 Google 表：預覽裡被移除條目的列號提示
+  'cloud.restoredRow': '這次會恢復，點一下維持移除', // 同上：已選恢復的列號提示
+  'cloud.removedRowsHint': '灰色的 {n} 條之前被移除了，點列號可以恢復', // 同上：預覽上方的說明
+  'cloud.removedTabNote': '這個頁簽之前被移除了', // 重新設定 Google 表：被移除的頁簽
+  'cloud.restoredTabNote': '這個頁簽這次會恢復', // 同上：選了恢復
+  'cloud.restoreTab': '恢復這個頁簽', // 同上：按鈕
+  'cloud.keepRemoved': '維持移除', // 同上：按鈕
   'import.extraAdd': '添加要抓取的欄', // 設定 Google 表：欄位選項後面的加號
   'import.extraPick': '先在表上選一欄（或那欄的格子），再按加號', // 同上：沒選欄或選了好幾欄時的提示
   'import.extraName': '{col} 欄的名稱', // 同上：輸入名稱的標籤
@@ -64,9 +71,9 @@ export const ZH = {
   'cloud.section': '雲端', // 設定左邊的分類
   'settings.checksOn': '自動檢查', // 設定 > 檢查：總開關
   'cloud.removeRowsAsk': '移除這 {n} 條？', // 雲端模式：移除條目的確認
-  'cloud.removeRowsBody': '移除後 Verso 不再讀取這幾條（Google 上不動），同專案的人也不會再讀到。之後要恢復，只能重新設定這份表。', // 雲端模式：移除條目的確認
+  'cloud.removeRowsBody': '移除後 Verso 不再讀取這幾條（Google 上不動），同專案的人也不會再讀到。之後要恢復，可以重新設定這份表，在預覽裡逐條恢復。', // 雲端模式：移除條目的確認
   'cloud.removeTabAsk': '移除頁簽「{name}」？', // 雲端模式：移除頁簽的確認
-  'cloud.removeTabBody': '移除後 Verso 不再讀取這個頁簽（Google 上不動），同專案的人也不會再讀到。之後要恢復，只能重新設定這份表。', // 雲端模式：移除頁簽的確認
+  'cloud.removeTabBody': '移除後 Verso 不再讀取這個頁簽（Google 上不動），同專案的人也不會再讀到。之後要恢復，可以重新設定這份表，在預覽裡恢復。', // 雲端模式：移除頁簽的確認
   'cloud.removeOk': '移除', // 雲端模式：移除的確認按鈕
   'cloud.removeLastTab': '最後一個頁簽不能移除，要整份不用請到「管理 Google 表」選不再使用', // 雲端模式：移除頁簽
   'cloud.updSrc': '更新原文', // 雲端模式：更新原文視窗

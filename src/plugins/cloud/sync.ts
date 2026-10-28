@@ -61,6 +61,19 @@ function mergeRemoved(a: CloudSheet['removed'], b: CloudSheet['removed']): Cloud
 /** 目前要略過的頁簽、條目（資料表上的加上這台電腦剛移除的） */
 const removedOf = (sid: string) => mergeRemoved(confOf(sid)?.removed, localRemoved.get(sid));
 
+/** 重新設定時換成新的移除紀錄（恢復的拿掉；不跟這台電腦之前記的合併） */
+export function setRemoved(sid: string, removed: CloudSheet['removed']) {
+  if (removed) localRemoved.set(sid, removed); else localRemoved.delete(sid);
+}
+/** 目前的移除紀錄（重新設定的預覽用） */
+export const removedNow = (sid: string) => removedOf(sid);
+/** 預覽裡每一條的「ID 第幾個」和它在表上的列（對移除紀錄用） */
+export function previewKeys(rows: string[][], fields: FieldMap): { key: string; row: number }[] {
+  if (!fields.src) return [];
+  const fresh = columnsToEntries(fieldsToColumns(rows, fields));
+  return keysOf(fresh).map((key, i) => ({ key, row: fields.src!.rows[i] }));
+}
+
 /** 同一個 ID 第幾次出現：讀取時、寫回時都用它對條目和列 */
 const keysOf = (entries: { id: string }[]) => {
   const seen = new Map<string, number>();

@@ -255,7 +255,11 @@ export function ImportDialog() {
 /** 另外抓的欄：名稱、第幾欄 */
 export interface ExtraCol { name: string; col: number }
 
-export function Preview({ sheet, onFields, extras, onExtras }: { sheet: DraftSheet; onFields(f: FieldMap): void; extras?: ExtraCol[]; onExtras?(e: ExtraCol[]): void }) {
+export function Preview({ sheet, onFields, extras, onExtras, removed, onToggleRow }: {
+  sheet: DraftSheet; onFields(f: FieldMap): void; extras?: ExtraCol[]; onExtras?(e: ExtraCol[]): void;
+  /** 雲端重新設定：之前移除的列（true＝維持移除、顯示灰色；false＝這次要恢復），點列號切換 */
+  removed?: Map<number, boolean>; onToggleRow?(r: number): void;
+}) {
   const { rows, width, fields } = sheet;
   // 加號：先選好一欄（或那欄的格子），再輸入名稱
   const [naming, setNaming] = useState<{ col: number; name: string } | null>(null);
@@ -441,12 +445,19 @@ export function Preview({ sheet, onFields, extras, onExtras }: { sheet: DraftShe
             const r = first + j;
             return (
               <div key={r} style={{ position: 'absolute', top: (r + 1) * ROW_H, left: 0, display: 'flex', width: total, height: ROW_H }}>
-                <div className="imp-num" onMouseDown={(ev) => press(ev, 'row', { c: 0, r })} onMouseEnter={() => enter({ c: width - 1, r })}>{r + 1}</div>
+                {removed?.has(r) ? (
+                  <button type="button" className="imp-num" onClick={() => onToggleRow?.(r)} aria-pressed={!removed.get(r)}
+                    title={removed.get(r) ? tx('cloud.removedRow') : tx('cloud.restoredRow')} aria-label={(removed.get(r) ? tx('cloud.removedRow') : tx('cloud.restoredRow')) + ' ' + (r + 1)}
+                    style={{ border: 0, borderRight: '1px solid var(--line)', cursor: 'pointer', color: removed.get(r) ? 'var(--mute3)' : 'var(--accent2)', textDecoration: removed.get(r) ? 'line-through' : undefined }}>{r + 1}</button>
+                ) : (
+                  <div className="imp-num" onMouseDown={(ev) => press(ev, 'row', { c: 0, r })} onMouseEnter={() => enter({ c: width - 1, r })}>{r + 1}</div>
+                )}
                 {Array.from({ length: width }, (_, c) => {
                   const k = marks.get(c + ':' + r);
                   const v = row[c] ?? '';
                   return (
                     <div key={c} className={'imp-cell' + (k ? ' imp-f-' + k : '')} data-sel={inSel(c, r) ? '' : undefined} title={v.length > 20 ? v : undefined}
+                      style={removed?.get(r) ? { opacity: 0.4 } : undefined}
                       onMouseDown={(ev) => press(ev, 'cell', { c, r })} onMouseEnter={() => enter({ c, r })}>{v}</div>
                   );
                 })}
