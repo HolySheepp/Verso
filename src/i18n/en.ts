@@ -884,4 +884,8 @@ export const EN: Partial<Record<TextKey, string>> = {
   'cloud.offlineTitle': 'No Internet Connection',
   'cloud.offlineBody': 'No internet connection. You may turn off cloud mode for now. Verso will load the cloud files automatically once you\'re back online.',
   'cloud.offlineOff': 'Turn Off Cloud Mode',
+  'list.filterInclude': 'Included',
+  'list.filterExclude': 'Excluded',
+  'list.filterNone': 'Not filtered',
+  'list.filterMixed': 'Partially filtered',
 };

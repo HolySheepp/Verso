@@ -1,10 +1,10 @@
 // 介面文字（中文）：程式裡只寫代號，用 tx('代號') 取文字。由程式整理產生，改字句請改這裡。
 // 存檔裡的名稱（欄位標題、資料夾名稱等）不在這裡，維持中文。
 export const ZH = {
-  'list.filterInclude': '勾選：只顯示這些', // 條目欄篩選面板，條件的狀態（滑鼠提示、讀螢幕軟體）
-  'list.filterExclude': '排除：不顯示這些', // 同上
+  'list.filterInclude': '包含', // 條目欄篩選面板，條件的狀態（滑鼠提示、讀螢幕軟體）
+  'list.filterExclude': '排除', // 同上
   'list.filterNone': '不篩選', // 同上
-  'list.filterMixed': '部分條件有篩選', // 篩選面板「全部」在各條件狀態不同時
+  'list.filterMixed': '部分篩選', // 篩選面板「全部」在各條件狀態不同時
   'cloud.offlineTitle': '沒有連接到網路', // 雲端模式開著、啟動時沒有網路的提示標題
   'cloud.offlineBody': '無法連接到網路，可先關閉雲端模式，網路連接恢復後會自動重試', // 同上的說明
   'cloud.offlineOff': '關閉雲端模式', // 同上的按鈕
