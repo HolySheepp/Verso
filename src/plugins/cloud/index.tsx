@@ -5,6 +5,7 @@ import { tx } from '../../i18n';
 import { fz } from '../../model/fonts';
 import { checkColumns, COLS, type ColKey } from '../../model/paste';
 import { emptyFields, fieldsToColumns, isVersoHeader, type FieldMap } from '../../model/importSel';
+import { cleanName } from '../../model/comments';
 import { SHARED } from '../../model/types';
 import { currentOf, ensureUserName, showToast, useStore } from '../../state/store';
 import { isDirty, saveNow } from '../../state/saver';
@@ -82,7 +83,7 @@ function CloudDevOption() {
             <input id="verso-cloud-secret" className="field" type="password" value={cfg.clientSecret} onChange={(e) => setConfig({ clientSecret: e.target.value })} />
           </>}
           <label htmlFor="verso-cloud-user" style={label}>{tx('cloud.userName')}</label>
-          <input id="verso-cloud-user" className="field" value={cfg.userName ?? ''} placeholder={tx('cloud.userNameHint')} onChange={(e) => setConfig({ userName: e.target.value })} />
+          <input id="verso-cloud-user" className="field" value={cfg.userName ?? ''} placeholder={tx('cloud.userNameHint')} onChange={(e) => setConfig({ userName: cleanName(e.target.value) })} />
           <label htmlFor="verso-cloud-data" style={label}>{tx('cloud.dataUrl')}</label>
           <input id="verso-cloud-data" className="field" value={cfg.dataUrl ?? ''} placeholder="https://docs.google.com/spreadsheets/d/…" onChange={(e) => setConfig({ dataUrl: e.target.value })} />
           <span style={{ gridColumn: '2', fontSize: fz(12), color: 'var(--mute)', marginTop: -4 }}>{tx('cloud.dataHint')}</span>
@@ -430,8 +431,9 @@ function UserNameDialog() {
   if (!ask) return null;
   const done = (v: string | null) => {
     useStore.setState({ userNameAsk: null });
-    if (v?.trim()) setConfig({ userName: v.trim() });
-    ask.resolve(v?.trim() || null);
+    const nm = cleanName(v ?? '').trim();
+    if (nm) setConfig({ userName: nm });
+    ask.resolve(nm || null);
   };
   return (
     <div className="scrim" style={{ zIndex: 80 }}>
@@ -478,8 +480,8 @@ function Overlay() {
 /** 軟體開好後：讀設定、登入狀態；上次開著雲端模式就打開，之後每分鐘重新讀取 */
 async function start(step: (p: number, text: string) => void) {
   const cfg = await loadConfig();
-  useStore.setState({ userName: cfg.userName ?? '' });
-  useCloud.subscribe((c, prev) => { if (c.cfg.userName !== prev.cfg.userName) useStore.setState({ userName: c.cfg.userName ?? '' }); });
+  useStore.setState({ userName: cleanName(cfg.userName ?? '') });
+  useCloud.subscribe((c, prev) => { if (c.cfg.userName !== prev.cfg.userName) useStore.setState({ userName: cleanName(c.cfg.userName ?? '') }); });
   watchStore();
   watchDicts();
   rowHook.fn = (kind, rows, count) => (kind === 'remove' ? removeRows(rows) : rowOp(kind, rows, count));

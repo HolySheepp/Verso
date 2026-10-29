@@ -36,6 +36,13 @@ describe('雲端備註：Google 備註格的寫法與讀法', () => {
     expect(r1.threads[0].id).toBe(r2.threads[0].id);
   });
 
+  it('上面沒有留言的「-[名字] 內容」當原備註保留，寫回時文字不變', () => {
+    const r = parseNote('-[Ann] orphan', []);
+    expect(r.base).toBe('-[Ann] orphan');
+    expect(r.threads).toEqual([]);
+    expect(composeNote(r.base, r.threads)).toBe('-[Ann] orphan');
+  });
+
   it('兩人同時各留一則都留著；一邊刪掉就刪；同一則都改了用自己的', () => {
     const base = [th('a', 'F', 'one')];
     const mine = [th('a', 'F', 'one (mine)'), th('m', 'F', 'mine new')];

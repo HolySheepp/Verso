@@ -212,7 +212,7 @@ export function CommentsPanel({ entryKey, srcNotes = [], notes, me, onChange, en
     const domId = (o.layer === 'main' ? 'vm-' : 'vt-') + m.id;
 
     const hoverIn = (e: { currentTarget: HTMLElement }) => {
-      if (hover === key) return;
+      if (readOnly || hover === key) return;
       const w = e.currentTarget.offsetWidth;
       setNatW((n) => (n[key] === w ? n : { ...n, [key]: w }));
       setHover(key); setArmed(null);
@@ -223,6 +223,7 @@ export function CommentsPanel({ entryKey, srcNotes = [], notes, me, onChange, en
       later(() => setLeaving((l) => (l === key ? null : l)), T.leaveHold);
     };
     const onDelete = (e: RMouseEvent) => {
+      if (readOnly) return;
       if (!isArmed) {
         setArmed(key);
         const root = rootRef.current;
@@ -281,13 +282,13 @@ export function CommentsPanel({ entryKey, srcNotes = [], notes, me, onChange, en
             style={{ [mine ? 'right' : 'left']: 6, width: toolW, opacity: show ? 1 : 0, visibility: show ? 'visible' : 'hidden', transform: toolTf,
               transition: show ? `transform ${T.toolIn} ${tDelay}ms, opacity 160ms ease ${tDelay + 60}ms, visibility 0s` : `transform ${T.toolOut}, opacity 130ms ease, visibility 0s linear 190ms` }}>
             <button type="button" className="vc-ib" title={resolved ? tx('cm.unresolve') : tx('cm.resolve')} aria-label={resolved ? tx('cm.unresolve') : tx('cm.resolve')}
-              onClick={() => { if (resolved) setOpenResolved((x) => { const n = { ...x }; delete n[m.id]; return n; }); setHover(null); onChange(patchMsg(notes, m.id, { resolved: !resolved })); }}>
+              onClick={() => { if (readOnly) return; if (resolved) setOpenResolved((x) => { const n = { ...x }; delete n[m.id]; return n; }); setHover(null); onChange(patchMsg(notes, m.id, { resolved: !resolved })); }}>
               {resolved ? <IUndo /> : <ICheck />}
             </button>
             <button type="button" className="vc-ib" title={tx('cm.reply')} aria-label={tx('cm.reply')} onClick={(e) => o.onReply(e.currentTarget.closest('[data-bub]'))}><IReply /></button>
             {canEdit && (
               <button type="button" className="vc-ib" title={tx('cm.edit')} aria-label={tx('cm.edit')}
-                onClick={() => { setEdit({ layer: o.layer, id: m.id }); if (o.layer === 'thread') setQuote(null); setDraft((d) => ({ ...d, [o.layer]: m.text })); pending.current.focus = o.layer; }}>
+                onClick={() => { if (readOnly) return; setEdit({ layer: o.layer, id: m.id }); if (o.layer === 'thread') setQuote(null); setDraft((d) => ({ ...d, [o.layer]: m.text })); pending.current.focus = o.layer; }}>
                 <IPenEdit />
               </button>
             )}
@@ -321,6 +322,8 @@ export function CommentsPanel({ entryKey, srcNotes = [], notes, me, onChange, en
     const send = async () => {
       const text = value.trim();
       if (!text || readOnly) return;
+      // 正在編輯的那則被同步刪掉了：清掉編輯狀態，不要當成新留言送出
+      if (edit && edit.layer === layer && !ed) { setEdit(null); setDraft((d) => ({ ...d, [layer]: '' })); return; }
       if (!ed && !me && ensureName && !(await ensureName())) return;
       if (ed) {
         if (ed.msg.text !== text) onChange(patchMsg(notes, ed.msg.id, { text, edited: true }));
@@ -449,10 +452,12 @@ export function CommentsPanel({ entryKey, srcNotes = [], notes, me, onChange, en
           <div className="vc-ov-in" style={ovContent}>
             <div className="vc-ov-head">
               <button type="button" className="vc-ib vc-back" onClick={closeThread} aria-label={tx('cm.backList')} title={tx('cm.back')}><IChevL />{tx('cm.thread')}</button>
-              <button type="button" className="vc-ib" onClick={() => thread && onChange(patchMsg(notes, thread.id, { resolved: !thread.resolved }))}
-                aria-label={thread?.resolved ? tx('cm.unresolve') : tx('cm.resolve')} title={thread?.resolved ? tx('cm.unresolve') : tx('cm.resolve')}>
-                {thread?.resolved ? <IUndo /> : <ICheck />}
-              </button>
+              {!readOnly && (
+                <button type="button" className="vc-ib" onClick={() => thread && onChange(patchMsg(notes, thread.id, { resolved: !thread.resolved }))}
+                  aria-label={thread?.resolved ? tx('cm.unresolve') : tx('cm.resolve')} title={thread?.resolved ? tx('cm.unresolve') : tx('cm.resolve')}>
+                  {thread?.resolved ? <IUndo /> : <ICheck />}
+                </button>
+              )}
             </div>
             <div ref={tList} className="vc-list">{threadItems}</div>
             {renderInput('thread')}

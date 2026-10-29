@@ -19,6 +19,9 @@ export interface CommentThread extends Omit<CommentReply, 'quoteId'> {
 }
 
 const LINE = /^(-?)\[([^\]\n]+)\] ?(.*)$/;
+/** 使用者名稱：去掉 [ ] 和換行（備註格裡的留言行靠 [名稱] 辨認，名稱裡有這些字就讀不回來） */
+export const cleanName = (n: string) => n.replace(/[[\]\r\n]+/g, '');
+
 /** 寫進 Google 的一行：換行換成空格（一則留言只佔一行，讀回來才認得） */
 const flat = (t: string) => t.replace(/\s*\n\s*/g, ' ').trim();
 export const commentLine = (author: string, text: string, reply = false) => `${reply ? '-' : ''}[${author}] ${flat(text)}`;
@@ -72,6 +75,8 @@ export function parseNote(note: string, known: CommentThread[]): { base: string;
       continue;
     }
     const reply = m[1] === '-';
+    // 上面沒有任何留言的「-[名字] 內容」：當原備註文字保留，寫回時才不會少了「-」
+    if (reply && !last) { baseLines.push(raw); continue; }
     const n = counts.get(line) ?? 0;
     counts.set(line, n + 1);
     const c = { id: lineId(reply, m[2], m[3], n), author: m[2], time: '', text: m[3] };
