@@ -82,6 +82,8 @@ async function loadDict(d: DictInfo) {
     const p = useStore.getState().project!;
     const now = p.dicts.find((x) => x.cloud?.sid === c.sid && x.cloud.gid === c.gid);
     if (!now) return;
+    // 讀取途中使用者又改了詞條：不要用讀回來的內容蓋掉，下次同步再讀
+    if (pending(now)) return;
     const terms: GlossaryTerm[] = list.map((x) => ({ id: `c${c.gid}_${(seq++).toString(36)}`, ...x, dict: now.name, proj: now.project }));
     known.set(k, { sid: c.sid, gid: c.gid, title: now.name, terms: new Map(terms.map((t) => [t.id, { term: t.term, en: t.en, note: t.note }])) });
     const mine = (g: GlossaryTerm) => g.proj === now.project && g.dict === now.name;

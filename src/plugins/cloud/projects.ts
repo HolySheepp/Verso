@@ -146,6 +146,8 @@ export async function writeProject(p: CloudProject, oldName?: string) {
 /** 刪掉一個專案的那一列 */
 export async function deleteProjectRow(name: string) {
   const did = dataSid();
+  // 列號會因為別人刪列而變，先重讀再查
+  if (did) await readProjects();
   const row = projRows.get(name);
   const gid = tabs.find((x) => x.title === PROJ_TAB)?.gid;
   if (!did || row === undefined || gid === undefined) return;

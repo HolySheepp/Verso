@@ -191,7 +191,7 @@ function callTool(name: string, args: Record<string, unknown>): unknown {
   }
   if (name === 'undo_change') {
     const b = j.before[e.uid];
-    aiPatch(j.fid, j.sheet, e.uid, (x) => ({ ...x, tgt: b.tgt, ver: b.ver, sugg: b.sugg, mark: b.mark, pending: b.pending }));
+    aiPatch(j.fid, j.sheet, e.uid, (x) => ({ ...x, tgt: b.tgt, ver: b.ver, sugg: b.sugg, mark: b.mark, keptMark: b.keptMark, pending: b.pending }));
     delete j.wrote[e.uid];
     delete j.notes[e.uid];
     progress(j);
@@ -351,6 +351,15 @@ export async function runAi(confirmed = false): Promise<'ask' | void> {
   if (!isTauri()) { showToast(tx('ai.desktopOnly'), { warn: true }); return; }
   const { mode, indices } = aiTarget();
   if (indices.length > AI_ASK_OVER && !confirmed) return 'ask';
+  // 啟動途中（還沒設 aiBusy）再按一次：直接略過，免得第二個任務蓋掉第一個
+  if (launching) return;
+  launching = true;
+  try { await launchAi(s, mode, indices); } finally { launching = false; }
+}
+
+let launching = false;
+
+async function launchAi(s: ReturnType<typeof useStore.getState>, mode: 'translate' | 'verify', indices: number[]) {
   await startAi();
   const { fileDoc, sheetIdx, sheet } = currentOf(s);
   const list = indices.map((i) => sheet.entries[i]).filter(Boolean);

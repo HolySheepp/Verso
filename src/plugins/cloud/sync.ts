@@ -1209,6 +1209,8 @@ export async function createR15(sid: string, link: string, linkTitle: string, ta
 
 // ---- 移除：Verso 不再讀取這些頁簽、條目（Google 上不動），紀錄存在資料表，同專案的人都不會再讀到 ----
 async function saveRemoved(sid: string, removed: NonNullable<CloudSheet['removed']>) {
+  // 先重讀共用設定，免得把別人剛存的移除紀錄蓋掉
+  await readShared();
   const conf = confOf(sid);
   if (!conf) return;
   localRemoved.set(sid, mergeRemoved(localRemoved.get(sid), removed)!);

@@ -938,9 +938,9 @@ export const useStore = create<Store>((set, get) => {
       pushSnap({ file: fi, id: docId(f), doc, sheet, keys: [] });
     },
 
-    undoSheet() { const st = currentStacks(); if (st) restore(st.undo, st.redo); },
+    undoSheet() { if (get().aiBusy) { showToast(tx('list.aiLocked')); return; } const st = currentStacks(); if (st) restore(st.undo, st.redo); },
     clearUndo() { stacks.clear(); editSnap = null; },
-    redoSheet() { const st = currentStacks(); if (st) restore(st.redo, st.undo); },
+    redoSheet() { if (get().aiBusy) { showToast(tx('list.aiLocked')); return; } const st = currentStacks(); if (st) restore(st.redo, st.undo); },
 
     renameSheet(i, name) {
       const s = get();
@@ -1237,7 +1237,10 @@ export const useStore = create<Store>((set, get) => {
           }),
         })),
       }));
-      set({ project: { ...project, files, customMarks: project.customMarks.filter((c) => c.id !== id) }, askDeleteMark: null });
+      // 篩選裡若有這個標記的條件，一起清掉，免得條目全被篩光、面板卻看不到是哪個條件
+      const filter = { ...get().filter };
+      delete filter[mid];
+      set({ project: { ...project, files, customMarks: project.customMarks.filter((c) => c.id !== id) }, askDeleteMark: null, filter });
       // 復原紀錄裡可能還有這個標記：清掉，免得 Ctrl+Z 把已刪除的標記復原出來
       get().clearUndo();
     },

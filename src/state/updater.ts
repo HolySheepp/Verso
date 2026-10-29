@@ -80,7 +80,7 @@ async function install(): Promise<boolean> {
   } catch (e) {
     clearTimeout(stall);
     const msg = String((e as Error)?.message ?? e);
-    if (msg === 'canceled') { useStore.setState({ updateAvailable: u.version }); return false; }
+    if (msg === 'canceled') { useStore.setState({ updateAvailable: u.version }); startBackgroundCheck(); return false; }
     show(1, tx('update.007', { v1: msg.slice(0, 60) }), false);
     await new Promise((r) => setTimeout(r, 1800));
     useStore.setState({ updateAvailable: u.version });
