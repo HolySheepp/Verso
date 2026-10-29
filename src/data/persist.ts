@@ -176,6 +176,19 @@ export async function recoverBackups(dir: string) {
  */
 export const isOldPackDir = async (root: string, name: string) => name === LANG_DIR && !(await io.exists(io.join(root, name, META)).catch(() => false));
 
+const RENAME_TMP = 'verso-rename-';
+/** 上次只改大小寫的改名中斷，留下的暫時資料夾：改回原本的名稱 */
+async function recoverRenames(root: string) {
+  for (const parent of [root, io.join(root, DICT_DIR)]) {
+    if (!(await io.exists(parent).catch(() => false))) continue;
+    for (const e of await io.list(parent)) {
+      const m = e.dir && e.name.startsWith(RENAME_TMP) ? e.name.match(/~~(.+)$/) : null;
+      if (!m || await io.exists(io.join(parent, m[1])).catch(() => true)) continue;
+      await io.rename(io.join(parent, e.name), io.join(parent, m[1])).catch(() => undefined);
+    }
+  }
+}
+
 /**
  * 專案名稱只改了大小寫（abc → ABC）：Windows 寫進 ABC 其實是寫進原本的 abc，資料夾名稱不會變，
  * 所以把資料夾改名兩次（abc → 暫時名稱 → ABC）。存檔資料夾和「字典」裡的專案資料夾都要改。
@@ -191,7 +204,8 @@ export async function fixProjectCase(root: string, projects: string[]): Promise<
       // 同時有 abc 和 ABC 兩個（大小寫有分的磁碟）：不動
       if (!now || dirs.includes(want)) continue;
       let tmp = '';
-      for (let k = 0; !tmp || await io.exists(io.join(parent, tmp)); k++) tmp = `.verso-rename-${Date.now().toString(36)}${k}`;
+      // 暫時名稱帶著原本的名稱（不用「.」開頭：兩次都改不動時才不會變成隱藏、被載入略過；下次啟動會改回原名）
+      for (let k = 0; !tmp || await io.exists(io.join(parent, tmp)); k++) tmp = `${RENAME_TMP}${Date.now().toString(36)}${k}~~${now}`;
       try {
         await io.rename(io.join(parent, now), io.join(parent, tmp));
       } catch { failed.push(want); continue; }
@@ -210,6 +224,7 @@ export async function fixProjectCase(root: string, projects: string[]): Promise<
 export async function loadWorkspace(root: string, onProgress?: (p: number, text: string) => void, overrides: Record<string, boolean> = {}): Promise<{ data: ProjectData; last?: LastPosition; remapped: boolean; unreadable: string[]; newIds: string[] }> {
   const unreadable: string[] = [];
   await recoverBackups(root);
+  await recoverRenames(root).catch(() => undefined);
   let ws: WorkspaceMeta | null = null;
   try { ws = JSON.parse(await io.readText(io.join(root, WORKSPACE))); } catch { /* 舊版沒有這個檔 */ }
   try { await migrateDicts(root); } catch { /* 搬不動就照舊讀 */ }
@@ -432,12 +447,15 @@ async function writeUninstallList(root: string, data: ProjectData) {
 /**
  * 要寫入的位置已經有別的檔案（不是 Verso 檔，或是不認得的 Verso 檔）：回傳 true。
  * ours：軟體裡（和上次存檔時）的檔案 ID，例如兩個檔案互換名稱時，那個位置放的是自己的另一個檔案。
+ * noId：這個檔案剛在載入時配了 ID（很舊的 Verso 檔沒有 ID）：磁碟上的檔案是沒有 ID 的 Verso 檔就是它自己。
  */
-export async function foreignFileAt(root: string, project: string, name: string, ours: Set<string>): Promise<boolean> {
+export async function foreignFileAt(root: string, project: string, name: string, ours: Set<string>, noId = false): Promise<boolean> {
   const path = io.join(root, project, safeName(name) + '.xlsx');
   if (!(await io.exists(path))) return false;
   let id: string | null = null;
-  try { id = quickFileIdOf(await io.readBinary(path)); } catch { /* 讀不到就當成別人的 */ }
+  let data: Uint8Array | null = null;
+  try { data = await io.readBinary(path); id = quickFileIdOf(data); } catch { /* 讀不到就當成別人的 */ }
+  if (!id && noId && data) { try { if (isVersoFileData(data)) return false; } catch { /* 當成別人的 */ } }
   return !id || !ours.has(id);
 }
 

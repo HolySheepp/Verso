@@ -450,7 +450,7 @@ function NotesSectionInner() {
         <div style={{ position: 'relative', flex: '1 1 0', minHeight: 100 }}>
           <CommentsPanel key={cur.uid} entryKey={cur.uid} notes={cur.comments ?? []} me={s.userName.trim()}
             srcNotes={[{ name: tx('cm.srcNote'), text: cur.noteBase ?? '' }, ...(cur.extraNotes ?? [])]}
-            readOnly={mode === 'view'} ensureName={ensureUserName} onChange={(next) => s.setComments(next)} />
+            readOnly={mode === 'view'} ensureName={ensureUserName} onChange={(update) => s.setComments(cur.uid, update)} />
         </div>
       )}
       {noteOpen && !cloud && (

@@ -1,6 +1,6 @@
 import { tx } from '../i18n';
 import { useRef, useState } from 'react';
-import { currentOf, isShown, shownCount, useStore, useStorePick } from '../state/store';
+import { currentOf, isShown, shownCount, showToast, useStore, useStorePick } from '../state/store';
 import { plugins } from '../plugins/registry';
 import { tabHook } from '../plugins/hooks';
 import { requestFile } from '../state/saver';
@@ -54,6 +54,8 @@ export function FileNav({ tabW }: { tabW: number }) {
   const [fileMenu, setFileMenu] = useState<{ i: number; x: number; y: number } | null>(null);
   const onTabMenu = (k: string, i: number) => {
     setTabMenu(null);
+    // AI 處理中：不能刪除、移除、插入頁簽（AI 用位置記它在處理哪個頁簽）
+    if (useStore.getState().aiBusy && (k === 'delete' || k === 'remove' || k === 'insert')) { showToast(tx('list.aiLocked')); return; }
     if (k === 'rename') setRenaming({ i, name: fileDoc.sheets[i].name });
     // 雲端檔案：刪除交給雲端外掛（先預覽 Google 上的內容）
     if (k === 'delete' && cloudFile && tabHook.delete?.(i)) return;

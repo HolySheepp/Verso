@@ -357,7 +357,7 @@ async function saveAll(ask = true): Promise<boolean> {
         if (tooLong.length) { long.push(...tooLong); cancelled = true; continue; }
         // 要寫的位置上已經有別的檔案（新位置，或原本的檔案在外面被同名的別人的檔案蓋掉了）：問使用者（換資料夾時已經選了覆蓋的不再問）。
         // 每次存檔都看，只讀設定頁的檔案 ID
-        if (!overwriteOnSwitch.has(diskKey(f.project, f.name)) && await foreignFileAt(s.saveRoot, f.project, f.name, ours)) {
+        if (!overwriteOnSwitch.has(diskKey(f.project, f.name)) && await foreignFileAt(s.saveRoot, f.project, f.name, ours, !!f.fid && freshIds.has(f.fid))) {
           // 自動重試時不問：當成取消，等使用者自己存檔時再問
           if (!ask) { cancelled = true; continue; }
           const choice = await askClash(f.project, f.name);
@@ -476,6 +476,9 @@ export async function refreshLangPacks() {
 /** 外掛的啟動（registry 的 VersoPlugin 只用到這兩個，避免互相 import） */
 interface Boot { start?: (step: (p: number, text: string) => void) => void | Promise<void>; slowStart?: () => Promise<boolean> }
 
+/** 載入時剛配了檔案 ID 的舊檔：磁碟上那份還沒有 ID，存檔時不要當成別人的檔案 */
+const freshIds = new Set<string>();
+
 export async function startApp(boots: Boot[] = []) {
   // 先檢查更新：選了更新就會裝好並重開，不必繼續啟動
   if (await checkAtStartup()) return;
@@ -552,6 +555,7 @@ export async function startApp(boots: Boot[] = []) {
   // 舊檔案剛配了 ID：記成未存，馬上存一次把 ID 寫進去
   if (newIds.length) {
     const ids = new Set(newIds);
+    newIds.forEach((x) => freshIds.add(x));
     project.files.forEach((f) => { if (f.fid && ids.has(f.fid)) saved.files.delete(fileKey(f)); });
     project.dicts.forEach((d) => { if (d.did && ids.has(d.did)) saved.dicts.delete(dictKey(d.project, d.name)); });
     setTimeout(() => { void saveNow(); }, 0);

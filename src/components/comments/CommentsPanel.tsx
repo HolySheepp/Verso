@@ -13,7 +13,8 @@ export interface CommentsPanelProps {
   srcNotes?: { name: string; text: string }[];
   notes: CommentThread[];
   me: string;
-  onChange: (next: CommentThread[]) => void;
+  /** 改留言：給的是「拿最新的留言算出新的」，等使用者填名字的期間同步進來的留言才不會被蓋掉 */
+  onChange: (update: (latest: CommentThread[]) => CommentThread[]) => void;
   /** 還沒有用戶名：送出前先問；回傳 false 就不送 */
   ensureName?: () => Promise<string | null>;
   /** 唯讀（唯讀模式）：不能留言、改留言 */
@@ -238,7 +239,7 @@ export function CommentsPanel({ entryKey, srcNotes = [], notes, me, onChange, en
       if (edit && edit.id === m.id) { setDraft((d) => ({ ...d, [edit.layer]: '' })); setEdit(null); }
       if (quote === m.id) setQuote(null);
       setArmed(null); setHover(null);
-      onChange(removeMsg(notes, m.id));
+      onChange((ns) => removeMsg(ns, m.id));
     };
 
     return (
@@ -282,7 +283,7 @@ export function CommentsPanel({ entryKey, srcNotes = [], notes, me, onChange, en
             style={{ [mine ? 'right' : 'left']: 6, width: toolW, opacity: show ? 1 : 0, visibility: show ? 'visible' : 'hidden', transform: toolTf,
               transition: show ? `transform ${T.toolIn} ${tDelay}ms, opacity 160ms ease ${tDelay + 60}ms, visibility 0s` : `transform ${T.toolOut}, opacity 130ms ease, visibility 0s linear 190ms` }}>
             <button type="button" className="vc-ib" title={resolved ? tx('cm.unresolve') : tx('cm.resolve')} aria-label={resolved ? tx('cm.unresolve') : tx('cm.resolve')}
-              onClick={() => { if (readOnly) return; if (resolved) setOpenResolved((x) => { const n = { ...x }; delete n[m.id]; return n; }); setHover(null); onChange(patchMsg(notes, m.id, { resolved: !resolved })); }}>
+              onClick={() => { if (readOnly) return; if (resolved) setOpenResolved((x) => { const n = { ...x }; delete n[m.id]; return n; }); setHover(null); onChange((ns) => patchMsg(ns, m.id, { resolved: !resolved })); }}>
               {resolved ? <IUndo /> : <ICheck />}
             </button>
             <button type="button" className="vc-ib" title={tx('cm.reply')} aria-label={tx('cm.reply')} onClick={(e) => o.onReply(e.currentTarget.closest('[data-bub]'))}><IReply /></button>
@@ -324,17 +325,19 @@ export function CommentsPanel({ entryKey, srcNotes = [], notes, me, onChange, en
       if (!text || readOnly) return;
       // 正在編輯的那則被同步刪掉了：清掉編輯狀態，不要當成新留言送出
       if (edit && edit.layer === layer && !ed) { setEdit(null); setDraft((d) => ({ ...d, [layer]: '' })); return; }
-      if (!ed && !me && ensureName && !(await ensureName())) return;
+      // 第一次留言要先填名字：填完再用那一條最新的留言送出（視窗開著時可能同步進別人的留言）
+      const author = ed ? me : me || (ensureName ? await ensureName() : null);
+      if (!ed && !author) return;
       if (ed) {
-        if (ed.msg.text !== text) onChange(patchMsg(notes, ed.msg.id, { text, edited: true }));
+        if (ed.msg.text !== text) onChange((ns) => patchMsg(ns, ed.msg.id, { text, edited: true }));
         setEdit(null);
       } else if (layer === 'thread' && thread) {
-        const r: CommentReply = { id: newId(), author: me || (await ensureName?.()) || '?', time: formatNow(), text };
+        const r: CommentReply = { id: newId(), author: author!, time: formatNow(), text };
         if (quote && findMsg(notes, quote)) r.quoteId = quote;
-        onChange(notes.map((n) => (n.id === thread.id ? { ...n, replies: [...(n.replies || []), r] } : n)));
+        onChange((ns) => ns.map((n) => (n.id === thread.id ? { ...n, replies: [...(n.replies || []), r] } : n)));
         pending.current.threadBottom = true;
       } else if (layer === 'main') {
-        onChange([...notes, { id: newId(), author: me || (await ensureName?.()) || '?', time: formatNow(), text, resolved: false, replies: [] }]);
+        onChange((ns) => [...ns, { id: newId(), author: author!, time: formatNow(), text, resolved: false, replies: [] }]);
         pending.current.mainBottom = true;
       }
       setDraft((d) => ({ ...d, [layer]: '' }));
@@ -453,7 +456,7 @@ export function CommentsPanel({ entryKey, srcNotes = [], notes, me, onChange, en
             <div className="vc-ov-head">
               <button type="button" className="vc-ib vc-back" onClick={closeThread} aria-label={tx('cm.backList')} title={tx('cm.back')}><IChevL />{tx('cm.thread')}</button>
               {!readOnly && (
-                <button type="button" className="vc-ib" onClick={() => thread && onChange(patchMsg(notes, thread.id, { resolved: !thread.resolved }))}
+                <button type="button" className="vc-ib" onClick={() => thread && onChange((ns) => patchMsg(ns, thread.id, { resolved: !thread.resolved }))}
                   aria-label={thread?.resolved ? tx('cm.unresolve') : tx('cm.resolve')} title={thread?.resolved ? tx('cm.unresolve') : tx('cm.resolve')}>
                   {thread?.resolved ? <IUndo /> : <ICheck />}
                 </button>

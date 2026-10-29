@@ -307,7 +307,7 @@ interface Actions {
   useShownSlot(): void;
   applySuggestion(): void;
   /** 雲端模式：改這條的留言（備註格的內容跟著重組；條目欄復原算一步）；index 不給就是目前這條 */
-  setComments(list: CommentThread[], index?: number): void;
+  setComments(uid: string, update: (latest: CommentThread[]) => CommentThread[]): void;
   /** 套用這條的全部驗證修改（自己算一步） */
   applyAllEdits(): void;
   /** 忽略這條的全部修改（自己算一步） */
@@ -963,6 +963,8 @@ export const useStore = create<Store>((set, get) => {
 
     deleteSheet(i) {
       const s = get();
+      // AI 處理中：頁簽的位置不能變（AI 用位置記它在處理哪個頁簽）
+      if (s.aiBusy) { showToast(tx('list.aiLocked')); return; }
       const f = s.project?.files[s.file];
       if (!f || f.sheets.length <= 1 || !f.sheets[i]) return;
       pushUndo();
@@ -976,6 +978,8 @@ export const useStore = create<Store>((set, get) => {
 
     insertSheets(after, sheets) {
       const s = get();
+      // AI 處理中：頁簽的位置不能變（AI 用位置記它在處理哪個頁簽）
+      if (s.aiBusy) { showToast(tx('list.aiLocked')); return; }
       const f = s.project?.files[s.file];
       if (!f || !sheets.length) return;
       pushUndo();
@@ -1176,10 +1180,13 @@ export const useStore = create<Store>((set, get) => {
       if (editing) get().beginEdit();
     },
 
-    setComments(list, index) {
-      const at = index ?? cur().sel;
-      const e = cur().sheet.entries[at];
+    setComments(uid, update) {
+      // 用 uid 找條目（不用目前選取的那條：填名字的期間可能換了條）
+      const { sheet } = cur();
+      const at = sheet.entries.findIndex((e) => e.uid === uid);
+      const e = sheet.entries[at];
       if (!e) return;
+      const list = update(e.comments ?? []);
       pushUndo();
       const base = e.noteBase ?? parseNote(e.note, e.comments ?? []).base;
       patchEntry(at, (x) => ({ ...x, comments: list, noteBase: base, note: composeNote(base, list) }));
@@ -1400,6 +1407,8 @@ export const useStore = create<Store>((set, get) => {
 
     setFileSheets(i, sheets) {
       const s = get();
+      // AI 處理中：頁簽的位置不能變（AI 用位置記它在處理哪個頁簽）
+      if (s.aiBusy) { showToast(tx('list.aiLocked')); return; }
       const f = s.project?.files[i];
       if (!f || !sheets.length) return;
       // 管理專案裡改的內容存回來算一步：Ctrl+Z 先退回這次，不會連前面的修改一起退
