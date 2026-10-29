@@ -1,5 +1,5 @@
 ﻿代號	中文	畫面區域	程式位置
-cloud.errRateLimit	短時間內向 Google 讀寫太多次，這一輪先跳過，等一下會自動再同步	雲端模式：Google 回應請求太多（每分鐘上限）	plugins/cloud/api.ts:77
+cloud.errRateLimit	同步失敗：短時間內Google讀寫次數過多，稍後會自動重試	雲端模式：Google 回應請求太多（每分鐘上限）	plugins/cloud/api.ts:77
 cloud.removedRow	已不再使用，點擊恢復	重新設定 Google 表：預覽裡被移除條目的列號提示	components/ImportDialog.tsx:450 components/ImportDialog.tsx:450
 cloud.restoredRow	已恢復，再次點擊取消恢復	同上：已選恢復的列號提示	components/ImportDialog.tsx:450 components/ImportDialog.tsx:450
 cloud.removedTabNote	已不再使用	重新設定 Google 表：被移除的頁簽	plugins/cloud/index.tsx:332
