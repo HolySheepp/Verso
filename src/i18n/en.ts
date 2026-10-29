@@ -65,6 +65,7 @@ export const EN: Partial<Record<TextKey, string>> = {
   'settings.packReplace': 'A language pack named "{name}" already exists. Replace it?',
   'settings.packReplaceNo': 'Cancel',
   'settings.packReplaceYes': 'Replace',
+  'common.colon': ': ',
   'common.sep': ', ',
   'common.join': '; ',
   'common.moreEntries': ' and more ({n} in total)',

@@ -308,7 +308,7 @@ export function CommentsPanel({ entryKey, srcNotes = [], notes, me, onChange, en
       <button key={domId} type="button" id={domId} data-bub={domId} className="vc-collapsed" aria-label={tx('cm.collapsedOpen', { name: m.author, text: m.text })}
         onClick={() => setOpenResolved((o) => ({ ...o, [m.id]: true }))}>
         <ICheck />
-        <span className="vc-collapsed-t">{m.author}：{m.text}</span>
+        <span className="vc-collapsed-t">{m.author}{tx('common.colon')}{m.text}</span>
         {n > 0 && <span className="vc-count">{n}</span>}
       </button>
     );

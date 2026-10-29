@@ -788,12 +788,15 @@ function WorkPanelInner({ height, maxH }: { height: number; maxH: number }) {
       )}
 
       <div style={{ height: 40, flexShrink: 0, display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
-        <span style={{ display: 'flex', gap: 14, fontSize: fz(12), color: 'var(--mute)' }}>
+        <span style={{ display: 'flex', alignItems: 'center', gap: 14, minWidth: 0, fontSize: fz(12), color: 'var(--mute)' }}>
           <span>{tx('work.049', { n: sel + 1, total })}</span>{MODE_HINTS[mode] && <span>{MODE_HINTS[mode]}</span>}
           <button type="button" className="ib" aria-label={tx('work.051')} title={tx('work.052')} onClick={() => s.set({ lengthDialog: 'entry' })}
             style={{ height: 24, display: 'flex', alignItems: 'center', gap: 5, padding: '0 6px', margin: '-4px 0', background: 'transparent', border: 0, borderRadius: 6, color: cur.lengthStd !== undefined ? 'var(--accent2)' : 'var(--mute)', fontSize: fz(12) }}>
             <IconRuler size={14} />{cur.lengthStd !== undefined && tx('work.053')}
           </button>
+          {/* 三個框都隱藏：發話者、ID、問題提示顯示在這一行 */}
+          {bottom === null && who}
+          {bottom === null && issueNote}
         </span>
         <div style={{ display: 'flex', gap: 10, alignItems: 'center' }}>
           {mode === 'view' && (

@@ -88,13 +88,13 @@ export function FilterPanel({ counts }: { counts: Record<string, number> }) {
       {open && (
         <div role="dialog" aria-label={tx('list.026')} className="pop"
           style={{ position: 'absolute', top: 40, right: 0, zIndex: 40, width: 440, maxWidth: 'calc(100vw - 32px)', padding: 8, display: 'flex', flexDirection: 'column', gap: 6 }}>
-          <button type="button" className="dd" onClick={toggleAll} aria-label={`${tx('list.004')}：${stateText(allState)}`} title={stateText(allState)}
+          <button type="button" className="dd" onClick={toggleAll} aria-label={tx('list.004') + tx('common.colon') + stateText(allState)} title={stateText(allState)}
             style={{ ...item, fontWeight: 600, borderBottom: '1px solid var(--line)', borderRadius: 0, paddingBottom: 2 }}>
             <StateBox v={allState} />{tx('list.004')}
           </button>
           <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(130px, 1fr))', gap: 2 }}>
             {keys.map((k) => (
-              <button key={k} type="button" className="dd" onClick={() => toggle(k)} aria-label={`${label(k)}：${stateText(filter[k])}`} title={stateText(filter[k])} style={item}>
+              <button key={k} type="button" className="dd" onClick={() => toggle(k)} aria-label={label(k) + tx('common.colon') + stateText(filter[k])} title={stateText(filter[k])} style={item}>
                 <StateBox v={filter[k]} />
                 {k === 'issues' ? <IconWarn size={12} sw={2.2} stroke="var(--warntx)" />
                   : k === 'note' ? <svg width={12} height={12} viewBox="0 0 24 24" fill="none" stroke="var(--text2)" strokeWidth={2.2} strokeLinejoin="round" aria-hidden="true"><path d="M4 5h16v11H9.5L4 20.5z" /></svg>

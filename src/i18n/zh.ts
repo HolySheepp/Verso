@@ -233,6 +233,7 @@ export const ZH = {
   'settings.packReplace': '已經有語言包「{name}」，要取代嗎？', // 設定 > 一般：加入同名語言包時
   'settings.packReplaceNo': '取消', // 設定 > 一般：同名語言包的詢問
   'settings.packReplaceYes': '取代', // 設定 > 一般：同名語言包的詢問
+  'common.colon': '：', // 「名字：內容」這種名稱和內容之間的分隔（英文是冒號加空格）
   'common.sep': '、', // 列出好幾個名稱時的分隔符號
   'common.join': '；', // 把兩段提示接成一句時的分隔符號（英文用「; 」）
   'common.moreEntries': ' 等 {n} 條', // 列表太長時接在後面

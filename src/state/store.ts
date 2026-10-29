@@ -839,7 +839,8 @@ export const useStore = create<Store>((set, get) => {
       const n = get().project?.files.length ?? 0;
       if (f < 0 || f >= n) return;
       if (f !== get().file) { leaveCurrent(); inheritStd(get().file, f); }
-      set({ file: f, cellSel: null, ...noPopups, ...noView });
+      // 換檔案時篩選回到全部（同一個檔案裡換頁簽才保留）
+      set({ file: f, cellSel: null, ...(f !== get().file ? { filter: {} } : {}), ...noPopups, ...noView });
     },
 
     setSheet(sh) {

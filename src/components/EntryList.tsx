@@ -496,13 +496,18 @@ export function EntryList() {
     if (!canEdit(c)) return;
     if (c >= 2) {
       if (i !== sel) s.select(s.file, sheetIdx, i);
-      // 等工作欄換成這一條再把游標放進輸入框
+      // 要編輯的框：譯文欄在驗證模式是修改框；工作欄收起或那個框被隱藏就先打開（之後保持顯示）
+      const box = c === TGT_COL ? (s.mode === 'verify' ? 'mod' : 'tgt') : 'src';
+      const st = useStore.getState();
+      const shown = st.workBoxes[st.mode]?.[box];
+      if (st.hideWork || shown === false) st.set({ hideWork: false, ...(shown === false ? { workBoxes: { ...st.workBoxes, [st.mode]: { ...st.workBoxes[st.mode], [box]: true } } } : {}) });
+      // 等工作欄換成這一條（或剛打開）再把游標放進輸入框
       setTimeout(() => {
-        const el = document.getElementById(c === TGT_COL ? 'verso-target' : 'verso-source') as HTMLTextAreaElement | null;
+        const el = document.getElementById(box === 'mod' ? 'verso-edit' : box === 'tgt' ? 'verso-target' : 'verso-source') as HTMLTextAreaElement | null;
         if (!el || el.readOnly) return;
         el.focus();
         el.setSelectionRange(el.value.length, el.value.length);
-      }, 0);
+      }, 30);
       return;
     }
     setEditing({ uid: sheet.entries[i].uid, file: s.file, sheet: sheetIdx, c, text: getCell(sheet.entries[i], c) });
