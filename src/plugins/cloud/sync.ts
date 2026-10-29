@@ -289,20 +289,27 @@ function buildSheet(tab: CloudTab, rows: string[][], prev: Sheet | undefined, ke
     const o = old.get(keys[i]);
     const b = o ? base.get(o.uid) : undefined;
     let e: Entry;
+    /** 留著自己還沒寫回的欄位：那些欄位的比較基準也留舊的，寫回時才比得出 Google 上被人改過（跳衝突，不直接蓋掉） */
+    const keep = { tgt: false, note: false, id: false, speaker: false, src: false };
     if (o) {
       // 還沒寫回的譯文、備註、標記等留著；其他跟著 Google
       const tgt = b && o.tgt !== b.tgt ? o.tgt : rTgt;
+      keep.tgt = !!b && o.tgt !== b.tgt;
       // 自己的留言、備註還沒寫回：留著；否則照 Google 和資料表
       const localNote = !!b && (o.note !== b.note || commentsToText(o.comments) !== (b.comments ?? ''));
       const note = localNote ? o.note : n.note;
       const comments = localNote ? o.comments : parsed.threads;
       const noteBase = localNote ? o.noteBase : parsed.base;
+      keep.note = localNote;
       // ID、發話者、原文：自己改了還沒寫回的留著
       const id = b && o.id !== b.id ? o.id : n.id;
       const speaker = b && o.speaker !== b.speaker ? o.speaker : n.speaker;
       // R15 還沒套用新原文：條目的 src 是舊原文，Google 上的新原文放在 upd.src
       const cloudNew = o.upd?.cloudNew && o.upd.src !== undefined;
       const srcNow = b && effSrc(o) !== b.src ? o.src : cloudNew ? o.src : n.src;
+      keep.id = !!b && o.id !== b.id;
+      keep.speaker = !!b && o.speaker !== b.speaker;
+      keep.src = !!b && effSrc(o) !== b.src;
       const updNow = cloudNew && !(b && effSrc(o) !== b.src) && o.upd!.src !== n.src ? { ...o.upd!, src: n.src } : o.upd;
       const localData = !fd || (b && JSON.stringify(dataCore(o, customs)) !== b.core);
       const marks = localData ? {} : { mark: rMark.mark, keptMark: rMark.keptMark, sugg: rSugg, ver: rVer };
@@ -323,22 +330,24 @@ function buildSheet(tab: CloudTab, rows: string[][], prev: Sheet | undefined, ke
         else e.upd = rUpd.u;
       }
     }
+    const ob = o ? base.get(o.uid) : undefined;
     base.set(e.uid, {
-      id: n.id, speaker: n.speaker, src: n.src,
-      tgt: rTgt, cell: n.tgt, cellSig: composite ? richSig(tgtCell({ ...e, tgt: rTgt, sugg: rSugg, ver: rVer })) : plainSig(n.tgt),
-      note: n.note, noteSig: richSig(noteCell(n.note, blue)), blueFrom: blue, row,
-      core: rCore, data: rData, key: keys[i], comments: commentsToText(d ? rComments : parsed.threads),
+      id: keep.id ? ob!.id : n.id, speaker: keep.speaker ? ob!.speaker : n.speaker, src: keep.src ? ob!.src : n.src,
+      ...(keep.tgt ? { tgt: ob!.tgt, cell: ob!.cell, cellSig: ob!.cellSig } : { tgt: rTgt, cell: n.tgt, cellSig: composite ? richSig(tgtCell({ ...e, tgt: rTgt, sugg: rSugg, ver: rVer })) : plainSig(n.tgt) }),
+      ...(keep.note ? { note: ob!.note, noteSig: ob!.noteSig, blueFrom: ob!.blueFrom, comments: ob!.comments } : { note: n.note, noteSig: richSig(noteCell(n.note, blue)), blueFrom: blue, comments: commentsToText(d ? rComments : parsed.threads) }),
+      row, core: rCore, data: rData, key: keys[i],
     });
     return e;
   }).filter((e): e is Entry => !!e);
   // 空的頁簽：放一條空白條目，讓使用者直接打字（離開時寫進 Google 的第一列資料）
   if (!entries.length) {
-    const prevBlank = prev?.entries.length === 1 && pendingNew.has(prev.entries[0].uid) ? prev.entries[0] : undefined;
+    const prevBlank = prev?.entries.length === 1 && (pendingNew.has(prev.entries[0].uid) || placeholders.has(prev.entries[0].uid)) ? prev.entries[0] : undefined;
     const e = prevBlank ?? { ...blankEntry(), pending: false };
     if (!prevBlank) {
       const customs = useStore.getState().project!.customMarks;
       base.set(e.uid, { id: '', speaker: e.speaker, src: '', tgt: '', cell: '', cellSig: plainSig(''), note: '', noteSig: plainSig(''), row: firstRowOf(tab.fields), core: JSON.stringify(dataCore(e, customs)), data: JSON.stringify(['', '', '', '', '', '']) });
-      pendingNew.add(e.uid);
+      // 佔位的空白條目：Google 上本來就是空的，當成已經寫回，不擋整個檔案重讀（打了字才算還沒寫回）
+      placeholders.add(e.uid);
     }
     entries.push(e);
   }
@@ -383,7 +392,7 @@ async function loadSheetInner(sid: string, quiet: boolean, retry: boolean): Prom
   if (!conf || loading.has(sid)) return false;
   // 有剛插入、還沒寫進內容的條目：先不重讀（Google 上是空白列，可能讀不到）
   const cur1 = fileOf(sid);
-  if (cur1?.sheets.some((sh) => sh.entries.some((e) => pendingNew.has(e.uid)))) return true;
+  if (cur1?.sheets.some((sh) => sh.entries.some((e) => pendingNew.has(e.uid) || (placeholders.has(e.uid) && !!(e.id || e.src || e.tgt || e.note))))) return true;
   loading.add(sid);
   try {
     const m = await meta(sid);
@@ -474,6 +483,8 @@ export function flush(sid: string, all = false): Promise<void> {
 }
 
 async function flushInner(sid: string, all: boolean): Promise<void> {
+  // 衝突視窗開著、還沒選：暫停寫回（不寫任何東西回 Google），選完才恢復
+  if (useCloud.getState().conflicts.length) return;
   {
     const doc = fileOf(sid);
     const conf = confOf(sid);
@@ -577,7 +588,7 @@ async function flushInner(sid: string, all: boolean): Promise<void> {
           if (adds.length) await appendRows(did, sid, adds);
           fd.at = 0;
         }
-        done.forEach(({ e }) => pendingNew.delete(e.uid));
+        done.forEach(({ e }) => { pendingNew.delete(e.uid); placeholders.delete(e.uid); });
         done.forEach(({ e, w, row }) => base.set(e.uid, {
           ...base.get(e.uid)!, id: e.id, speaker: e.speaker, src: effSrc(e), tgt: e.tgt, cell: w.cell.text, cellSig: richSig(w.cell), note: e.note, noteSig: richSig(w.note), blueFrom: w.blueFrom, row,
           ...(did ? { core: w.core, data: w.dataSig, comments: w.comments } : {}),
@@ -837,6 +848,8 @@ export async function saveSheetMeta(sid: string, f: FileDoc) {
 // ---- 整列操作：刪除、插入、上移、下移（馬上改 Google 上的列，不能 Ctrl+Z） ----
 /** 剛插入、還沒寫進內容的條目（Google 上是空白列，重新讀取時可能讀不到，先不重讀那份） */
 const pendingNew = new Set<string>();
+/** 空頁簽裡佔位的空白條目（還沒打字前不算還沒寫回） */
+const placeholders = new Set<string>();
 
 /** Google 上插入或刪除了列：記下來的欄位範圍跟著移（插入 delta 為正，刪除為 -1） */
 function shiftFields(fields: Fields, at: number, delta: number): Fields {

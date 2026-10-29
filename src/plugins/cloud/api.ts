@@ -74,6 +74,7 @@ export function errText(e: unknown): string {
   if (m === 'not-signed-in') return tx('cloud.errLogin');
   if (m === 'no-client') return tx('cloud.errClient');
   if (m === 'timeout') return tx('cloud.errTimeout');
+  if (m === 'rate-limited') return tx('cloud.errRateLimit');
   if (/^403\b/.test(m)) return tx('cloud.errDenied');
   if (/^404\b/.test(m)) return tx('cloud.errNotFound');
   if (/error sending request|dns|connect/i.test(m)) return tx('cloud.errNetwork');

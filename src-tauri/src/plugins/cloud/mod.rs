@@ -197,16 +197,23 @@ async fn access_token(app: &AppHandle, state: &State<'_, Cloud>) -> Result<Strin
 #[tauri::command]
 pub async fn cloud_api(app: AppHandle, state: State<'_, Cloud>, method: String, path: String, body: Option<Value>) -> Result<Value, String> {
     if path.contains("..") || path.starts_with('/') || path.contains("://") { return Err("bad path".into()); }
-    let token = access_token(&app, &state).await?;
+    if !["GET", "POST", "PUT"].contains(&method.as_str()) { return Err("bad method".into()); }
     let url = format!("{}{}", API, path);
     let c = client()?;
-    let req = match method.as_str() {
-        "GET" => c.get(&url),
-        "POST" => c.post(&url).json(&body.unwrap_or(json!({}))),
-        "PUT" => c.put(&url).json(&body.unwrap_or(json!({}))),
-        _ => return Err("bad method".into()),
-    };
-    let r = req.bearer_auth(token).send().await.map_err(|e| e.to_string())?;
-    if !r.status().is_success() { return Err(google_error(r).await); }
-    r.json().await.map_err(|e| e.to_string())
+    // 憑證被撤銷或提早失效（回 401）：丟掉快取的憑證，重新取得再試一次
+    for attempt in 0..2 {
+        let token = access_token(&app, &state).await?;
+        let req = match method.as_str() {
+            "GET" => c.get(&url),
+            "POST" => c.post(&url).json(body.as_ref().unwrap_or(&json!({}))),
+            _ => c.put(&url).json(body.as_ref().unwrap_or(&json!({}))),
+        };
+        let r = req.bearer_auth(token).send().await.map_err(|e| e.to_string())?;
+        if r.status().as_u16() == 401 && attempt == 0 { *state.access.lock().unwrap() = None; continue; }
+        // 每分鐘的請求次數用完了：回固定的錯誤，畫面跳過這一輪同步並提示
+        if r.status().as_u16() == 429 { return Err("rate-limited".into()); }
+        if !r.status().is_success() { return Err(google_error(r).await); }
+        return r.json().await.map_err(|e| e.to_string());
+    }
+    Err("not-signed-in".into())
 }
