@@ -180,7 +180,7 @@ export function runChecks(src: string, tgt: string): Issue[] {
 function dashCapitals(tgt: string): number[] {
   const out: number[] = [];
   for (const m of tgt.matchAll(/—["'(]*(?!I\b|I')([A-Z])/g)) {
-    const before = tgt.slice(0, m.index);
+    const before = tgt.slice(0, m.index).replace(TOKEN, ' ');
     if (!/[\p{L}\p{N}]/u.test(before) || /[.?!]["')\]]*\s*["'(\[]*$/.test(before)) continue;
     out.push(m.index! + m[0].length - 1);
   }

@@ -85,6 +85,10 @@ describe('標點檢測', () => {
     expect(msgs('', 'Wait—Go now.')).toEqual(['破折號後要小寫']);
     expect(msgs('', '—Go now.')).toEqual([]);
     expect(msgs('', '"—Go now."')).toEqual([]);
+    expect(msgs('<i>—什麼？！</i>', '<i>—What?!</i>')).toEqual([]);
+    expect(msgs('<i>—走吧。</i>', '<i>—Go now.</i>')).toEqual([]);
+    expect(msgs('<b>—什麼？！</b>', '<b>—What?!</b>')).toEqual([]);
+    expect(msgs('你好。\\n—什麼？！', 'Hello.\\n—What?!')).toEqual([]);
     expect(msgs('', 'Stop. —Go now.')).toEqual([]);
     expect(ids('', 'Wait—go now.')).toEqual([]);
     expect(ids('', 'Wait—I know.')).toEqual([]);

@@ -79,6 +79,15 @@ function sheetOf(j: Job) {
   return f?.sheets[j.sheet];
 }
 
+/**
+ * AI 看到的 index 是按下按鈕時的列號。處理中使用者可能把條目移動、插入、刪除，
+ * 所以一律先用 job 記的清單換成 uid，再到現在的工作表找這條真正的位置；找不到回傳 -1
+ */
+function rowOf(j: Job, sheet: { entries: Entry[] }, k: number): number {
+  const uid = j.uids[k];
+  return uid ? sheet.entries.findIndex((e) => e.uid === uid) : -1;
+}
+
 /** 啟用中的字典詞條（跟字典頁一樣的規則） */
 function activeTerms() {
   const s = useStore.getState();
@@ -122,8 +131,9 @@ const tgtChecked = (e: Entry) => e.mark !== 'ignore' && !e.skipCheck;
 function getChecks(j: Job) {
   const sheet = sheetOf(j)!;
   const out: unknown[] = [];
-  for (const i of j.indices) {
-    const e = sheet.entries[i];
+  for (let k = 0; k < j.indices.length; k++) {
+    const i = j.indices[k];
+    const e = sheet.entries[rowOf(j, sheet, k)];
     if (!e || !j.wrote[e.uid]) continue;
     // 驗證時改很多的放在建議翻譯：檢查建議翻譯；其他檢查譯文（有修改的話是改好之後的樣子）
     const sugg = j.wrote[e.uid] === 'sugg';
@@ -147,14 +157,15 @@ function getTask(j: Job) {
   const { terms, current } = activeTerms();
   return {
     mode: j.mode,
-    entries: j.indices.map((i) => {
-      const e = sheet.entries[i];
+    entries: j.indices.map((i, k) => {
+      const row = rowOf(j, sheet, k);
+      const e = sheet.entries[row];
       if (!e) return null;
       const hits = findHits(shownSrc(e), terms, current);
       return {
         index: i, id: e.id, speaker: e.speaker, src: shownSrc(e), tgt: e.tgt, suggestion: e.sugg, note: e.note,
-        context_before: sheet.entries.slice(Math.max(0, i - CONTEXT), i).map(brief),
-        context_after: sheet.entries.slice(i + 1, i + 1 + CONTEXT).map(brief),
+        context_before: sheet.entries.slice(Math.max(0, row - CONTEXT), row).map(brief),
+        context_after: sheet.entries.slice(row + 1, row + 1 + CONTEXT).map(brief),
         glossary: hits.map((h) => ({ term: h.term.term, translations: [...new Set(h.terms.map((t) => t.en))] })),
         length_limit: limitOf(stdOf(j, e)),
         ...checksOf(j, e),
@@ -179,9 +190,9 @@ function callTool(name: string, args: Record<string, unknown>): unknown {
   if (!sheet) throw new Error('The file or sheet is no longer open in Verso.');
   if (name === 'get_task') return getTask(j);
   if (name === 'get_checks') return getChecks(j);
-  const i = Number(args.index);
-  const e = sheet.entries[i];
-  if (!e || !j.uids.includes(e.uid)) throw new Error('This entry is not part of the task.');
+  const k = j.indices.indexOf(Number(args.index));
+  const e = k < 0 ? undefined : sheet.entries[rowOf(j, sheet, k)];
+  if (!e) throw new Error('This entry is not part of the task.');
   const text = String(args.text ?? '').replace(/\r\n?/g, '\n');
   const { aiPatch } = useStore.getState();
   if (name === 'write_note') {
@@ -213,18 +224,26 @@ function callTool(name: string, args: Record<string, unknown>): unknown {
   }
   if (name === 'write_revision') {
     if (j.mode !== 'verify') throw new Error('This task is translate mode; use write_translation.');
-    if (text === e.tgt) return 'unchanged';
+    // 已經寫過一次（例如照檢查結果又改）：先還原成任務開始時的樣子，再套新的內容，舊的建議翻譯、疑慮、修改框不會留著
+    const again = !!j.wrote[e.uid];
+    const base = again ? j.before[e.uid] : e;
+    const reset = (x: Entry): Entry => (again ? { ...x, tgt: base.tgt, ver: base.ver, sugg: base.sugg, mark: base.mark, keptMark: base.keptMark, pending: base.pending } : x);
+    if (text === base.tgt) {
+      if (again) { aiPatch(j.fid, j.sheet, e.uid, reset); delete j.wrote[e.uid]; progress(j); }
+      return 'unchanged';
+    }
     // 整句換掉或改很多：放進建議翻譯；小幅修改：放進修改框（跟驗證模式一樣自動標疑慮）
-    if (ratio(e.tgt, text) < BIG_CHANGE) {
+    if (ratio(base.tgt, text) < BIG_CHANGE) {
       // 跟手動填建議翻譯一樣：標疑慮，記住原本的標記
-      aiPatch(j.fid, j.sheet, e.uid, (x) => withSugg(x, text));
+      aiPatch(j.fid, j.sheet, e.uid, (x) => withSugg(reset(x), text));
       j.wrote[e.uid] = 'sugg';
       progress(j);
       return 'saved as suggestion';
     }
     j.wrote[e.uid] = 'tgt';
     progress(j);
-    aiPatch(j.fid, j.sheet, e.uid, (x) => {
+    aiPatch(j.fid, j.sheet, e.uid, (x0) => {
+      const x = reset(x0);
       const had = editsOf(x).length > 0;
       const y = withEdits(x, text);
       if (y === x || had || x.mark === 'doubt') return y;
@@ -286,9 +305,13 @@ export async function startAi() {
   // 關閉 Verso、換存檔資料夾、改名或刪除專案前：AI 還在工作就先問
   useStore.setState({ aiGuard: () => {
     if (!useStore.getState().aiBusy) return Promise.resolve(true);
-    return new Promise<boolean>((resolve) => useStore.setState({ aiStopAsk: (stop) => {
+    return new Promise<boolean>((resolve) => useStore.setState({ aiStopAsk: async (stop) => {
       useStore.setState({ aiStopAsk: null });
-      if (stop) { stopping = true; void invoke('ai_stop'); }
+      if (stop) {
+        stopping = true; void invoke('ai_stop');
+        // 等 AI 真的停下來（已經寫回的內容收好）再放行，最多等 5 秒
+        for (let k = 0; k < 50 && useStore.getState().aiBusy; k++) await new Promise((r) => setTimeout(r, 100));
+      }
       resolve(stop);
     } }));
   } });
@@ -362,8 +385,9 @@ let launching = false;
 async function launchAi(s: ReturnType<typeof useStore.getState>, mode: 'translate' | 'verify', indices: number[]) {
   await startAi();
   const { fileDoc, sheetIdx, sheet } = currentOf(s);
-  const list = indices.map((i) => sheet.entries[i]).filter(Boolean);
-  job = { fid: fileDoc.fid ?? '', sheet: sheetIdx, mode, indices, uids: list.map((e) => e.uid), before: Object.fromEntries(list.map((e) => [e.uid, e])), wrote: {}, notes: {} };
+  const pairs = indices.map((i) => ({ i, e: sheet.entries[i] })).filter((x) => x.e);
+  const list = pairs.map((x) => x.e);
+  job = { fid: fileDoc.fid ?? '', sheet: sheetIdx, mode, indices: pairs.map((x) => x.i), uids: list.map((e) => e.uid), before: Object.fromEntries(list.map((e) => [e.uid, e])), wrote: {}, notes: {} };
   const ps = s.project?.tagSettings?.[projectTag(fileDoc.project)]?.ai ?? {};
   const skill = ((mode === 'translate' ? ps.skillTranslate : ps.skillVerify) || (mode === 'translate' ? s.aiSkillTranslate : s.aiSkillVerify) || '').trim();
   const model = ps.model || 'opus', effort = ps.effort || 'medium';

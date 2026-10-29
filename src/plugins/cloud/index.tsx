@@ -178,7 +178,8 @@ interface Draft extends DraftSheet { gid: number; extras: { name: string; col: n
 function SetupDialog({ sid0, gid0 }: { sid0?: string; gid0?: number }) {
   const close = () => useCloud.setState({ setup: null });
   const projects = useStore((s) => s.project?.projects ?? NONE);
-  const old = allSheets().find((x) => x.sid === sid0);
+  const oldOf = (sid?: string | null) => allSheets().find((x) => x.sid === sid);
+  const old = oldOf(sid0);
   const [url, setUrl] = useState(sid0 ? `https://docs.google.com/spreadsheets/d/${sid0}` : '');
   const [project, setProject] = useState(old?.project ?? (projects.includes(useStore.getState().project?.files[useStore.getState().file]?.project ?? '') ? useStore.getState().project!.files[useStore.getState().file].project : SHARED));
   const [title, setTitle] = useState('');
@@ -197,11 +198,13 @@ function SetupDialog({ sid0, gid0 }: { sid0?: string; gid0?: number }) {
       const m = await meta(sid);
       const values = await readTabs(sid, m.tabs.map((t) => t.title));
       // 之前移除的頁簽、條目（預覽裡顯示灰色，可以逐條恢復）
-      const gone = sid0 ? removedNow(sid0) : undefined;
+      // 新增的表如果已經設定過（網址對得上），也帶出它之前的欄位、移除紀錄
+      const known = oldOf(sid0 ?? sid);
+      const gone = removedNow(sid0 ?? sid);
       setTitle(m.title);
       setDrafts(m.tabs.map((t, i) => {
         const rows = values[i];
-        const prev = old?.tabs.find((x) => x.gid === t.gid);
+        const prev = known?.tabs.find((x) => x.gid === t.gid);
         return { id: 'g' + t.gid, gid: t.gid, name: t.title, rows, width: Math.max(1, ...rows.map((r) => r.length)), fields: prev ? toFieldMap(prev.fields, rows.length - 1) : versoFields(rows) ?? emptyFields(), extras: prev?.extras ?? [],
           restore: [], ...(gone?.tabs?.includes(t.gid) ? { removedTab: true } : {}) };
       }));
@@ -237,7 +240,7 @@ function SetupDialog({ sid0, gid0 }: { sid0?: string; gid0?: number }) {
   const sheet = drafts[Math.min(cur, drafts.length - 1)];
   // 之前移除的條目：列 → 維持移除（true）／恢復（false）
   const goneRows = (d: Draft) => {
-    const keys = new Set(removedNow(sid0 ?? '')?.rows?.[String(d.gid)] ?? []);
+    const keys = new Set(removedNow(sid0 ?? sidOf(url) ?? '')?.rows?.[String(d.gid)] ?? []);
     const out = new Map<number, boolean>();
     if (!keys.size) return out;
     for (const x of previewKeys(d.rows, d.fields)) if (keys.has(x.key)) out.set(x.row, !d.restore.includes(x.key));
@@ -289,7 +292,8 @@ function SetupDialog({ sid0, gid0 }: { sid0?: string; gid0?: number }) {
       }
       const tabsGone = (was?.tabs ?? []).filter((g) => drafts.find((x) => x.gid === g)?.removedTab !== false);
       const removed = tabsGone.length || Object.keys(rows).length ? { tabs: tabsGone, rows } : undefined;
-      const conf: CloudSheet = { sid, title, project, tabs, ...(old?.allTabs ? { allTabs: true } : {}), ...(old?.lengthStd !== undefined ? { lengthStd: old.lengthStd } : {}), ...(removed ? { removed } : {}) };
+      const was0 = oldOf(sid0 ?? sid);
+      const conf: CloudSheet = { sid, title, project, tabs, ...(was0?.allTabs ? { allTabs: true } : {}), ...(was0?.lengthStd !== undefined ? { lengthStd: was0.lengthStd } : {}), ...(removed ? { removed } : {}) };
       setRemoved(sid, removed);
       close();
       await putSheet(conf);

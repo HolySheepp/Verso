@@ -349,6 +349,8 @@ async function saveAll(ask = true): Promise<boolean> {
       // 自訂標記改了名稱也要重寫，因為「標記」欄寫的是名稱
       if (saved.files.get(fileKey(f)) === f && !customsChanged) continue;
       const old = saved.files.get(fileKey(f));
+      // 選了「重新命名」避開外部檔案：原本的位置現在是使用者要保留的外部檔案，不能當成舊位置丟掉
+      let keepOld = false;
       try {
         // 有格子超過 Excel 的上限：這個檔案存不進去，跳過（其他照存），請使用者縮短。先檢查這個，免得先問了同名衝突、甚至丟掉外部檔，結果還是存不進去
         const tooLong = longCellsOf(f);
@@ -362,14 +364,16 @@ async function saveAll(ask = true): Promise<boolean> {
           if (choice === 'cancel') { cancelled = true; continue; }
           if (choice === 'overwrite') await io.trash(io.join(s.saveRoot, f.project, safeFileName(f.name) + '.xlsx'));
           else {
+            const target = diskKey(f.project, f.name);
             f = await renameToFree(s.saveRoot, f);
+            if (old && diskKey(old.project, old.name) === target) keepOld = true;
             p = useStore.getState().project!;
           }
         }
         await writeFile(s.saveRoot, f, p.customMarks);
         done.files.set(fileKey(f), f);
         // 改了名稱或搬了專案：記下舊位置（只差大小寫時是同一個檔案，不用移）
-        if (old && diskKey(old.project, old.name) !== diskKey(f.project, f.name) && !gone.includes(old.project)) moved.push(old);
+        if (old && !keepOld && diskKey(old.project, old.name) !== diskKey(f.project, f.name) && !gone.includes(old.project)) moved.push(old);
       } catch (e) { fail(`${f.project} / ${f.name}`, e); }
     }
     // 舊位置移到資源回收筒；正好是現在某個檔案的位置就不動
