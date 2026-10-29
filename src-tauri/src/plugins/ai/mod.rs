@@ -9,7 +9,7 @@ use std::hash::{BuildHasher, Hasher};
 use std::io::{BufRead, BufReader, Read, Write};
 use std::net::{TcpListener, TcpStream};
 use std::process::{Child, Command, Stdio};
-use std::sync::atomic::{AtomicU64, Ordering};
+use std::sync::atomic::{AtomicU64, AtomicUsize, Ordering};
 use std::sync::mpsc::{channel, Sender};
 use std::sync::{Arc, Mutex};
 use std::time::Duration;
@@ -36,28 +36,43 @@ fn token() -> String {
     s
 }
 
-/// 讀一個 HTTP 請求：回傳（方法、路徑、標頭、內容）
-fn read_request(stream: &TcpStream) -> Option<(String, String, HashMap<String, String>, Vec<u8>)> {
-    let mut r = BufReader::new(stream.try_clone().ok()?);
-    let mut line = String::new();
-    r.read_line(&mut line).ok()?;
+/// 標頭（請求行加全部標頭）最多這麼長；同時最多這麼多個連線
+const MAX_HEAD: u64 = 16 * 1024;
+const MAX_CONN: usize = 16;
+
+type Head = (String, String, HashMap<String, String>);
+
+/// 讀 HTTP 請求的請求行和標頭（有長度上限）；內容等驗證過通行碼才讀
+fn read_head(r: &mut BufReader<TcpStream>) -> Option<Head> {
+    let mut left = MAX_HEAD;
+    let mut next_line = |r: &mut BufReader<TcpStream>| -> Option<String> {
+        let mut line = String::new();
+        let n = r.by_ref().take(left).read_line(&mut line).ok()? as u64;
+        if n == 0 || !line.ends_with('\n') { return None; }
+        left -= n;
+        Some(line)
+    };
+    let line = next_line(r)?;
     let mut parts = line.split_whitespace();
     let method = parts.next()?.to_string();
     let path = parts.next()?.to_string();
     let mut headers = HashMap::new();
     loop {
-        let mut h = String::new();
-        if r.read_line(&mut h).ok()? == 0 { break; }
+        let h = next_line(r)?;
         let h = h.trim_end();
         if h.is_empty() { break; }
         if let Some((k, v)) = h.split_once(':') { headers.insert(k.trim().to_lowercase(), v.trim().to_string()); }
     }
+    Some((method, path, headers))
+}
+
+/// 讀請求的內容（太大的不收）
+fn read_body(r: &mut BufReader<TcpStream>, headers: &HashMap<String, String>) -> Option<Vec<u8>> {
     let len: usize = headers.get("content-length").and_then(|v| v.parse().ok()).unwrap_or(0);
-    // 太大的請求不收
     if len > 8 * 1024 * 1024 { return None; }
     let mut body = vec![0u8; len];
     r.read_exact(&mut body).ok()?;
-    Some((method, path, headers, body))
+    Some(body)
 }
 
 fn respond(mut stream: &TcpStream, status: &str, body: Option<&Value>) {
@@ -74,12 +89,15 @@ fn respond(mut stream: &TcpStream, status: &str, body: Option<&Value>) {
 
 fn handle(stream: TcpStream, app: AppHandle, key: String, tools: Arc<Mutex<Value>>, pending: Arc<Mutex<HashMap<u64, Sender<(Value, bool)>>>>, next: Arc<AtomicU64>) {
     let _ = stream.set_read_timeout(Some(Duration::from_secs(30)));
-    let Some((method, path, headers, body)) = read_request(&stream) else { return };
-    // 只收這台電腦、帶對密碼的請求
+    let Ok(clone) = stream.try_clone() else { return };
+    let mut r = BufReader::new(clone);
+    let Some((method, path, headers)) = read_head(&mut r) else { return };
+    // 只收這台電腦、帶對密碼的請求（先看標頭，密碼不對就不讀內容）
     if headers.get("authorization").map(|v| v.as_str()) != Some(&format!("Bearer {}", key)) {
         respond(&stream, "401 Unauthorized", None);
         return;
     }
+    let Some(body) = read_body(&mut r, &headers) else { return };
     if method != "POST" || !path.starts_with("/mcp") {
         respond(&stream, "405 Method Not Allowed", None);
         return;
@@ -137,9 +155,16 @@ pub fn ai_server_start(app: AppHandle, state: State<Ai>, tools: Value) -> Result
     *server = Some((port, key.clone()));
     let (tools, pending, next) = (state.tools.clone(), state.pending.clone(), state.next.clone());
     std::thread::spawn(move || {
+        // 同時處理的連線有上限，超過的直接關掉
+        let active = Arc::new(AtomicUsize::new(0));
         for stream in listener.incoming().flatten() {
-            let (app, key, tools, pending, next) = (app.clone(), key.clone(), tools.clone(), pending.clone(), next.clone());
-            std::thread::spawn(move || handle(stream, app, key, tools, pending, next));
+            if active.load(Ordering::SeqCst) >= MAX_CONN { drop(stream); continue; }
+            active.fetch_add(1, Ordering::SeqCst);
+            let (app, key, tools, pending, next, active) = (app.clone(), key.clone(), tools.clone(), pending.clone(), next.clone(), active.clone());
+            std::thread::spawn(move || {
+                handle(stream, app, key, tools, pending, next);
+                active.fetch_sub(1, Ordering::SeqCst);
+            });
         }
     });
     Ok(())
@@ -207,12 +232,20 @@ pub fn ai_run(app: AppHandle, state: State<Ai>, prompt: String, model: Option<St
     let err = child.stderr.take();
     *child_slot = Some(child);
     let slot = state.child.clone();
+    let cfg_done = cfg.clone();
     std::thread::spawn(move || {
+        // 錯誤輸出用另一個執行緒讀：輸出很多時兩邊才不會互等卡住
+        let err_reader = std::thread::spawn(move || {
+            let mut etext = String::new();
+            if let Some(mut e) = err { let _ = e.read_to_string(&mut etext); }
+            etext
+        });
         let mut text = String::new();
         if let Some(mut o) = out { let _ = o.read_to_string(&mut text); }
-        let mut etext = String::new();
-        if let Some(mut e) = err { let _ = e.read_to_string(&mut etext); }
+        let etext = err_reader.join().unwrap_or_default();
         let status = slot.lock().unwrap().take().and_then(|mut c| c.wait().ok());
+        // 設定檔裡有通行碼：用完就刪
+        let _ = std::fs::remove_file(&cfg_done);
         let ok = status.map(|s| s.success()).unwrap_or(false);
         let tail = |s: &str| s.chars().rev().take(2000).collect::<String>().chars().rev().collect::<String>();
         let _ = app.emit("ai-done", json!({ "ok": ok, "output": tail(&text), "error": tail(&etext) }));

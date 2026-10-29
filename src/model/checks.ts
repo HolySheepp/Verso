@@ -164,7 +164,6 @@ export function runChecks(src: string, tgt: string): Issue[] {
   if (dashCapitals(tgt).length) add('capital', 'dash', tx('check.029'));
   const ds = dashStarts(tgt);
   if (ds.lower.length && !out.some((i) => i.key === 'capital:start')) add('capital', 'start', tx('check.027'));
-  if (ds.spaces.length && !out.some((i) => i.check === 'edgeSpace')) add('edgeSpace', '', tx('check.023'));
 
   // 殘留中文
   if (/[㐀-䶿一-鿿]/.test(tgt)) add('cjk', '', tx('check.030'));
@@ -187,20 +186,23 @@ function dashCapitals(tgt: string): number[] {
   return out;
 }
 
+/** 句子結尾：句點、驚歎號、問號、~、…、全形的句末標點，後面可以跟著收尾的括號、引號，再接可有可無的空格 */
+const SENTENCE_END = /[.!?~…。！？～]["'”’)\]）」』]*\s*$/;
+
 /**
- * 破折號後是新句子的情況：
- * - 破折號後面有空格：後面的字算句首，要大寫（lower 是小寫字母的位置）
- * - 破折號在整句開頭（前面只有符號、標籤，沒有字母數字）：後面不能有空格（spaces 是空格的範圍），字母要大寫
+ * 破折號後是新句子的情況，後面的字母要大寫（lower 是小寫字母的位置）：
+ * - 破折號後面有空格
+ * - 破折號在句首：整句開頭（前面只有符號、標籤，沒有字母數字），或前面是句子結尾（例如 Stop. —Go）
  */
-function dashStarts(tgt: string): { lower: number[]; spaces: { start: number; end: number }[] } {
-  const lower: number[] = [], spaces: { start: number; end: number }[] = [];
+function dashStarts(tgt: string): { lower: number[] } {
+  const lower: number[] = [];
   for (const m of tgt.matchAll(/—(\s*)["'(\[]*([A-Za-z])?/g)) {
     const at = m.index!, gap = m[1].length;
-    const atStart = !/[\p{L}\p{N}]/u.test(tgt.slice(0, at).replace(TOKEN, ''));
-    if (atStart && gap) spaces.push({ start: at + 1, end: at + 1 + gap });
+    const before = tgt.slice(0, at).replace(TOKEN, '');
+    const atStart = !/[\p{L}\p{N}]/u.test(before) || SENTENCE_END.test(before);
     if (m[2] && /[a-z]/.test(m[2]) && (atStart || gap)) lower.push(at + m[0].length - 1);
   }
-  return { lower, spaces };
+  return { lower };
 }
 
 /** 依開關過濾 */
@@ -230,7 +232,7 @@ export function locateIssues(tgt: string, checks: Set<CheckId>): { start: number
   const all = (re: RegExp) => { for (const m of tgt.matchAll(re)) out.push({ start: m.index!, end: m.index! + m[0].length }); };
   if (checks.has('fullwidth')) all(/[　-〿＀-￯…‥]/g);
   if (checks.has('doubleSpace')) all(/ {2,}/g);
-  if (checks.has('edgeSpace')) { all(/^\s+|\s+$/g); out.push(...dashStarts(tgt).spaces); }
+  if (checks.has('edgeSpace')) all(/^\s+|\s+$/g);
   if (checks.has('repeatPunct')) {
     all(/([,;:—-])\1+/g);
     if (!onlyDots(tgt)) for (const m of badDots(tgt)) out.push({ start: m.index, end: m.index + m.text.length });

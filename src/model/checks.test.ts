@@ -101,9 +101,15 @@ describe('標點檢測', () => {
     // 破折號在句首：後面要大寫、不能有空格
     expect(msgs('', '—go now.')).toEqual(['句首要大寫']);
     expect(msgs('', '"—go now."')).toEqual(['句首要大寫']);
-    expect(msgs('', '— Go now.')).toEqual(['開頭或結尾有多餘空白']);
-    expect(msgs('', '— go now.').sort()).toEqual(['句首要大寫', '開頭或結尾有多餘空白'].sort());
-    expect(locateIssues('— go now.', new Set(['edgeSpace', 'capital']))).toEqual(expect.arrayContaining([{ start: 1, end: 2 }, { start: 2, end: 3 }]));
+    // 句首破折號後面有空格不報；字母照樣要大寫
+    expect(msgs('', '— Go now.')).toEqual([]);
+    expect(msgs('', '— go now.')).toEqual(['句首要大寫']);
+    expect(locateIssues('— go now.', new Set(['edgeSpace', 'capital']))).toEqual([{ start: 2, end: 3 }]);
+    // 前面是句子結尾（. ! ? ~ … 全形，可以跟收尾括號、引號）：破折號後算句首
+    expect(msgs('', 'Stop. —go now.')).toEqual(['句首要大寫']);
+    expect(msgs('', 'Stop. —Go now.')).toEqual([]);
+    expect(msgs('', 'Really?! —no.')).toEqual(['句首要大寫']);
+    expect(msgs('', '(Wait.) —go')).toContain('句首要大寫');
     expect(msgs('', 'He said—"Go."')).toEqual(['破折號後要小寫']);
   });
 
