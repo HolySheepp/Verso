@@ -1,6 +1,7 @@
 // 介面文字（中文）：程式裡只寫代號，用 tx('代號') 取文字。由程式整理產生，改字句請改這裡。
 // 存檔裡的名稱（欄位標題、資料夾名稱等）不在這裡，維持中文。
 export const ZH = {
+  'cloud.errRateLimit': '短時間內向 Google 讀寫太多次，這一輪先跳過，等一下會自動再同步', // 雲端模式：Google 回應請求太多（每分鐘上限）
   'cloud.removedRow': '已不再使用，點擊恢復', // 重新設定 Google 表：預覽裡被移除條目的列號提示
   'cloud.restoredRow': '已恢復，再次點擊取消恢復', // 同上：已選恢復的列號提示
   'cloud.removedTabNote': '已不再使用', // 重新設定 Google 表：被移除的頁簽
