@@ -945,7 +945,9 @@ export function rowOp(kind: 'delete' | 'insert' | 'up' | 'down', rows: number[],
         const preview = list.map((x) => ({ row: x.row, cells: (vals[x.row] ?? []).map((v, c): [string, string] => [head[c]?.trim() || colName(c), v]).filter(([, v]) => v.trim()) }));
         useCloud.setState({ askDelete: { title: tx('cloud.deleteRowsAsk', { n: list.length }), rows: preview, run: async () => {
           try {
+            const keysBefore = await rowKeys(sid, tab.title, tab.fields);
             await deleteRows(sid, gid, list.map((x) => x.row));
+            const gone = list.map((x) => x.row);
             let fields = tab.fields;
             for (const r of [...list].sort((a, b) => b.row - a.row)) {
               fields = shiftFields(fields, r.row, -1);
@@ -954,6 +956,7 @@ export function rowOp(kind: 'delete' | 'insert' | 'up' | 'down', rows: number[],
             asInternal(() => useStore.getState().editSheet((es) => ({ entries: es.filter((e) => !list.some((x) => entries[x.i]?.uid === e.uid)), keys: [] }), at, true));
             done();
             await saveTabFields(sid, gid, fields);
+            await rekey(sid, gid, keysBefore, await rowKeys(sid, tab.title, fields), (r) => (gone.includes(r) ? null : r - gone.filter((g) => g < r).length));
           } catch (e) { fail(e); }
         } } });
         return;
@@ -962,6 +965,7 @@ export function rowOp(kind: 'delete' | 'insert' | 'up' | 'down', rows: number[],
         const last = sorted[sorted.length - 1];
         const r0 = (rowOf(last) ?? (tab.fields.src?.runs[0][0] ?? 1) - 1) + 1;
         const n = Math.max(1, count);
+        const keysBefore = await rowKeys(sid, tab.title, tab.fields);
         await insertRowsAt(sid, gid, r0, n);
         remapRows(entries, (y) => (y >= r0 ? y + n : y));
         asInternal(() => useStore.getState().editSheet((es) => ({ entries: insertRows(es, last, n), keys: [] }), at, true));
@@ -976,7 +980,9 @@ export function rowOp(kind: 'delete' | 'insert' | 'up' | 'down', rows: number[],
           pendingNew.add(e.uid);
         });
         done();
-        await saveTabFields(sid, gid, shiftFields(tab.fields, r0, n));
+        const shifted = shiftFields(tab.fields, r0, n);
+        await saveTabFields(sid, gid, shifted);
+        await rekey(sid, gid, keysBefore, await rowKeys(sid, tab.title, shifted), (r) => (r >= r0 ? r + n : r));
         return;
       }
       // 上移、下移：照條目欄的做法一步一步跟旁邊那條換位置，Google 上也一樣搬
@@ -985,21 +991,84 @@ export function rowOp(kind: 'delete' | 'insert' | 'up' | 'down', rows: number[],
       const pos = entries.map((_, i) => rowOf(i));
       if (sorted.some((i) => pos[i] === undefined || pos[i + dir] === undefined)) return;
       const moves: { from: number; to: number }[] = [];
-      const apply = (map: (r: number) => number) => { for (let k = 0; k < pos.length; k++) if (pos[k] !== undefined) pos[k] = map(pos[k]!); };
+      /** 每一步列的對應，之後拿來重新對應 ID 第幾個（不在條目欄的列，例如移除的，也要跟著算） */
+      const steps: ((r: number) => number)[] = [];
+      const apply = (map: (r: number) => number) => { steps.push(map); for (let k = 0; k < pos.length; k++) if (pos[k] !== undefined) pos[k] = map(pos[k]!); };
       for (const i of dir < 0 ? sorted : [...sorted].reverse()) {
         const a = pos[i]!, b = pos[i + dir]!;
         if (dir < 0) { moves.push({ from: a, to: b }); apply((r) => (r === a ? b : r >= b && r < a ? r + 1 : r)); }
         else { moves.push({ from: a, to: b + 1 }); apply((r) => (r === a ? b : r > a && r <= b ? r - 1 : r)); }
         [pos[i], pos[i + dir]] = [pos[i + dir], pos[i]];
       }
+      const keysBefore = await rowKeys(sid, tab.title, tab.fields);
       await moveRowsSeq(sid, gid, moves);
       const r = moveRows(entries, sorted, dir);
       r.entries.forEach((e, k) => { const b = base.get(e.uid); if (b && pos[k] !== undefined) base.set(e.uid, { ...b, row: pos[k]! }); });
       asInternal(() => useStore.getState().editSheet(() => ({ entries: r.entries, keys: r.rows.flatMap((k) => [0, 1, 2, 3].map((c) => k + ':' + c)) }), at, true));
       done();
+      await rekey(sid, gid, keysBefore, await rowKeys(sid, tab.title, tab.fields), (row) => steps.reduce((x, f) => f(x), row));
     } catch (e) { fail(e); }
   })();
   return true;
+}
+
+// ---- 整列增刪移動之後，重新對應「ID＋第幾次出現」 ----
+/** Google 上這個分頁每一列（用原文那欄的列）現在的「ID 第幾個」 */
+async function rowKeys(sid: string, title: string, fields: Fields): Promise<Map<number, string>> {
+  const [vals] = await readTabs(sid, [title]);
+  const map = toFieldMap(fields, vals.length - 1);
+  if (!map.src) return new Map();
+  const fresh = columnsToEntries(fieldsToColumns(vals, map));
+  return new Map(keysOf(fresh).map((k, i) => [map.src!.rows[i], k]));
+}
+
+/**
+ * 整列刪除、插入、移動之後：同一個 ID 的「第幾個」可能變了。照列的對應（mapRow：舊列 → 新列，刪掉的是 null）
+ * 改寫軟體裡記的對應、資料表裡那幾條的「ID、第幾個」、移除紀錄，標記等才不會跑到別條或不見
+ */
+async function rekey(sid: string, gid: number, before: Map<number, string>, after: Map<number, string>, mapRow: (r: number) => number | null) {
+  const rename = new Map<string, string | null>();
+  before.forEach((k, r) => {
+    const nr = mapRow(r);
+    const nk = nr === null ? null : after.get(nr) ?? null;
+    if (nk !== k) rename.set(k, nk);
+  });
+  if (!rename.size) return;
+  // 軟體裡這個分頁的條目
+  const sh = fileOf(sid)?.sheets.find((x) => x.gid === gid);
+  for (const e of sh?.entries ?? []) {
+    const b = base.get(e.uid);
+    if (b?.key && rename.has(b.key)) { const nk = rename.get(b.key); base.set(e.uid, { ...b, key: nk ?? undefined }); }
+  }
+  // 資料表：改到別的「第幾個」就改那一列的 ID、第幾個；整列刪掉的那條清掉（不然會被當成別條的資料）
+  const did = dataSid();
+  if (did) {
+    const fd = await readData(sid, true);
+    if (fd?.exists) {
+      const writes: { row: number; values: string[] }[] = [];
+      rename.forEach((nk, ok) => {
+        const hit = fd.rows.get(dataKey(gid, ok));
+        if (!hit) return;
+        writes.push({ row: hit.row, values: nk === null ? [''] : [String(gid), ...nk.split('\u0000')] });
+      });
+      await writeRows(did, sid, writes);
+      fileData.delete(sid);
+    }
+  }
+  // 移除紀錄
+  const conf = confOf(sid);
+  const rm = removedOf(sid);
+  const list = rm?.rows?.[String(gid)];
+  if (conf && list?.some((k) => rename.has(k))) {
+    const nextList = list.map((k) => (rename.has(k) ? rename.get(k)! : k)).filter((k): k is string => k !== null);
+    const removed = { tabs: rm?.tabs ?? [], rows: { ...(rm?.rows ?? {}), [String(gid)]: nextList } };
+    localRemoved.set(sid, removed);
+    const next = { ...conf, removed };
+    const { cfg, shared } = useCloud.getState();
+    if (cfg.sheets.some((x) => x.sid === sid)) setConfig({ sheets: cfg.sheets.map((x) => (x.sid === sid ? next : x)) });
+    useCloud.setState({ shared: shared.map((x) => (x.sid === sid ? next : x)) });
+    try { await writeShared(next); } catch { /* 下次存設定時再寫 */ }
+  }
 }
 
 // ---- 頁簽：新增、改名、刪除（馬上改 Google 試算表的分頁） ----
@@ -1126,6 +1195,7 @@ async function deleteRemoved(sid: string, gid: number, gone: Entry[]) {
       base.delete(e.uid);
     }
     if (!rows.length) return;
+    const keysBefore = await rowKeys(sid, tab.title, tab.fields);
     await deleteRows(sid, gid, rows);
     let fields = tab.fields;
     const doc = fileOf(sid);
@@ -1135,6 +1205,7 @@ async function deleteRemoved(sid: string, gid: number, gone: Entry[]) {
       if (sh) remapRows(sh.entries, (y) => (y > r ? y - 1 : y));
     }
     await saveTabFields(sid, gid, fields);
+    await rekey(sid, gid, keysBefore, await rowKeys(sid, tab.title, fields), (r) => (rows.includes(r) ? null : r - rows.filter((g) => g < r).length));
   } catch (e) { showToast(tx('cloud.writeFailed', { name: tab.title, reason: errText(e) }), { warn: true }); }
 }
 

@@ -1,4 +1,5 @@
 ﻿代號	中文	畫面區域	程式位置
+cloud.errRateLimit	短時間內向 Google 讀寫太多次，這一輪先跳過，等一下會自動再同步	雲端模式：Google 回應請求太多（每分鐘上限）	plugins/cloud/api.ts:77
 cloud.removedRow	已不再使用，點擊恢復	重新設定 Google 表：預覽裡被移除條目的列號提示	components/ImportDialog.tsx:450 components/ImportDialog.tsx:450
 cloud.restoredRow	已恢復，再次點擊取消恢復	同上：已選恢復的列號提示	components/ImportDialog.tsx:450 components/ImportDialog.tsx:450
 cloud.removedTabNote	已不再使用	重新設定 Google 表：被移除的頁簽	plugins/cloud/index.tsx:332
@@ -18,45 +19,45 @@ cloud.userNameHint	備註時顯示的名稱	同上的提示文字	plugins/cloud/
 cloud.userNameTitle	輸入暱稱	還沒有用戶名時彈出的視窗標題	plugins/cloud/index.tsx:446
 cloud.userNameBody	暱稱將在備註時顯示，可於設定 > 雲端修改	同上的說明	plugins/cloud/index.tsx:447
 cloud.userNameOk	確定	同上的按鈕	plugins/cloud/index.tsx:452
-cm.edited	已編輯	雲端模式的備註留言面板	components/comments/CommentsPanel.tsx:261
-cm.resolved	已解決	雲端模式的備註留言面板	components/comments/CommentsPanel.tsx:261
-cm.jumpQuote	跳轉至引用的訊息：{name}	雲端模式的備註留言面板	components/comments/CommentsPanel.tsx:263
-cm.quoteGone	原訊息已刪除	雲端模式的備註留言面板	components/comments/CommentsPanel.tsx:263 components/comments/CommentsPanel.tsx:265
-cm.quoteLabel	[已刪除]	雲端模式的備註留言面板	components/comments/CommentsPanel.tsx:264
-cm.openThread	展開討論串	雲端模式的備註留言面板	components/comments/CommentsPanel.tsx:272
-cm.openThreadN	展開討論串，{n} 則回覆	雲端模式的備註留言面板	components/comments/CommentsPanel.tsx:272
-cm.tools	訊息操作	雲端模式的備註留言面板	components/comments/CommentsPanel.tsx:281
-cm.resolve	解決	雲端模式的備註留言面板	components/comments/CommentsPanel.tsx:284 components/comments/CommentsPanel.tsx:284 components/comments/CommentsPanel.tsx:457 components/comments/CommentsPanel.tsx:457
-cm.unresolve	取消解決	雲端模式的備註留言面板	components/comments/CommentsPanel.tsx:284 components/comments/CommentsPanel.tsx:284 components/comments/CommentsPanel.tsx:457 components/comments/CommentsPanel.tsx:457
-cm.reply	回覆	雲端模式的備註留言面板	components/comments/CommentsPanel.tsx:288 components/comments/CommentsPanel.tsx:288
-cm.edit	編輯	雲端模式的備註留言面板	components/comments/CommentsPanel.tsx:290 components/comments/CommentsPanel.tsx:290
-cm.delete	刪除	雲端模式的備註留言面板	components/comments/CommentsPanel.tsx:296 components/comments/CommentsPanel.tsx:296
-cm.deleteAgain	再次點擊刪除	雲端模式的備註留言面板	components/comments/CommentsPanel.tsx:296 components/comments/CommentsPanel.tsx:296
-cm.collapsedOpen	已解決，點擊展開：{name}：{text}	雲端模式的備註留言面板	components/comments/CommentsPanel.tsx:308
-cm.phEdit	編輯訊息...	雲端模式的備註留言面板	components/comments/CommentsPanel.tsx:353
-cm.phReply	回覆...	雲端模式的備註留言面板	components/comments/CommentsPanel.tsx:353
-cm.phNew	新增備註…	雲端模式的備註留言面板	components/comments/CommentsPanel.tsx:353
-cm.editing	正在編輯：	雲端模式的備註留言面板	components/comments/CommentsPanel.tsx:360
-cm.replyTo	正在回覆{name}	雲端模式的備註留言面板	components/comments/CommentsPanel.tsx:360
-cm.cancel	取消	雲端模式的備註留言面板	components/comments/CommentsPanel.tsx:363
-cm.saveEdit	儲存修改	雲端模式的備註留言面板	components/comments/CommentsPanel.tsx:370 components/comments/CommentsPanel.tsx:370
-cm.send	送出	雲端模式的備註留言面板	components/comments/CommentsPanel.tsx:370 components/comments/CommentsPanel.tsx:370
-cm.empty	無備註	雲端模式的備註留言面板	components/comments/CommentsPanel.tsx:445
-cm.backList	返回備註列表	雲端模式的備註留言面板	components/comments/CommentsPanel.tsx:454
-cm.back	返回	雲端模式的備註留言面板	components/comments/CommentsPanel.tsx:454
-cm.thread	討論串	雲端模式的備註留言面板	components/comments/CommentsPanel.tsx:454
-cm.clickAgain	再次點擊刪除	雲端模式的備註留言面板	components/comments/CommentsPanel.tsx:469
+cm.edited	已編輯	雲端模式的備註留言面板	components/comments/CommentsPanel.tsx:262
+cm.resolved	已解決	雲端模式的備註留言面板	components/comments/CommentsPanel.tsx:262
+cm.jumpQuote	跳轉至引用的訊息：{name}	雲端模式的備註留言面板	components/comments/CommentsPanel.tsx:264
+cm.quoteGone	原訊息已刪除	雲端模式的備註留言面板	components/comments/CommentsPanel.tsx:264 components/comments/CommentsPanel.tsx:266
+cm.quoteLabel	[已刪除]	雲端模式的備註留言面板	components/comments/CommentsPanel.tsx:265
+cm.openThread	展開討論串	雲端模式的備註留言面板	components/comments/CommentsPanel.tsx:273
+cm.openThreadN	展開討論串，{n} 則回覆	雲端模式的備註留言面板	components/comments/CommentsPanel.tsx:273
+cm.tools	訊息操作	雲端模式的備註留言面板	components/comments/CommentsPanel.tsx:282
+cm.resolve	解決	雲端模式的備註留言面板	components/comments/CommentsPanel.tsx:285 components/comments/CommentsPanel.tsx:285 components/comments/CommentsPanel.tsx:460 components/comments/CommentsPanel.tsx:460
+cm.unresolve	取消解決	雲端模式的備註留言面板	components/comments/CommentsPanel.tsx:285 components/comments/CommentsPanel.tsx:285 components/comments/CommentsPanel.tsx:460 components/comments/CommentsPanel.tsx:460
+cm.reply	回覆	雲端模式的備註留言面板	components/comments/CommentsPanel.tsx:289 components/comments/CommentsPanel.tsx:289
+cm.edit	編輯	雲端模式的備註留言面板	components/comments/CommentsPanel.tsx:291 components/comments/CommentsPanel.tsx:291
+cm.delete	刪除	雲端模式的備註留言面板	components/comments/CommentsPanel.tsx:297 components/comments/CommentsPanel.tsx:297
+cm.deleteAgain	再次點擊刪除	雲端模式的備註留言面板	components/comments/CommentsPanel.tsx:297 components/comments/CommentsPanel.tsx:297
+cm.collapsedOpen	已解決，點擊展開：{name}：{text}	雲端模式的備註留言面板	components/comments/CommentsPanel.tsx:309
+cm.phEdit	編輯訊息...	雲端模式的備註留言面板	components/comments/CommentsPanel.tsx:356
+cm.phReply	回覆...	雲端模式的備註留言面板	components/comments/CommentsPanel.tsx:356
+cm.phNew	新增備註…	雲端模式的備註留言面板	components/comments/CommentsPanel.tsx:356
+cm.editing	正在編輯：	雲端模式的備註留言面板	components/comments/CommentsPanel.tsx:363
+cm.replyTo	正在回覆{name}	雲端模式的備註留言面板	components/comments/CommentsPanel.tsx:363
+cm.cancel	取消	雲端模式的備註留言面板	components/comments/CommentsPanel.tsx:366
+cm.saveEdit	儲存修改	雲端模式的備註留言面板	components/comments/CommentsPanel.tsx:373 components/comments/CommentsPanel.tsx:373
+cm.send	送出	雲端模式的備註留言面板	components/comments/CommentsPanel.tsx:373 components/comments/CommentsPanel.tsx:373
+cm.empty	無備註	雲端模式的備註留言面板	components/comments/CommentsPanel.tsx:448
+cm.backList	返回備註列表	雲端模式的備註留言面板	components/comments/CommentsPanel.tsx:457
+cm.back	返回	雲端模式的備註留言面板	components/comments/CommentsPanel.tsx:457
+cm.thread	討論串	雲端模式的備註留言面板	components/comments/CommentsPanel.tsx:457
+cm.clickAgain	再次點擊刪除	雲端模式的備註留言面板	components/comments/CommentsPanel.tsx:472
 cm.srcNote	原備註	雲端模式的備註留言面板	components/SidePanel.tsx:452
 list.filterInclude	包含	條目欄篩選面板，條件的狀態（滑鼠提示、讀螢幕軟體）	components/FilterPanel.tsx:75
 list.filterExclude	排除	同上	components/FilterPanel.tsx:75
 list.filterNone	不篩選	同上	components/FilterPanel.tsx:75
 list.filterMixed	部分篩選	篩選面板「全部」在各條件狀態不同時	components/FilterPanel.tsx:75
-cloud.offlineTitle	沒有連接到網路	雲端模式開著、啟動時沒有網路的提示標題	plugins/cloud/index.tsx:521 plugins/cloud/index.tsx:524
-cloud.offlineBody	無法連接到網路，可先關閉雲端模式，網路連接恢復後會自動重試	同上的說明	plugins/cloud/index.tsx:521
-cloud.offlineOff	關閉雲端模式	同上的按鈕	plugins/cloud/index.tsx:521
-cloud.boot1	讀取雲端資料表	啟動畫面：雲端模式開著時的進度說明	plugins/cloud/sync.ts:707
-cloud.boot2	讀取雲端專案與字典	啟動畫面	plugins/cloud/sync.ts:715
-cloud.boot3	讀取工作進度	啟動畫面：讀取上次打開的 Google 表並回到上次的條目	plugins/cloud/sync.ts:722 plugins/cloud/sync.ts:725
+cloud.offlineTitle	沒有連接到網路	雲端模式開著、啟動時沒有網路的提示標題	plugins/cloud/index.tsx:522 plugins/cloud/index.tsx:525
+cloud.offlineBody	無法連接到網路，可先關閉雲端模式，網路連接恢復後會自動重試	同上的說明	plugins/cloud/index.tsx:522
+cloud.offlineOff	關閉雲端模式	同上的按鈕	plugins/cloud/index.tsx:522
+cloud.boot1	讀取雲端資料表	啟動畫面：雲端模式開著時的進度說明	plugins/cloud/sync.ts:751
+cloud.boot2	讀取雲端專案與字典	啟動畫面	plugins/cloud/sync.ts:759
+cloud.boot3	讀取工作進度	啟動畫面：讀取上次打開的 Google 表並回到上次的條目	plugins/cloud/sync.ts:766 plugins/cloud/sync.ts:769
 work.hide	隱藏工作欄	工作欄右上角的按鈕	components/WorkPanel.tsx:591 components/WorkPanel.tsx:591
 work.show	顯示工作欄	工作欄收起來後，叫回來的按鈕	App.tsx:280 App.tsx:280
 work.fit	工作欄高度	工作欄空白處右鍵選單，滑鼠移上去展開下面兩項	components/WorkPanel.tsx:776
@@ -65,14 +66,14 @@ work.fitFixed	固定欄高	用現在的高度，換條目不變	components/WorkP
 work.boxes	顯示的輸入框	工作欄空白處右鍵選單的名稱（讀螢幕軟體用）	components/WorkPanel.tsx:771
 cloud.versoConvert	偵測到 Verso 存檔格式的分頁：已自動選好範圍。儲存時標記、建議翻譯、修改等會搬進 Verso 資料表，表上這些 Verso 用的欄會刪掉（轉成雲端檔）。	雲端模式：設定 Google 表	plugins/cloud/index.tsx:317
 cloud.versoNoData	偵測到 Verso 存檔格式的分頁：已自動選好範圍。要把標記等也搬過去，請先在設定 > 雲端填 Verso 資料表。	雲端模式：設定 Google 表	plugins/cloud/index.tsx:317
-cloud.section	雲端	設定左邊的分類	plugins/cloud/index.tsx:548
+cloud.section	雲端	設定左邊的分類	plugins/cloud/index.tsx:549
 settings.checksOn	自動檢查	設定 > 檢查：總開關	components/SettingsDialog.tsx:253
-cloud.removeRowsAsk	移除這 {n} 條？	雲端模式：移除條目的確認	plugins/cloud/sync.ts:1234
-cloud.removeRowsBody	移除後 Verso 不再讀取這幾條（Google 上不動），同專案的人也不會再讀到。	雲端模式：移除條目的確認	plugins/cloud/sync.ts:1234
-cloud.removeTabAsk	移除頁簽「{name}」？	雲端模式：移除頁簽的確認	plugins/cloud/sync.ts:1258
-cloud.removeTabBody	移除後 Verso 不再讀取這個頁簽（Google 上不動），同專案的人也不會再讀到。	雲端模式：移除頁簽的確認	plugins/cloud/sync.ts:1258
-cloud.removeOk	移除	雲端模式：移除的確認按鈕	plugins/cloud/sync.ts:1234 plugins/cloud/sync.ts:1258
-cloud.removeLastTab	最後一個頁簽不能移除，要整份不用請到「管理 Google 表」選不再使用	雲端模式：移除頁簽	plugins/cloud/sync.ts:1257
+cloud.removeRowsAsk	移除這 {n} 條？	雲端模式：移除條目的確認	plugins/cloud/sync.ts:1351
+cloud.removeRowsBody	移除後 Verso 不再讀取這幾條（Google 上不動），同專案的人也不會再讀到。	雲端模式：移除條目的確認	plugins/cloud/sync.ts:1351
+cloud.removeTabAsk	移除頁簽「{name}」？	雲端模式：移除頁簽的確認	plugins/cloud/sync.ts:1375
+cloud.removeTabBody	移除後 Verso 不再讀取這個頁簽（Google 上不動），同專案的人也不會再讀到。	雲端模式：移除頁簽的確認	plugins/cloud/sync.ts:1375
+cloud.removeOk	移除	雲端模式：移除的確認按鈕	plugins/cloud/sync.ts:1351 plugins/cloud/sync.ts:1375
+cloud.removeLastTab	最後一個頁簽不能移除，要整份不用請到「管理 Google 表」選不再使用	雲端模式：移除頁簽	plugins/cloud/sync.ts:1374
 cloud.updSrc	更新原文	雲端模式：更新原文視窗	plugins/cloud/SrcUpdateCloud.tsx:131 plugins/cloud/SrcUpdateCloud.tsx:168
 cloud.r15	R15	雲端模式：更新原文視窗（R15 版本）	plugins/cloud/SrcUpdateCloud.tsx:131 plugins/cloud/SrcUpdateCloud.tsx:169
 cloud.updSrcHint	新原文套用到這份 Google 表：每個頁簽可以手動貼入，或從新連結選範圍。	雲端模式：更新原文視窗	plugins/cloud/SrcUpdateCloud.tsx:168
@@ -88,14 +89,14 @@ cloud.updNone	不更新	雲端模式：更新原文視窗（頁簽清單）	plug
 cloud.r15Carry	照舊原文帶過去	雲端模式：更新原文視窗（頁簽清單）	plugins/cloud/SrcUpdateCloud.tsx:188
 cloud.updConfirm	按確定後套用到這份 Google 表；新增的句子馬上插入，改過的句子按「套用新原文」才寫回。	雲端模式：更新原文視窗	plugins/cloud/SrcUpdateCloud.tsx:265
 cloud.r15Confirm	按確定後新增一個檔案連到新連結，原本的檔案不動。	雲端模式：更新原文視窗	plugins/cloud/SrcUpdateCloud.tsx:265
-cloud.deleteTabAsk	刪除 Google 上的分頁「{name}」？（共 {n} 列，下面是前幾列）	雲端模式：刪除頁簽前的預覽	plugins/cloud/sync.ts:1007
-cloud.deleteRowsAsk	刪除 Google 上的 {n} 列？	雲端模式：刪除條目前的預覽	plugins/cloud/sync.ts:900
+cloud.deleteTabAsk	刪除 Google 上的分頁「{name}」？（共 {n} 列，下面是前幾列）	雲端模式：刪除頁簽前的預覽	plugins/cloud/sync.ts:1122
+cloud.deleteRowsAsk	刪除 Google 上的 {n} 列？	雲端模式：刪除條目前的預覽	plugins/cloud/sync.ts:946
 cloud.deleteHint	這些是 Google 表上這幾列的全部內容（包括 Verso 沒讀的欄），刪掉後 Verso 也不能復原。	雲端模式：刪除前的預覽	plugins/cloud/index.tsx:384
 cloud.rowNo	第 {n} 列	雲端模式：刪除前的預覽	plugins/cloud/index.tsx:388
 cloud.deleteConfirm	刪除	雲端模式：刪除前的預覽	plugins/cloud/index.tsx:396
 cloud.conflictSpeaker	#{id} 的發話者已經被別人改過	雲端模式：寫回衝突	plugins/cloud/index.tsx:417
 cloud.conflictSrcText	#{id} 的原文已經被別人改過	雲端模式：寫回衝突	plugins/cloud/index.tsx:417
-cloud.rowsOnly	雲端檔案要增刪、搬動條目，請用右鍵的整列刪除、插入、上移、下移	雲端模式：擋下會改變條目數量或順序的操作	state/store.ts:886 state/store.ts:894
+cloud.rowsOnly	雲端檔案要增刪、搬動條目，請用右鍵的整列刪除、插入、上移、下移	雲端模式：擋下會改變條目數量或順序的操作	state/store.ts:906 state/store.ts:914
 side.scope	搜尋範圍：{scope}（點一下換範圍）	搜尋分頁：範圍按鈕	components/SidePanel.tsx:284
 side.scope.sheet	當前頁簽	搜尋分頁：範圍	
 side.scope.file	當前檔案	搜尋分頁：範圍	
@@ -118,7 +119,7 @@ cloud.deleteProjectAsk	刪除專案「{name}」？	雲端模式：管理專案	p
 cloud.deleteProjectBody	只會從 Verso 資料表拿掉這個專案，Google 上的字典檔不會動。	雲端模式：管理專案	plugins/cloud/ProjectsDialog.tsx:143
 dict.cloud	雲端	啟用的字典、字典管理：雲端字典的標示	components/ManageDialogs.tsx:549 components/SidePanel.tsx:177
 dict.local	本地	啟用的字典、字典管理：本地字典的標示	components/ManageDialogs.tsx:549 components/SidePanel.tsx:177
-dict.cloudNoMove	雲端字典不能搬到別的專案	想把雲端字典移到別的專案時的提示	state/store.ts:1448
+dict.cloudNoMove	雲端字典不能搬到別的專案	想把雲端字典移到別的專案時的提示	state/store.ts:1477
 cloud.enabled	雲端模式	設定 > 雲端：開關	plugins/cloud/index.tsx:72
 cloud.hint	打開後直接讀寫 Google 試算表，檔案選單只列設定過的表；關掉回到本地檔案（本地檔案和存檔都不受影響）	開發者選項：雲端模式的說明	plugins/cloud/index.tsx:75
 cloud.clientId	用戶端 ID	雲端模式：Google OAuth 用戶端 ID	plugins/cloud/index.tsx:80
@@ -132,7 +133,7 @@ cloud.logout	登出	雲端模式：按鈕	plugins/cloud/index.tsx:94
 cloud.addSheet	新增 Google 表	檔案選單（雲端模式）	plugins/cloud/index.tsx:125
 cloud.manage	管理 Google 表	檔案選單（雲端模式）；對話框標題	plugins/cloud/index.tsx:128 plugins/cloud/index.tsx:354
 cloud.refresh	重新讀取	檔案選單（雲端模式）	plugins/cloud/index.tsx:134
-cloud.dataUrl	Verso 資料表	開發者選項（雲端模式）：共用的資料表網址	plugins/cloud/index.tsx:87 plugins/cloud/projects.ts:130 plugins/cloud/ProjectsDialog.tsx:44 plugins/cloud/sync.ts:628 plugins/cloud/sync.ts:692 plugins/cloud/sync.ts:713 plugins/cloud/sync.ts:717
+cloud.dataUrl	Verso 資料表	開發者選項（雲端模式）：共用的資料表網址	plugins/cloud/index.tsx:87 plugins/cloud/projects.ts:130 plugins/cloud/ProjectsDialog.tsx:44 plugins/cloud/sync.ts:672 plugins/cloud/sync.ts:736 plugins/cloud/sync.ts:757 plugins/cloud/sync.ts:761
 cloud.dataHint	標記、建議翻譯、修改存在這張 Google 表，大家共用（建一張空白試算表、分享給同專案的人，把網址貼在這裡）	開發者選項（雲端模式）	plugins/cloud/index.tsx:89
 cloud.conflictNote	#{id} 的備註已經被別人改過	雲端模式：寫回衝突	plugins/cloud/index.tsx:417
 cloud.sync	同步	條目欄上方的按鈕（雲端模式）：寫回並重新讀取 Google 表	plugins/cloud/index.tsx:111 plugins/cloud/index.tsx:113 plugins/cloud/index.tsx:115
@@ -156,7 +157,7 @@ cloud.saving	儲存中…	雲端模式：按鈕	plugins/cloud/index.tsx:310 plug
 cloud.noSheets	還沒有設定過的 Google 表	雲端模式：管理	plugins/cloud/index.tsx:356
 cloud.tabCount	{n} 個分頁	雲端模式：管理	plugins/cloud/index.tsx:361
 cloud.resetup	重新設定	雲端模式：管理	plugins/cloud/index.tsx:362
-cloud.remove	不再使用	雲端模式：管理	components/EntryList.tsx:820 components/EntryList.tsx:828 components/FileNav.tsx:252 plugins/cloud/index.tsx:363 plugins/cloud/index.tsx:369
+cloud.remove	不再使用	雲端模式：管理	components/EntryList.tsx:820 components/EntryList.tsx:828 components/FileNav.tsx:254 plugins/cloud/index.tsx:363 plugins/cloud/index.tsx:369
 cloud.removeAsk	不再使用「{name}」？	雲端模式：確認	plugins/cloud/index.tsx:368
 cloud.removeBody	只是從 Verso 拿掉，Google 上的表不會動。	雲端模式：確認	plugins/cloud/index.tsx:368
 cloud.conflictTitle	#{id} 已經被別人改過	雲端模式：寫回衝突	plugins/cloud/index.tsx:417
@@ -166,16 +167,16 @@ cloud.conflictTheirs	對方的	雲端模式：寫回衝突	plugins/cloud/index.t
 cloud.empty	（空白）	雲端模式：寫回衝突	components/WorkPanel.tsx:385 plugins/cloud/index.tsx:389 plugins/cloud/index.tsx:410
 cloud.useMine	用我的	雲端模式：寫回衝突	plugins/cloud/index.tsx:424
 cloud.useTheirs	用對方的	雲端模式：寫回衝突	plugins/cloud/index.tsx:423
-cloud.loadFailed	讀不到「{name}」：{reason}	雲端模式：警告	plugins/cloud/dicts.ts:24 plugins/cloud/dicts.ts:92 plugins/cloud/sync.ts:434 plugins/cloud/sync.ts:628 plugins/cloud/sync.ts:713 plugins/cloud/sync.ts:717 plugins/cloud/sync.ts:1016
-cloud.writeFailed	「{name}」的譯文沒有寫回：{reason}	雲端模式：警告	plugins/cloud/dicts.ts:139 plugins/cloud/dicts.ts:147 plugins/cloud/dicts.ts:186 plugins/cloud/projects.ts:130 plugins/cloud/ProjectsDialog.tsx:44 plugins/cloud/SrcUpdateCloud.tsx:128 plugins/cloud/sync.ts:587 plugins/cloud/sync.ts:692 plugins/cloud/sync.ts:834 plugins/cloud/sync.ts:884 plugins/cloud/sync.ts:987 plugins/cloud/sync.ts:1014 plugins/cloud/sync.ts:1061 plugins/cloud/sync.ts:1092 plugins/cloud/sync.ts:1243 plugins/cloud/sync.ts:1265
-cloud.missingId	「{name}」找不到這些 ID，譯文沒有寫回：{ids}	雲端模式：警告	plugins/cloud/sync.ts:585
+cloud.loadFailed	讀不到「{name}」：{reason}	雲端模式：警告	plugins/cloud/dicts.ts:24 plugins/cloud/dicts.ts:92 plugins/cloud/sync.ts:474 plugins/cloud/sync.ts:672 plugins/cloud/sync.ts:757 plugins/cloud/sync.ts:761 plugins/cloud/sync.ts:1131
+cloud.writeFailed	「{name}」的譯文沒有寫回：{reason}	雲端模式：警告	plugins/cloud/dicts.ts:139 plugins/cloud/dicts.ts:147 plugins/cloud/dicts.ts:186 plugins/cloud/projects.ts:130 plugins/cloud/ProjectsDialog.tsx:44 plugins/cloud/SrcUpdateCloud.tsx:128 plugins/cloud/sync.ts:631 plugins/cloud/sync.ts:736 plugins/cloud/sync.ts:878 plugins/cloud/sync.ts:930 plugins/cloud/sync.ts:1102 plugins/cloud/sync.ts:1129 plugins/cloud/sync.ts:1176 plugins/cloud/sync.ts:1209 plugins/cloud/sync.ts:1360 plugins/cloud/sync.ts:1382
+cloud.missingId	「{name}」找不到這些 ID，譯文沒有寫回：{ids}	雲端模式：警告	plugins/cloud/sync.ts:629
 cloud.errLogin	還沒登入 Google，請到設定 > 雲端登入	雲端模式：錯誤	plugins/cloud/api.ts:74
 cloud.errClient	請先填用戶端 ID	雲端模式：錯誤	plugins/cloud/api.ts:75
 cloud.errTimeout	等太久沒有完成登入，請再試一次	雲端模式：錯誤	plugins/cloud/api.ts:76
-cloud.errDenied	沒有權限（這個帳號不能開這張表，或公司還沒允許）	雲端模式：錯誤	plugins/cloud/api.ts:77
-cloud.errNotFound	找不到這張表	雲端模式：錯誤	plugins/cloud/api.ts:78
-cloud.errNetwork	連不上 Google，請檢查網路	雲端模式：錯誤	plugins/cloud/api.ts:79
-cloud.errOther	Google 回報錯誤：{msg}	雲端模式：錯誤	plugins/cloud/api.ts:80
+cloud.errDenied	沒有權限（這個帳號不能開這張表，或公司還沒允許）	雲端模式：錯誤	plugins/cloud/api.ts:78
+cloud.errNotFound	找不到這張表	雲端模式：錯誤	plugins/cloud/api.ts:79
+cloud.errNetwork	連不上 Google，請檢查網路	雲端模式：錯誤	plugins/cloud/api.ts:80
+cloud.errOther	Google 回報錯誤：{msg}	雲端模式：錯誤	plugins/cloud/api.ts:81
 projset.title	專案設定：{name}	管理專案：點專案名稱後右邊的標題	components/ProjectSettings.tsx:36
 projset.dicts	自動啟用的字典	專案設定	components/ProjectSettings.tsx:39
 projset.dictsHint	打開這個專案的檔案時，勾起來的字典會自動啟用（跟字典頁的開關是同一份）	專案設定	components/ProjectSettings.tsx:40
@@ -197,10 +198,10 @@ ai.errQuota	Token用盡	AI 失敗原因	plugins/ai/ai.ts:281
 ai.errSkill	找不到Skill	AI 失敗原因	plugins/ai/ai.ts:394
 ai.errOther	AI工作未完成，請重試	AI 失敗原因：其他	plugins/ai/ai.ts:282 plugins/ai/ai.ts:404
 shortcut.ignoreEdits	忽略這條的全部修改	設定 > 快捷鍵：動作名稱	model/shortcuts.ts:38
-mark.suggHoldsDoubt	有建議翻譯，維持疑慮	有建議翻譯時想改成別的標記：被擋下的提示	state/store.ts:1037 state/store.ts:1062
+mark.suggHoldsDoubt	有建議翻譯，維持疑慮	有建議翻譯時想改成別的標記：被擋下的提示	state/store.ts:1061 state/store.ts:1086
 mark.ai	AI 翻譯	標記名稱：AI 翻好、還沒確認的條目	model/marks.ts:84
-list.aiLocked	AI 處理中	條目欄：AI 正在處理的條目旁的小字提示	components/EntryList.tsx:160 components/EntryList.tsx:160 state/store.ts:942 state/store.ts:944
-ai.locked	AI 正在處理的條目不能刪除	想刪掉 AI 處理中的條目時	state/store.ts:899
+list.aiLocked	AI 處理中	條目欄：AI 正在處理的條目旁的小字提示	components/EntryList.tsx:160 components/EntryList.tsx:160 components/FileNav.tsx:58 state/store.ts:962 state/store.ts:964 state/store.ts:987 state/store.ts:1002 state/store.ts:1431
+ai.locked	AI 正在處理的條目不能刪除	想刪掉 AI 處理中的條目時	state/store.ts:919
 ai.stopped	已停止 AI，已經寫回的內容保留	按了停止之後	plugins/ai/ai.ts:301
 ai.askMany	要讓 AI 處理 {n} 條嗎？	選了超過 50 條按 AI 時	plugins/ai/index.tsx:25
 ai.askNo	取消	上面那句的按鈕	plugins/ai/index.tsx:26
@@ -231,17 +232,17 @@ settings.packsFailed	無法添加語言包，主程式資料夾可能沒有寫�
 settings.packReplace	已經有語言包「{name}」，要取代嗎？	設定 > 一般：加入同名語言包時	components/SettingsDialog.tsx:476
 settings.packReplaceNo	取消	設定 > 一般：同名語言包的詢問	components/SettingsDialog.tsx:477
 settings.packReplaceYes	取代	設定 > 一般：同名語言包的詢問	components/SettingsDialog.tsx:477
-common.colon	：	「名字：內容」這種名稱和內容之間的分隔（英文是冒號加空格）	components/comments/CommentsPanel.tsx:311 components/FilterPanel.tsx:91 components/FilterPanel.tsx:97
-common.sep	、	列出好幾個名稱時的分隔符號	App.tsx:101 App.tsx:112 App.tsx:123 components/CopyConfirm.tsx:19 components/EntryList.tsx:197 components/EntryList.tsx:197 components/FileNav.tsx:131 components/ManageDialogs.tsx:177 components/SettingsDialog.tsx:443 components/SettingsDialog.tsx:444 components/SidePanel.tsx:380 components/WorkPanel.tsx:94 model/importSel.ts:59 model/importSel.ts:59 model/paste.ts:79 plugins/cloud/index.tsx:258 plugins/cloud/sync.ts:585 state/saver.ts:1045 state/saver.ts:1045
-common.join	；	把兩段提示接成一句時的分隔符號（英文用「; 」）	state/saver.ts:1045
+common.colon	：	「名字：內容」這種名稱和內容之間的分隔（英文是冒號加空格）	components/comments/CommentsPanel.tsx:312 components/FilterPanel.tsx:91 components/FilterPanel.tsx:97
+common.sep	、	列出好幾個名稱時的分隔符號	App.tsx:101 App.tsx:112 App.tsx:123 components/CopyConfirm.tsx:19 components/EntryList.tsx:197 components/EntryList.tsx:197 components/FileNav.tsx:133 components/ManageDialogs.tsx:177 components/SettingsDialog.tsx:443 components/SettingsDialog.tsx:444 components/SidePanel.tsx:380 components/WorkPanel.tsx:94 model/importSel.ts:59 model/importSel.ts:59 model/paste.ts:79 plugins/cloud/index.tsx:258 plugins/cloud/sync.ts:629 state/saver.ts:1049 state/saver.ts:1049
+common.join	；	把兩段提示接成一句時的分隔符號（英文用「; 」）	state/saver.ts:1049
 common.moreEntries	 等 {n} 條	列表太長時接在後面	App.tsx:101
-common.moreItems	 等 {n} 個	列表太長時接在後面	App.tsx:112 App.tsx:123 state/saver.ts:1045 state/saver.ts:1045
+common.moreItems	 等 {n} 個	列表太長時接在後面	App.tsx:112 App.tsx:123 state/saver.ts:1049 state/saver.ts:1049
 common.sheetError	「{name}」{msg}	某個頁簽有錯誤時，頁簽名稱接錯誤訊息	components/ImportDialog.tsx:191 components/ImportDialog.tsx:192 components/ManageDialogs.tsx:372 components/PasteDialog.tsx:120 plugins/cloud/index.tsx:260
 common.errorReason	{target}：{reason}	存檔失敗的項目與原因	components/TitleBar.tsx:58
 import.fieldRange	{range}（{n}）	匯入視窗：欄位選到的範圍和行數	components/ImportDialog.tsx:384
 save.longAt	{project} / {file} / {sheet} 第 {n} 條	存檔時格子太長的條目位置	state/saver.ts:211
 work.tooLong	修改失敗，超過32767 字。	驗證模式的修改框	components/WorkPanel.tsx:323 components/WorkPanel.tsx:421
-save.sameRoot	已經是目前的存檔資料夾	設定 > 一般：換存檔資料夾時選到同一個	state/saver.ts:796
+save.sameRoot	已經是目前的存檔資料夾	設定 > 一般：換存檔資料夾時選到同一個	state/saver.ts:800
 check.fullwidthSpace	全形空格	檢查項目與訊息	model/checks.ts:139
 app.001	Excel 一格最多 32767 字，貼上後會超過，沒有貼上	主畫面	App.tsx:66
 app.002	有格子超過 Excel 的單格上限	主畫面	App.tsx:100
@@ -339,34 +340,34 @@ error.001	Verso 發生錯誤	錯誤畫面	components/ErrorBoundary.tsx:17
 error.002	發生錯誤	錯誤畫面	components/ErrorBoundary.tsx:25
 error.003	目前的內容已經存進暫存，重新載入後可以恢復。	錯誤畫面	components/ErrorBoundary.tsx:26
 error.004	重新載入	錯誤畫面	components/ErrorBoundary.tsx:28
-nav.001	頁簽與檔案	檔案與頁簽列	components/FileNav.tsx:110
-nav.002	上一個頁簽	檔案與頁簽列	components/FileNav.tsx:111
-nav.003	頁簽名稱	檔案與頁簽列	components/FileNav.tsx:146
-nav.004	頁簽已完成	檔案與頁簽列	components/FileNav.tsx:153
-nav.005	下一個頁簽	檔案與頁簽列	components/FileNav.tsx:171
-nav.006	選擇檔案	檔案與頁簽列	components/FileNav.tsx:176 components/FileNav.tsx:191
-nav.007	新增檔案	檔案與頁簽列	components/FileNav.tsx:183
-nav.008	檔案已完成	檔案與頁簽列	components/FileNav.tsx:184 components/FileNav.tsx:211
-nav.009	TC	檔案與頁簽列	components/FileNav.tsx:186
-nav.010	譯為	檔案與頁簽列	components/FileNav.tsx:186
-nav.targetLang	EN	檔案與頁簽列：檔案的目標語言	components/FileNav.tsx:186
-nav.011	{n} 個頁簽	檔案與頁簽列	components/FileNav.tsx:212
-nav.012	手動貼入	檔案與頁簽列	components/FileNav.tsx:226
-nav.013	匯入檔案	檔案與頁簽列	components/FileNav.tsx:229
-nav.014	管理專案	檔案與頁簽列	components/FileNav.tsx:232
-nav.015	隱藏檔案欄	檔案與頁簽列	components/FileNav.tsx:238 components/FileNav.tsx:238
-nav.016	頁簽「{v1}」	檔案與頁簽列	components/FileNav.tsx:243
-nav.017	重新命名	檔案與頁簽列	components/FileNav.tsx:245
-nav.018	清除	檔案與頁簽列	components/FileNav.tsx:247 components/FileNav.tsx:268
-nav.019	刪除	檔案與頁簽列	components/FileNav.tsx:248 components/FileNav.tsx:268
-nav.020	插入	檔案與頁簽列	components/FileNav.tsx:249
-nav.021	更新原文	檔案與頁簽列	components/FileNav.tsx:250
-nav.022	檔案「{v1}」	檔案與頁簽列	components/FileNav.tsx:257
-nav.023	更改專案	檔案與頁簽列	components/FileNav.tsx:258
-nav.clearSheetAsk	清除頁簽「{name}」？	檔案與頁簽列	components/FileNav.tsx:264
-nav.deleteSheetAsk	刪除頁簽「{name}」？	檔案與頁簽列	components/FileNav.tsx:264
-nav.025	保留頁簽，但頁簽內容將被清空。	檔案與頁簽列	components/FileNav.tsx:265
-nav.026	取消	檔案與頁簽列	components/FileNav.tsx:267
+nav.001	頁簽與檔案	檔案與頁簽列	components/FileNav.tsx:112
+nav.002	上一個頁簽	檔案與頁簽列	components/FileNav.tsx:113
+nav.003	頁簽名稱	檔案與頁簽列	components/FileNav.tsx:148
+nav.004	頁簽已完成	檔案與頁簽列	components/FileNav.tsx:155
+nav.005	下一個頁簽	檔案與頁簽列	components/FileNav.tsx:173
+nav.006	選擇檔案	檔案與頁簽列	components/FileNav.tsx:178 components/FileNav.tsx:193
+nav.007	新增檔案	檔案與頁簽列	components/FileNav.tsx:185
+nav.008	檔案已完成	檔案與頁簽列	components/FileNav.tsx:186 components/FileNav.tsx:213
+nav.009	TC	檔案與頁簽列	components/FileNav.tsx:188
+nav.010	譯為	檔案與頁簽列	components/FileNav.tsx:188
+nav.targetLang	EN	檔案與頁簽列：檔案的目標語言	components/FileNav.tsx:188
+nav.011	{n} 個頁簽	檔案與頁簽列	components/FileNav.tsx:214
+nav.012	手動貼入	檔案與頁簽列	components/FileNav.tsx:228
+nav.013	匯入檔案	檔案與頁簽列	components/FileNav.tsx:231
+nav.014	管理專案	檔案與頁簽列	components/FileNav.tsx:234
+nav.015	隱藏檔案欄	檔案與頁簽列	components/FileNav.tsx:240 components/FileNav.tsx:240
+nav.016	頁簽「{v1}」	檔案與頁簽列	components/FileNav.tsx:245
+nav.017	重新命名	檔案與頁簽列	components/FileNav.tsx:247
+nav.018	清除	檔案與頁簽列	components/FileNav.tsx:249 components/FileNav.tsx:270
+nav.019	刪除	檔案與頁簽列	components/FileNav.tsx:250 components/FileNav.tsx:270
+nav.020	插入	檔案與頁簽列	components/FileNav.tsx:251
+nav.021	更新原文	檔案與頁簽列	components/FileNav.tsx:252
+nav.022	檔案「{v1}」	檔案與頁簽列	components/FileNav.tsx:259
+nav.023	更改專案	檔案與頁簽列	components/FileNav.tsx:260
+nav.clearSheetAsk	清除頁簽「{name}」？	檔案與頁簽列	components/FileNav.tsx:266
+nav.deleteSheetAsk	刪除頁簽「{name}」？	檔案與頁簽列	components/FileNav.tsx:266
+nav.025	保留頁簽，但頁簽內容將被清空。	檔案與頁簽列	components/FileNav.tsx:267
+nav.026	取消	檔案與頁簽列	components/FileNav.tsx:269
 font.001	預設	字形選單	components/FontSelect.tsx:45 components/FontSelect.tsx:57 components/FontSelect.tsx:74
 font.002	{label}字形	字形選單	components/FontSelect.tsx:52 components/FontSelect.tsx:63
 font.003	搜尋字形	字形選單	components/FontSelect.tsx:67
@@ -776,8 +777,8 @@ importfile.002	無法讀取這個檔案	匯入檔案訊息	data/importio.ts:58
 importfile.003	檔案無內容	匯入檔案訊息	data/importio.ts:61
 importfile.tooLong	檔案特定儲存格超過32767字數上限	匯入檔案訊息	data/importio.ts:63
 load.001	字典 / {name} / {v1}	讀取訊息	data/persist.ts:140 state/saver.ts:141
-load.002	讀取專案「{name}」	讀取訊息	data/persist.ts:232
-load.003	讀取字典	讀取訊息	data/persist.ts:274
+load.002	讀取專案「{name}」	讀取訊息	data/persist.ts:247
+load.003	讀取字典	讀取訊息	data/persist.ts:289
 xlsx.001	轉檔失敗	存檔轉檔	data/xlsxAsync.ts:19 data/xlsxAsync.ts:23
 align.001	比對失敗	原文更新比對	model/alignAsync.ts:41 model/alignAsync.ts:46
 srcupd.alignFailed	自動比對失敗，當前照順序對應	原文更新比對	components/SrcUpdateDialog.tsx:99 plugins/cloud/SrcUpdateCloud.tsx:101
@@ -804,15 +805,15 @@ check.019	有全形符號 {v1}	檢查項目與訊息	model/checks.ts:139
 check.020	括號 ( ) 沒有成對	檢查項目與訊息	model/checks.ts:143
 check.021	括號 [ ] 沒有成對	檢查項目與訊息	model/checks.ts:144
 check.022	引號 " 沒有成對	檢查項目與訊息	model/checks.ts:145
-check.023	開頭或結尾有多餘空白	檢查項目與訊息	model/checks.ts:148 model/checks.ts:167
+check.023	開頭或結尾有多餘空白	檢查項目與訊息	model/checks.ts:148
 check.024	有連續兩個空格	檢查項目與訊息	model/checks.ts:149
 check.025	重複標點 {v1}	檢查項目與訊息	model/checks.ts:153
 check.026	有中文引號 {v1}	檢查項目與訊息	model/checks.ts:157
 check.027	句首要大寫	檢查項目與訊息	model/checks.ts:161 model/checks.ts:166
 check.028	句號、問號、驚嘆號後要大寫	檢查項目與訊息	model/checks.ts:163
 check.029	破折號後要小寫	檢查項目與訊息	model/checks.ts:164
-check.030	譯文裡有中文字	檢查項目與訊息	model/checks.ts:170
-check.031	超框（超過 {lines} 行）	檢查項目與訊息	model/checks.ts:215
+check.030	譯文裡有中文字	檢查項目與訊息	model/checks.ts:169
+check.031	超框（超過 {lines} 行）	檢查項目與訊息	model/checks.ts:217
 colors.001	喬治	主題色名稱	model/color.ts:58
 colors.002	恐龍先生	主題色名稱	model/color.ts:59
 colors.003	溫蒂狼	主題色名稱	model/color.ts:60
@@ -912,14 +913,14 @@ save.007	字典 {k}	存檔訊息	state/saver.ts:294 state/saver.ts:301 state/sav
 save.008	專案資料夾「{x}」	存檔訊息	state/saver.ts:404
 save.009	專案設定檔	存檔訊息	state/saver.ts:387
 save.010	已儲存	存檔訊息	state/saver.ts:431
-save.011	讀取設定	存檔訊息	state/saver.ts:486
-save.012	讀取專案	存檔訊息	state/saver.ts:533
-save.013	完成	存檔訊息	state/saver.ts:568
-save.014	資料夾包含其他內容，已新建「Verso」資料夾	存檔訊息	state/saver.ts:812
-save.015	已載入：{v1}{v2}	存檔訊息	state/saver.ts:1045
-save.016	已改名：{v1}{v2}	存檔訊息	state/saver.ts:1045
-save.017	字典 / {project} / {name}	存檔訊息	state/saver.ts:1047
-store.001	啟動中	狀態訊息	main.tsx:23 state/store.ts:793
+save.011	讀取設定	存檔訊息	state/saver.ts:489
+save.012	讀取專案	存檔訊息	state/saver.ts:536
+save.013	完成	存檔訊息	state/saver.ts:572
+save.014	資料夾包含其他內容，已新建「Verso」資料夾	存檔訊息	state/saver.ts:816
+save.015	已載入：{v1}{v2}	存檔訊息	state/saver.ts:1049
+save.016	已改名：{v1}{v2}	存檔訊息	state/saver.ts:1049
+save.017	字典 / {project} / {name}	存檔訊息	state/saver.ts:1051
+store.001	啟動中	狀態訊息	main.tsx:23 state/store.ts:813
 update.001	檢查更新	自動更新	state/updater.ts:33
 update.002	下載無進度	自動更新	state/updater.ts:58 state/updater.ts:59
 update.003	下載更新 0%	自動更新	state/updater.ts:61
