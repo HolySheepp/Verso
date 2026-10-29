@@ -81,7 +81,12 @@ const keysOf = (entries: { id: string }[]) => {
 };
 
 // ---- 本機暫存：略過檢查、長度標準等；沒設定 Verso 資料表時，標記、建議翻譯也存這裡 ----
-type Kept = Pick<Entry, 'mark' | 'keptMark' | 'sugg' | 'ver' | 'skipCheck' | 'skipSugg' | 'lengthStd' | 'pending'>;
+/**
+ * unsent：還沒寫回 Google 的譯文、備註（寫回失敗、衝突還沒選就關掉）和當時的比較基準；
+ * 下次開啟時放回去，跟 Google 現值比對後照一般流程寫回（Google 上也被改過就跳衝突，不直接蓋）
+ */
+interface Unsent { tgt?: string; bTgt?: string; bCell?: string; note?: string; comments?: string; bNote?: string; bComments?: string }
+type Kept = Pick<Entry, 'mark' | 'keptMark' | 'sugg' | 'ver' | 'skipCheck' | 'skipSugg' | 'lengthStd' | 'pending'> & { unsent?: Unsent };
 async function cacheFile(sid: string) {
   const dir = await join(await appDataDir(), 'cloud', 'cache');
   if (!(await exists(dir))) await mkdir(dir, { recursive: true });
@@ -91,24 +96,41 @@ async function readCache(sid: string): Promise<Record<string, Record<string, Kep
   try { const f = await cacheFile(sid); return (await exists(f)) ? JSON.parse(await readTextFile(f)) : {}; } catch { return {}; }
 }
 const cacheTimers = new Map<string, ReturnType<typeof setTimeout>>();
+const cacheJobs = new Map<string, () => Promise<void>>();
+/** 關閉前：還在等的本機暫存馬上寫 */
+export async function saveCachesNow() {
+  const jobs = [...cacheJobs.values()];
+  cacheTimers.forEach((t) => clearTimeout(t));
+  cacheTimers.clear();
+  cacheJobs.clear();
+  await Promise.all(jobs.map((j) => j()));
+}
 function saveCacheSoon(doc: FileDoc) {
   const sid = doc.cloud!.sid;
   // 空殼（還沒讀）不寫，免得蓋掉之前記的
   if (doc.cloud!.stub) return;
   clearTimeout(cacheTimers.get(sid));
-  cacheTimers.set(sid, setTimeout(async () => {
+  const job = async () => {
+    cacheJobs.delete(sid);
     const out: Record<string, Record<string, Kept>> = {};
     doc.sheets.forEach((sh) => {
       const keys = keysOf(sh.entries);
       const m: Record<string, Kept> = {};
       sh.entries.forEach((e, i) => {
-        if (!e.mark && !e.sugg && !e.ver && !e.skipCheck && !e.skipSugg && !e.lengthStd && !e.keptMark) return;
-        m[keys[i]] = { mark: e.mark, keptMark: e.keptMark, sugg: e.sugg, ver: e.ver, skipCheck: e.skipCheck, skipSugg: e.skipSugg, lengthStd: e.lengthStd, pending: e.pending };
+        const b = base.get(e.uid);
+        const unsent: Unsent = {};
+        if (b && e.tgt !== b.tgt) Object.assign(unsent, { tgt: e.tgt, bTgt: b.tgt, bCell: b.cell });
+        if (b && (e.note !== b.note || commentsToText(e.comments) !== (b.comments ?? ''))) Object.assign(unsent, { note: e.note, comments: commentsToText(e.comments), bNote: b.note, bComments: b.comments ?? '' });
+        const hasUnsent = Object.keys(unsent).length > 0;
+        if (!e.mark && !e.sugg && !e.ver && !e.skipCheck && !e.skipSugg && !e.lengthStd && !e.keptMark && !hasUnsent) return;
+        m[keys[i]] = { mark: e.mark, keptMark: e.keptMark, sugg: e.sugg, ver: e.ver, skipCheck: e.skipCheck, skipSugg: e.skipSugg, lengthStd: e.lengthStd, pending: e.pending, ...(hasUnsent ? { unsent } : {}) };
       });
       out[String(sh.gid)] = m;
     });
     try { await writeTextFile(await cacheFile(sid), JSON.stringify(out)); } catch { /* 下次再寫 */ }
-  }, 3000));
+  };
+  cacheJobs.set(sid, job);
+  cacheTimers.set(sid, setTimeout(() => void job(), 3000));
 }
 
 // ---- Verso 資料表 ----
@@ -291,6 +313,7 @@ function buildSheet(tab: CloudTab, rows: string[][], prev: Sheet | undefined, ke
     let e: Entry;
     /** 留著自己還沒寫回的欄位：那些欄位的比較基準也留舊的，寫回時才比得出 Google 上被人改過（跳衝突，不直接蓋掉） */
     const keep = { tgt: false, note: false, id: false, speaker: false, src: false };
+    let unsentBase: Unsent | undefined;
     if (o) {
       // 還沒寫回的譯文、備註、標記等留著；其他跟著 Google
       const tgt = b && o.tgt !== b.tgt ? o.tgt : rTgt;
@@ -320,8 +343,12 @@ function buildSheet(tab: CloudTab, rows: string[][], prev: Sheet | undefined, ke
       const same = (Object.keys(next) as (keyof Entry)[]).every((k) => next[k] === o[k]);
       e = same ? o : next;
     } else {
-      const k = kept?.[keys[i]];
-      e = { ...n, tgt: rTgt, tgt0: rTgt, pending: false, ...(k ?? {}), comments: parsed.threads, noteBase: parsed.base, ...(extraNotes ? { extraNotes } : {}) };
+      const { unsent: u, ...k } = kept?.[keys[i]] ?? {};
+      e = { ...n, tgt: rTgt, tgt0: rTgt, pending: false, ...k, comments: parsed.threads, noteBase: parsed.base, ...(extraNotes ? { extraNotes } : {}) };
+      // 上次沒寫回的譯文、備註：放回去，比較基準用當時的（寫回時 Google 上也被改過就跳衝突）
+      if (u?.tgt !== undefined) { e.tgt = u.tgt; keep.tgt = true; }
+      if (u?.note !== undefined) { e.note = u.note; e.comments = textToComments(u.comments); keep.note = true; }
+      unsentBase = u;
       // 有資料表：標記等以資料表為準（資料表裡還沒有的，用這台電腦之前記的，稍後寫上去）
       if (d) Object.assign(e, { mark: rMark.mark, keptMark: rMark.keptMark, sugg: rSugg, ver: rVer });
       // 原文更新：R15 的條目換回舊原文、新原文放在 upd（Google 上的新原文被人改過就用改過的）
@@ -330,7 +357,11 @@ function buildSheet(tab: CloudTab, rows: string[][], prev: Sheet | undefined, ke
         else e.upd = rUpd.u;
       }
     }
-    const ob = o ? base.get(o.uid) : undefined;
+    const ob = o ? base.get(o.uid) : unsentBase ? {
+      id: n.id, speaker: n.speaker, src: n.src, tgt: unsentBase.bTgt ?? rTgt, cell: unsentBase.bCell ?? n.tgt, cellSig: plainSig(unsentBase.bCell ?? n.tgt),
+      note: unsentBase.bNote ?? n.note, noteSig: plainSig(unsentBase.bNote ?? n.note), blueFrom: undefined, comments: unsentBase.bComments, row, core: rCore, data: rData,
+    } as Base : undefined;
+    unsentBase = undefined;
     base.set(e.uid, {
       id: keep.id ? ob!.id : n.id, speaker: keep.speaker ? ob!.speaker : n.speaker, src: keep.src ? ob!.src : n.src,
       ...(keep.tgt ? { tgt: ob!.tgt, cell: ob!.cell, cellSig: ob!.cellSig } : { tgt: rTgt, cell: n.tgt, cellSig: composite ? richSig(tgtCell({ ...e, tgt: rTgt, sugg: rSugg, ver: rVer })) : plainSig(n.tgt) }),
@@ -593,6 +624,8 @@ async function flushInner(sid: string, all: boolean): Promise<void> {
           ...base.get(e.uid)!, id: e.id, speaker: e.speaker, src: effSrc(e), tgt: e.tgt, cell: w.cell.text, cellSig: richSig(w.cell), note: e.note, noteSig: richSig(w.note), blueFrom: w.blueFrom, row,
           ...(did ? { core: w.core, data: w.dataSig, comments: w.comments } : {}),
         }));
+        // 寫回成功：本機暫存裡「還沒寫回」的記錄跟著更新（免得下次開啟又當成沒寫回）
+        if (done.length) { const f = fileOf(sid); if (f) saveCacheSoon(f); }
         if (missing.length) showToast(tx('cloud.missingId', { name: sh.name, ids: missing.slice(0, 5).join(tx('common.sep')) }), { warn: true });
       } catch (e) {
         const msg = tx('cloud.writeFailed', { name: doc.name, reason: errText(e) });

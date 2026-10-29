@@ -37,4 +37,22 @@ describe('雲端模式的復原：只動自己改的條目', () => {
     useStore.getState().undoSheet();
     expect(tgts()).toEqual(['a', 'theirs']);
   });
+
+  it('復原自己加的留言時，別人後來加的留言留著；其他欄位也只放回自己改的', async () => {
+    const doc: FileDoc = { fid: 'c3', cloud: { sid: 'z' }, name: 'c', project: '共用', sheets: [{ name: 'S', gid: 1, entries: [{ ...e(0, 'a'), comments: [], noteBase: '', note: '' }] }] };
+    useStore.setState({ cloudMode: true, userName: 'Me', project: { files: [doc], customMarks: [], nextMarkId: 1, glossary: [], dicts: [], projects: ['共用'], refs: [] }, file: 0, sheetBy: {}, selBy: { '0:0': 0 } });
+    const t = '2026-10-29T00:00:00Z';
+    useStore.getState().setComments('u0', (l) => [...l, { id: 'mine', author: 'Me', time: t, text: 'hi', replies: [] }]);
+    await tick();
+    // 同步：別人加了一則留言、改了譯文
+    const p = useStore.getState().project!;
+    const x = p.files[0].sheets[0].entries[0];
+    const comments = [...x.comments!, { id: 'theirs', author: 'Ann', time: t, text: 'yo', replies: [] }];
+    useStore.setState({ project: { ...p, files: [{ ...p.files[0], sheets: [{ ...p.files[0].sheets[0], entries: [{ ...x, comments, tgt: 'changed' }] }] }] } });
+    useStore.getState().undoSheet();
+    const y = useStore.getState().project!.files[0].sheets[0].entries[0];
+    expect(y.comments!.map((c) => c.id)).toEqual(['theirs']);
+    expect(y.note).toBe('[Ann] yo');
+    expect(y.tgt).toBe('changed');
+  });
 });

@@ -13,7 +13,7 @@ import { SHARED, dictKey, newFileId, projectTag, type CustomMark, type DictInfo,
 import { sortProjects, type RootConflict } from '../data/persist';
 import { DICT_DIR, safeName, sameName, sheetNameError } from '../model/names';
 import { compose, editsOf, type VEdit } from '../model/verify';
-import { composeNote, parseNote, type CommentThread } from '../model/comments';
+import { composeNote, mergeComments, parseNote, type CommentThread } from '../model/comments';
 import { maxOf, minOf } from '../model/num';
 
 /** 條目欄的篩選：條件（標記 id 或 'issues'）→ 1 勾選、-1 排除；沒列的是不選，空的就是全部 */
@@ -665,6 +665,25 @@ export const useStore = create<Store>((set, get) => {
     replaceFile(fileIdx, { ...f, sheets: f.sheets.map((sh, si) => (si !== sheetIdx ? sh : { ...sh, entries })) });
   };
 
+  /**
+   * 雲端復原一條：只把這一步改過的欄位（before 和 after 不同的）放回 before，其他欄位用現在的（例如之後同步進來的別人的修改）；
+   * 留言用三方合併：只撤回這一步的增刪改，別人後來加的留言留著
+   */
+  const undoFields = (now: Entry, c: Change): Entry => {
+    const out: Record<string, unknown> = { ...now };
+    const b = c.before as unknown as Record<string, unknown>, a = c.after as unknown as Record<string, unknown>;
+    for (const k of new Set([...Object.keys(b), ...Object.keys(a)])) {
+      if (k === 'comments' || k === 'note' || JSON.stringify(b[k]) === JSON.stringify(a[k])) continue;
+      if (b[k] === undefined) delete out[k]; else out[k] = b[k];
+    }
+    if (JSON.stringify(c.before.comments ?? []) !== JSON.stringify(c.after.comments ?? [])) {
+      const comments = mergeComments(c.after.comments ?? [], c.before.comments ?? [], now.comments ?? []);
+      const base = now.noteBase ?? parseNote(now.note, now.comments ?? []).base;
+      Object.assign(out, { comments, noteBase: base, note: composeNote(base, comments) });
+    } else if (c.before.note !== c.after.note) out.note = c.before.note;
+    return out as unknown as Entry;
+  };
+
   const restore = (from: Snap[], to: Snap[]) => {
     const popped = from.pop();
     const p = get().project;
@@ -684,8 +703,9 @@ export const useStore = create<Store>((set, get) => {
           const c = map.get(e.uid);
           if (!c) return e;
           at ??= { sheet: si, i };
-          back.push({ uid: e.uid, before: e, after: c.before });
-          return c.before;
+          const next = undoFields(e, c);
+          back.push({ uid: e.uid, before: e, after: next });
+          return next;
         }) };
       });
       if (!at) return;

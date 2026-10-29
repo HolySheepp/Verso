@@ -23,7 +23,7 @@ import { beforeExit, rowHook, tabHook } from '../hooks';
 import type { VersoPlugin } from '../registry';
 import { builtinClient, errText, insertCol, login, loginStatus, logout, meta, readTabs, sidOf } from './api';
 import { allSheets, loadConfig, setConfig, toFields, toFieldMap, useCloud, type CloudSheet, type CloudTab } from './config';
-import { previewKeys, removedNow, setRemoved, rememberPos, isVersoTab, convertVersoTab, removeRows, tabRemove, rowOp, tabRename, tabDelete, tabInsert, currentSid, enterCloud, flushAll, pickShown, putSheet, refreshAll, removeSheet, resolveConflict, watchStore } from './sync';
+import { saveCachesNow, previewKeys, removedNow, setRemoved, rememberPos, isVersoTab, convertVersoTab, removeRows, tabRemove, rowOp, tabRename, tabDelete, tabInsert, currentSid, enterCloud, flushAll, pickShown, putSheet, refreshAll, removeSheet, resolveConflict, watchStore } from './sync';
 
 const btn: React.CSSProperties = { height: 32, padding: '0 14px', background: 'var(--btn)', border: '1px solid var(--line4)', borderRadius: 8, fontSize: fz(12.5) };
 const primary: React.CSSProperties = { height: 36, padding: '0 18px', background: 'var(--primary)', border: 0, borderRadius: 8, color: '#ffffff', fontSize: fz(13), fontWeight: 600 };
@@ -495,7 +495,8 @@ async function start(step: (p: number, text: string) => void) {
   tabHook.insert = tabInsert;
   tabHook.srcUpdate = openSrcUpdate;
   beforeExit.add(rememberPos);
-  beforeExit.add(flushAll);
+  // 寫回；寫不回去的（失敗、衝突還沒選）存進本機暫存，下次開啟再寫
+  beforeExit.add(async () => { try { await flushAll(); } finally { await saveCachesNow(); } });
   // 換條目、頁簽、檔案後稍等一下記下位置（當機也不會差太遠）
   let posTimer: ReturnType<typeof setTimeout> | undefined;
   useStore.subscribe((s, prev) => {
