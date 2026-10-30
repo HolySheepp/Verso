@@ -781,7 +781,7 @@ export const useStore = create<Store>((set, get) => {
     workH: null,
     dictQuery: '',
     searchQuery: '',
-    searchScope: 'sheet',
+    searchScope: 'file',
     suggClosed: false,
     noteClosed: false,
     notesH: 300,
