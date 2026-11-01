@@ -4,7 +4,7 @@
 import { tx } from '../../i18n';
 import { showToast, useStore } from '../../state/store';
 import { ackOutbox, mergeRemote, setTmMeta, useTm, type TmOp } from '../../state/tm';
-import { addTab, appendRows, clearTab, meta, readFromMany, sidOf, writeRows } from './api';
+import { addTab, appendRows, clearTab, deleteTab, readFromMany, sidOf, tabGrids, trimGrid, writeRows } from './api';
 import { useCloud } from './config';
 
 const COLS = 7;
@@ -72,11 +72,41 @@ let tabsCache: { sid: string; titles: Set<string> } | null = null;
 
 const tmSid = () => (useStore.getState().cloudMode ? sidOf(useCloud.getState().cfg.tmUrl ?? '') : null);
 
+type Grid = { gid: number; title: string; rows: number; cols: number };
+let grids: Grid[] = [];
 async function tabTitles(sid: string, fresh = false): Promise<Set<string>> {
   if (!fresh && tabsCache?.sid === sid) return tabsCache.titles;
-  const m = await meta(sid);
-  tabsCache = { sid, titles: new Set(m.tabs.map((t) => t.title)) };
+  grids = await tabGrids(sid);
+  tabsCache = { sid, titles: new Set(grids.map((t) => t.title)) };
   return tabsCache.titles;
+}
+
+/**
+ * 自動修剪（跟雲端字典一樣只用用得到的格數）：多出來的空白列、欄刪掉；
+ * 完全空白的分頁（例如新建試算表時的預設分頁）在還有別的分頁時刪掉。
+ * used：各分頁有內容的列數（剛讀到的）
+ */
+async function trimTabs(sid: string, used: Record<string, number>) {
+  if (readOnly === sid) return;
+  await tabTitles(sid, true);
+  const list = grids;
+  for (const g of list) {
+    const isMeta = g.title === META_TAB;
+    const n = isMeta ? 1 : used[g.title];
+    if (n === undefined) continue;
+    if (n === 0) {
+      if (!isMeta && list.length > 1) { await deleteTab(sid, g.gid); tabsCache = null; }
+      continue;
+    }
+    const cols = isMeta ? 2 : COLS;
+    if (g.rows <= n && g.cols <= cols) continue;
+    // 刪列前再確認一次後面真的是空的（剛好有人在加列就下次再修）
+    if (g.rows > n) {
+      const [more] = await readFromMany(sid, [{ title: g.title, from: n }], cols);
+      if (more?.length) continue;
+    }
+    await trimGrid(sid, g.gid, g, { rows: n, cols });
+  }
 }
 
 async function ensureTab(sid: string, title: string) {
@@ -142,6 +172,7 @@ async function download() {
     });
     if (ops.length) mergeRemote(ops, mine);
     setTmMeta(stateKey(sid), JSON.stringify({ gen, n }));
+    await trimTabs(sid, n);
     // 每個月整理一次，只在一陣子沒人寫入時
     if (readOnly !== sid && Date.now() - lastCompact > COMPACT_EVERY && (!ops.length || Date.now() - lastT > IDLE)) await compact(sid, gen);
   } catch (e) {
@@ -164,6 +195,8 @@ async function compact(sid: string, gen: number) {
   for (let i = 0; i < titles.length; i++) {
     const ops = all[i].map((r) => rowToOp(r, titles[i])).filter((o): o is TmOp => !!o);
     const kept = compactOps(ops, now);
+    // 沒有內容的分頁不寫標題列（修剪時刪掉）
+    if (!ops.length && all[i][0]?.[0] !== 'op') { n[titles[i]] = all[i].length; continue; }
     if (kept.length === ops.length && all[i][0]?.[0] === 'op') { n[titles[i]] = all[i].length; continue; }
     const rows = [HEADER, ...kept.map(opToRow)];
     await clearTab(sid, titles[i]);
@@ -174,6 +207,7 @@ async function compact(sid: string, gen: number) {
   if (!(await tabTitles(sid)).has(META_TAB)) await addTab(sid, META_TAB, 2);
   await writeRows(sid, META_TAB, [{ row: 0, values: [String(gen + 1), String(now)] }]);
   setTmMeta(stateKey(sid), JSON.stringify({ gen: gen + 1, n }));
+  await trimTabs(sid, n);
 }
 
 /** 手動整理（設定 > 雲端的按鈕） */

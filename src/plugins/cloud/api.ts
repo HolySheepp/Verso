@@ -234,3 +234,12 @@ export async function readFromMany(sid: string, list: { title: string; from: num
   const r = await call<{ valueRanges?: { values?: unknown[][] }[] }>('GET', `${sid}/values:batchGet?${ranges}&majorDimension=ROWS&valueRenderOption=FORMATTED_VALUE`);
   return list.map((_, i) => (r.valueRanges?.[i]?.values ?? []).map((row) => row.map(cell)));
 }
+
+/** 修剪分頁：只留前 rows 列、前 cols 欄（多的格子刪掉，不佔試算表的格數上限） */
+export async function trimGrid(sid: string, gid: number, have: { rows: number; cols: number }, keep: { rows: number; cols: number }) {
+  const requests = [
+    ...(have.rows > keep.rows && keep.rows >= 1 ? [{ deleteDimension: { range: { sheetId: gid, dimension: 'ROWS', startIndex: keep.rows, endIndex: have.rows } } }] : []),
+    ...(have.cols > keep.cols && keep.cols >= 1 ? [{ deleteDimension: { range: { sheetId: gid, dimension: 'COLUMNS', startIndex: keep.cols, endIndex: have.cols } } }] : []),
+  ];
+  if (requests.length) await call('POST', `${sid}:batchUpdate`, { requests });
+}
