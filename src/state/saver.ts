@@ -16,7 +16,8 @@ import {
 } from '../data/persist';
 import { emptyHistory } from '../model/history';
 import { dictKey, newFileId, type CustomMark, type DictInfo, type FileDoc, type GlossaryTerm, type ProjectData } from '../model/types';
-import { aiAllows, currentOf, currentProjectOf, dictEnabledIn, showToast, useStore, type SaveError } from './store';
+import { startTm } from './tm';
+import { aiAllows, DEFAULT_GENERAL, currentOf, currentProjectOf, dictEnabledIn, showToast, useStore, type SaveError } from './store';
 import { applyLang, setPacks, systemLang } from '../i18n/lang';
 import { setIdMarks } from '../i18n';
 import { appLangDir, copyOldPacks, readLangPacks } from '../data/langpacks';
@@ -440,7 +441,7 @@ async function persistConfig(patch: Partial<AppConfig> = {}) {
   config = {
     ...config, ...patch,
     saveRoot: s.saveRoot, autosaveMin: s.autosaveMin, uiLang: s.uiLang, devMode: s.devMode, showIds: s.showIds, aiEnabled: s.aiEnabled, aiSkillTranslate: s.aiSkillTranslate, aiSkillVerify: s.aiSkillVerify, theme: s.theme, accent: s.accent, customAccents: s.customAccents, rainbowUnlocked: s.rainbowUnlocked, fonts: s.fonts, recentFonts: s.recentFonts,
-    shortcuts: s.shortcuts, checkSettings: s.checkSettings, checksOn: s.checksOn, workBoxes: s.workBoxes, workFit: s.workFit, workH: s.workH ?? undefined, dictOverrides: s.dictOverrides, collapsedProjects: s.collapsedProjects, colWidths: s.colWidths, finishLine: s.finishLine, lengthPresets: s.lengthPresets,
+    shortcuts: s.shortcuts, checkSettings: s.checkSettings, checksOn: s.checksOn, workBoxes: s.workBoxes, workFit: s.workFit, workH: s.workH ?? undefined, dictOverrides: s.dictOverrides, tmMin: s.tmMin, tmAuto: s.tmAuto, tmOverrides: s.tmOverrides, general: s.general, collapsedProjects: s.collapsedProjects, colWidths: s.colWidths, finishLine: s.finishLine, lengthPresets: s.lengthPresets,
   };
   try { await saveConfig(config); } catch { /* 設定存不下不影響使用 */ }
   // 啟動畫面用：下次一開就知道要鋪什麼底色
@@ -502,6 +503,10 @@ export async function startApp(boots: Boot[] = []) {
     shortcuts: config.shortcuts ? { input: { ...st.shortcuts.input, ...migrateSheets(config.shortcuts.input) }, list: { ...st.shortcuts.list, ...migrateSheets(migrateList(config.shortcuts.list)) } } : st.shortcuts,
     checkSettings: config.checkSettings ? { ...st.checkSettings, ...config.checkSettings } : st.checkSettings,
     dictOverrides: config.dictOverrides ?? {},
+    tmMin: config.tmMin ?? 65,
+    tmAuto: config.tmAuto ?? false,
+    tmOverrides: config.tmOverrides ?? {},
+    general: config.general ? { ...DEFAULT_GENERAL, ...config.general, order: [...new Set([...(config.general.order ?? []).filter((b) => DEFAULT_GENERAL.order.includes(b)), ...DEFAULT_GENERAL.order])] } : DEFAULT_GENERAL,
     collapsedProjects: config.collapsedProjects ?? [],
     colWidths: config.colWidths?.length === 4 ? config.colWidths : st.colWidths,
     finishLine: config.finishLine ?? true,
@@ -561,6 +566,8 @@ export async function startApp(boots: Boot[] = []) {
     setTimeout(() => { void saveNow(); }, 0);
   }
   restorePosition(project, last);
+  // 翻譯記憶：讀存檔資料夾的記憶檔
+  startTm();
   // 外掛啟動（雲端模式：讀雲端資料、打開上次的檔案、回到上次的條目）做完才進主畫面
   let booted = false;
   for (const b of boots) {
@@ -610,7 +617,7 @@ function watch() {
     }
     // 設定改了就存到設定檔
     if (s.theme !== prev.theme || s.accent !== prev.accent || s.customAccents !== prev.customAccents || s.rainbowUnlocked !== prev.rainbowUnlocked || s.fonts !== prev.fonts || s.recentFonts !== prev.recentFonts || s.shortcuts !== prev.shortcuts || s.checkSettings !== prev.checkSettings
-      || s.dictOverrides !== prev.dictOverrides || s.collapsedProjects !== prev.collapsedProjects || s.colWidths !== prev.colWidths || s.finishLine !== prev.finishLine || s.checksOn !== prev.checksOn || s.workBoxes !== prev.workBoxes || s.workFit !== prev.workFit || s.workH !== prev.workH || s.lengthPresets !== prev.lengthPresets || s.autosaveMin !== prev.autosaveMin || s.saveRoot !== prev.saveRoot || s.uiLang !== prev.uiLang || s.devMode !== prev.devMode || s.showIds !== prev.showIds || s.aiEnabled !== prev.aiEnabled || s.aiSkillTranslate !== prev.aiSkillTranslate || s.aiSkillVerify !== prev.aiSkillVerify) {
+      || s.dictOverrides !== prev.dictOverrides || s.tmMin !== prev.tmMin || s.tmAuto !== prev.tmAuto || s.tmOverrides !== prev.tmOverrides || s.general !== prev.general || s.collapsedProjects !== prev.collapsedProjects || s.colWidths !== prev.colWidths || s.finishLine !== prev.finishLine || s.checksOn !== prev.checksOn || s.workBoxes !== prev.workBoxes || s.workFit !== prev.workFit || s.workH !== prev.workH || s.lengthPresets !== prev.lengthPresets || s.autosaveMin !== prev.autosaveMin || s.saveRoot !== prev.saveRoot || s.uiLang !== prev.uiLang || s.devMode !== prev.devMode || s.showIds !== prev.showIds || s.aiEnabled !== prev.aiEnabled || s.aiSkillTranslate !== prev.aiSkillTranslate || s.aiSkillVerify !== prev.aiSkillVerify) {
       clearTimeout(configTimer);
       configTimer = setTimeout(() => void persistConfig(), 400);
     }

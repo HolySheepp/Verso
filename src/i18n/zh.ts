@@ -1,6 +1,106 @@
 // 介面文字（中文）：程式裡只寫代號，用 tx('代號') 取文字。由程式整理產生，改字句請改這裡。
 // 存檔裡的名稱（欄位標題、資料夾名稱等）不在這裡，維持中文。
 export const ZH = {
+  'cloud.tmUrl': '翻譯記憶表', // 設定 > 雲端：團隊共用的翻譯記憶 Google 表網址
+  'cloud.tmHint': '團隊共用的翻譯記憶，一個專案一個分頁', // 同上的說明
+  'cloud.tmCompact': '整理', // 同上：手動整理共用表（刪掉作廢、被取代的舊列）
+  'tm.readOnly': '翻譯記憶表只有檢視權限，新的記憶不會上傳', // 同步：沒有編輯權
+  'tm.sheetNotFound': '找不到翻譯記憶表，請檢查設定 > 雲端的網址', // 同步：網址錯或沒有權限
+  'tm.compacted': '翻譯記憶表整理好了', // 手動整理完成
+  'tm.compactFailed': '翻譯記憶表整理失敗：{reason}', // 手動整理失敗
+  'tm.syncAsk': '同步翻譯記憶？', // 打開雲端模式時，本地有還沒上傳的記憶
+  'tm.syncAskBody': '本地有 {n} 筆翻譯記憶的變動還沒上傳。同步會讀取共用表的新內容，並上傳本地的新內容。', // 同上的說明
+  'tm.syncOk': '同步', // 同上的按鈕
+  'side.general': '綜合', // 側欄分頁：字典、翻譯記憶、搜尋放在一起
+  'side.tm': '記憶', // 側欄分頁：翻譯記憶
+  'side.openTab': '打開{name}分頁', // 綜合分頁區塊標題列的按鈕
+  'side.blockResize': '調整區塊高度', // 綜合分頁區塊下緣（讀螢幕軟體）
+  'tm.title': '翻譯記憶', // 設定 > 一般的小標題
+  'tm.minLabel': '相似度低於這個值不顯示', // 設定：翻譯記憶的下限
+  'tm.autoLabel': '100% 相符時自動套用到空的譯文框', // 設定：翻譯記憶
+  'tm.hasSimilar': '翻譯記憶有類似句子', // 工作欄譯文框上方：譯文框有內容、記憶裡有類似的
+  'tm.sameId': '同 id', // 記憶卡片第一行：同檔案、同 id、同發話者
+  'tm.pattern': '句式', // 記憶卡片第一行：數字、標籤、字典詞換掉後相同
+  'tm.frag': '片段', // 記憶卡片第一行：開頭或結尾的片段相同
+  'tm.ctrlTip': '按 Ctrl+{n} 套用', // 記憶卡片的快捷鍵提示
+  'tm.unverified': '未驗證', // 記憶的狀態
+  'tm.verified': '已驗證', // 記憶的狀態
+  'tm.info': '資訊', // 記憶卡片按鈕
+  'tm.jump': '跳到這條', // 記憶卡片按鈕
+  'tm.apply': '套用', // 記憶卡片按鈕
+  'tm.time': '時間', // 記憶資訊、篩選
+  'tm.by': '譯者', // 記憶資訊、篩選
+  'tm.status': '狀態', // 記憶資訊、篩選
+  'tm.from': '來源', // 記憶資訊：專案、檔案、頁簽、id、發話者
+  'tm.src': '原文', // 編輯記憶的輸入框
+  'tm.tgt': '譯文', // 編輯記憶的輸入框
+  'tm.edit': '編輯', // 記憶資訊按鈕
+  'tm.delete': '刪除', // 記憶資訊、管理按鈕
+  'tm.save': '儲存', // 編輯記憶
+  'tm.versions': '舊版本', // 記憶資訊按鈕：30 天內的舊版本
+  'tm.noVersions': '沒有舊版本', // 同上，沒有時
+  'tm.restore': '恢復', // 舊版本、刪掉的記憶
+  'tm.deleteAsk': '刪除這條記憶？', // 刪除前確認
+  'tm.deleted': '已刪除，可在管理裡恢復', // 刪除後的提示
+  'tm.notFound': '找不到這條記憶的來源條目', // 跳轉失敗
+  'tm.loading': '讀取翻譯記憶中', // 記憶還沒讀好
+  'tm.loadFailed': '讀不到翻譯記憶：{reason}', // 記憶檔讀取失敗
+  'tm.writeFailed': '翻譯記憶寫入失敗：{reason}', // 記憶檔寫入失敗
+  'tm.noMatch': '沒有類似的記憶', // 目前條目沒有比對結果
+  'tm.translateOnly': '只有翻譯模式能套用記憶', // 其他模式按套用
+  'tm.patternMiss': '這些部分沒換到，請檢查：{list}', // 句式套用時換不了的
+  'tm.inUse': '使用中的記憶', // 記憶分頁：勾選要查哪些專案的記憶
+  'tm.search': '搜尋記憶', // 記憶的搜尋框
+  'tm.filter': '篩選', // 記憶分頁按鈕
+  'tm.manage': '管理翻譯記憶', // 記憶分頁齒輪、管理視窗標題
+  'tm.import': '匯入', // 記憶分頁按鈕、匯入視窗
+  'tm.export': '匯出', // 記憶分頁按鈕、匯出視窗
+  'tm.consistency': '一致性', // 記憶分頁按鈕：同原文不同譯文
+  'tm.undo': '退回', // 記憶分頁按鈕：退回上一次手動修改
+  'tm.forEntry': '目前條目', // 記憶分頁：比對結果的小標題
+  'tm.count': '{n} 條記憶', // 記憶清單的數量
+  'tm.empty': '還沒有記憶', // 記憶清單是空的
+  'tm.fProject': '專案', // 篩選
+  'tm.allProjects': '所有專案', // 篩選
+  'tm.allStatus': '所有狀態', // 篩選
+  'tm.allPeople': '所有譯者', // 篩選
+  'tm.anyTime': '不限時間', // 篩選
+  'tm.day': '一天內', // 篩選
+  'tm.week': '一週內', // 篩選
+  'tm.month': '30 天內', // 篩選
+  'tm.sort': '排序', // 篩選
+  'tm.sortNew': '新的在前', // 排序
+  'tm.sortOld': '舊的在前', // 排序
+  'tm.sortSrc': '照原文', // 排序
+  'tm.newProject': '新增專案記憶', // 管理按鈕
+  'tm.renameProject': '改名', // 管理按鈕
+  'tm.deleteProject': '刪除專案記憶', // 管理按鈕
+  'tm.deleteProjectAsk': '刪除「{p}」的全部記憶？', // 刪除專案記憶前確認
+  'tm.deleteRowsAsk': '刪除選取的 {n} 條記憶？', // 管理：刪除選取的記憶前確認
+  'tm.deletedList': '刪掉的記憶', // 管理按鈕：30 天內刪掉的
+  'tm.deletedHint': '30 天內刪掉的記憶', // 同上清單的說明
+  'tm.noDeleted': '沒有刪掉的記憶', // 同上，沒有時
+  'tm.projectName': '專案記憶名稱', // 新增、改名的輸入框
+  'tm.nameTaken': '已經有這個名稱', // 新增、改名時重名
+  'tm.ok': '確定', // 管理裡的確定按鈕
+  'tm.picked': '已選 {n} 條', // 管理：選取的數量
+  'tm.addRow': '新增記憶', // 管理按鈕：手動加一條
+  'tm.moveTo': '搬到…', // 管理：把選取的記憶搬到別的專案
+  'tm.importFrom': '從哪裡匯入', // 匯入視窗
+  'tm.fromFile': 'Verso 裡的檔案', // 匯入來源
+  'tm.fromDb': 'SQLite 記憶檔', // 匯入來源
+  'tm.fromTmx': 'TMX 檔', // 匯入來源
+  'tm.file': '檔案', // 匯入視窗：選檔案
+  'tm.chooseFile': '選擇檔案', // 匯入視窗按鈕
+  'tm.pickedFile': '{name}（{n} 條）', // 匯入視窗：選好的檔案
+  'tm.into': '放進哪個專案記憶', // 匯入視窗
+  'tm.imported': '已匯入 {n} 條記憶', // 匯入完成
+  'tm.importFailed': '匯入失敗：{reason}', // 匯入失敗
+  'tm.format': '格式', // 匯出視窗
+  'tm.exported': '已匯出 {n} 條記憶', // 匯出完成
+  'tm.exportFailed': '匯出失敗：{reason}', // 匯出失敗
+  'tm.consistencyCount': '{n} 個原文有不同譯文', // 一致性清單
+  'tm.consistent': '沒有不一致的記憶', // 一致性清單是空的
   'cloud.errRateLimit': '同步失敗：短時間內Google讀寫次數過多，稍後會自動重試', // 雲端模式：Google 回應請求太多（每分鐘上限）
   'cloud.removedRow': '已不再使用，點擊恢復', // 重新設定 Google 表：預覽裡被移除條目的列號提示
   'cloud.restoredRow': '已恢復，再次點擊取消恢復', // 同上：已選恢復的列號提示

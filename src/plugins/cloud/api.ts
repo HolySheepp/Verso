@@ -215,3 +215,22 @@ export async function deleteCols(sid: string, gid: number, cols: number[]) {
     requests: [...new Set(cols)].sort((a, b) => b - a).map((c) => ({ deleteDimension: { range: { sheetId: gid, dimension: 'COLUMNS', startIndex: c, endIndex: c + 1 } } })),
   });
 }
+
+/** 讀一個分頁從第 from 列（從 0 起算）到最後的內容，A 到 cols 欄 */
+export async function readFrom(sid: string, title: string, from: number, cols: number): Promise<string[][]> {
+  const r = await call<{ values?: unknown[][] }>('GET', `${sid}/values/${encodeURIComponent(`${q(title)}!A${from + 1}:${colName(cols - 1)}`)}?majorDimension=ROWS&valueRenderOption=FORMATTED_VALUE`);
+  return (r.values ?? []).map((row) => row.map(cell));
+}
+
+/** 清掉一個分頁的全部內容（格子還在） */
+export async function clearTab(sid: string, title: string) {
+  await call('POST', `${sid}/values/${encodeURIComponent(q(title))}:clear`, {});
+}
+
+/** 一次讀好幾個分頁，各自從第 from 列（從 0 起算）讀到最後，A 到 cols 欄 */
+export async function readFromMany(sid: string, list: { title: string; from: number }[], cols: number): Promise<string[][][]> {
+  if (!list.length) return [];
+  const ranges = list.map((x) => 'ranges=' + encodeURIComponent(`${q(x.title)}!A${x.from + 1}:${colName(cols - 1)}`)).join('&');
+  const r = await call<{ valueRanges?: { values?: unknown[][] }[] }>('GET', `${sid}/values:batchGet?${ranges}&majorDimension=ROWS&valueRenderOption=FORMATTED_VALUE`);
+  return list.map((_, i) => (r.valueRanges?.[i]?.values ?? []).map((row) => row.map(cell)));
+}

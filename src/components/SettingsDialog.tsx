@@ -417,6 +417,36 @@ function DevSection() {
   );
 }
 
+/** 設定 > 一般：翻譯記憶 */
+function TmSettings() {
+  const tmMin = useStore((s) => s.tmMin);
+  const tmAuto = useStore((s) => s.tmAuto);
+  const set = useStore((s) => s.set);
+  const [v, setV] = useState(String(tmMin));
+  useEffect(() => { setV(String(tmMin)); }, [tmMin]);
+  const commit = () => {
+    const n = Math.round(Number(v));
+    const x = Number.isFinite(n) ? Math.min(100, Math.max(1, n)) : tmMin;
+    setV(String(x));
+    set({ tmMin: x });
+  };
+  return (
+    <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
+      <h3 style={h3}>{tx('tm.title')}</h3>
+      <label style={{ display: 'flex', alignItems: 'center', gap: 8, fontSize: fz(13) }}>
+        {tx('tm.minLabel')}
+        <input className="field" type="number" min={1} max={100} value={v} onChange={(e) => setV(e.target.value)} onBlur={commit} onKeyDown={(e) => { if (e.key === 'Enter') commit(); }}
+          style={{ width: 70, height: 32 }} />
+        %
+      </label>
+      <label style={{ display: 'flex', alignItems: 'center', gap: 10, fontSize: fz(13), cursor: 'pointer' }}>
+        <input type="checkbox" role="switch" className="switch" checked={tmAuto} onChange={() => set({ tmAuto: !tmAuto })} />
+        {tx('tm.autoLabel')}
+      </label>
+    </div>
+  );
+}
+
 function GeneralSection() {
   const saveRoot = useStore((s) => s.saveRoot);
   const uiLang = useStore((s) => s.uiLang);
@@ -477,6 +507,7 @@ function GeneralSection() {
             choices={[{ label: tx('settings.packReplaceNo'), onClick: () => askReplace.done(false) }, { label: tx('settings.packReplaceYes'), primary: true, onClick: () => askReplace.done(true) }]} />
         )}
       </div>
+      <TmSettings />
       <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
         <h3 style={h3}>{tx('settings.045')}</h3>
         <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>

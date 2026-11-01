@@ -1,6 +1,6 @@
 [package]
 name = "verso"
-version = "0.108.13"
+version = "0.109.0"
 description = "Verso 翻譯工作台"
 edition = "2021"
 
@@ -19,6 +19,8 @@ serde_json = "1"
 tauri-plugin-fs = { version = "2", features = ["watch"] }
 tauri-plugin-dialog = "2"
 font-kit = "0.14"
+# 翻譯記憶的本地檔（SQLite 一起編進去，不用另外裝）
+rusqlite = { version = "0.32", features = ["bundled"] }
 trash = "5"
 tauri-plugin-single-instance = "2"
 tauri-plugin-updater = "2"

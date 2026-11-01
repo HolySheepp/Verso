@@ -1,5 +1,8 @@
 use tauri::Manager;
 
+/// 翻譯記憶的本地檔
+mod tm;
+
 // 外掛（src/plugins/<名稱> 在才有，見 build.rs）
 #[cfg(verso_ai)]
 #[path = "plugins/ai/mod.rs"]
@@ -10,7 +13,7 @@ mod cloud;
 
 /// 主程式的指令，加上這次編進來的外掛的指令
 macro_rules! handlers {
-    ($($extra:path),*) => { tauri::generate_handler![list_fonts, move_to_trash, install_kind, app_dir, open_url, hide_path $(, $extra)*] };
+    ($($extra:path),*) => { tauri::generate_handler![list_fonts, move_to_trash, install_kind, app_dir, open_url, hide_path, tm::tm_load, tm::tm_apply, tm::tm_hist, tm::tm_export, tm::tm_read $(, $extra)*] };
 }
 
 /// 列出電腦已安裝的字形（字體設定用），去掉重複並排序

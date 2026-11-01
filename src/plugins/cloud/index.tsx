@@ -9,6 +9,7 @@ import { cleanName } from '../../model/comments';
 import { SHARED } from '../../model/types';
 import { currentOf, ensureUserName, showToast, useStore } from '../../state/store';
 import { isDirty, saveNow } from '../../state/saver';
+import { compactNow, startTmSync } from './tmSync';
 import { ConfirmDialog } from '../../components/ConfirmDialog';
 import { Select } from '../../components/Select';
 import { Preview, type DraftSheet } from '../../components/ImportDialog';
@@ -87,6 +88,12 @@ function CloudDevOption() {
           <label htmlFor="verso-cloud-data" style={label}>{tx('cloud.dataUrl')}</label>
           <input id="verso-cloud-data" className="field" value={cfg.dataUrl ?? ''} placeholder="https://docs.google.com/spreadsheets/d/…" onChange={(e) => setConfig({ dataUrl: e.target.value })} />
           <span style={{ gridColumn: '2', fontSize: fz(12), color: 'var(--mute)', marginTop: -4 }}>{tx('cloud.dataHint')}</span>
+          <label htmlFor="verso-cloud-tm" style={label}>{tx('cloud.tmUrl')}</label>
+          <input id="verso-cloud-tm" className="field" value={cfg.tmUrl ?? ''} placeholder="https://docs.google.com/spreadsheets/d/…" onChange={(e) => setConfig({ tmUrl: e.target.value })} />
+          <span style={{ gridColumn: '2', display: 'flex', alignItems: 'center', gap: 10, fontSize: fz(12), color: 'var(--mute)', marginTop: -4 }}>
+            {tx('cloud.tmHint')}
+            {sidOf(cfg.tmUrl ?? '') && <button type="button" className="btn btn-ghost" style={btn} onClick={() => void compactNow()}>{tx('cloud.tmCompact')}</button>}
+          </span>
           <span style={label}>{tx('cloud.account')}</span>
           <span style={{ display: 'flex', alignItems: 'center', gap: 10, fontSize: fz(12.5) }}>
             {email ? tx('cloud.signedIn', { email }) : tx('cloud.signedOut')}
@@ -488,6 +495,7 @@ async function start(step: (p: number, text: string) => void) {
   useCloud.subscribe((c, prev) => { if (c.cfg.userName !== prev.cfg.userName) useStore.setState({ userName: cleanName(c.cfg.userName ?? '') }); });
   watchStore();
   watchDicts();
+  startTmSync();
   rowHook.fn = (kind, rows, count) => (kind === 'remove' ? removeRows(rows) : rowOp(kind, rows, count));
   tabHook.remove = tabRemove;
   tabHook.rename = tabRename;

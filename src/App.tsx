@@ -20,6 +20,7 @@ import { DictPasteDialog } from './components/DictPasteDialog';
 import { LengthDialog } from './components/LengthDialog';
 import { Splash } from './components/Splash';
 import { RootConflictDialog } from './components/RootConflictDialog';
+import { TmDialogs } from './components/TmPanel';
 import { ManageDictsDialog, ManageProjectsDialog, MoveProjectDialog } from './components/ManageDialogs';
 import { Shortcuts } from './components/Shortcuts';
 import { ConfirmDialog } from './components/ConfirmDialog';
@@ -335,6 +336,7 @@ export default function App() {
       <DictPasteDialog />
       <ManageProjectsDialog />
       <ManageDictsDialog />
+      <TmDialogs />
       <MoveProjectDialog />
       <LengthDialog />
       <Toast />

@@ -16,6 +16,7 @@
     "core:window:allow-start-dragging",
     "core:path:default",
     "dialog:allow-open",
+    "dialog:allow-save",
     "fs:allow-read-file",
     "fs:allow-write-file",
     "fs:allow-read-text-file",

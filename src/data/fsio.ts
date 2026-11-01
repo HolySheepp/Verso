@@ -87,7 +87,8 @@ const tauriIO = (): FileIO => {
       return typeof r === 'string' ? r : null;
     },
     async watch(p, onChange) {
-      const stop = await (await fsp).watch(p, () => onChange(), { recursive: true, delayMs: 800 });
+      // 翻譯記憶檔（SQLite）一直在寫：只有它變了不算資料夾有變動
+      const stop = await (await fsp).watch(p, (ev) => { const ps = (ev as { paths?: string[] }).paths; if (ps?.length && ps.every((x) => /翻譯記憶\.sqlite/.test(x))) return; onChange(); }, { recursive: true, delayMs: 800 });
       return () => { try { stop(); } catch { /* 已經停了 */ } };
     },
   };

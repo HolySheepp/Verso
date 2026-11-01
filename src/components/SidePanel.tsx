@@ -15,11 +15,15 @@ import { leaveFile } from '../state/saver';
 import { ContextMenu } from './ContextMenu';
 import { sideFieldKey } from './Shortcuts';
 import {
-  IconBook, IconBookmark, IconCheck, IconChevD, IconCopy, IconChevL, IconChevR, IconFile, IconGlobe, IconHideRight, IconList, IconPaste, IconPenEdit, IconPlus, IconRefresh, IconSearch, IconUse, IconWarn,
+  IconBook, IconBookmark, IconCheck, IconChevD, IconCopy, IconChevL, IconChevR, IconFile, IconGlobe, IconHideRight, IconList, IconPaste, IconPenEdit, IconPlus, IconRefresh, IconSearch, IconUse, IconWarn, IconSheet, IconCopyPair, IconArrowR,
 } from './icons';
+import { TmBlock, TmTab } from './TmPanel';
+import { DEFAULT_GENERAL, type GeneralBlock } from '../state/store';
 
 const TABS: { id: SideTab; label: string; Icon: typeof IconBook }[] = [
+  { id: 'general', get label() { return tx('side.general'); }, Icon: IconSheet },
   { id: 'dict', get label() { return tx('side.001'); }, Icon: IconBook },
+  { id: 'tm', get label() { return tx('side.tm'); }, Icon: IconCopyPair },
   { id: 'search', get label() { return tx('side.002'); }, Icon: IconSearch },
   { id: 'web', get label() { return tx('side.003'); }, Icon: IconGlobe },
   { id: 'ref', get label() { return tx('side.004'); }, Icon: IconBookmark },
@@ -300,6 +304,139 @@ function SearchTab() {
   );
 }
 
+/** 綜合分頁的字典區塊：小搜尋框、目前條目命中的詞 */
+function DictBlock() {
+  const terms = useActiveTerms();
+  const current = useStore((s) => currentProjectOf(s));
+  const src = useStore((s) => { const e = currentOf(s).entry; return e ? shownSrc(e) : ''; });
+  const [q, setQ] = useState('');
+  const dq = useDeferredValue(q.trim());
+  const matches = useMemo(() => findHits(src, terms, current).flatMap((h, k) => h.terms.map((g, j) => ({ g, alt: j === 0 && k < 9 ? k + 1 : undefined }))), [terms, src, current]);
+  const results = useMemo(() => {
+    if (!dq) return [];
+    const fq = foldText(dq);
+    const idx = terms.map((_, i) => i).filter((i) => foldText(terms[i].term).includes(fq) || foldText(terms[i].en).includes(fq));
+    return sortByRank(idx, (i) => bestRank([foldText(terms[i].term), foldText(terms[i].en)], fq)).slice(0, 50).map((i) => terms[i]);
+  }, [terms, dq]);
+  return (
+    <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
+      <input type="search" className="field" aria-label={tx('side.012')} value={q} onChange={(e) => setQ(e.target.value)} placeholder={tx('side.013')} style={{ height: 30 }} />
+      {dq ? results.map((g) => <TermCard key={g.id} g={g} />) : matches.map(({ g, alt }) => <TermCard key={g.id} g={g} altKey={alt} />)}
+      {(dq ? results.length === 0 : matches.length === 0) && <div className="empty" style={{ padding: '20px 12px' }}>{dq ? tx('side.020', { q: dq }) : tx('side.023')}</div>}
+    </div>
+  );
+}
+
+/** 綜合分頁的搜尋區塊 */
+function SearchBlock() {
+  const files = useStore((s) => s.project!.files);
+  const at = useStore(useShallow((s) => ({ file: s.file, sheet: currentOf(s).sheetIdx, cloudMode: s.cloudMode })));
+  const [q, setQ] = useState('');
+  const [dq, setDq] = useState('');
+  useEffect(() => { const t = setTimeout(() => setDq(q.trim()), 300); return () => clearTimeout(t); }, [q]);
+  const results = useMemo(() => (dq ? searchAll(files, dq, 'all', at).slice(0, 50) : []), [dq, files, at]);
+  const { select } = useStore.getState();
+  return (
+    <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
+      <input type="search" className="field" aria-label={tx('side.027')} value={q} onChange={(e) => setQ(e.target.value)} placeholder={tx('side.027')} style={{ height: 30 }} />
+      {results.map((r) => (
+        <button key={r.f + ':' + r.sh + ':' + r.i} type="button" className="sr" onClick={() => leaveFile(files[r.f] ?? null, (idx) => { if (idx >= 0) select(idx, r.sh, r.i); })}
+          style={{ display: 'flex', flexDirection: 'column', gap: 4, padding: '8px 10px', textAlign: 'left', background: 'var(--card)', border: '1px solid var(--line2)', borderRadius: 8 }}>
+          <span className="mono" style={{ fontSize: fz(11), color: 'var(--mute)' }}>{r.where}</span>
+          <span style={{ fontSize: fz(13), lineHeight: 1.5 }}>{r.src}</span>
+          <span style={{ fontSize: fz(12.5), lineHeight: 1.5, color: 'var(--text2)' }}>{r.tgt}</span>
+        </button>
+      ))}
+      {dq && results.length === 0 && <div className="empty" style={{ padding: '20px 12px' }}>{tx('side.020', { q: dq })}</div>}
+    </div>
+  );
+}
+
+const BLOCKS: Record<GeneralBlock, { label(): string; tab: SideTab; Body(): React.ReactElement }> = {
+  dict: { label: () => tx('side.001'), tab: 'dict', Body: DictBlock },
+  tm: { label: () => tx('side.tm'), tab: 'tm', Body: TmBlock },
+  search: { label: () => tx('side.002'), tab: 'search', Body: SearchBlock },
+};
+const BLOCK_H = 240;
+
+/** 綜合分頁：字典、記憶、搜尋三個區塊，可以拖動排序、拖下緣改高度、收起 */
+function GeneralTab() {
+  const layout = useStore((s) => s.general);
+  const set = useStore((s) => s.set);
+  const refs = useRef<Partial<Record<GeneralBlock, HTMLElement | null>>>({});
+  const [drag, setDrag] = useState<{ id: GeneralBlock; dy: number } | null>(null);
+  const put = (g: Partial<typeof layout>) => set({ general: { ...DEFAULT_GENERAL, ...useStore.getState().general, ...g } });
+  // 拖標題列：超過相鄰區塊的一半就交換（跟拖頁簽一樣）
+  const startDrag = (id: GeneralBlock, ev: React.PointerEvent) => {
+    if (ev.button !== 0 || (ev.target as HTMLElement).closest('button')) return;
+    ev.preventDefault();
+    let y0 = ev.clientY;
+    const move = (e: PointerEvent) => {
+      const order = useStore.getState().general.order;
+      const k = order.indexOf(id);
+      const dy = e.clientY - y0;
+      const nb = dy > 0 ? order[k + 1] : order[k - 1];
+      const el = nb && refs.current[nb];
+      if (el) {
+        const r = el.getBoundingClientRect();
+        const need = Math.min(r.height / 2, 80);
+        if (Math.abs(dy) > need) {
+          const next = [...order];
+          next[k] = nb!;
+          next[dy > 0 ? k + 1 : k - 1] = id;
+          put({ order: next });
+          y0 += dy > 0 ? r.height : -r.height;
+        }
+      }
+      setDrag({ id, dy: e.clientY - y0 });
+    };
+    const up = () => { window.removeEventListener('pointermove', move); window.removeEventListener('pointerup', up); setDrag(null); };
+    window.addEventListener('pointermove', move);
+    window.addEventListener('pointerup', up);
+  };
+  // 拖下緣：改這個區塊的高度
+  const startResize = (id: GeneralBlock, ev: React.PointerEvent) => {
+    ev.preventDefault();
+    const y0 = ev.clientY, h0 = useStore.getState().general.h[id] ?? BLOCK_H;
+    const move = (e: PointerEvent) => put({ h: { ...useStore.getState().general.h, [id]: Math.max(80, Math.min(900, h0 + e.clientY - y0)) } });
+    const up = () => { window.removeEventListener('pointermove', move); window.removeEventListener('pointerup', up); };
+    window.addEventListener('pointermove', move);
+    window.addEventListener('pointerup', up);
+  };
+  return (
+    <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
+      {layout.order.map((id) => {
+        const b = BLOCKS[id];
+        const closed = layout.closed.includes(id);
+        const dragging = drag?.id === id;
+        return (
+          <section key={id} ref={(el) => { refs.current[id] = el; }} aria-label={b.label()}
+            style={{ position: 'relative', zIndex: dragging ? 2 : 0, transform: dragging ? `translateY(${drag.dy}px)` : undefined, background: 'var(--bar)', border: '1px solid var(--line2)', borderRadius: 10, boxShadow: dragging ? '0 8px 24px rgba(0,0,0,0.35)' : undefined }}>
+            <div onPointerDown={(ev) => startDrag(id, ev)} style={{ height: 32, display: 'flex', alignItems: 'center', gap: 4, padding: '0 4px 0 6px', cursor: dragging ? 'grabbing' : 'grab', userSelect: 'none' }}>
+              <button type="button" className="ib" aria-expanded={!closed} aria-label={b.label()} onClick={() => put({ closed: closed ? layout.closed.filter((x) => x !== id) : [...layout.closed, id] })}
+                style={{ width: 22, height: 22, display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 0, background: 'transparent', border: 0, borderRadius: 5, color: 'var(--text2)' }}>
+                <IconChevD size={12} sw={2.4} style={{ transform: `rotate(${closed ? -90 : 0}deg)`, transition: 'transform 160ms' }} />
+              </button>
+              <span style={{ flexGrow: 1, fontSize: fz(12.5), fontWeight: 500, color: 'var(--text2)' }}>{b.label()}</span>
+              <button type="button" className="ib" aria-label={tx('side.openTab', { name: b.label() })} title={tx('side.openTab', { name: b.label() })} onClick={() => set({ side: b.tab })}
+                style={{ width: 24, height: 24, display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 0, background: 'transparent', border: 0, borderRadius: 5, color: 'var(--mute)' }}>
+                <IconArrowR size={12} />
+              </button>
+            </div>
+            {!closed && (
+              <>
+                <div style={{ height: layout.h[id] ?? BLOCK_H, overflowY: 'auto', padding: '2px 10px 10px' }}><b.Body /></div>
+                <div role="separator" aria-orientation="horizontal" aria-label={tx('side.blockResize')} onPointerDown={(ev) => startResize(id, ev)}
+                  style={{ position: 'absolute', left: 0, right: 0, bottom: -5, height: 10, cursor: 'row-resize' }} />
+              </>
+            )}
+          </section>
+        );
+      })}
+    </div>
+  );
+}
+
 // 迷你瀏覽器：只有外觀，尚未實作
 function WebTab() {
   const nav: React.CSSProperties = { width: 30, height: 32, display: 'flex', alignItems: 'center', justifyContent: 'center', background: 'transparent', border: 0, borderRadius: 6, color: 'var(--mute)' };
@@ -499,6 +636,8 @@ export function SidePanel({ width }: { width: number }) {
         </button>
       </div>
       <div role="tabpanel" style={{ flexGrow: 1, minHeight: 0, overflowY: 'auto', padding: 14 }}>
+        {side === 'general' && <GeneralTab />}
+        {side === 'tm' && <TmTab />}
         {side === 'dict' && <DictTab />}
         {side === 'search' && <SearchTab />}
         {side === 'web' && <WebTab />}

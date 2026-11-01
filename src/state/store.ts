@@ -26,7 +26,22 @@ export function passesFilter(f: Filter, mark: string, issues: boolean, note = fa
 }
 /** 篩選「有備註」：雲端檔案看有沒有沒解決的留言，本機檔案看備註有沒有字 */
 export const hasNote = (e: Entry) => (e.comments ? e.comments.some((t) => !t.resolved) : !!e.note.trim());
-export type SideTab = 'dict' | 'search' | 'web' | 'ref';
+export type SideTab = 'general' | 'dict' | 'tm' | 'search' | 'web' | 'ref';
+
+/** 綜合分頁的區塊 */
+export type GeneralBlock = 'dict' | 'tm' | 'search';
+export interface GeneralLayout { order: GeneralBlock[]; h: Partial<Record<GeneralBlock, number>>; closed: GeneralBlock[] }
+export const DEFAULT_GENERAL: GeneralLayout = { order: ['dict', 'tm', 'search'], h: {}, closed: [] };
+
+/** 翻譯記憶（state/tm.ts）接上條目確認：store 不直接 import 記憶，免得互相引用 */
+export const tmHook: { confirm?: (e: Entry, f: FileDoc, sheet: Sheet, verified: boolean) => void } = {};
+/** 條目確認時寫進記憶（下一條、標已翻譯、已驗證）；驗證模式下一條、標已驗證算驗證通過 */
+function tmConfirm(s: State, indices: number[], verified: (e: Entry) => boolean) {
+  if (!tmHook.confirm || !s.project) return;
+  const { fileDoc, sheet } = currentOf(s);
+  if (fileDoc === EMPTY_FILE) return;
+  for (const i of indices) { const e = sheet.entries[i]; if (e && e.tgt.trim()) tmHook.confirm(e, fileDoc, sheet, verified(e)); }
+}
 export type Theme = 'dark' | 'light' | 'system';
 export type SaveStatus = 'saved' | 'dirty' | 'saving' | 'error';
 
@@ -220,6 +235,14 @@ interface State {
   moveDir: 1 | -1;
   /** 手動開關字典：key 是「目前專案>專案/字典」，沒有設定的照預設（目前專案和共用的字典啟用） */
   dictOverrides: Record<string, boolean>;
+  /** 翻譯記憶：相似度下限（%） */
+  tmMin: number;
+  /** 翻譯記憶：100% 相符時自動填入譯文框 */
+  tmAuto: boolean;
+  /** 翻譯記憶：手動勾選要查的專案記憶，key 是「目前專案>記憶的專案」（沒設定的照預設：目前專案和共用） */
+  tmOverrides: Record<string, boolean>;
+  /** 綜合分頁：區塊的順序、高度（像素）、收起來的區塊 */
+  general: GeneralLayout;
   /** 檔案選單裡收起來的專案 */
   collapsedProjects: string[];
   /** 條目欄 #、發話者、原文、譯文的欄寬比例，會跟著條目欄的寬度縮放 */
@@ -762,7 +785,7 @@ export const useStore = create<Store>((set, get) => {
     sheetBy: {},
     selBy: {},
     filter: {},
-    side: 'dict',
+    side: 'general',
     mode: 'translate',
     stamps: {},
     theme: bootLook().theme,
@@ -819,6 +842,10 @@ export const useStore = create<Store>((set, get) => {
     moveSeq: 0,
     moveDir: 1,
     dictOverrides: {},
+    tmMin: 65,
+    tmAuto: false,
+    tmOverrides: {},
+    general: DEFAULT_GENERAL,
     collapsedProjects: [],
     colWidths: DEFAULT_COL_WIDTHS,
     checkSettings: defaultCheckSettings(),
@@ -1020,6 +1047,7 @@ export const useStore = create<Store>((set, get) => {
       if (entry?.upd && !entry.upd.hidden && (s.mode === 'translate' || s.mode === 'verify')) {
         patchEntry(sel, (e) => { if (e.upd?.applied) { const { upd: _u, ...rest } = e; void _u; return rest; } return { ...e, upd: { ...e.upd!, hidden: true } }; });
       }
+      if (entry && (s.mode === 'translate' || s.mode === 'verify')) tmConfirm(get(), [sel], (e) => e.mark === 'verified' || (s.mode === 'verify' && e.mark !== 'doubt'));
       // 走到目前篩選下看得到的下一條；這條自己被篩掉了（例如翻完就不再是未翻譯）也一樣往後找
       const target = visibleRows(get()).find((i) => i > sel);
       void sheet;
@@ -1062,6 +1090,7 @@ export const useStore = create<Store>((set, get) => {
       // 改標記也算一步
       pushUndo();
       patchEntry(index, (e) => withMark(e, id, keepUpd));
+      if (id === 'translated' || id === 'verified') tmConfirm(get(), [index], () => id === 'verified');
     },
 
     applyAllNewSources(indices) {
@@ -1088,6 +1117,7 @@ export const useStore = create<Store>((set, get) => {
       if (!pick.length) return;
       pushUndo();
       patchEntries(new Set(pick), (e) => withMark(e, id));
+      if (id === 'translated' || id === 'verified') tmConfirm(get(), pick, () => id === 'verified');
     },
 
     beginEdit() {

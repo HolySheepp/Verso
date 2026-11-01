@@ -18,6 +18,7 @@ import { ContextMenu } from './ContextMenu';
 import { applyChange, applyOne, compose, editsOf, removeOne, spansOf, type VEdit } from '../model/verify';
 import { verifySession } from '../state/verifySession';
 import { shortcutsBlocked } from './Shortcuts';
+import { applyMatch, exactMatch, matchText, useTm, useTmMatches } from '../state/tm';
 import { srcDiff } from '../model/srcUpdate';
 import { fz } from '../model/fonts';
 import {
@@ -108,6 +109,32 @@ function WorkPanelInner({ height, maxH }: { height: number; maxH: number }) {
   // 記錄與查看修改：翻譯模式在譯文框，驗證模式在修改框
   const tgtHist = showHist && !verify;
   const modHist = showHist && verify;
+
+  // 翻譯記憶：100% 相符且譯文框空著時灰字顯示，按 Tab 變成譯文（或設定成自動套用）；有內容時提示有類似句子
+  const tmList = useTmMatches();
+  const exact = tgtEditable ? exactMatch(tmList) : undefined;
+  const ghost = exact && !cur.tgt && !tgtHist ? matchText(exact).text : '';
+  const tmRef = useRef({ list: tmList, ok: tgtEditable && !showHist });
+  tmRef.current = { list: tmList, ok: tgtEditable && !showHist };
+  const tmAuto = useStore((st) => st.tmAuto);
+  useEffect(() => {
+    if (!tmAuto || !exact || cur.tgt || !tgtEditable) return;
+    applyMatch(exact);
+  }, [cur.uid, exact?.row.id, tmAuto]);
+  // Ctrl+1、Ctrl+2…：套用第幾條記憶（字典是 Alt+數字）
+  useEffect(() => {
+    const onKey = (ev: KeyboardEvent) => {
+      if (!ev.ctrlKey || ev.altKey || ev.metaKey || ev.shiftKey || !/^Digit[1-9]$/.test(ev.code)) return;
+      if (shortcutsBlocked(ev.key)) return;
+      ev.preventDefault();
+      const m = tmRef.current.list[Number(ev.code.slice(5)) - 1];
+      if (m && tmRef.current.ok) applyMatch(m);
+    };
+    window.addEventListener('keydown', onKey);
+    return () => window.removeEventListener('keydown', onKey);
+  }, []);
+  const tmLoaded = useTm((t) => t.loaded);
+  const tmHint = tmLoaded && tgtEditable && !!cur.tgt && tmList.length > 0 && !tmList.every((m) => m.row.tgt === cur.tgt);
 
   // 驗證修改：每組修改在譯文框和修改框的位置。翻譯模式打開驗證過的條目時也顯示，讓譯者處理
   const edits = verify || mode === 'translate' ? editsOf(cur) : NO_EDITS;
@@ -663,6 +690,10 @@ function WorkPanelInner({ height, maxH }: { height: number; maxH: number }) {
                 </span>
               )}
               {bottom === 'tgt' && issueNote}
+              {tmHint && (
+                <button type="button" className="ib" onClick={() => { const st = useStore.getState(); if (st.side !== 'general' && st.side !== 'tm') st.set({ side: 'tm', hideSide: false }); else if (st.hideSide) st.set({ hideSide: false }); }}
+                  style={{ ...smallBtn, flexShrink: 0 }}>{tx('tm.hasSimilar')}</button>
+              )}
             </span>
             <span style={{ ...meta, flexShrink: 0 }}>
               <span>{!verify && texts.length ? tx('work.030', { length: texts.length }) : ''}</span>
@@ -672,7 +703,8 @@ function WorkPanelInner({ height, maxH }: { height: number; maxH: number }) {
           <div {...boxProps('tgt')}>
             <textarea maxLength={MAX_CELL_CHARS} id="verso-target" ref={setTgtEl} onFocus={editFocus} onBlur={editBlur} data-hist={tgtHist ? '1' : '0'} value={tgtHist ? texts[slot] : cur.tgt}
               readOnly={!tgtEditable || tgtHist}
-              onChange={(ev) => onTarget(ev.target.value)} onPaste={onPaste}
+              onChange={(ev) => onTarget(ev.target.value)} onPaste={onPaste} placeholder={ghost || undefined}
+              onKeyDown={ghost ? (ev) => { if (ev.key === 'Tab' && !ev.ctrlKey && !ev.altKey && !ev.shiftKey && !ev.metaKey && exact) { ev.preventDefault(); applyMatch(exact); } } : undefined}
               onMouseMove={edits.length ? onVMove : undefined} onMouseLeave={edits.length ? onVLeave : undefined} onMouseDown={onTgtDown} onContextMenu={onVMenu}
               style={{
                 cursor: showEdits && vHover !== null ? 'pointer' : undefined,

@@ -29,6 +29,8 @@ export interface CloudConfig {
   on: boolean; clientId: string; clientSecret: string; sheets: CloudSheet[];
   /** Verso 資料表的網址（標記、建議翻譯、修改、各檔案的欄位設定存在這裡，大家共用） */
   dataUrl?: string;
+  /** 團隊翻譯記憶表的網址（一個專案一個分頁，只往後加列） */
+  tmUrl?: string;
   /** 這台電腦「不再使用」的試算表（資料表裡別人設定的也不列出來） */
   hidden?: string[];
   /** 留言用的用戶名（個人設定，只存在這台電腦） */

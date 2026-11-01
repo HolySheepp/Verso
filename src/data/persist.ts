@@ -40,6 +40,10 @@ export interface AppConfig {
   checkSettings?: CheckSettings;
   /** 手動開關過的字典（key 為「專案/字典」） */
   dictOverrides?: Record<string, boolean>;
+  tmMin?: number;
+  tmAuto?: boolean;
+  tmOverrides?: Record<string, boolean>;
+  general?: import('../state/store').GeneralLayout;
   /** 檔案欄裡收合起來的專案 */
   collapsedProjects?: string[];
   colWidths?: number[];
