@@ -219,6 +219,8 @@ pub fn ai_run(app: AppHandle, state: State<Ai>, prompt: String, model: Option<St
         // 專案設定的模型和 effort（只收固定的幾個值）
         .args(model.filter(|m| ["opus", "sonnet", "haiku", "fable"].contains(&m.as_str())).map(|m| vec!["--model".to_string(), m]).unwrap_or_default())
         .args(effort.filter(|e| ["low", "medium", "high", "xhigh", "max"].contains(&e.as_str())).map(|e| vec!["--effort".to_string(), e]).unwrap_or_default())
+        // 工具回傳的上限放寬一點（條目已經分批給，這只是保險，例如 get_checks 一次報很多條時）
+        .env("MAX_MCP_OUTPUT_TOKENS", "60000")
         .stdin(Stdio::null())
         .stdout(Stdio::piped())
         .stderr(Stdio::piped());

@@ -18,6 +18,9 @@ import { checkText, fileStdFor, currentOf, currentProjectOf, dictEnabledIn, show
 
 /** 整句換掉的程度：新舊譯文相似度低於這個，就放進「建議翻譯」，不放修改框 */
 const BIG_CHANGE = 0.5;
+/** get_task 一次給幾條（太多會超過 Claude Code 單一工具回傳的上限，內容就到不了 AI） */
+const BATCH = 25;
+const BATCH_MAX = 40;
 /** 前後各附幾條當上下文 */
 const CONTEXT = 5;
 /** 超過這麼多條先問要不要繼續 */
@@ -30,12 +33,16 @@ const idx = { type: 'integer', description: 'The entry index from get_task' };
 const TOOLS = [
   {
     name: 'get_task',
-    description: 'Get the task: the mode ("translate" or "verify") and the selected entries. Each entry has index, id, speaker, source text (src), current translation (tgt), suggestion, note, '
-      + 'the 5 entries before and after it (context), the glossary terms found in its source text (glossary: term and its required translations), '
+    description: 'Get the task in batches: the mode ("translate" or "verify"), total (how many entries the task has), remaining (how many come after this batch), next_offset (pass it as offset to get the next batch; null when this is the last one) '
+      + 'and this batch of entries. Each entry has index, id, speaker, source text (src), current translation (tgt), suggestion, note, '
+      + 'the 5 entries before and after it (context; entries that are themselves in this batch are left out of the context, look at them in entries), the glossary terms found in its source text (glossary: term and its required translations), '
       + 'length_limit (max_lines the English must fit in, at the given width and font; null when there is no limit), '
       + 'checks (problems Verso\'s checks already find in the current translation, with the edits applied; for overflows also max_lines, lines_now and about_chars_to_cut) '
       + 'and suggestion_checks (the same for the suggestion). Both are left out when there is nothing to report.',
-    inputSchema: obj({}),
+    inputSchema: obj({
+      offset: { type: 'integer', description: 'Where this batch starts (0 for the first batch, then next_offset from the previous call)' },
+      limit: { type: 'integer', description: `How many entries to get (default ${BATCH}, at most ${BATCH_MAX})` },
+    }),
   },
   {
     name: 'get_checks',
@@ -152,20 +159,32 @@ function checksOf(j: Job, e: Entry) {
   return { ...(tgt ? { checks: tgt } : {}), ...(sugg ? { suggestion_checks: sugg } : {}) };
 }
 
-function getTask(j: Job) {
+/** 分批給：offset 從第幾條開始，limit 給幾條；同一批裡的條目不再重複放進前後文 */
+function getTask(j: Job, offset = 0, limit = BATCH) {
   const sheet = sheetOf(j)!;
   const { terms, current } = activeTerms();
+  const from = Math.max(0, Math.min(Math.floor(offset) || 0, j.indices.length));
+  const n = Math.max(1, Math.min(Math.floor(limit) || BATCH, BATCH_MAX));
+  const ks = j.indices.map((_, k) => k).slice(from, from + n);
+  const rows = new Set(ks.map((k) => rowOf(j, sheet, k)));
+  const ctx = (a: number, b: number) => sheet.entries.slice(a, b).flatMap((x, d) => (rows.has(a + d) ? [] : [brief(x)]));
+  const end = from + ks.length;
   return {
     mode: j.mode,
-    entries: j.indices.map((i, k) => {
+    total: j.indices.length,
+    offset: from,
+    remaining: j.indices.length - end,
+    next_offset: end < j.indices.length ? end : null,
+    entries: ks.map((k) => {
+      const i = j.indices[k];
       const row = rowOf(j, sheet, k);
       const e = sheet.entries[row];
       if (!e) return null;
       const hits = findHits(shownSrc(e), terms, current);
       return {
         index: i, id: e.id, speaker: e.speaker, src: shownSrc(e), tgt: e.tgt, suggestion: e.sugg, note: e.note,
-        context_before: sheet.entries.slice(Math.max(0, row - CONTEXT), row).map(brief),
-        context_after: sheet.entries.slice(row + 1, row + 1 + CONTEXT).map(brief),
+        context_before: ctx(Math.max(0, row - CONTEXT), row),
+        context_after: ctx(row + 1, row + 1 + CONTEXT),
         glossary: hits.map((h) => ({ term: h.term.term, translations: [...new Set(h.terms.map((t) => t.en))] })),
         length_limit: limitOf(stdOf(j, e)),
         ...checksOf(j, e),
@@ -188,7 +207,7 @@ function callTool(name: string, args: Record<string, unknown>): unknown {
   if (!j) throw new Error('No AI job is running.');
   const sheet = sheetOf(j);
   if (!sheet) throw new Error('The file or sheet is no longer open in Verso.');
-  if (name === 'get_task') return getTask(j);
+  if (name === 'get_task') return getTask(j, Number(args.offset ?? 0), Number(args.limit ?? BATCH));
   if (name === 'get_checks') return getChecks(j);
   const k = j.indices.indexOf(Number(args.index));
   const e = k < 0 ? undefined : sheet.entries[rowOf(j, sheet, k)];
@@ -344,11 +363,15 @@ export function aiTarget() {
 /** 條目有檢查結果時一定要處理 */
 const CHECKS_RULE = 'If get_task lists checks for an entry, that entry must be fixed even when its meaning is fine (for example, shorten it until it fits the length limit); only if it cannot be fixed without losing important meaning, leave it and explain why in write_note.';
 
+/** 分批拿條目：每批做完再拿下一批 */
+const BATCH_RULE = 'Call get_task (offset 0) first. It returns the entries in batches: finish the entries of one batch, then call get_task again with offset = next_offset, until next_offset is null.';
+
 const prompts = {
   translate: (skill: string) => [
     'You are helping a game translator inside Verso, a translation tool. Use only the verso MCP tools.',
     skill ? `Use the "${skill}" skill for how to translate.` : 'Translate from the source language into English unless the entries clearly show another target language.',
-    'Call get_task first. For every entry, translate its src, following the glossary translations, the speaker, the note and the surrounding context, then call write_translation(index, text) with the full translation.',
+    BATCH_RULE,
+    'For every entry, translate its src, following the glossary translations, the speaker, the note and the surrounding context, then call write_translation(index, text) with the full translation.',
     'When all entries are written, call get_checks and rewrite the entries it reports (especially length overflows) until nothing is left.',
     CHECKS_RULE,
     'Only after that, for entries that need the translator\'s attention (or a problem you could not fix without losing important meaning), call write_note(index, text) once with your final note in Traditional Chinese. Never write notes about intermediate attempts. Do not do anything else.',
@@ -356,7 +379,8 @@ const prompts = {
   verify: (skill: string) => [
     'You are reviewing a game translation inside Verso, a translation tool. Use only the verso MCP tools.',
     skill ? `Use the "${skill}" skill for how to review.` : '',
-    'Call get_task first. For every entry, check its tgt against src, the glossary, the speaker, the note and the surrounding context.',
+    BATCH_RULE,
+    'For every entry, check its tgt against src, the glossary, the speaker, the note and the surrounding context.',
     'If the translation needs changes, call write_revision(index, text) with the full corrected translation. If it is fine, leave it alone.',
     CHECKS_RULE,
     'Then call get_checks and fix what it reports for the entries you revised (especially length overflows): rewrite them, or call undo_change(index) if your change was wrong and the original should stay.',
