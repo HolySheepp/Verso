@@ -938,4 +938,6 @@ export const EN: Partial<Record<TextKey, string>> = {
   'list.filterNone': 'Not filtered',
   'list.filterMixed': 'Partially filtered',
   'cloud.errRateLimit': 'Failed to sync: Too many requests to Google. Verso will automatically retry later.',
+  'qs.edit': 'Edit',
+  'qs.completeTitle': 'Complete the prompt',
 };

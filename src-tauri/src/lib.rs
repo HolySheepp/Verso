@@ -13,7 +13,7 @@ mod cloud;
 
 /// 主程式的指令，加上這次編進來的外掛的指令
 macro_rules! handlers {
-    ($($extra:path),*) => { tauri::generate_handler![list_fonts, move_to_trash, install_kind, app_dir, open_url, hide_path, tm::tm_load, tm::tm_apply, tm::tm_hist, tm::tm_export, tm::tm_read $(, $extra)*] };
+    ($($extra:path),*) => { tauri::generate_handler![list_fonts, move_to_trash, install_kind, app_dir, open_url, open_search, hide_path, tm::tm_load, tm::tm_apply, tm::tm_hist, tm::tm_export, tm::tm_read $(, $extra)*] };
 }
 
 /// 列出電腦已安裝的字形（字體設定用），去掉重複並排序
@@ -62,6 +62,22 @@ fn open_url(app: tauri::AppHandle, url: String) -> Result<(), String> {
         return Err("不允許的網址".into());
     }
     app.opener().open_url(url, None::<&str>).map_err(|e| e.to_string())
+}
+
+/// 快速搜尋：用預設瀏覽器打開 Google 搜尋（網址在這裡組，只會是 Google 搜尋）
+#[tauri::command]
+fn open_search(app: tauri::AppHandle, q: String) -> Result<(), String> {
+    use tauri_plugin_opener::OpenerExt;
+    let q: String = q.chars().take(2000).collect();
+    let mut enc = String::new();
+    for b in q.as_bytes() {
+        match *b {
+            b'A'..=b'Z' | b'a'..=b'z' | b'0'..=b'9' | b'-' | b'_' | b'.' | b'~' => enc.push(*b as char),
+            b' ' => enc.push('+'),
+            _ => enc.push_str(&format!("%{:02X}", b)),
+        }
+    }
+    app.opener().open_url(format!("https://www.google.com/search?q={}", enc), None::<&str>).map_err(|e| e.to_string())
 }
 
 /// 把資料夾設成隱藏（暫存復原資料夾用）

@@ -1,4 +1,5 @@
 import { tx } from './i18n';
+import { QuickSearchLayer } from './components/QuickSearch';
 import { plugins } from './plugins/registry';
 import { useEffect, useState } from 'react';
 import { currentOf, showToast, useStore, useStorePick } from './state/store';
@@ -343,6 +344,7 @@ export default function App() {
       <AiStopAsk />
       <IdPeek />
       {plugins.map((p) => p.Overlay && <p.Overlay key={p.id} />)}
+      <QuickSearchLayer />
     </div>
   );
 }

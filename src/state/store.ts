@@ -13,6 +13,7 @@ import { SHARED, dictKey, newFileId, projectTag, type CustomMark, type DictInfo,
 import { sortProjects, type RootConflict } from '../data/persist';
 import { DICT_DIR, safeName, sameName, sheetNameError } from '../model/names';
 import { compose, editsOf, type VEdit } from '../model/verify';
+import { DEFAULT_QS, type QuickSearch } from '../model/quickSearch';
 import { composeNote, mergeComments, parseNote, type CommentThread } from '../model/comments';
 import { maxOf, minOf } from '../model/num';
 
@@ -239,6 +240,10 @@ interface State {
   tmMin: number;
   /** 翻譯記憶：100% 相符時自動填入譯文框 */
   tmAuto: boolean;
+  /** 快速搜尋（開發者選項）：開關、快捷鍵、圓環選單的格子 */
+  quickSearch: QuickSearch;
+  /** 快速搜尋的管理視窗開著 */
+  qsManage: boolean;
   /** 翻譯記憶：手動勾選要查的專案記憶，key 是「目前專案>記憶的專案」（沒設定的照預設：目前專案和共用） */
   tmOverrides: Record<string, boolean>;
   /** 綜合分頁：區塊的順序、高度（像素）、收起來的區塊 */
@@ -844,6 +849,8 @@ export const useStore = create<Store>((set, get) => {
     dictOverrides: {},
     tmMin: 65,
     tmAuto: false,
+    quickSearch: DEFAULT_QS,
+    qsManage: false,
     tmOverrides: {},
     general: DEFAULT_GENERAL,
     collapsedProjects: [],

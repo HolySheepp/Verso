@@ -1,4 +1,5 @@
 import { tx, txSplit } from '../i18n';
+import { QuickSearchSettings } from './QuickSearch';
 import { addLangPacks } from '../data/langpacks';
 import { isFixedListCombo } from './Shortcuts';
 import { BUILTIN_LANGS, PACK } from '../i18n/lang';
@@ -412,6 +413,7 @@ function DevSection() {
       <div style={{ fontSize: fz(12), color: 'var(--mute)' }}>{tx('settings.showIdsHint')}</div>
       {/* 外掛的開關（例如 AI） */}
       {plugins.map((p) => p.DevOptions && <p.DevOptions key={p.id} />)}
+      <QuickSearchSettings />
 
     </div>
   );

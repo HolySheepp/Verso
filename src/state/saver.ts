@@ -15,6 +15,7 @@ import {
   type AppConfig, type LastPosition, type RecoveryState,
 } from '../data/persist';
 import { emptyHistory } from '../model/history';
+import { DEFAULT_QS } from '../model/quickSearch';
 import { dictKey, newFileId, type CustomMark, type DictInfo, type FileDoc, type GlossaryTerm, type ProjectData } from '../model/types';
 import { startTm } from './tm';
 import { aiAllows, DEFAULT_GENERAL, currentOf, currentProjectOf, dictEnabledIn, showToast, useStore, type SaveError } from './store';
@@ -441,7 +442,7 @@ async function persistConfig(patch: Partial<AppConfig> = {}) {
   config = {
     ...config, ...patch,
     saveRoot: s.saveRoot, autosaveMin: s.autosaveMin, uiLang: s.uiLang, devMode: s.devMode, showIds: s.showIds, aiEnabled: s.aiEnabled, aiSkillTranslate: s.aiSkillTranslate, aiSkillVerify: s.aiSkillVerify, theme: s.theme, accent: s.accent, customAccents: s.customAccents, rainbowUnlocked: s.rainbowUnlocked, fonts: s.fonts, recentFonts: s.recentFonts,
-    shortcuts: s.shortcuts, checkSettings: s.checkSettings, checksOn: s.checksOn, workBoxes: s.workBoxes, workFit: s.workFit, workH: s.workH ?? undefined, dictOverrides: s.dictOverrides, tmMin: s.tmMin, tmAuto: s.tmAuto, tmOverrides: s.tmOverrides, general: s.general, collapsedProjects: s.collapsedProjects, colWidths: s.colWidths, finishLine: s.finishLine, lengthPresets: s.lengthPresets,
+    shortcuts: s.shortcuts, checkSettings: s.checkSettings, checksOn: s.checksOn, workBoxes: s.workBoxes, workFit: s.workFit, workH: s.workH ?? undefined, dictOverrides: s.dictOverrides, tmMin: s.tmMin, tmAuto: s.tmAuto, quickSearch: s.quickSearch, tmOverrides: s.tmOverrides, general: s.general, collapsedProjects: s.collapsedProjects, colWidths: s.colWidths, finishLine: s.finishLine, lengthPresets: s.lengthPresets,
   };
   try { await saveConfig(config); } catch { /* 設定存不下不影響使用 */ }
   // 啟動畫面用：下次一開就知道要鋪什麼底色
@@ -505,6 +506,7 @@ export async function startApp(boots: Boot[] = []) {
     dictOverrides: config.dictOverrides ?? {},
     tmMin: config.tmMin ?? 65,
     tmAuto: config.tmAuto ?? false,
+    quickSearch: config.quickSearch ? { ...DEFAULT_QS, ...config.quickSearch } : DEFAULT_QS,
     tmOverrides: config.tmOverrides ?? {},
     general: config.general ? { ...DEFAULT_GENERAL, ...config.general, order: [...new Set([...(config.general.order ?? []).filter((b) => DEFAULT_GENERAL.order.includes(b)), ...DEFAULT_GENERAL.order])] } : DEFAULT_GENERAL,
     collapsedProjects: config.collapsedProjects ?? [],
@@ -617,7 +619,7 @@ function watch() {
     }
     // 設定改了就存到設定檔
     if (s.theme !== prev.theme || s.accent !== prev.accent || s.customAccents !== prev.customAccents || s.rainbowUnlocked !== prev.rainbowUnlocked || s.fonts !== prev.fonts || s.recentFonts !== prev.recentFonts || s.shortcuts !== prev.shortcuts || s.checkSettings !== prev.checkSettings
-      || s.dictOverrides !== prev.dictOverrides || s.tmMin !== prev.tmMin || s.tmAuto !== prev.tmAuto || s.tmOverrides !== prev.tmOverrides || s.general !== prev.general || s.collapsedProjects !== prev.collapsedProjects || s.colWidths !== prev.colWidths || s.finishLine !== prev.finishLine || s.checksOn !== prev.checksOn || s.workBoxes !== prev.workBoxes || s.workFit !== prev.workFit || s.workH !== prev.workH || s.lengthPresets !== prev.lengthPresets || s.autosaveMin !== prev.autosaveMin || s.saveRoot !== prev.saveRoot || s.uiLang !== prev.uiLang || s.devMode !== prev.devMode || s.showIds !== prev.showIds || s.aiEnabled !== prev.aiEnabled || s.aiSkillTranslate !== prev.aiSkillTranslate || s.aiSkillVerify !== prev.aiSkillVerify) {
+      || s.dictOverrides !== prev.dictOverrides || s.tmMin !== prev.tmMin || s.tmAuto !== prev.tmAuto || s.quickSearch !== prev.quickSearch || s.tmOverrides !== prev.tmOverrides || s.general !== prev.general || s.collapsedProjects !== prev.collapsedProjects || s.colWidths !== prev.colWidths || s.finishLine !== prev.finishLine || s.checksOn !== prev.checksOn || s.workBoxes !== prev.workBoxes || s.workFit !== prev.workFit || s.workH !== prev.workH || s.lengthPresets !== prev.lengthPresets || s.autosaveMin !== prev.autosaveMin || s.saveRoot !== prev.saveRoot || s.uiLang !== prev.uiLang || s.devMode !== prev.devMode || s.showIds !== prev.showIds || s.aiEnabled !== prev.aiEnabled || s.aiSkillTranslate !== prev.aiSkillTranslate || s.aiSkillVerify !== prev.aiSkillVerify) {
       clearTimeout(configTimer);
       configTimer = setTimeout(() => void persistConfig(), 400);
     }

@@ -42,6 +42,8 @@ export interface AppConfig {
   dictOverrides?: Record<string, boolean>;
   tmMin?: number;
   tmAuto?: boolean;
+  /** 快速搜尋（開發者選項） */
+  quickSearch?: import('../model/quickSearch').QuickSearch;
   tmOverrides?: Record<string, boolean>;
   general?: import('../state/store').GeneralLayout;
   /** 檔案欄裡收合起來的專案 */
