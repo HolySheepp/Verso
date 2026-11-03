@@ -114,8 +114,9 @@ function WorkPanelInner({ height, maxH }: { height: number; maxH: number }) {
   const tmList = useTmMatches();
   const exact = tgtEditable ? exactMatch(tmList) : undefined;
   const ghost = exact && !cur.tgt && !tgtHist ? matchText(exact).text : '';
-  const tmRef = useRef({ list: tmList, ok: tgtEditable && !showHist });
-  tmRef.current = { list: tmList, ok: tgtEditable && !showHist };
+  // Ctrl+1～9：翻譯模式套用到譯文框，驗證模式套用到修改框
+  const tmRef = useRef({ list: tmList, ok: (tgtEditable || verify) && !showHist });
+  tmRef.current = { list: tmList, ok: (tgtEditable || verify) && !showHist };
   const tmAuto = useStore((st) => st.tmAuto);
   useEffect(() => {
     if (!tmAuto || !exact || cur.tgt || !tgtEditable) return;
@@ -134,7 +135,8 @@ function WorkPanelInner({ height, maxH }: { height: number; maxH: number }) {
     return () => window.removeEventListener('keydown', onKey);
   }, []);
   const tmLoaded = useTm((t) => t.loaded);
-  const tmHint = tmLoaded && tgtEditable && !!cur.tgt && tmList.length > 0 && !tmList.every((m) => m.row.tgt === cur.tgt);
+  // 已經跟某一條記憶（套用後的樣子）一模一樣就不提示
+  const tmHint = tmLoaded && tgtEditable && !!cur.tgt && tmList.length > 0 && !tmList.some((m) => matchText(m).text.trim() === cur.tgt.trim());
 
   // 驗證修改：每組修改在譯文框和修改框的位置。翻譯模式打開驗證過的條目時也顯示，讓譯者處理
   const edits = verify || mode === 'translate' ? editsOf(cur) : NO_EDITS;

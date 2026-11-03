@@ -3,6 +3,7 @@
 import { create } from 'zustand';
 import { isTauri } from '@tauri-apps/api/core';
 import { tx } from '../i18n';
+import { applyChange, compose, editsOf } from '../model/verify';
 import { io } from '../data/fsio';
 import { TmIndex, sameText, type TmMatch, type TmRow, type TermSpan } from '../model/tm';
 import { SHARED, type Entry, type FileDoc, type Sheet } from '../model/types';
@@ -297,9 +298,19 @@ export function applyMatch(m: TmMatch) {
   const s = useStore.getState();
   const { entry } = currentOf(s);
   if (!entry) return;
-  if (s.mode !== 'translate') { showToast(tx('tm.translateOnly')); return; }
+  if (s.mode !== 'translate' && s.mode !== 'verify') { showToast(tx('tm.translateOnly')); return; }
   if (s.aiLocked.includes(entry.uid)) { showToast(tx('list.aiLocked')); return; }
   const { text, misses } = matchText(m);
+  // 驗證模式：放進修改框（跟手動在修改框打字一樣變成修改，可以套用或忽略）
+  if (s.mode === 'verify') {
+    const vb = s.workBoxes.verify;
+    if (vb?.mod === false) s.set({ workBoxes: { ...s.workBoxes, verify: { ...vb, mod: true } } });
+    const edits = editsOf(entry);
+    const r = applyChange(entry.tgt, edits, compose(entry.tgt, edits), text);
+    s.setVerify(r.edits);
+    if (misses.length) showToast(tx('tm.patternMiss', { list: misses.join(tx('common.sep')) }), { warn: true });
+    return;
+  }
   const boxes = s.workBoxes.translate;
   if (boxes?.tgt === false) s.set({ workBoxes: { ...s.workBoxes, translate: { ...boxes, tgt: true } } });
   if (text === entry.tgt) return;

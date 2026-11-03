@@ -4,6 +4,8 @@ import { useDeferredValue, useEffect, useLayoutEffect, useMemo, useRef, useState
 import { useShallow } from 'zustand/react/shallow';
 import { currentOf, shownSrc, currentProjectOf, dictEnabledIn, overrideKey, searchHit, useStore, useStorePick, type SideTab, currentFileStd, isShown, dictDefaultOn, ensureUserName } from '../state/store';
 import { CommentsPanel } from './comments/CommentsPanel';
+import { CompactCtx, compactCard, shrink } from './compact';
+import { useContext } from 'react';
 import { Splitter } from './Splitter';
 import { SHARED, dictKey, type DictInfo, type FileDoc, type GlossaryTerm } from '../model/types';
 import { fz } from '../model/fonts';
@@ -37,6 +39,8 @@ export function ProjTag({ name }: { name: string }) {
 }
 
 function TermCard({ g, altKey }: { g: GlossaryTerm; altKey?: number }) {
+  const c = useContext(CompactCtx);
+  const lh = c ? 1.35 : 1.5;
   const set = useStore((s) => s.set);
   const [copied, setCopied] = useState(false);
   const copy = () => {
@@ -44,10 +48,10 @@ function TermCard({ g, altKey }: { g: GlossaryTerm; altKey?: number }) {
   };
   const proper = g.dict === '專有名詞';
   return (
-    <div className="card">
+    <div className="card" style={compactCard(c)}>
       <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 8 }}>
         <span style={{ display: 'flex', alignItems: 'center', gap: 8, minWidth: 0 }}>
-          <span style={{ fontSize: fz(15), fontWeight: 500 }}>{g.term}</span>
+          <span style={{ fontSize: fz(c ? 13 : 15), fontWeight: 500 }}>{g.term}</span>
           {altKey && <span className="mono" title={tx('side.006', { altKey })} style={{ fontSize: fz(10.5), color: 'var(--mute)', padding: '1px 5px', border: '1px solid var(--line3)', borderRadius: 4 }}>Alt+{altKey}</span>}
         </span>
         <span style={{ display: 'flex', alignItems: 'center', gap: 5 }}>
@@ -58,8 +62,8 @@ function TermCard({ g, altKey }: { g: GlossaryTerm; altKey?: number }) {
         }}>{g.dict}</span>
         </span>
       </div>
-      <div style={{ fontSize: fz(14), color: 'var(--accent3)' }}>{g.en}</div>
-      <div style={{ fontSize: fz(12), lineHeight: 1.5, color: 'var(--text2)', paddingRight: 56 }}>{g.note || '—'}</div>
+      <div style={{ fontSize: fz(shrink(c, 14)), lineHeight: lh, color: 'var(--accent3)' }}>{g.en}</div>
+      <div style={{ fontSize: fz(shrink(c, 12)), lineHeight: lh, color: 'var(--text2)', paddingRight: 56 }}>{g.note || '—'}</div>
       <button type="button" className="ib" aria-label={tx('side.007', { term: g.term })} title={tx('side.008')}
         onClick={() => set({ termDraft: { id: g.id, term: g.term, en: g.en, note: g.note, dict: g.dict, proj: g.proj } })}
         style={{ position: 'absolute', right: 34, bottom: 6, width: 26, height: 26, display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 0, background: 'transparent', border: 0, borderRadius: 6, color: 'var(--mute)' }}>
@@ -341,10 +345,10 @@ function SearchBlock() {
       <input type="search" className="field" aria-label={tx('side.027')} value={q} onChange={(e) => setQ(e.target.value)} placeholder={tx('side.027')} style={{ height: 30 }} />
       {results.map((r) => (
         <button key={r.f + ':' + r.sh + ':' + r.i} type="button" className="sr" onClick={() => leaveFile(files[r.f] ?? null, (idx) => { if (idx >= 0) select(idx, r.sh, r.i); })}
-          style={{ display: 'flex', flexDirection: 'column', gap: 4, padding: '8px 10px', textAlign: 'left', background: 'var(--card)', border: '1px solid var(--line2)', borderRadius: 8 }}>
-          <span className="mono" style={{ fontSize: fz(11), color: 'var(--mute)' }}>{r.where}</span>
-          <span style={{ fontSize: fz(13), lineHeight: 1.5 }}>{r.src}</span>
-          <span style={{ fontSize: fz(12.5), lineHeight: 1.5, color: 'var(--text2)' }}>{r.tgt}</span>
+          style={{ display: 'flex', flexDirection: 'column', gap: 2, padding: '6px 9px', textAlign: 'left', background: 'var(--card)', border: '1px solid var(--line2)', borderRadius: 8 }}>
+          <span className="mono" style={{ fontSize: fz(10.5), color: 'var(--mute)' }}>{r.where}</span>
+          <span style={{ fontSize: fz(11.5), lineHeight: 1.35 }}>{r.src}</span>
+          <span style={{ fontSize: fz(11), lineHeight: 1.35, color: 'var(--text2)' }}>{r.tgt}</span>
         </button>
       ))}
       {dq && results.length === 0 && <div className="empty" style={{ padding: '20px 12px' }}>{tx('side.020', { q: dq })}</div>}
@@ -425,7 +429,7 @@ function GeneralTab() {
             </div>
             {!closed && (
               <>
-                <div style={{ height: layout.h[id] ?? BLOCK_H, overflowY: 'auto', padding: '2px 10px 10px' }}><b.Body /></div>
+                <div style={{ height: layout.h[id] ?? BLOCK_H, overflowY: 'auto', padding: '2px 10px 10px' }}><CompactCtx.Provider value><b.Body /></CompactCtx.Provider></div>
                 <div role="separator" aria-orientation="horizontal" aria-label={tx('side.blockResize')} onPointerDown={(ev) => startResize(id, ev)}
                   style={{ position: 'absolute', left: 0, right: 0, bottom: -5, height: 10, cursor: 'row-resize' }} />
               </>

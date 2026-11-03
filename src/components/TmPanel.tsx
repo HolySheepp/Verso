@@ -1,5 +1,7 @@
 // 翻譯記憶的畫面：記憶卡片、目前條目的比對結果、記憶分頁（全部記憶、管理、匯入匯出、一致性）
 import { tx } from '../i18n';
+import { useContext } from 'react';
+import { CompactCtx, compactCard, shrink } from './compact';
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { isTauri } from '@tauri-apps/api/core';
 import { fz } from '../model/fonts';
@@ -59,11 +61,13 @@ function Underlined({ text, under }: { text: string; under: [number, number][] }
 /** 一條記憶。m 有值時是比對結果（顯示相似度、可以套用） */
 export function TmCard({ row, m, n }: { row: TmRow; m?: TmMatch; n?: number }) {
   const [info, setInfo] = useState(false);
+  const c = useContext(CompactCtx);
+  const lh = c ? 1.35 : 1.5;
   const mode = useStore((s) => s.mode);
   const label = !m ? '' : m.same ? tx('tm.sameId') : m.kind === 'pattern' ? tx('tm.pattern') : m.kind === 'frag' ? tx('tm.frag') : m.pct + '%';
   const tgt = m && m.kind === 'pattern' ? matchText(m).text : row.tgt;
   return (
-    <div className="card" style={{ gap: 4 }}>
+    <div className="card" style={{ gap: 4, ...compactCard(c) }}>
       {(m || !row.verified) && (
         <div style={{ display: 'flex', alignItems: 'center', gap: 8, minHeight: 16 }}>
           {m && <span style={{ fontSize: fz(11), color: m.pct === 100 && m.kind === 'fuzzy' ? 'var(--accent2)' : 'var(--mute)', fontWeight: 500 }}>{label}</span>}
@@ -71,15 +75,15 @@ export function TmCard({ row, m, n }: { row: TmRow; m?: TmMatch; n?: number }) {
           {!row.verified && <span title={tx('tm.unverified')} aria-label={tx('tm.unverified')} style={{ display: 'flex', color: 'var(--warntx)' }}><IconWarn size={12} sw={2.2} /></span>}
         </div>
       )}
-      <div style={{ fontSize: fz(13.5), lineHeight: 1.5, wordBreak: 'break-word' }}><Underlined text={row.src} under={m?.under ?? []} /></div>
-      <div style={{ fontSize: fz(12.5), lineHeight: 1.5, color: 'var(--accent3)', wordBreak: 'break-word' }}>{tgt}</div>
+      <div style={{ fontSize: fz(shrink(c, 13.5)), lineHeight: lh, wordBreak: 'break-word' }}><Underlined text={row.src} under={m?.under ?? []} /></div>
+      <div style={{ fontSize: fz(shrink(c, 12.5)), lineHeight: lh, color: 'var(--accent3)', wordBreak: 'break-word' }}>{tgt}</div>
       <div style={{ display: 'flex', alignItems: 'center', gap: 4 }}>
         <span style={{ ...smallText, flexGrow: 1, minWidth: 0, overflow: 'hidden', whiteSpace: 'nowrap', textOverflow: 'ellipsis' }} title={[row.project, row.file].filter(Boolean).join(' · ')}>
           {[row.project, row.file].filter(Boolean).join(' · ')}
         </span>
         <button type="button" className="ib" style={{ ...iconBtn, color: info ? 'var(--accent2)' : 'var(--mute)' }} aria-pressed={info} aria-label={tx('tm.info')} title={tx('tm.info')} onClick={() => setInfo(!info)}><IconList size={13} /></button>
         <button type="button" className="ib" style={iconBtn} aria-label={tx('tm.jump')} title={tx('tm.jump')} onClick={() => jumpToRow(row)}><IconArrowR size={13} /></button>
-        {m && mode === 'translate' && <button type="button" className="ib" style={iconBtn} aria-label={tx('tm.apply')} title={tx('tm.apply')} onClick={() => applyMatch(m)}><IconUse size={13} /></button>}
+        {m && (mode === 'translate' || mode === 'verify') && <button type="button" className="ib" style={iconBtn} aria-label={tx('tm.apply')} title={tx('tm.apply')} onClick={() => applyMatch(m)}><IconUse size={13} /></button>}
       </div>
       {info && <TmInfo row={row} />}
     </div>

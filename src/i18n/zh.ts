@@ -47,7 +47,7 @@ export const ZH = {
   'tm.loadFailed': '讀不到翻譯記憶：{reason}', // 記憶檔讀取失敗
   'tm.writeFailed': '翻譯記憶寫入失敗：{reason}', // 記憶檔寫入失敗
   'tm.noMatch': '沒有類似的記憶', // 目前條目沒有比對結果
-  'tm.translateOnly': '只有翻譯模式能套用記憶', // 其他模式按套用
+  'tm.translateOnly': '只有翻譯模式和驗證模式能套用記憶', // 其他模式按套用
   'tm.patternMiss': '這些部分沒換到，請檢查：{list}', // 句式套用時換不了的
   'tm.inUse': '使用中的記憶', // 記憶分頁：勾選要查哪些專案的記憶
   'tm.search': '搜尋記憶', // 記憶的搜尋框
