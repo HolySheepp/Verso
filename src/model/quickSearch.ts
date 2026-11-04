@@ -11,10 +11,12 @@ export interface QuickSearch {
   slots: number;
   /** 每一格的內容；沒設定的是 null（圓環上不顯示，但位置保留） */
   items: (QsItem | null)[];
+  /** 圓環中間：編輯（打開管理）、取消（叉叉，關掉圓環）、無（透明、點了沒反應） */
+  center?: 'edit' | 'cancel' | 'none';
 }
 
 export const QS_MIN = 2, QS_MAX = 12;
-export const DEFAULT_QS: QuickSearch = { on: false, key: 'Alt+S', slots: 8, items: [] };
+export const DEFAULT_QS: QuickSearch = { on: true, key: 'Alt+S', slots: 8, items: [], center: 'edit' };
 
 /** 這一格有沒有設定內容（有文字或框框） */
 export const hasContent = (it: QsItem | null | undefined): it is QsItem => !!it && it.parts.some((p) => p.t !== 'text' || p.v.trim());

@@ -1,5 +1,5 @@
 import { tx, txSplit } from '../i18n';
-import { QuickSearchSettings } from './QuickSearch';
+import { QsKeyInput, QuickSearchSection } from './QuickSearch';
 import { addLangPacks } from '../data/langpacks';
 import { isFixedListCombo } from './Shortcuts';
 import { BUILTIN_LANGS, PACK } from '../i18n/lang';
@@ -23,10 +23,10 @@ import { ACTION_LABELS, CONTEXTS, CONTEXT_ACTIONS, comboOf, createTabHold, defau
 import { fz } from '../model/fonts';
 
 // 設定目前只有「標記」「檢查」分類有內容，其他分類只有外觀
-const SECTIONS = ['general', 'modes', 'marks', 'checks', 'shortcuts', 'appearance'];
-const READY = ['general', 'marks', 'checks', 'shortcuts', 'appearance'];
+const SECTIONS = ['general', 'modes', 'marks', 'checks', 'shortcuts', 'quick', 'appearance'];
+const READY = ['general', 'marks', 'checks', 'shortcuts', 'quick', 'appearance'];
 /** 設定分類的名稱 */
-const sectionLabel = (sec: string) => ({ dev: tx('settings.devSection'), general: tx('settings.001'), modes: tx('settings.002'), marks: tx('settings.003'), checks: tx('settings.004'), shortcuts: tx('settings.005'), appearance: tx('settings.006') } as Record<string, string>)[sec] ?? sec;
+const sectionLabel = (sec: string) => ({ dev: tx('settings.devSection'), general: tx('settings.001'), modes: tx('settings.002'), marks: tx('settings.003'), checks: tx('settings.004'), shortcuts: tx('settings.005'), quick: tx('qs.enable'), appearance: tx('settings.006') } as Record<string, string>)[sec] ?? sec;
 
 const h3: React.CSSProperties = { margin: 0, fontSize: fz(12), fontWeight: 600, letterSpacing: 1, color: 'var(--text2)' };
 
@@ -122,7 +122,7 @@ export function SettingsDialog() {
             })}
           </nav>
           <div style={{ flexGrow: 1, minWidth: 0, overflowY: 'auto', padding: '20px 24px', display: 'flex', flexDirection: 'column', gap: 22 }}>
-            {pluginSection ? <pluginSection.Component /> : section === 'dev' && devMode ? <DevSection /> : section === 'appearance' ? <AppearanceSection onPick={() => setPicking(true)} /> : section === 'general' ? <GeneralSection /> : section === 'checks' ? <ChecksSection /> : section === 'shortcuts' ? <ShortcutsSection /> : <>
+            {pluginSection ? <pluginSection.Component /> : section === 'dev' && devMode ? <DevSection /> : section === 'appearance' ? <AppearanceSection onPick={() => setPicking(true)} /> : section === 'general' ? <GeneralSection /> : section === 'checks' ? <ChecksSection /> : section === 'shortcuts' ? <ShortcutsSection /> : section === 'quick' ? <QuickSearchSection /> : <>
             <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
               <h3 style={h3}>{tx('settings.010')}</h3>
               <div style={{ display: 'grid', gridTemplateColumns: 'repeat(2, minmax(0, 1fr))', gap: 8 }}>
@@ -395,6 +395,11 @@ function ShortcutsSection() {
             </div>
           );
         })}
+        {/* 快速搜尋的快捷鍵（跟設定 > 快速搜尋是同一個，改哪邊都一樣） */}
+        <label htmlFor="verso-sc-qs" style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 12, height: 44, padding: '0 12px', background: 'var(--card)', border: '1px solid var(--line2)', borderRadius: 8 }}>
+          <span style={{ fontSize: fz(13) }}>{tx('qs.enable')}</span>
+          <QsKeyInput id="verso-sc-qs" />
+        </label>
       </div>
     </div>
   );
@@ -413,7 +418,6 @@ function DevSection() {
       <div style={{ fontSize: fz(12), color: 'var(--mute)' }}>{tx('settings.showIdsHint')}</div>
       {/* 外掛的開關（例如 AI） */}
       {plugins.map((p) => p.DevOptions && <p.DevOptions key={p.id} />)}
-      <QuickSearchSettings />
 
     </div>
   );

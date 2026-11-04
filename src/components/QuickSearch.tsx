@@ -119,6 +119,7 @@ function Ring({ qs, at, onPick, onEdit, onClose }: { qs: QuickSearch; at: { x: n
   }, [onClose]);
   const open = shown && !at.closing;
   const n = qs.slots;
+  const center = qs.center ?? 'edit';
   // 按下去往內縮一點；在同一格放開才算點擊：像水波一樣彈一下再搜尋。按住後移開再放開＝取消
   const release = (i: number, it: QsItem) => {
     if (down !== i) return;
@@ -167,13 +168,18 @@ function Ring({ qs, at, onPick, onEdit, onClose }: { qs: QuickSearch; at: { x: n
             </g>
           );
         })}
-        {/* 中間：編輯 */}
-        <g role="menuitem" tabIndex={0} aria-label={tx('qs.edit')} onClick={onEdit} onKeyDown={(ev) => { if (ev.key === 'Enter' || ev.key === ' ') { ev.preventDefault(); onEdit(); } }}
-          onMouseEnter={() => setHover(-1)} onMouseLeave={() => setHover((h) => (h === -1 ? null : h))}
-          style={{ pointerEvents: 'auto', cursor: 'pointer', outline: 'none', transformOrigin: '0px 0px', transform: 'scale(' + (hover === -1 ? 1.06 : 1) + ')', transition: 'transform 300ms ' + SPRING }}>
-          <circle r={RI - GAP} fill="var(--btn)" stroke={hover === -1 ? 'var(--accent)' : 'var(--line4)'} strokeWidth={hover === -1 ? 2 : 1} style={{ transition: 'stroke 120ms ease' }} />
-          <text textAnchor="middle" dominantBaseline="central" fill="var(--text2)" style={{ fontSize: fz(12.5), pointerEvents: 'none', userSelect: 'none' }}>{tx('qs.edit')}</text>
-        </g>
+        {/* 中間：編輯／取消（叉叉）；設成「無」時是透明的，點了也不會關掉圓環 */}
+        {center === 'none' ? <circle r={RI - GAP} fill="transparent" style={{ pointerEvents: 'auto' }} /> : (
+          <g role="menuitem" tabIndex={0} aria-label={center === 'cancel' ? tx('qs.cancel') : tx('qs.edit')} onClick={center === 'cancel' ? onClose : onEdit}
+            onKeyDown={(ev) => { if (ev.key === 'Enter' || ev.key === ' ') { ev.preventDefault(); (center === 'cancel' ? onClose : onEdit)(); } }}
+            onMouseEnter={() => setHover(-1)} onMouseLeave={() => setHover((h) => (h === -1 ? null : h))}
+            style={{ pointerEvents: 'auto', cursor: 'pointer', outline: 'none', transformOrigin: '0px 0px', transform: 'scale(' + (hover === -1 ? 1.06 : 1) + ')', transition: 'transform 300ms ' + SPRING }}>
+            <circle r={RI - GAP} fill="var(--btn)" stroke={hover === -1 ? 'var(--accent)' : 'var(--line4)'} strokeWidth={hover === -1 ? 2 : 1} style={{ transition: 'stroke 120ms ease' }} />
+            {center === 'cancel'
+              ? <path d="M -8 -8 L 8 8 M 8 -8 L -8 8" stroke="var(--text2)" strokeWidth={2.2} strokeLinecap="round" style={{ pointerEvents: 'none' }} />
+              : <text textAnchor="middle" dominantBaseline="central" fill="var(--text2)" style={{ fontSize: fz(12.5), pointerEvents: 'none', userSelect: 'none' }}>{tx('qs.edit')}</text>}
+          </g>
+        )}
       </svg>
     </div>
   );
@@ -282,6 +288,22 @@ function chipNode(p: Chip): HTMLElement {
 
 /** 管理搜尋庫：左邊圓環（拖動條改格數、拖曳互換），右邊編輯選到的那一格 */
 function ManageDialog({ onClose }: { onClose(): void }) {
+  return (
+    <div className="scrim" style={{ zIndex: 125 }}>
+      <div role="dialog" aria-modal="true" aria-labelledby="verso-qsm-title" className="dialog" onKeyDown={(e) => { if (e.key === 'Escape') { e.stopPropagation(); onClose(); } }}
+        style={{ width: 760, maxWidth: 'calc(100vw - 32px)', boxShadow: '0 24px 64px rgba(0,0,0,0.45)', display: 'flex', flexDirection: 'column' }}>
+        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '16px 20px 8px' }}>
+          <h2 id="verso-qsm-title" style={{ margin: 0, fontSize: fz(15), fontWeight: 600 }}>{tx('qs.managerTitle')}</h2>
+          <button type="button" className="btn btn-ghost" onClick={onClose} style={{ height: 30, padding: '0 12px', background: 'var(--btn)', border: '1px solid var(--line4)', borderRadius: 8, fontSize: fz(12.5) }}>{tx('qs.close')}</button>
+        </div>
+        <div style={{ padding: '8px 20px 20px' }}><ManagePanel /></div>
+      </div>
+    </div>
+  );
+}
+
+/** 管理搜尋庫：左邊圓環（拖動條改格數、拖曳互換、點中間設定中間的行為），右邊編輯選到的那一格；設定頁裡直接顯示 */
+export function ManagePanel() {
   const qs = useStore((s) => s.quickSearch);
   const put = (patch: Partial<QuickSearch>) => useStore.getState().set({ quickSearch: { ...useStore.getState().quickSearch, ...patch } });
   const [cur, setCur] = useState<number | null>(null);
@@ -290,9 +312,10 @@ function ManageDialog({ onClose }: { onClose(): void }) {
   const [hoverSlot, setHoverSlot] = useState<number | null>(null);
   const editorRef = useRef<HTMLDivElement>(null);
   const items = Array.from({ length: qs.slots }, (_, i) => qs.items[i] ?? null);
-  const it = cur !== null ? items[cur] ?? { name: '', parts: [] } : null;
+  const it = cur !== null && cur >= 0 ? items[cur] ?? { name: '', parts: [] } : null;
+  const center = qs.center ?? 'edit';
   const setItem = (next: QsItem | null) => {
-    if (cur === null) return;
+    if (cur === null || cur < 0) return;
     const list = Array.from({ length: qs.slots }, (_, i) => qs.items[i] ?? null);
     list[cur] = next && (next.name || next.parts.length) ? next : null;
     put({ items: list });
@@ -315,14 +338,7 @@ function ManageDialog({ onClose }: { onClose(): void }) {
   };
   const min = minSlots(items);
   return (
-    <div className="scrim" style={{ zIndex: 125 }}>
-      <div role="dialog" aria-modal="true" aria-labelledby="verso-qsm-title" className="dialog" onKeyDown={(e) => { if (e.key === 'Escape') { e.stopPropagation(); onClose(); } }}
-        style={{ width: 760, maxWidth: 'calc(100vw - 32px)', boxShadow: '0 24px 64px rgba(0,0,0,0.45)', display: 'flex', flexDirection: 'column' }}>
-        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '16px 20px 8px' }}>
-          <h2 id="verso-qsm-title" style={{ margin: 0, fontSize: fz(15), fontWeight: 600 }}>{tx('qs.managerTitle')}</h2>
-          <button type="button" className="btn btn-ghost" onClick={onClose} style={{ height: 30, padding: '0 12px', background: 'var(--btn)', border: '1px solid var(--line4)', borderRadius: 8, fontSize: fz(12.5) }}>{tx('qs.close')}</button>
-        </div>
-        <div style={{ display: 'flex', gap: 20, padding: '8px 20px 20px', flexWrap: 'wrap' }}>
+        <div style={{ display: 'flex', gap: 20, flexWrap: 'wrap' }}>
           {/* 圓環 */}
           <div style={{ width: 300, display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 10 }}>
             <svg width={280} height={280} viewBox={(-RO - 8) + ' ' + (-RO - 8) + ' ' + (RO * 2 + 16) + ' ' + (RO * 2 + 16)} style={{ overflow: 'visible', touchAction: 'none' }}
@@ -355,8 +371,13 @@ function ManageDialog({ onClose }: { onClose(): void }) {
                   </g>
                 );
               })}
-              <circle r={RI - GAP} fill="var(--btn)" stroke="var(--line4)" />
-              <text textAnchor="middle" dominantBaseline="central" fill="var(--mute)" style={{ fontSize: fz(12), userSelect: 'none' }}>{tx('qs.edit')}</text>
+              <g role="button" tabIndex={0} aria-pressed={cur === -1} aria-label={tx('qs.center')} onClick={() => setCur(-1)}
+                onKeyDown={(e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); setCur(-1); } }} style={{ cursor: 'pointer', outline: 'none' }}>
+                <circle r={RI - GAP} fill={center === 'none' ? 'transparent' : cur === -1 ? 'var(--sel)' : 'var(--btn)'} stroke={cur === -1 ? 'var(--accent)' : 'var(--line4)'} strokeWidth={cur === -1 ? 2 : 1} strokeDasharray={center === 'none' && cur !== -1 ? '4 3' : undefined} />
+                {center === 'cancel'
+                  ? <path d="M -7 -7 L 7 7 M 7 -7 L -7 7" stroke="var(--mute)" strokeWidth={2} strokeLinecap="round" />
+                  : <text textAnchor="middle" dominantBaseline="central" fill="var(--mute)" style={{ fontSize: fz(12), userSelect: 'none' }}>{center === 'none' ? tx('qs.centerNone') : tx('qs.edit')}</text>}
+              </g>
             </svg>
             <label style={{ width: '100%', display: 'flex', alignItems: 'center', gap: 10, fontSize: fz(12.5), color: 'var(--text2)' }}>
               {tx('qs.slots')}
@@ -366,7 +387,7 @@ function ManageDialog({ onClose }: { onClose(): void }) {
                   const list = resize(items, qs.slots, n);
                   if (!list) return;
                   put({ slots: n, items: list });
-                  if (cur !== null && cur >= n) setCur(null);
+                  if (cur !== null && cur >= 0 && cur >= n) setCur(null);
                 }} />
               <span style={{ width: 22, textAlign: 'right', color: 'var(--text)' }}>{qs.slots}</span>
             </label>
@@ -402,49 +423,61 @@ function ManageDialog({ onClose }: { onClose(): void }) {
                   </button>
                 </div>
               </>
+            ) : cur === -1 ? (
+              <div role="radiogroup" aria-label={tx('qs.center')} style={{ display: 'flex', flexDirection: 'column', gap: 8, fontSize: fz(12.5), color: 'var(--text2)' }}>
+                <span>{tx('qs.center')}</span>
+                {(['edit', 'cancel', 'none'] as const).map((c) => (
+                  <label key={c} style={{ display: 'flex', alignItems: 'center', gap: 8, cursor: 'pointer', color: 'var(--text)' }}>
+                    <input type="radio" name="verso-qs-center" checked={center === c} onChange={() => put({ center: c })} />
+                    {c === 'edit' ? tx('qs.centerEdit') : c === 'cancel' ? tx('qs.centerCancel') : tx('qs.centerNoneLong')}
+                  </label>
+                ))}
+              </div>
             ) : <div style={{ margin: 'auto', fontSize: fz(12.5), color: 'var(--mute)' }}>{tx('qs.pickSlot')}</div>}
           </div>
         </div>
-      </div>
-    </div>
   );
 }
 
-/** 開發者選項：快速搜尋的開關；開啟後才出現快捷鍵設定和管理搜尋庫 */
-export function QuickSearchSettings() {
-  const qs = useStore((s) => s.quickSearch);
-  const put = (patch: Partial<QuickSearch>) => useStore.getState().set({ quickSearch: { ...useStore.getState().quickSearch, ...patch } });
+/** 快速搜尋的快捷鍵：點一下再按想用的組合（設定 > 快速搜尋、設定 > 快捷鍵兩邊共用，改哪邊都一樣） */
+export function QsKeyInput({ id }: { id?: string }) {
+  const key = useStore((s) => s.quickSearch.key);
   const [capturing, setCapturing] = useState(false);
   return (
-    <div style={{ display: 'flex', flexDirection: 'column', gap: 10, marginTop: 6 }}>
+    <input id={id} data-qs-capture className="field mono" readOnly value={capturing ? tx('qs.keyPress') : key}
+      onFocus={() => setCapturing(true)} onBlur={() => setCapturing(false)}
+      onKeyDown={(e) => {
+        if (e.key === 'Tab') return;
+        e.preventDefault();
+        e.stopPropagation();
+        if (e.key === 'Escape') { (e.target as HTMLInputElement).blur(); return; }
+        const c = comboOf(e.nativeEvent);
+        if (!c) return;
+        useStore.getState().set({ quickSearch: { ...useStore.getState().quickSearch, key: c } });
+        (e.target as HTMLInputElement).blur();
+      }}
+      style={{ width: 150, height: 30, cursor: 'pointer' }} />
+  );
+}
+
+/** 設定 > 快速搜尋：開關（預設開）、快捷鍵；開著時下面直接是管理搜尋庫 */
+export function QuickSearchSection() {
+  const on = useStore((s) => s.quickSearch.on);
+  return (
+    <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
       <label style={{ display: 'flex', alignItems: 'center', gap: 10, fontSize: fz(13), cursor: 'pointer' }}>
-        <input type="checkbox" role="switch" className="switch" checked={qs.on} onChange={() => put({ on: !qs.on })} />
+        <input type="checkbox" role="switch" className="switch" checked={on} onChange={() => useStore.getState().set({ quickSearch: { ...useStore.getState().quickSearch, on: !on } })} />
         {tx('qs.enable')}
       </label>
       <div style={{ fontSize: fz(12), color: 'var(--mute)' }}>{tx('qs.enableHint')}</div>
-      {qs.on && (
-        <div style={{ display: 'flex', flexDirection: 'column', gap: 10, paddingLeft: 4 }}>
-          <label style={{ display: 'flex', alignItems: 'center', gap: 10, fontSize: fz(12.5), color: 'var(--text2)' }}>
+      {on && (
+        <>
+          <label htmlFor="verso-qs-key" style={{ display: 'flex', alignItems: 'center', gap: 10, fontSize: fz(12.5), color: 'var(--text2)' }}>
             {tx('qs.key')}
-            <input data-qs-capture className="field mono" readOnly value={capturing ? tx('qs.keyPress') : qs.key}
-              onFocus={() => setCapturing(true)} onBlur={() => setCapturing(false)}
-              onKeyDown={(e) => {
-                if (e.key === 'Tab') return;
-                e.preventDefault();
-                e.stopPropagation();
-                if (e.key === 'Escape') { (e.target as HTMLInputElement).blur(); return; }
-                const c = comboOf(e.nativeEvent);
-                if (!c) return;
-                put({ key: c });
-                (e.target as HTMLInputElement).blur();
-              }}
-              style={{ width: 150, height: 30, cursor: 'pointer' }} />
+            <QsKeyInput id="verso-qs-key" />
           </label>
-          <div>
-            <button type="button" className="btn btn-ghost" onClick={() => useStore.getState().set({ qsManage: true })}
-              style={{ height: 32, padding: '0 14px', background: 'var(--btn)', border: '1px solid var(--line4)', borderRadius: 8, fontSize: fz(12.5) }}>{tx('qs.manage')}</button>
-          </div>
-        </div>
+          <div style={{ borderTop: '1px solid var(--line)', paddingTop: 14 }}><ManagePanel /></div>
+        </>
       )}
     </div>
   );
