@@ -232,7 +232,7 @@ function searchAll(files: FileDoc[], q: string, scope: Scope, at: { file: number
       sheet.entries.forEach((e, i) => {
         if (!searchHit(e, q)) return;
         const src = shownSrc(e);
-        hits.push({ f, sh, i, where: `${file.project} · ${file.name} · ${sheet.name} · #${e.id || i + 1}`, src, tgt: e.tgt || tx('side.026'), rank: bestRank([src, e.tgt, e.id], q) });
+        hits.push({ f, sh, i, where: `${file.project} · ${file.name} · ${sheet.name} · #${e.id || i + 1}`, src, tgt: e.tgt || tx('side.026'), rank: q.startsWith('#') ? bestRank([e.id], q.slice(1)) : bestRank([src, e.tgt, e.id], q) });
       });
     });
   });

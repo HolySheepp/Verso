@@ -549,7 +549,12 @@ export const DEFAULT_COL_WIDTHS = [9, 12, 39.5, 39.5];
 /** 畫面上顯示的原文：有暫存的新原文時就是新原文（字典命中、檢查、搜尋都用這個） */
 export const shownSrc = (e: Entry) => e.upd?.src ?? e.src;
 
-export const searchHit = (e: Entry, q: string) => !!q && (shownSrc(e).includes(q) || e.tgt.toLowerCase().includes(q.toLowerCase()) || e.id.includes(q));
+/** 搜尋：原文、譯文、ID；打「#」開頭（例如 #1130）只找 ID */
+export const searchHit = (e: Entry, q: string) => {
+  if (!q) return false;
+  if (q.startsWith('#') && q.length > 1) return e.id.toLowerCase().includes(q.slice(1).toLowerCase());
+  return shownSrc(e).includes(q) || e.tgt.toLowerCase().includes(q.toLowerCase()) || e.id.toLowerCase().includes(q.toLowerCase());
+};
 
 /** 上次的色彩模式與主題色（存在瀏覽器裡），啟動畫面一開始就用它鋪底色，不用等設定檔讀完 */
 export function bootLook(): { theme: Theme; accent: string } {
