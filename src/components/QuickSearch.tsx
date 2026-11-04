@@ -37,7 +37,7 @@ window.addEventListener('mousedown', track, { passive: true });
 export function QuickSearchLayer() {
   const qs = useStore((s) => s.quickSearch);
   const manage = useStore((s) => s.qsManage);
-  const [ring, setRing] = useState<{ x: number; y: number; sel: string } | null>(null);
+  const [ring, setRing] = useState<{ x: number; y: number; sel: string; closing?: boolean } | null>(null);
   const [complete, setComplete] = useState<{ item: QsItem; sel: string } | null>(null);
   const ringRef = useRef(ring);
   ringRef.current = ring;
@@ -51,7 +51,7 @@ export function QuickSearchLayer() {
       if ((ev.target as HTMLElement | null)?.closest?.('[data-qs-capture]')) return;
       ev.preventDefault();
       ev.stopPropagation();
-      if (ringRef.current) { setRing(null); return; }
+      if (ringRef.current) { closeRing(); return; }
       if (useStore.getState().qsManage) return;
       const r = 130;
       const x = Math.min(Math.max(mouse.x, r + 10), window.innerWidth - r - 10);
@@ -62,6 +62,11 @@ export function QuickSearchLayer() {
     return () => window.removeEventListener('keydown', onKey, true);
   }, [qs.on, qs.key]);
 
+  /** 關閉圓環：先快速收回再拿掉 */
+  const closeRing = () => {
+    setRing((r) => (r && !r.closing ? { ...r, closing: true } : r));
+    setTimeout(() => setRing((r) => (r?.closing ? null : r)), RING_OUT);
+  };
   const run = (item: QsItem, sel: string) => {
     setRing(null);
     if (ready(item, sel)) openSearch(composeQuery(item, sel, prefills(item, sel)));
@@ -70,66 +75,106 @@ export function QuickSearchLayer() {
 
   return (
     <>
-      {ring && qs.on && <Ring qs={qs} at={ring} onPick={(it) => run(it, ring.sel)} onEdit={() => { setRing(null); useStore.getState().set({ qsManage: true }); }} onClose={() => setRing(null)} />}
+      {ring && qs.on && <Ring qs={qs} at={ring} onPick={(it) => run(it, ring.sel)} onEdit={() => { setRing(null); useStore.getState().set({ qsManage: true }); }} onClose={closeRing} />}
       {complete && <CompleteDialog item={complete.item} sel={complete.sel} onClose={() => setComplete(null)} />}
       {manage && <ManageDialog onClose={() => useStore.getState().set({ qsManage: false })} />}
     </>
   );
 }
 
-/** 第 i 格在圓上的位置（第 0 格在正上方，順時針） */
-const slotPos = (i: number, n: number, r: number) => {
-  const a = (i / n) * Math.PI * 2 - Math.PI / 2;
-  return { x: Math.cos(a) * r, y: Math.sin(a) * r };
-};
+// ---- 扇形圓環 ----
+/** 圓環的大小：外半徑、內半徑（中間是「編輯」）、區塊之間的縫 */
+const RO = 132, RI = 50, GAP = 4;
+/** 動畫：跟備註面板一樣有彈性（回彈的曲線） */
+const SPRING = 'cubic-bezier(0.3, 1.45, 0.45, 1)';
+const RING_IN = 320, RING_OUT = 130;
 
-function Ring({ qs, at, onPick, onEdit, onClose }: { qs: QuickSearch; at: { x: number; y: number }; onPick(it: QsItem): void; onEdit(): void; onClose(): void }) {
+/** 第 i 格的中心角度（第 0 格在正上方，順時針） */
+const midAngle = (i: number, n: number) => (i / n) * Math.PI * 2 - Math.PI / 2;
+/** 第 i 格扇形的路徑（兩邊各留半個縫，縫的寬度內外一樣） */
+function wedgePath(i: number, n: number, ri = RI, ro = RO) {
+  const m = midAngle(i, n), half = Math.PI / n;
+  const pt = (r: number, a: number) => [Math.cos(a) * r, Math.sin(a) * r].map((v) => v.toFixed(2)).join(' ');
+  const go = (r: number) => Math.min(half * 0.9, GAP / 2 / r);
+  const [a0o, a1o, a0i, a1i] = [m - half + go(ro), m + half - go(ro), m - half + go(ri), m + half - go(ri)];
+  const large = a1o - a0o > Math.PI ? 1 : 0;
+  return 'M ' + pt(ro, a0o) + ' A ' + ro + ' ' + ro + ' 0 ' + large + ' 1 ' + pt(ro, a1o) + ' L ' + pt(ri, a1i) + ' A ' + ri + ' ' + ri + ' 0 ' + large + ' 0 ' + pt(ri, a0i) + ' Z';
+}
+/** 區塊裡放文字的位置（扇形中間） */
+const labelAt = (i: number, n: number) => { const a = midAngle(i, n), r = (RI + RO) / 2 + 2; return { x: Math.cos(a) * r, y: Math.sin(a) * r }; };
+/** 格子越多、字越少 */
+const labelMax = (n: number) => (n <= 4 ? 10 : n <= 6 ? 7 : n <= 9 ? 5 : 4);
+
+function Ring({ qs, at, onPick, onEdit, onClose }: { qs: QuickSearch; at: { x: number; y: number; closing?: boolean }; onPick(it: QsItem): void; onEdit(): void; onClose(): void }) {
   const [hover, setHover] = useState<number | null>(null);
   const [down, setDown] = useState<number | null>(null);
-  const [shake, setShake] = useState<number | null>(null);
+  const [pop, setPop] = useState<number | null>(null);
+  // 開啟：先放在縮小的樣子，下一格畫面再彈開
+  const [shown, setShown] = useState(false);
+  useEffect(() => { const id = requestAnimationFrame(() => requestAnimationFrame(() => setShown(true))); return () => cancelAnimationFrame(id); }, []);
   useEffect(() => {
     const onKey = (ev: KeyboardEvent) => { if (ev.key === 'Escape') { ev.preventDefault(); ev.stopPropagation(); onClose(); } };
     window.addEventListener('keydown', onKey, true);
     return () => window.removeEventListener('keydown', onKey, true);
   }, [onClose]);
-  const R = 96;
-  // 按下後滑鼠移開再放開＝取消；在同一格放開才算點擊（先小小抖一下再搜尋）
+  const open = shown && !at.closing;
+  const n = qs.slots;
+  // 按下去往內縮一點；在同一格放開才算點擊：像水波一樣彈一下再搜尋。按住後移開再放開＝取消
   const release = (i: number, it: QsItem) => {
     if (down !== i) return;
     setDown(null);
-    setShake(i);
-    setTimeout(() => onPick(it), 170);
+    setPop(i);
+    setTimeout(() => onPick(it), 220);
   };
+  const size = (RO + 14) * 2;
   return (
     <div style={{ position: 'fixed', inset: 0, zIndex: 120 }} onMouseDown={(ev) => { if (ev.target === ev.currentTarget) onClose(); }} onMouseUp={() => setDown(null)}>
-      <div role="menu" aria-label={tx('qs.ring')} style={{ position: 'absolute', left: at.x, top: at.y, width: 0, height: 0 }}>
-        <div aria-hidden="true" style={{ position: 'absolute', left: -R - 44, top: -R - 44, width: (R + 44) * 2, height: (R + 44) * 2, borderRadius: '50%', background: 'color-mix(in srgb, var(--pop) 70%, transparent)', border: '1px solid var(--line4)', boxShadow: '0 16px 48px rgba(0,0,0,0.35)', pointerEvents: 'none' }} />
-        {Array.from({ length: qs.slots }, (_, i) => {
+      <svg role="menu" aria-label={tx('qs.ring')} width={size} height={size} viewBox={(-size / 2) + ' ' + (-size / 2) + ' ' + size + ' ' + size}
+        style={{
+          position: 'absolute', left: at.x - size / 2, top: at.y - size / 2, overflow: 'visible', pointerEvents: 'none',
+          transform: open ? 'scale(1)' : 'scale(0.35)', opacity: open ? 1 : 0, transformOrigin: '50% 50%',
+          transition: at.closing ? 'transform ' + RING_OUT + 'ms ease-in, opacity ' + RING_OUT + 'ms ease-in' : 'transform ' + RING_IN + 'ms ' + SPRING + ', opacity 140ms ease',
+          filter: 'drop-shadow(0 12px 28px rgba(0,0,0,0.35))',
+        }}>
+        {Array.from({ length: n }, (_, i) => {
           const it = qs.items[i];
           if (!hasContent(it)) return null;
-          const p = slotPos(i, qs.slots, R);
-          const big = hover === i && (down === null || down === i);
+          const a = midAngle(i, n);
+          const on = hover === i && (down === null || down === i);
+          const pressed = down === i && hover === i;
+          // 滑鼠移上去：往外（離圓心的方向）推出去、放大一點
+          const out = on ? 7 : 0, k = pressed ? 0.95 : on ? 1.05 : 1;
+          const lp = labelAt(i, n);
+          const delay = at.closing ? 0 : 30 + i * 22;
           return (
-            <button key={i} type="button" role="menuitem" className="qs-opt"
+            <g key={i} role="menuitem" tabIndex={0} aria-label={labelOf(it, chipText, 40)}
               onMouseEnter={() => setHover(i)} onMouseLeave={() => setHover((h) => (h === i ? null : h))}
               onMouseDown={(ev) => { if (ev.button === 0) { ev.preventDefault(); setDown(i); } }} onMouseUp={(ev) => { ev.stopPropagation(); release(i, it); }}
               onKeyDown={(ev) => { if (ev.key === 'Enter' || ev.key === ' ') { ev.preventDefault(); onPick(it); } }}
-              onAnimationEnd={() => setShake(null)}
               style={{
-                position: 'absolute', left: p.x, top: p.y, transform: `translate(-50%, -50%) scale(${big ? 1.12 : 1})`, transition: 'transform 120ms ease',
-                maxWidth: 110, padding: '6px 11px', borderRadius: 16, border: '1px solid var(--line4)', background: big ? 'var(--hv3)' : 'var(--card)', color: 'var(--text)',
-                fontSize: fz(12.5), whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis', boxShadow: '0 2px 8px rgba(0,0,0,0.2)',
-                animation: shake === i ? 'qs-shake 170ms ease' : undefined,
+                pointerEvents: 'auto', cursor: 'pointer', outline: 'none', transformOrigin: '0px 0px',
+                transform: 'translate(' + (Math.cos(a) * out).toFixed(2) + 'px, ' + (Math.sin(a) * out).toFixed(2) + 'px) scale(' + (open ? k : 0.6) + ')',
+                opacity: open ? 1 : 0,
+                transition: 'transform ' + (open ? 300 : RING_OUT) + 'ms ' + (open ? SPRING : 'ease-in') + ' ' + (shown && hover === null && down === null ? delay : 0) + 'ms, opacity 160ms ease ' + delay + 'ms',
               }}>
-              {labelOf(it, chipText)}
-            </button>
+              <g style={{ transformOrigin: '0px 0px', animation: pop === i ? 'qs-pop 240ms ' + SPRING : undefined }} onAnimationEnd={() => setPop(null)}>
+                <path d={wedgePath(i, n)} fill={on ? 'var(--hv3)' : 'var(--card)'} stroke={on ? 'var(--accent)' : 'var(--line4)'} strokeWidth={on ? 2 : 1}
+                  style={{ transition: 'fill 120ms ease, stroke 120ms ease' }} />
+                <text x={lp.x} y={lp.y} textAnchor="middle" dominantBaseline="central" fill="var(--text)" style={{ fontSize: fz(12.5), pointerEvents: 'none', userSelect: 'none' }}>
+                  {labelOf(it, chipText, labelMax(n))}
+                </text>
+              </g>
+            </g>
           );
         })}
-        <button type="button" role="menuitem" onClick={onEdit}
-          style={{ position: 'absolute', left: 0, top: 0, transform: 'translate(-50%, -50%)', width: 64, height: 64, borderRadius: '50%', border: '1px solid var(--line4)', background: 'var(--btn)', color: 'var(--text2)', fontSize: fz(12.5) }}>
-          {tx('qs.edit')}
-        </button>
-      </div>
+        {/* 中間：編輯 */}
+        <g role="menuitem" tabIndex={0} aria-label={tx('qs.edit')} onClick={onEdit} onKeyDown={(ev) => { if (ev.key === 'Enter' || ev.key === ' ') { ev.preventDefault(); onEdit(); } }}
+          onMouseEnter={() => setHover(-1)} onMouseLeave={() => setHover((h) => (h === -1 ? null : h))}
+          style={{ pointerEvents: 'auto', cursor: 'pointer', outline: 'none', transformOrigin: '0px 0px', transform: 'scale(' + (hover === -1 ? 1.06 : 1) + ')', transition: 'transform 300ms ' + SPRING }}>
+          <circle r={RI - GAP} fill="var(--btn)" stroke={hover === -1 ? 'var(--accent)' : 'var(--line4)'} strokeWidth={hover === -1 ? 2 : 1} style={{ transition: 'stroke 120ms ease' }} />
+          <text textAnchor="middle" dominantBaseline="central" fill="var(--text2)" style={{ fontSize: fz(12.5), pointerEvents: 'none', userSelect: 'none' }}>{tx('qs.edit')}</text>
+        </g>
+      </svg>
     </div>
   );
 }
@@ -242,6 +287,7 @@ function ManageDialog({ onClose }: { onClose(): void }) {
   const [cur, setCur] = useState<number | null>(null);
   const [req, setReq] = useState({ sel: false, fill: false });
   const [drag, setDrag] = useState<number | null>(null);
+  const [hoverSlot, setHoverSlot] = useState<number | null>(null);
   const editorRef = useRef<HTMLDivElement>(null);
   const items = Array.from({ length: qs.slots }, (_, i) => qs.items[i] ?? null);
   const it = cur !== null ? items[cur] ?? { name: '', parts: [] } : null;
@@ -268,7 +314,6 @@ function ManageDialog({ onClose }: { onClose(): void }) {
     el.dispatchEvent(new Event('input', { bubbles: true }));
   };
   const min = minSlots(items);
-  const R = 92;
   return (
     <div className="scrim" style={{ zIndex: 125 }}>
       <div role="dialog" aria-modal="true" aria-labelledby="verso-qsm-title" className="dialog" onKeyDown={(e) => { if (e.key === 'Escape') { e.stopPropagation(); onClose(); } }}
@@ -280,37 +325,39 @@ function ManageDialog({ onClose }: { onClose(): void }) {
         <div style={{ display: 'flex', gap: 20, padding: '8px 20px 20px', flexWrap: 'wrap' }}>
           {/* 圓環 */}
           <div style={{ width: 300, display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 10 }}>
-            <div style={{ position: 'relative', width: 280, height: 280 }}>
-              <div aria-hidden="true" style={{ position: 'absolute', inset: 6, borderRadius: '50%', border: '1px dashed var(--line4)' }} />
+            <svg width={280} height={280} viewBox={(-RO - 8) + ' ' + (-RO - 8) + ' ' + (RO * 2 + 16) + ' ' + (RO * 2 + 16)} style={{ overflow: 'visible', touchAction: 'none' }}
+              onPointerUp={() => setDrag(null)}>
               {items.map((x, i) => {
-                const p = slotPos(i, qs.slots, R);
-                const on = cur === i;
+                const on = cur === i, set = hasContent(x), over = drag !== null && drag !== i && hoverSlot === i;
+                const lp = labelAt(i, qs.slots);
                 return (
-                  <button key={i} type="button" draggable onClick={() => setCur(i)}
-                    onDragStart={(e) => { setDrag(i); e.dataTransfer.effectAllowed = 'move'; }}
-                    onDragOver={(e) => { if (drag !== null) e.preventDefault(); }}
-                    onDrop={(e) => {
-                      e.preventDefault();
-                      if (drag === null || drag === i) return;
-                      const list = [...items];
-                      [list[drag], list[i]] = [list[i], list[drag]];
-                      put({ items: list });
-                      if (cur === drag) setCur(i); else if (cur === i) setCur(drag);
+                  <g key={i} role="button" tabIndex={0} aria-pressed={on} aria-label={set ? labelOf(x, chipText, 40) : tx('qs.empty')}
+                    onPointerDown={(e) => { if (e.button === 0) { setDrag(i); setCur(i); } }}
+                    onPointerEnter={() => setHoverSlot(i)} onPointerLeave={() => setHoverSlot((h) => (h === i ? null : h))}
+                    onPointerUp={(e) => {
+                      e.stopPropagation();
+                      if (drag !== null && drag !== i) {
+                        const list = [...items];
+                        [list[drag], list[i]] = [list[i], list[drag]];
+                        put({ items: list });
+                        setCur(i);
+                      }
                       setDrag(null);
                     }}
-                    onDragEnd={() => setDrag(null)}
-                    aria-pressed={on} title={tx('qs.dragHint')}
-                    style={{
-                      position: 'absolute', left: 140 + p.x, top: 140 + p.y, transform: 'translate(-50%, -50%)', maxWidth: 96, minWidth: 40, padding: '5px 9px', borderRadius: 14,
-                      border: `1px ${hasContent(x) ? 'solid' : 'dashed'} ${on ? 'var(--accent)' : 'var(--line4)'}`, background: on ? 'var(--sel)' : hasContent(x) ? 'var(--card)' : 'transparent',
-                      color: hasContent(x) ? 'var(--text)' : 'var(--mute)', fontSize: fz(12), whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis', cursor: 'pointer',
-                    }}>
-                    {hasContent(x) ? labelOf(x, chipText) : tx('qs.empty')}
-                  </button>
+                    onKeyDown={(e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); setCur(i); } }}
+                    style={{ cursor: drag !== null ? 'grabbing' : 'pointer', outline: 'none' }}>
+                    <title>{tx('qs.dragHint')}</title>
+                    <path d={wedgePath(i, qs.slots)} fill={on ? 'var(--sel)' : set ? 'var(--card)' : 'transparent'}
+                      stroke={on || over ? 'var(--accent)' : 'var(--line4)'} strokeWidth={on || over ? 2 : 1} strokeDasharray={set || on ? undefined : '4 3'} />
+                    <text x={lp.x} y={lp.y} textAnchor="middle" dominantBaseline="central" fill={set ? 'var(--text)' : 'var(--mute)'} style={{ fontSize: fz(12), pointerEvents: 'none', userSelect: 'none' }}>
+                      {set ? labelOf(x, chipText, labelMax(qs.slots)) : tx('qs.empty')}
+                    </text>
+                  </g>
                 );
               })}
-              <span style={{ position: 'absolute', left: 140, top: 140, transform: 'translate(-50%, -50%)', fontSize: fz(12), color: 'var(--mute)' }}>{tx('qs.edit')}</span>
-            </div>
+              <circle r={RI - GAP} fill="var(--btn)" stroke="var(--line4)" />
+              <text textAnchor="middle" dominantBaseline="central" fill="var(--mute)" style={{ fontSize: fz(12), userSelect: 'none' }}>{tx('qs.edit')}</text>
+            </svg>
             <label style={{ width: '100%', display: 'flex', alignItems: 'center', gap: 10, fontSize: fz(12.5), color: 'var(--text2)' }}>
               {tx('qs.slots')}
               <input type="range" min={2} max={QS_MAX} value={qs.slots} style={{ flexGrow: 1 }}
