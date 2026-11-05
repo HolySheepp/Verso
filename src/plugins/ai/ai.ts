@@ -35,8 +35,9 @@ const TOOLS = [
   {
     name: 'get_task',
     description: 'Get the task in batches: the mode ("translate" or "verify"), total (how many entries the task has), remaining (how many come after this batch), next_offset (pass it as offset to get the next batch; null when this is the last one) '
-      + 'and this batch of entries. Each entry has index, id, speaker, source text (src), current translation (tgt), suggestion, note, '
-      + 'the 5 entries before and after it (context; entries that are themselves in this batch are left out of the context, look at them in entries), the glossary terms found in its source text (glossary: term and its required translations), '
+      + 'and this batch of entries. Each entry has index, id, speaker, source text (src), current translation (tgt; it already includes the translator\'s edits that are not applied yet, and then tgt_before_edits is the translation without them), suggestion, note, '
+      + 'extra (other columns of the sheet, as name and text; reference material to consider when translating and checking; left out when there are none), '
+      + 'the 5 entries before and after it (context: id, speaker, src, tgt with edits applied, and suggestion when there is one, then tgt_before_edits too; entries that are themselves in this batch are left out of the context, look at them in entries), the glossary terms found in its source text (glossary: term and its required translations), '
       + 'length_limit (max_lines the English must fit in, at the given width and font; null when there is no limit), '
       + 'checks (problems Verso\'s checks already find in the current translation, with the edits applied; for overflows also max_lines, lines_now and about_chars_to_cut) '
       + 'and suggestion_checks (the same for the suggestion). Both are left out when there is nothing to report.',
@@ -105,8 +106,22 @@ function activeTerms() {
   return { terms: p.glossary.filter((g) => g.term && on.has(dictKey(g.proj, g.dict))), current };
 }
 
-/** 一條的上下文（只給 AI 參考） */
-const brief = (e: Entry) => ({ id: e.id, speaker: e.speaker, src: shownSrc(e), tgt: e.tgt });
+/** 有修改時是修改後的句子；沒有修改時是 undefined */
+const editedOf = (e: Entry) => { const t = checkText(e); return t !== e.tgt ? t : undefined; };
+/** 另外抓的欄（雲端設定 Google 表時另外抓的），沒有內容的不給 */
+const extraOf = (e: Entry) => { const x = (e.extraNotes ?? []).filter((n) => n.text.trim()).map((n) => ({ name: n.name, text: n.text })); return x.length ? { extra: x } : {}; };
+
+/**
+ * 一條的上下文（只給 AI 參考）：有修改的只給修改後的句子；
+ * 有建議翻譯的，給建議翻譯，也給原句
+ */
+const brief = (e: Entry) => {
+  const edited = editedOf(e);
+  return {
+    id: e.id, speaker: e.speaker, src: shownSrc(e), tgt: edited ?? e.tgt,
+    ...(e.sugg.trim() ? { suggestion: e.sugg, ...(edited !== undefined ? { tgt_before_edits: e.tgt } : {}) } : {}),
+  };
+};
 
 /** 這條要用的長度標準（條目自己的，沒有就用檔案的） */
 function stdOf(j: Job, e: Entry): LengthStd | null {
@@ -183,7 +198,10 @@ function getTask(j: Job, offset = 0, limit = BATCH) {
       if (!e) return null;
       const hits = findHits(shownSrc(e), terms, current);
       return {
-        index: i, id: e.id, speaker: e.speaker, src: shownSrc(e), tgt: e.tgt, suggestion: e.sugg, note: e.note,
+        // 有還沒套用的修改：tgt 給修改後的句子（檢查結果也是照這句算），原句另外給
+        index: i, id: e.id, speaker: e.speaker, src: shownSrc(e), tgt: editedOf(e) ?? e.tgt,
+        ...(editedOf(e) !== undefined ? { tgt_before_edits: e.tgt } : {}),
+        suggestion: e.sugg, note: e.note, ...extraOf(e),
         context_before: ctx(Math.max(0, row - CONTEXT), row),
         context_after: ctx(row + 1, row + 1 + CONTEXT),
         glossary: hits.map((h) => ({ term: h.term.term, translations: [...new Set(h.terms.map((t) => t.en))] })),
@@ -197,8 +215,9 @@ function getTask(j: Job, offset = 0, limit = BATCH) {
 /** 譯文放進修改框（驗證模式的修改：底線，可以套用或忽略） */
 function withEdits(e: Entry, text: string): Entry {
   // 整句比對：以詞為單位算出一組一組的修改，中間沒改的地方不算修改
+  // AI 是在修改後的句子上改的，所以跟原句比：使用者原本的修改也包含在算出來的修改裡
   const edits = wordEdits(e.tgt, text);
-  if (!edits.length) return e;
+  if (!edits.length) return editsOf(e).length ? { ...e, ver: undefined } : e;
   const next: Entry = { ...e, ver: { base: e.tgt, edits, ...(e.ver?.prev !== undefined ? { prev: e.ver.prev } : {}) } };
   return next;
 }
@@ -248,12 +267,13 @@ function callTool(name: string, args: Record<string, unknown>): unknown {
     const again = !!j.wrote[e.uid];
     const base = again ? j.before[e.uid] : e;
     const reset = (x: Entry): Entry => (again ? { ...x, tgt: base.tgt, ver: base.ver, sugg: base.sugg, mark: base.mark, keptMark: base.keptMark, pending: base.pending } : x);
-    if (text === base.tgt) {
+    // AI 拿到的是修改後的句子：交回一樣的句子就是不用改（使用者的修改照舊留著）
+    if (text === checkText(base)) {
       if (again) { aiPatch(j.fid, j.sheet, e.uid, reset); delete j.wrote[e.uid]; progress(j); }
       return 'unchanged';
     }
     // 整句換掉或改很多：放進建議翻譯；小幅修改：放進修改框（跟驗證模式一樣自動標疑慮）
-    if (ratio(base.tgt, text) < BIG_CHANGE) {
+    if (ratio(checkText(base), text) < BIG_CHANGE) {
       // 跟手動填建議翻譯一樣：標疑慮，記住原本的標記
       aiPatch(j.fid, j.sheet, e.uid, (x) => withSugg(reset(x), text));
       j.wrote[e.uid] = 'sugg';
@@ -380,7 +400,7 @@ const prompts = {
     'You are reviewing a game translation inside Verso, a translation tool. Use only the verso MCP tools.',
     guide ? 'Follow the review guidelines below.' : '',
     BATCH_RULE,
-    'For every entry, check its tgt against src, the glossary, the speaker, the note and the surrounding context.',
+    'For every entry, check its tgt against src, the glossary, the speaker, the note, its extra columns and the surrounding context.',
     'If the translation needs changes, call write_revision(index, text) with the full corrected translation. If it is fine, leave it alone.',
     CHECKS_RULE,
     'Then call get_checks and fix what it reports for the entries you revised (especially length overflows): rewrite them, or call undo_change(index) if your change was wrong and the original should stay.',

@@ -8,6 +8,7 @@ import { useStore } from '../../state/store';
 import { ConfirmDialog } from '../../components/ConfirmDialog';
 import { Select } from '../../components/Select';
 import type { VersoPlugin } from '../registry';
+import { projectTag } from '../../model/types';
 import { aiTarget, runAi } from './ai';
 
 /** 條目欄上方的 AI 按鈕：處理中變成「停止」；一次超過 50 條先問 */
@@ -30,9 +31,14 @@ function AiButton() {
   );
 }
 
-/** 開發者選項：AI 總開關（預設關閉） */
+/**
+ * 開發者選項：AI 總開關（預設關閉）。
+ * 雲端模式沒有專案設定可以開，打開 AI 時直接在下面列出各雲端專案的 AI 設定（存在這台電腦）
+ */
 function AiDevOption() {
   const enabled = useStore((s) => s.aiEnabled);
+  const cloud = useStore((s) => s.cloudMode);
+  const projects = useStore((s) => s.cloudProjects);
   const set = useStore((s) => s.set);
   return (
     <>
@@ -41,6 +47,12 @@ function AiDevOption() {
         {tx('settings.aiEnabled')}
       </label>
       <div style={{ fontSize: fz(12), color: 'var(--mute)' }}>{tx('settings.aiHint')}</div>
+      {enabled && cloud && projects.map((name, n) => (
+        <div key={name} style={{ display: 'flex', flexDirection: 'column', gap: 8, marginTop: 10, padding: '10px 12px', border: '1px solid var(--line3)', borderRadius: 8 }}>
+          <h3 style={h3}>{name}</h3>
+          <AiFields tag={projectTag(name)} idp={`verso-dev-ai${n}`} />
+        </div>
+      ))}
     </>
   );
 }
@@ -74,8 +86,18 @@ function GuideField({ id, value, onChange }: { id: string; value: string; onChan
 /** 專案設定：翻譯和驗證的準則檔、模型、effort */
 function AiProjectSettings({ tag }: { tag: string }) {
   const on = useStore((s) => s.devMode && s.aiEnabled);
-  const ai = useStore((s) => s.project?.tagSettings?.[tag]?.ai) ?? {};
   if (!on) return null;
+  return (
+    <section style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
+      <h3 style={h3}>{tx('projset.ai')}</h3>
+      <AiFields tag={tag} idp="verso-ps" />
+    </section>
+  );
+}
+
+/** 一個專案的 AI 設定欄位（專案設定、雲端模式的開發者選項共用） */
+function AiFields({ tag, idp }: { tag: string; idp: string }) {
+  const ai = useStore((s) => s.project?.tagSettings?.[tag]?.ai) ?? {};
   const setAi = (patch: Record<string, string | undefined>) => {
     const next = { ...ai, ...patch } as Record<string, string | undefined>;
     for (const k of Object.keys(next)) if (!next[k]) delete next[k];
@@ -83,22 +105,19 @@ function AiProjectSettings({ tag }: { tag: string }) {
   };
   const label: React.CSSProperties = { fontSize: fz(12.5), color: 'var(--text2)' };
   return (
-    <section style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
-      <h3 style={h3}>{tx('projset.ai')}</h3>
       <div style={{ display: 'grid', gridTemplateColumns: '120px minmax(0, 1fr)', alignItems: 'center', gap: '8px 12px' }}>
-        <label htmlFor="verso-ps-skill-t" style={label}>{tx('settings.aiSkillTranslate')}</label>
-        <GuideField id="verso-ps-skill-t" value={ai.guideTranslate ?? ''} onChange={(v) => setAi({ guideTranslate: v })} />
-        <label htmlFor="verso-ps-skill-v" style={label}>{tx('settings.aiSkillVerify')}</label>
-        <GuideField id="verso-ps-skill-v" value={ai.guideVerify ?? ''} onChange={(v) => setAi({ guideVerify: v })} />
-        <label htmlFor="verso-ps-model" style={label}>{tx('projset.model')}</label>
+        <label htmlFor={`${idp}-skill-t`} style={label}>{tx('settings.aiSkillTranslate')}</label>
+        <GuideField id={`${idp}-skill-t`} value={ai.guideTranslate ?? ''} onChange={(v) => setAi({ guideTranslate: v })} />
+        <label htmlFor={`${idp}-skill-v`} style={label}>{tx('settings.aiSkillVerify')}</label>
+        <GuideField id={`${idp}-skill-v`} value={ai.guideVerify ?? ''} onChange={(v) => setAi({ guideVerify: v })} />
+        <label htmlFor={`${idp}-model`} style={label}>{tx('projset.model')}</label>
         {/* 模型名稱不翻 */}
-        <Select id="verso-ps-model" value={ai.model ?? AI_DEFAULTS.model} options={MODELS.map((m) => ({ value: m, label: m[0].toUpperCase() + m.slice(1) }))}
+        <Select id={`${idp}-model`} value={ai.model ?? AI_DEFAULTS.model} options={MODELS.map((m) => ({ value: m, label: m[0].toUpperCase() + m.slice(1) }))}
           onChange={(v) => setAi({ model: v === AI_DEFAULTS.model ? undefined : v })} style={{ width: 180 }} />
-        <label htmlFor="verso-ps-effort" style={label}>{tx('projset.effort')}</label>
-        <Select id="verso-ps-effort" value={ai.effort ?? AI_DEFAULTS.effort} options={EFFORTS.map((m) => ({ value: m, label: m }))}
+        <label htmlFor={`${idp}-effort`} style={label}>{tx('projset.effort')}</label>
+        <Select id={`${idp}-effort`} value={ai.effort ?? AI_DEFAULTS.effort} options={EFFORTS.map((m) => ({ value: m, label: m }))}
           onChange={(v) => setAi({ effort: v === AI_DEFAULTS.effort ? undefined : v })} style={{ width: 180 }} />
       </div>
-    </section>
   );
 }
 
