@@ -11,7 +11,8 @@ import { TGT_COL, parseKey } from '../../model/cells';
 import { appendNote } from '../../model/paste';
 import { composeNote, newCommentId, parseNote } from '../../model/comments';
 import { ratio } from '../../model/srcUpdate';
-import { applyChange, compose, editsOf } from '../../model/verify';
+import { editsOf } from '../../model/verify';
+import { wordEdits } from '../../model/wordDiff';
 import { dictKey, projectTag, type Entry } from '../../model/types';
 import { findHits } from '../../state/dictHits';
 import { checkText, fileStdFor, currentOf, currentProjectOf, dictEnabledIn, shownSrc, showToast, useStore, withSugg } from '../../state/store';
@@ -195,10 +196,10 @@ function getTask(j: Job, offset = 0, limit = BATCH) {
 
 /** 譯文放進修改框（驗證模式的修改：底線，可以套用或忽略） */
 function withEdits(e: Entry, text: string): Entry {
-  const edits = editsOf(e);
-  const r = applyChange(e.tgt, edits, compose(e.tgt, edits), text);
-  if (!r.edits.length) return e;
-  const next: Entry = { ...e, ver: { base: e.tgt, edits: r.edits, ...(e.ver?.prev !== undefined ? { prev: e.ver.prev } : {}) } };
+  // 整句比對：以詞為單位算出一組一組的修改，中間沒改的地方不算修改
+  const edits = wordEdits(e.tgt, text);
+  if (!edits.length) return e;
+  const next: Entry = { ...e, ver: { base: e.tgt, edits, ...(e.ver?.prev !== undefined ? { prev: e.ver.prev } : {}) } };
   return next;
 }
 

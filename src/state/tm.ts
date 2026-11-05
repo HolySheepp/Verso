@@ -3,7 +3,7 @@
 import { create } from 'zustand';
 import { isTauri } from '@tauri-apps/api/core';
 import { tx } from '../i18n';
-import { applyChange, compose, editsOf } from '../model/verify';
+import { wordEdits } from '../model/wordDiff';
 import { io } from '../data/fsio';
 import { TmIndex, sameText, type TmMatch, type TmRow, type TermSpan } from '../model/tm';
 import { SHARED, type Entry, type FileDoc, type Sheet } from '../model/types';
@@ -305,9 +305,8 @@ export function applyMatch(m: TmMatch) {
   if (s.mode === 'verify') {
     const vb = s.workBoxes.verify;
     if (vb?.mod === false) s.set({ workBoxes: { ...s.workBoxes, verify: { ...vb, mod: true } } });
-    const edits = editsOf(entry);
-    const r = applyChange(entry.tgt, edits, compose(entry.tgt, edits), text);
-    s.setVerify(r.edits);
+    // 以詞為單位比對整句，只有不一樣的詞變成修改
+    s.setVerify(wordEdits(entry.tgt, text));
     if (misses.length) showToast(tx('tm.patternMiss', { list: misses.join(tx('common.sep')) }), { warn: true });
     return;
   }
