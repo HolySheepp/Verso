@@ -16,6 +16,7 @@ import { MarkIcon } from './MarkIcon';
 import { MarkMenu } from './MarkMenu';
 import { ContextMenu } from './ContextMenu';
 import { applyChange, applyOne, compose, editsOf, removeOne, spansOf, type VEdit } from '../model/verify';
+import { wordEdits } from '../model/wordDiff';
 import { verifySession } from '../state/verifySession';
 import { shortcutsBlocked } from './Shortcuts';
 import { applyMatch, exactMatch, matchText, useTm, useTmMatches } from '../state/tm';
@@ -347,7 +348,15 @@ function WorkPanelInner({ height, maxH }: { height: number; maxH: number }) {
     const e = currentOf(useStore.getState()).entry;
     if (!e) return;
     const ed = editsOf(e);
-    const r = applyChange(e.tgt, ed, compose(e.tgt, ed), value, caret);
+    const old = compose(e.tgt, ed);
+    // 一次改了一大段（貼上整句、選取一段後打字或刪掉）：整句以詞為單位重新比對，只有真的不一樣的詞是修改；
+    // 平常一個字一個字打或刪，照原本的方式併進正在改的那一組
+    let p = 0;
+    while (p < old.length && p < value.length && old[p] === value[p]) p++;
+    let q = 0;
+    while (q < old.length - p && q < value.length - p && old[old.length - 1 - q] === value[value.length - 1 - q]) q++;
+    const big = old.length - p - q > 1 || value.length - p - q > 1;
+    const r = big ? { edits: wordEdits(e.tgt, value), active: '' } : applyChange(e.tgt, ed, old, value, caret);
     // 譯文和修改會一起存進同一格：超過 Excel 一格的上限就不收這次輸入
     if (r.edits.length && !entryFits({ ...e, ver: { ...e.ver, base: e.tgt, edits: r.edits } })) { showToast(tx('work.tooLong')); return; }
     dirty.current = true; verifySession.dirty = true;
