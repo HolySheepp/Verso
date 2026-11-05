@@ -2,6 +2,7 @@
 // 整個資料夾（加上桌面外殼的 src-tauri/src/plugins/ai）刪掉重新打包，就是沒有 AI 的 Verso。
 import { useState } from 'react';
 import { tx } from '../../i18n';
+import { IconFolder } from '../../components/icons';
 import { fz } from '../../model/fonts';
 import { useStore } from '../../state/store';
 import { ConfirmDialog } from '../../components/ConfirmDialog';
@@ -50,7 +51,27 @@ const EFFORTS = ['low', 'medium', 'high', 'xhigh', 'max'];
 export const AI_DEFAULTS = { model: 'opus', effort: 'medium' };
 const h3: React.CSSProperties = { margin: 0, fontSize: fz(12), fontWeight: 600, letterSpacing: 1, color: 'var(--text2)' };
 
-/** 專案設定：翻譯和驗證的 skill、模型、effort */
+/** 準則檔：可以直接貼路徑，或按右邊的按鈕選檔 */
+function GuideField({ id, value, onChange }: { id: string; value: string; onChange(v: string): void }) {
+  const pick = async () => {
+    try {
+      const { open } = await import('@tauri-apps/plugin-dialog');
+      const f = await open({ multiple: false, directory: false, filters: [{ name: 'Text', extensions: ['md', 'txt', 'markdown'] }, { name: '*', extensions: ['*'] }] });
+      if (typeof f === 'string') onChange(f);
+    } catch { /* 沒有桌面外殼 */ }
+  };
+  return (
+    <span style={{ display: 'flex', gap: 6, minWidth: 0 }}>
+      <input id={id} className="field" value={value} placeholder={tx('settings.aiGuidePh')} onChange={(e) => onChange(e.target.value)} style={{ flexGrow: 1, minWidth: 0 }} />
+      <button type="button" className="ib" aria-label={tx('settings.aiGuidePh')} title={tx('settings.aiGuidePh')} onClick={() => void pick()}
+        style={{ width: 34, height: 34, flexShrink: 0, display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 0, background: 'var(--btn)', border: '1px solid var(--line4)', borderRadius: 8, color: 'var(--text2)' }}>
+        <IconFolder size={15} />
+      </button>
+    </span>
+  );
+}
+
+/** 專案設定：翻譯和驗證的準則檔、模型、effort */
 function AiProjectSettings({ tag }: { tag: string }) {
   const on = useStore((s) => s.devMode && s.aiEnabled);
   const ai = useStore((s) => s.project?.tagSettings?.[tag]?.ai) ?? {};
@@ -66,9 +87,9 @@ function AiProjectSettings({ tag }: { tag: string }) {
       <h3 style={h3}>{tx('projset.ai')}</h3>
       <div style={{ display: 'grid', gridTemplateColumns: '120px minmax(0, 1fr)', alignItems: 'center', gap: '8px 12px' }}>
         <label htmlFor="verso-ps-skill-t" style={label}>{tx('settings.aiSkillTranslate')}</label>
-        <input id="verso-ps-skill-t" className="field" value={ai.skillTranslate ?? ''} placeholder={tx('settings.aiSkillNone')} onChange={(e) => setAi({ skillTranslate: e.target.value })} />
+        <GuideField id="verso-ps-skill-t" value={ai.guideTranslate ?? ''} onChange={(v) => setAi({ guideTranslate: v })} />
         <label htmlFor="verso-ps-skill-v" style={label}>{tx('settings.aiSkillVerify')}</label>
-        <input id="verso-ps-skill-v" className="field" value={ai.skillVerify ?? ''} placeholder={tx('settings.aiSkillNone')} onChange={(e) => setAi({ skillVerify: e.target.value })} />
+        <GuideField id="verso-ps-skill-v" value={ai.guideVerify ?? ''} onChange={(v) => setAi({ guideVerify: v })} />
         <label htmlFor="verso-ps-model" style={label}>{tx('projset.model')}</label>
         {/* 模型名稱不翻 */}
         <Select id="verso-ps-model" value={ai.model ?? AI_DEFAULTS.model} options={MODELS.map((m) => ({ value: m, label: m[0].toUpperCase() + m.slice(1) }))}

@@ -208,20 +208,24 @@ pub fn ai_run(app: AppHandle, state: State<Ai>, prompt: String, model: Option<St
     let conf = json!({ "mcpServers": { "verso": { "type": "http", "url": format!("http://127.0.0.1:{}/mcp", port), "headers": { "Authorization": format!("Bearer {}", key) } } } });
     std::fs::write(&cfg, conf.to_string()).map_err(|e| e.to_string())?;
     let mut cmd = Command::new(exe);
+    // 指示（含翻譯準則、條目資料）從標準輸入給，放在命令列會超過 Windows 的長度上限
     cmd.current_dir(&dir)
-        .arg("-p").arg(&prompt)
+        .arg("-p")
         .arg("--mcp-config").arg(&cfg)
         .arg("--strict-mcp-config")
-        // 內建工具只留 Skill（讀 skill 用），其他（指令、檔案、網路等）都拿掉；沒有事先允許的一律拒絕、不問
-        .arg("--tools").arg("Skill")
-        .arg("--allowedTools").arg("mcp__verso,Skill")
+        // 內建工具全部拿掉（指令、檔案、網路、Skill），只能用 Verso 的工具；沒有事先允許的一律拒絕、不問
+        .arg("--tools").arg("")
+        .arg("--allowedTools").arg("mcp__verso")
         .arg("--permission-mode").arg("dontAsk")
+        // 不載入這台電腦的其他設定、skill、指令（只照 Verso 給的指示）
+        .arg("--setting-sources").arg("")
+        .arg("--disable-slash-commands")
         // 專案設定的模型和 effort（只收固定的幾個值）
         .args(model.filter(|m| ["opus", "sonnet", "haiku", "fable"].contains(&m.as_str())).map(|m| vec!["--model".to_string(), m]).unwrap_or_default())
         .args(effort.filter(|e| ["low", "medium", "high", "xhigh", "max"].contains(&e.as_str())).map(|e| vec!["--effort".to_string(), e]).unwrap_or_default())
         // 工具回傳的上限放寬一點（條目已經分批給，這只是保險，例如 get_checks 一次報很多條時）
         .env("MAX_MCP_OUTPUT_TOKENS", "60000")
-        .stdin(Stdio::null())
+        .stdin(Stdio::piped())
         .stdout(Stdio::piped())
         .stderr(Stdio::piped());
     #[cfg(windows)]
@@ -230,6 +234,10 @@ pub fn ai_run(app: AppHandle, state: State<Ai>, prompt: String, model: Option<St
         cmd.creation_flags(0x0800_0000); // 不跳出命令列視窗
     }
     let mut child = cmd.spawn().map_err(|e| e.to_string())?;
+    if let Some(mut input) = child.stdin.take() {
+        // 寫完就關掉，Claude 才知道指示結束了
+        std::thread::spawn(move || { let _ = input.write_all(prompt.as_bytes()); });
+    }
     let out = child.stdout.take();
     let err = child.stderr.take();
     *child_slot = Some(child);
@@ -253,6 +261,17 @@ pub fn ai_run(app: AppHandle, state: State<Ai>, prompt: String, model: Option<St
         let _ = app.emit("ai-done", json!({ "ok": ok, "output": tail(&text), "error": tail(&etext) }));
     });
     Ok(())
+}
+
+/// 讀翻譯／驗證準則（使用者選的檔案，任何位置；最多 2 MB）
+#[tauri::command]
+pub fn ai_read_text(path: String) -> Result<String, String> {
+    let p = std::path::Path::new(path.trim().trim_matches('"'));
+    let meta = std::fs::metadata(p).map_err(|_| "not-found".to_string())?;
+    if !meta.is_file() { return Err("not-found".into()); }
+    if meta.len() > 2 * 1024 * 1024 { return Err("too-big".into()); }
+    let bytes = std::fs::read(p).map_err(|_| "not-found".to_string())?;
+    Ok(String::from_utf8_lossy(&bytes).trim_start_matches('\u{feff}').to_string())
 }
 
 /// 停止：結束背景的 Claude Code（已經寫回 Verso 的保留）

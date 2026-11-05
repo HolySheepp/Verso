@@ -161,7 +161,8 @@ export interface TagSettings {
   /** 預設長度標準（檔案自己有設定時以檔案為準） */
   lengthStd?: import('./length').StdValue;
   /** AI 設定（翻譯、驗證用的 skill、模型、effort） */
-  ai?: { skillTranslate?: string; skillVerify?: string; model?: string; effort?: string };
+  /** AI：翻譯、驗證準則檔的路徑（舊版是 skill 名稱，已不用）、模型、effort */
+  ai?: { guideTranslate?: string; guideVerify?: string; skillTranslate?: string; skillVerify?: string; model?: string; effort?: string };
 }
 
 /** 專案標籤的 key */

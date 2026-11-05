@@ -1,4 +1,5 @@
 ﻿代號	中文	畫面區域	程式位置
+settings.aiGuidePh	選擇檔案或貼上路徑...	專案設定：AI 的翻譯／驗證準則檔（輸入框提示、選檔按鈕）	plugins/ai/index.tsx:65 plugins/ai/index.tsx:66 plugins/ai/index.tsx:66
 qs.center	圓環中間	管理搜尋庫：點圓環中間時，設定中間按鈕的行為	components/QuickSearch.tsx:374 components/QuickSearch.tsx:427 components/QuickSearch.tsx:428
 qs.centerEdit	編輯（打開管理搜尋庫）	同上的選項	components/QuickSearch.tsx:432
 qs.centerCancel	取消（叉叉，關掉圓環）	同上的選項	components/QuickSearch.tsx:432
@@ -187,7 +188,7 @@ cloud.boot1	讀取雲端資料表	啟動畫面：雲端模式開著時的進度�
 cloud.boot2	讀取雲端專案與字典	啟動畫面	plugins/cloud/sync.ts:759
 cloud.boot3	讀取工作進度	啟動畫面：讀取上次打開的 Google 表並回到上次的條目	plugins/cloud/sync.ts:766 plugins/cloud/sync.ts:769
 work.hide	隱藏工作欄	工作欄右上角的按鈕	components/WorkPanel.tsx:620 components/WorkPanel.tsx:620
-work.show	顯示工作欄	工作欄收起來後，叫回來的按鈕	App.tsx:282 App.tsx:282
+work.show	顯示工作欄	工作欄收起來後，叫回來的按鈕	App.tsx:283 App.tsx:283
 work.fit	工作欄高度	工作欄空白處右鍵選單，滑鼠移上去展開下面兩項	components/WorkPanel.tsx:810
 work.fitAuto	自動調整	框跟內容一樣高	components/WorkPanel.tsx:811
 work.fitFixed	固定欄高	用現在的高度，換條目不變	components/WorkPanel.tsx:812
@@ -224,7 +225,7 @@ cloud.rowNo	第 {n} 列	雲端模式：刪除前的預覽	plugins/cloud/index.ts
 cloud.deleteConfirm	刪除	雲端模式：刪除前的預覽	plugins/cloud/index.tsx:403
 cloud.conflictSpeaker	#{id} 的發話者已經被別人改過	雲端模式：寫回衝突	plugins/cloud/index.tsx:424
 cloud.conflictSrcText	#{id} 的原文已經被別人改過	雲端模式：寫回衝突	plugins/cloud/index.tsx:424
-cloud.rowsOnly	雲端檔案要增刪、搬動條目，請用右鍵的整列刪除、插入、上移、下移	雲端模式：擋下會改變條目數量或順序的操作	state/store.ts:940 state/store.ts:948
+cloud.rowsOnly	雲端檔案要增刪、搬動條目，請用右鍵的整列刪除、插入、上移、下移	雲端模式：擋下會改變條目數量或順序的操作	state/store.ts:945 state/store.ts:953
 side.scope	搜尋範圍：{scope}（點一下換範圍）	搜尋分頁：範圍按鈕	components/SidePanel.tsx:292
 side.scope.sheet	當前頁簽	搜尋分頁：範圍	
 side.scope.file	當前檔案	搜尋分頁：範圍	
@@ -247,7 +248,7 @@ cloud.deleteProjectAsk	刪除專案「{name}」？	雲端模式：管理專案	p
 cloud.deleteProjectBody	只會從 Verso 資料表拿掉這個專案，Google 上的字典檔不會動。	雲端模式：管理專案	plugins/cloud/ProjectsDialog.tsx:143
 dict.cloud	雲端	啟用的字典、字典管理：雲端字典的標示	components/ManageDialogs.tsx:549 components/SidePanel.tsx:185
 dict.local	本地	啟用的字典、字典管理：本地字典的標示	components/ManageDialogs.tsx:549 components/SidePanel.tsx:185
-dict.cloudNoMove	雲端字典不能搬到別的專案	想把雲端字典移到別的專案時的提示	state/store.ts:1514
+dict.cloudNoMove	雲端字典不能搬到別的專案	想把雲端字典移到別的專案時的提示	state/store.ts:1519
 cloud.enabled	雲端模式	設定 > 雲端：開關	plugins/cloud/index.tsx:73
 cloud.hint	打開後直接讀寫 Google 試算表，檔案選單只列設定過的表；關掉回到本地檔案（本地檔案和存檔都不受影響）	開發者選項：雲端模式的說明	plugins/cloud/index.tsx:76
 cloud.clientId	用戶端 ID	雲端模式：Google OAuth 用戶端 ID	plugins/cloud/index.tsx:81
@@ -313,43 +314,42 @@ projset.std	預設長度標準	專案設定	components/ProjectSettings.tsx:55
 projset.stdHint	這個專案的檔案沒有自己設定長度標準時用這個	專案設定	components/ProjectSettings.tsx:56
 projset.stdUnset	不設定	專案設定：預設長度標準的選項	components/ProjectSettings.tsx:24 plugins/cloud/ProjectsDialog.tsx:120
 projset.stdNone	無上限	專案設定：預設長度標準的選項	components/ProjectSettings.tsx:25 plugins/cloud/ProjectsDialog.tsx:120
-projset.ai	AI 設定	專案設定	plugins/ai/index.tsx:66
-projset.model	模型	專案設定：AI 用的模型	plugins/ai/index.tsx:72
-projset.effort	Effort	專案設定：AI 的 effort	plugins/ai/index.tsx:76
-app.aiProgress	AI {done}/{total}	狀態列：AI 工作的進度（寫過幾條／共幾條）	App.tsx:186
-app.aiStillWorking	AI 還在工作，要停止嗎？	AI 工作中要關閉 Verso、換存檔資料夾、改名或刪除專案時	App.tsx:51
-app.aiKeep	取消	上面那句的按鈕：不關閉，AI 繼續	App.tsx:52
-app.aiStop	停止 AI	上面那句的按鈕：停止 AI 再繼續	App.tsx:52
-ai.errNotInstalled	未安裝Claude Code	AI 失敗原因	plugins/ai/ai.ts:428
+projset.ai	AI 設定	專案設定	plugins/ai/index.tsx:87
+projset.model	模型	專案設定：AI 用的模型	plugins/ai/index.tsx:93
+projset.effort	Effort	專案設定：AI 的 effort	plugins/ai/index.tsx:97
+app.aiProgress	AI {done}/{total}	狀態列：AI 工作的進度（寫過幾條／共幾條）	App.tsx:187
+app.aiStillWorking	AI 還在工作，要停止嗎？	AI 工作中要關閉 Verso、換存檔資料夾、改名或刪除專案時	App.tsx:52
+app.aiKeep	取消	上面那句的按鈕：不關閉，AI 繼續	App.tsx:53
+app.aiStop	停止 AI	上面那句的按鈕：停止 AI 再繼續	App.tsx:53
+ai.errNotInstalled	未安裝Claude Code	AI 失敗原因	plugins/ai/ai.ts:430
 ai.errLogin	未登入或登入過期	AI 失敗原因	plugins/ai/ai.ts:299
 ai.errQuota	Token用盡	AI 失敗原因	plugins/ai/ai.ts:300
-ai.errSkill	找不到Skill	AI 失敗原因	plugins/ai/ai.ts:418
-ai.errOther	AI工作未完成，請重試	AI 失敗原因：其他	plugins/ai/ai.ts:301 plugins/ai/ai.ts:428
+ai.errGuide	找不到翻譯準則	AI 失敗原因	plugins/ai/ai.ts:418
+ai.errOther	AI工作未完成，請重試	AI 失敗原因：其他	plugins/ai/ai.ts:301 plugins/ai/ai.ts:430
 shortcut.ignoreEdits	忽略這條的全部修改	設定 > 快捷鍵：動作名稱	model/shortcuts.ts:38
-mark.suggHoldsDoubt	有建議翻譯，維持疑慮	有建議翻譯時想改成別的標記：被擋下的提示	state/store.ts:1096 state/store.ts:1122
+mark.suggHoldsDoubt	有建議翻譯，維持疑慮	有建議翻譯時想改成別的標記：被擋下的提示	state/store.ts:1101 state/store.ts:1127
 mark.ai	AI 翻譯	標記名稱：AI 翻好、還沒確認的條目	model/marks.ts:84
-list.aiLocked	AI 處理中	條目欄：AI 正在處理的條目旁的小字提示	components/EntryList.tsx:160 components/EntryList.tsx:160 components/FileNav.tsx:58 state/store.ts:996 state/store.ts:998 state/store.ts:1021 state/store.ts:1036 state/store.ts:1468 state/tm.ts:302
-ai.locked	AI 正在處理的條目不能刪除	想刪掉 AI 處理中的條目時	state/store.ts:953
+list.aiLocked	AI 處理中	條目欄：AI 正在處理的條目旁的小字提示	components/EntryList.tsx:160 components/EntryList.tsx:160 components/FileNav.tsx:58 state/store.ts:1001 state/store.ts:1003 state/store.ts:1026 state/store.ts:1041 state/store.ts:1473 state/tm.ts:302
+ai.locked	AI 正在處理的條目不能刪除	想刪掉 AI 處理中的條目時	state/store.ts:958
 ai.stopped	已停止 AI，已經寫回的內容保留	按了停止之後	plugins/ai/ai.ts:320
-ai.askMany	要讓 AI 處理 {n} 條嗎？	選了超過 50 條按 AI 時	plugins/ai/index.tsx:25
-ai.askNo	取消	上面那句的按鈕	plugins/ai/index.tsx:26
-ai.askYes	繼續	上面那句的按鈕	plugins/ai/index.tsx:26
-settings.aiSkillTranslate	翻譯用的 skill	設定 > 開發者選項：AI 翻譯時用的 skill 名稱	plugins/ai/index.tsx:68
-settings.aiSkillVerify	驗證用的 skill	設定 > 開發者選項：AI 驗證時用的 skill 名稱	plugins/ai/index.tsx:70
-settings.aiSkillNone	不指定	上面兩個輸入框空白時的提示	plugins/ai/index.tsx:69 plugins/ai/index.tsx:71
-settings.aiEnabled	AI 協助（測試中）	設定 > 開發者選項：開關	plugins/ai/index.tsx:40
-settings.aiHint	打開後條目欄上方會出現 AI 按鈕，按下時在背景用 Claude Code 處理選取的條目（需要先裝好、登入命令列版 Claude Code）	設定 > 開發者選項：說明	plugins/ai/index.tsx:42
-list.aiButton	讓 AI 處理選取的條目	條目欄上方 AI 按鈕的滑鼠提示	plugins/ai/index.tsx:20
-list.aiStop	停止	AI 處理中時，AI 按鈕變成這個	plugins/ai/index.tsx:20 plugins/ai/index.tsx:22
+ai.askMany	要讓 AI 處理 {n} 條嗎？	選了超過 50 條按 AI 時	plugins/ai/index.tsx:26
+ai.askNo	取消	上面那句的按鈕	plugins/ai/index.tsx:27
+ai.askYes	繼續	上面那句的按鈕	plugins/ai/index.tsx:27
+settings.aiSkillTranslate	翻譯準則	設定 > 開發者選項：AI 翻譯時用的 skill 名稱	plugins/ai/index.tsx:89
+settings.aiSkillVerify	驗證準則	設定 > 開發者選項：AI 驗證時用的 skill 名稱	plugins/ai/index.tsx:91
+settings.aiEnabled	AI 協助（測試中）	設定 > 開發者選項：開關	plugins/ai/index.tsx:41
+settings.aiHint	打開後條目欄上方會出現 AI 按鈕，按下時在背景用 Claude Code 處理選取的條目（需要先裝好、登入命令列版 Claude Code）	設定 > 開發者選項：說明	plugins/ai/index.tsx:43
+list.aiButton	讓 AI 處理選取的條目	條目欄上方 AI 按鈕的滑鼠提示	plugins/ai/index.tsx:21
+list.aiStop	停止	AI 處理中時，AI 按鈕變成這個	plugins/ai/index.tsx:21 plugins/ai/index.tsx:23
 ai.done	AI 處理完成	AI 做完時的提示	plugins/ai/ai.ts:321
-ai.desktopOnly	AI 協助只能在桌面版使用	瀏覽器預覽裡按 AI 按鈕	plugins/ai/ai.ts:398
+ai.desktopOnly	AI 協助只能在桌面版使用	瀏覽器預覽裡按 AI 按鈕	plugins/ai/ai.ts:396
 settings.devSection	開發者選項	設定左邊的分類（開發者模式才有）	components/SettingsDialog.tsx:29
 settings.showIds	顯示字句 ID	設定 > 開發者選項：開關	components/SettingsDialog.tsx:416
 settings.showIdsHint	滑鼠移到介面文字上，旁邊會顯示它的字句 ID	設定 > 開發者選項：開關下面的說明	components/SettingsDialog.tsx:418
 settings.devOn	已開啟開發者模式	連點設定標題 5 次時的提示	components/SettingsDialog.tsx:62
 settings.devOff	已關閉開發者模式	再連點 5 次時的提示	components/SettingsDialog.tsx:62
 shortcut.toggleIds	顯示字句 ID（開發者模式）	設定 > 快捷鍵：動作名稱	model/shortcuts.ts:37
-app.toastDismiss	點一下關閉	一直留著的警告提示，滑鼠停在上面時	App.tsx:83
+app.toastDismiss	點一下關閉	一直留著的警告提示，滑鼠停在上面時	App.tsx:84
 settings.language	語言	設定 > 一般	components/SettingsDialog.tsx:493
 settings.addPack	添加語言包	設定 > 一般：語言選單下面的按鈕	components/SettingsDialog.tsx:507
 settings.packLabel	{name}（語言包）	設定 > 一般：語言包跟內建語言同名時，選單裡這樣顯示	components/SettingsDialog.tsx:500
@@ -361,10 +361,10 @@ settings.packReplace	已經有語言包「{name}」，要取代嗎？	設定 > �
 settings.packReplaceNo	取消	設定 > 一般：同名語言包的詢問	components/SettingsDialog.tsx:513
 settings.packReplaceYes	取代	設定 > 一般：同名語言包的詢問	components/SettingsDialog.tsx:513
 common.colon	：	「名字：內容」這種名稱和內容之間的分隔（英文是冒號加空格）	components/comments/CommentsPanel.tsx:312 components/FilterPanel.tsx:91 components/FilterPanel.tsx:97
-common.sep	、	列出好幾個名稱時的分隔符號	App.tsx:103 App.tsx:114 App.tsx:125 components/CopyConfirm.tsx:19 components/EntryList.tsx:197 components/EntryList.tsx:197 components/FileNav.tsx:133 components/ManageDialogs.tsx:177 components/SettingsDialog.tsx:479 components/SettingsDialog.tsx:480 components/SidePanel.tsx:521 components/WorkPanel.tsx:95 model/importSel.ts:59 model/importSel.ts:59 model/paste.ts:79 plugins/cloud/index.tsx:265 plugins/cloud/sync.ts:629 state/saver.ts:1058 state/saver.ts:1058 state/tm.ts:311 state/tm.ts:319
+common.sep	、	列出好幾個名稱時的分隔符號	App.tsx:104 App.tsx:115 App.tsx:126 components/CopyConfirm.tsx:19 components/EntryList.tsx:197 components/EntryList.tsx:197 components/FileNav.tsx:133 components/ManageDialogs.tsx:177 components/SettingsDialog.tsx:479 components/SettingsDialog.tsx:480 components/SidePanel.tsx:521 components/WorkPanel.tsx:95 model/importSel.ts:59 model/importSel.ts:59 model/paste.ts:79 plugins/cloud/index.tsx:265 plugins/cloud/sync.ts:629 state/saver.ts:1058 state/saver.ts:1058 state/tm.ts:311 state/tm.ts:319
 common.join	；	把兩段提示接成一句時的分隔符號（英文用「; 」）	state/saver.ts:1058
-common.moreEntries	 等 {n} 條	列表太長時接在後面	App.tsx:103
-common.moreItems	 等 {n} 個	列表太長時接在後面	App.tsx:114 App.tsx:125 state/saver.ts:1058 state/saver.ts:1058
+common.moreEntries	 等 {n} 條	列表太長時接在後面	App.tsx:104
+common.moreItems	 等 {n} 個	列表太長時接在後面	App.tsx:115 App.tsx:126 state/saver.ts:1058 state/saver.ts:1058
 common.sheetError	「{name}」{msg}	某個頁簽有錯誤時，頁簽名稱接錯誤訊息	components/ImportDialog.tsx:191 components/ImportDialog.tsx:192 components/ManageDialogs.tsx:372 components/PasteDialog.tsx:120 plugins/cloud/index.tsx:267
 common.errorReason	{target}：{reason}	存檔失敗的項目與原因	components/TitleBar.tsx:58
 import.fieldRange	{range}（{n}）	匯入視窗：欄位選到的範圍和行數	components/ImportDialog.tsx:384
@@ -372,41 +372,41 @@ save.longAt	{project} / {file} / {sheet} 第 {n} 條	存檔時格子太長的條
 work.tooLong	修改失敗，超過32767 字。	驗證模式的修改框	components/WorkPanel.tsx:352 components/WorkPanel.tsx:450
 save.sameRoot	已經是目前的存檔資料夾	設定 > 一般：換存檔資料夾時選到同一個	state/saver.ts:809
 check.fullwidthSpace	全形空格	檢查項目與訊息	model/checks.ts:139
-app.001	Excel 一格最多 32767 字，貼上後會超過，沒有貼上	主畫面	App.tsx:68
-app.002	有格子超過 Excel 的單格上限	主畫面	App.tsx:102
-app.003	Excel 一格最多 32767 字，下列條目超過上限，無法保存，請縮短：{v1}{v2}	主畫面	App.tsx:103
-app.004	知道了	主畫面	App.tsx:104 App.tsx:115 App.tsx:126
-app.005	部分檔案讀取失敗	主畫面	App.tsx:113
-app.006	下列檔案讀取失敗：{v1}{v2}。可能已經在Excel開啟或檔案已損毀，請處理並重試。	主畫面	App.tsx:114
-app.007	部分檔案已從存檔資料夾遺失	主畫面	App.tsx:124
-app.008	下列檔案不在存檔資料夾內，下次存檔會重新寫回：{v1}{v2}	主畫面	App.tsx:125
-app.009	上次沒有正常關閉	主畫面	App.tsx:136
-app.010	上次編輯內容已自動暫存，請在恢復後手動儲存以確保檔案正確儲存。	主畫面	App.tsx:136
-app.011	捨棄	主畫面	App.tsx:138
-app.012	恢復	主畫面	App.tsx:139
-app.013	檢測到新版本 {version}	主畫面	App.tsx:162
-app.014	要現在更新嗎？更新完成會自動重啟Verso	主畫面	App.tsx:162
-app.015	稍後	主畫面	App.tsx:164
-app.016	更新	主畫面	App.tsx:165
-app.017	檔案進度 {done} / {total} 條	主畫面	App.tsx:182
-app.019	模式：	主畫面	App.tsx:192
-app.020	標記	主畫面	App.tsx:206 App.tsx:206
-app.021	顯示檔案欄	主畫面	App.tsx:272 App.tsx:272
-app.022	調整右側欄寬度	主畫面	App.tsx:292
-app.023	顯示右側欄	主畫面	App.tsx:297 App.tsx:297
-app.024	關閉選單	主畫面	App.tsx:309
-app.025	有未儲存的修改	主畫面	App.tsx:328
-app.026	關閉前要儲存嗎？	主畫面	App.tsx:329
-app.027	更新前要儲存嗎？	主畫面	App.tsx:329
-app.028	換存檔資料夾前要儲存嗎？	主畫面	App.tsx:329
-app.029	離開這個檔案前要儲存嗎？	主畫面	App.tsx:329
-app.030	取消	主畫面	App.tsx:151 App.tsx:331
-app.031	不儲存	主畫面	App.tsx:332
-app.032	儲存	主畫面	App.tsx:333
-app.clashTitle	已經有同名的檔案	存檔時新位置已經有別的檔案	App.tsx:149
-app.clashBody	存檔資料夾已包含「{project} / {name}.xlsx」，覆蓋會把原本的檔案移到資源回收筒。	存檔時新位置已經有別的檔案	App.tsx:149
-app.clashRename	重新命名	存檔時新位置已經有別的檔案	App.tsx:153
-app.clashOverwrite	覆蓋	存檔時新位置已經有別的檔案	App.tsx:152
+app.001	Excel 一格最多 32767 字，貼上後會超過，沒有貼上	主畫面	App.tsx:69
+app.002	有格子超過 Excel 的單格上限	主畫面	App.tsx:103
+app.003	Excel 一格最多 32767 字，下列條目超過上限，無法保存，請縮短：{v1}{v2}	主畫面	App.tsx:104
+app.004	知道了	主畫面	App.tsx:105 App.tsx:116 App.tsx:127
+app.005	部分檔案讀取失敗	主畫面	App.tsx:114
+app.006	下列檔案讀取失敗：{v1}{v2}。可能已經在Excel開啟或檔案已損毀，請處理並重試。	主畫面	App.tsx:115
+app.007	部分檔案已從存檔資料夾遺失	主畫面	App.tsx:125
+app.008	下列檔案不在存檔資料夾內，下次存檔會重新寫回：{v1}{v2}	主畫面	App.tsx:126
+app.009	上次沒有正常關閉	主畫面	App.tsx:137
+app.010	上次編輯內容已自動暫存，請在恢復後手動儲存以確保檔案正確儲存。	主畫面	App.tsx:137
+app.011	捨棄	主畫面	App.tsx:139
+app.012	恢復	主畫面	App.tsx:140
+app.013	檢測到新版本 {version}	主畫面	App.tsx:163
+app.014	要現在更新嗎？更新完成會自動重啟Verso	主畫面	App.tsx:163
+app.015	稍後	主畫面	App.tsx:165
+app.016	更新	主畫面	App.tsx:166
+app.017	檔案進度 {done} / {total} 條	主畫面	App.tsx:183
+app.019	模式：	主畫面	App.tsx:193
+app.020	標記	主畫面	App.tsx:207 App.tsx:207
+app.021	顯示檔案欄	主畫面	App.tsx:273 App.tsx:273
+app.022	調整右側欄寬度	主畫面	App.tsx:293
+app.023	顯示右側欄	主畫面	App.tsx:298 App.tsx:298
+app.024	關閉選單	主畫面	App.tsx:310
+app.025	有未儲存的修改	主畫面	App.tsx:329
+app.026	關閉前要儲存嗎？	主畫面	App.tsx:330
+app.027	更新前要儲存嗎？	主畫面	App.tsx:330
+app.028	換存檔資料夾前要儲存嗎？	主畫面	App.tsx:330
+app.029	離開這個檔案前要儲存嗎？	主畫面	App.tsx:330
+app.030	取消	主畫面	App.tsx:152 App.tsx:332
+app.031	不儲存	主畫面	App.tsx:333
+app.032	儲存	主畫面	App.tsx:334
+app.clashTitle	已經有同名的檔案	存檔時新位置已經有別的檔案	App.tsx:150
+app.clashBody	存檔資料夾已包含「{project} / {name}.xlsx」，覆蓋會把原本的檔案移到資源回收筒。	存檔時新位置已經有別的檔案	App.tsx:150
+app.clashRename	重新命名	存檔時新位置已經有別的檔案	App.tsx:154
+app.clashOverwrite	覆蓋	存檔時新位置已經有別的檔案	App.tsx:153
 color.001	自訂主題色	色盤	components/ColorPicker.tsx:69 components/ColorPicker.tsx:75
 color.002	色碼	色盤	components/ColorPicker.tsx:98
 color.003	取消	色盤	components/ColorPicker.tsx:105
@@ -1048,7 +1048,7 @@ save.014	資料夾包含其他內容，已新建「Verso」資料夾	存檔訊�
 save.015	已載入：{v1}{v2}	存檔訊息	state/saver.ts:1058
 save.016	已改名：{v1}{v2}	存檔訊息	state/saver.ts:1058
 save.017	字典 / {project} / {name}	存檔訊息	state/saver.ts:1060
-store.001	啟動中	狀態訊息	main.tsx:23 state/store.ts:841
+store.001	啟動中	狀態訊息	main.tsx:23 state/store.ts:846
 update.001	檢查更新	自動更新	state/updater.ts:33
 update.002	下載無進度	自動更新	state/updater.ts:58 state/updater.ts:59
 update.003	下載更新 0%	自動更新	state/updater.ts:61

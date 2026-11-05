@@ -1,6 +1,7 @@
 // 介面文字（中文）：程式裡只寫代號，用 tx('代號') 取文字。由程式整理產生，改字句請改這裡。
 // 存檔裡的名稱（欄位標題、資料夾名稱等）不在這裡，維持中文。
 export const ZH = {
+  'settings.aiGuidePh': '選擇檔案或貼上路徑...', // 專案設定：AI 的翻譯／驗證準則檔（輸入框提示、選檔按鈕）
   'qs.center': '圓環中間', // 管理搜尋庫：點圓環中間時，設定中間按鈕的行為
   'qs.centerEdit': '編輯（打開管理搜尋庫）', // 同上的選項
   'qs.centerCancel': '取消（叉叉，關掉圓環）', // 同上的選項
@@ -325,7 +326,7 @@ export const ZH = {
   'ai.errNotInstalled': '未安裝Claude Code', // AI 失敗原因
   'ai.errLogin': '未登入或登入過期', // AI 失敗原因
   'ai.errQuota': 'Token用盡', // AI 失敗原因
-  'ai.errSkill': '找不到Skill', // AI 失敗原因
+  'ai.errGuide': '找不到翻譯準則', // AI 失敗原因
   'ai.errOther': 'AI工作未完成，請重試', // AI 失敗原因：其他
   'shortcut.ignoreEdits': '忽略這條的全部修改', // 設定 > 快捷鍵：動作名稱
   'mark.suggHoldsDoubt': '有建議翻譯，維持疑慮', // 有建議翻譯時想改成別的標記：被擋下的提示
@@ -336,9 +337,8 @@ export const ZH = {
   'ai.askMany': '要讓 AI 處理 {n} 條嗎？', // 選了超過 50 條按 AI 時
   'ai.askNo': '取消', // 上面那句的按鈕
   'ai.askYes': '繼續', // 上面那句的按鈕
-  'settings.aiSkillTranslate': '翻譯用的 skill', // 設定 > 開發者選項：AI 翻譯時用的 skill 名稱
-  'settings.aiSkillVerify': '驗證用的 skill', // 設定 > 開發者選項：AI 驗證時用的 skill 名稱
-  'settings.aiSkillNone': '不指定', // 上面兩個輸入框空白時的提示
+  'settings.aiSkillTranslate': '翻譯準則', // 設定 > 開發者選項：AI 翻譯時用的 skill 名稱
+  'settings.aiSkillVerify': '驗證準則', // 設定 > 開發者選項：AI 驗證時用的 skill 名稱
   'settings.aiEnabled': 'AI 協助（測試中）', // 設定 > 開發者選項：開關
   'settings.aiHint': '打開後條目欄上方會出現 AI 按鈕，按下時在背景用 Claude Code 處理選取的條目（需要先裝好、登入命令列版 Claude Code）', // 設定 > 開發者選項：說明
   'list.aiButton': '讓 AI 處理選取的條目', // 條目欄上方 AI 按鈕的滑鼠提示

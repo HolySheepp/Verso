@@ -336,14 +336,6 @@ export async function startAi() {
   } });
 }
 
-/** skill 有沒有裝在 Claude Code 讀得到的地方（使用者資料夾\.claude\skills\名稱\SKILL.md） */
-async function skillExists(name: string): Promise<boolean> {
-  try {
-    const { homeDir, join } = await import('@tauri-apps/api/path');
-    const { exists } = await import('@tauri-apps/plugin-fs');
-    return await exists(await join(await homeDir(), '.claude', 'skills', name, 'SKILL.md'));
-  } catch { return true; }
-}
 
 let stopping = false;
 
@@ -364,21 +356,27 @@ export function aiTarget() {
 const CHECKS_RULE = 'If get_task lists checks for an entry, that entry must be fixed even when its meaning is fine (for example, shorten it until it fits the length limit); only if it cannot be fixed without losing important meaning, leave it and explain why in write_note.';
 
 /** 分批拿條目：每批做完再拿下一批 */
-const BATCH_RULE = 'Call get_task (offset 0) first. It returns the entries in batches: finish the entries of one batch, then call get_task again with offset = next_offset, until next_offset is null.';
+const BATCH_RULE = 'The task comes in batches: the first batch is attached at the end of these instructions (you can also get it with get_task offset 0). Finish the entries of one batch, then call get_task with offset = next_offset, until next_offset is null.';
+
+/** 準則和第一批條目直接附在指示後面（get_task 還是可以用，之後的批次照 next_offset 拿） */
+const attach = (guide: string, first: unknown) => [
+  guide ? '\n\n<guidelines>\n' + guide.trim() + '\n</guidelines>' : '',
+  '\n\nThe first batch of the task (the same as get_task with offset 0):\n<task>\n' + JSON.stringify(first) + '\n</task>',
+].join('');
 
 const prompts = {
-  translate: (skill: string) => [
+  translate: (guide: string) => [
     'You are helping a game translator inside Verso, a translation tool. Use only the verso MCP tools.',
-    skill ? `Use the "${skill}" skill for how to translate.` : 'Translate from the source language into English unless the entries clearly show another target language.',
+    guide ? 'Follow the translation guidelines below.' : 'Translate from the source language into English unless the entries clearly show another target language.',
     BATCH_RULE,
     'For every entry, translate its src, following the glossary translations, the speaker, the note and the surrounding context, then call write_translation(index, text) with the full translation.',
     'When all entries are written, call get_checks and rewrite the entries it reports (especially length overflows) until nothing is left.',
     CHECKS_RULE,
     'Only after that, for entries that need the translator\'s attention (or a problem you could not fix without losing important meaning), call write_note(index, text) once with your final note in Traditional Chinese. Never write notes about intermediate attempts. Do not do anything else.',
   ].join(' '),
-  verify: (skill: string) => [
+  verify: (guide: string) => [
     'You are reviewing a game translation inside Verso, a translation tool. Use only the verso MCP tools.',
-    skill ? `Use the "${skill}" skill for how to review.` : '',
+    guide ? 'Follow the review guidelines below.' : '',
     BATCH_RULE,
     'For every entry, check its tgt against src, the glossary, the speaker, the note and the surrounding context.',
     'If the translation needs changes, call write_revision(index, text) with the full corrected translation. If it is fine, leave it alone.',
@@ -413,13 +411,17 @@ async function launchAi(s: ReturnType<typeof useStore.getState>, mode: 'translat
   const list = pairs.map((x) => x.e);
   job = { fid: fileDoc.fid ?? '', sheet: sheetIdx, mode, indices: pairs.map((x) => x.i), uids: list.map((e) => e.uid), before: Object.fromEntries(list.map((e) => [e.uid, e])), wrote: {}, notes: {} };
   const ps = s.project?.tagSettings?.[projectTag(fileDoc.project)]?.ai ?? {};
-  const skill = ((mode === 'translate' ? ps.skillTranslate : ps.skillVerify) || (mode === 'translate' ? s.aiSkillTranslate : s.aiSkillVerify) || '').trim();
+  // 準則檔：專案設定選的檔案，讀出內容直接放進指示（不用 skill）
+  const guidePath = ((mode === 'translate' ? ps.guideTranslate : ps.guideVerify) || '').trim();
+  let guide = '';
+  if (guidePath) {
+    try { guide = await invoke<string>('ai_read_text', { path: guidePath }); } catch { job = null; showToast(tx('ai.errGuide'), { warn: true }); return; }
+  }
   const model = ps.model || 'opus', effort = ps.effort || 'medium';
-  if (skill && !(await skillExists(skill))) { job = null; showToast(tx('ai.errSkill'), { warn: true }); return; }
   try {
     useStore.setState({ aiBusy: true, aiLocked: job.uids });
     progress(job);
-    await invoke('ai_run', { prompt: prompts[mode](skill), model, effort });
+    await invoke('ai_run', { prompt: prompts[mode](guide) + attach(guide, getTask(job, 0, BATCH)), model, effort });
   } catch (e) {
     job = null;
     useStore.setState({ aiBusy: false, aiLocked: [] });
