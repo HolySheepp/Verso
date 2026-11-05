@@ -161,6 +161,8 @@ export function runChecks(src: string, tgt: string): Issue[] {
   if (firstLetter && /[a-z]/.test(firstLetter[1])) add('capital', 'start', tx('check.027'));
   // 刪節號後不檢查（例如 Are you... are you mad?），只有整句以刪節號開頭時，刪節號後的字算句首
   if (/(?:^|[^.])[.?!]["')]*\s+["'(]*[a-z]/.test(tgt)) add('capital', 'sentence', tx('check.028'));
+  // 波浪號和 ♪、♡ 這類特殊符號也算句子結尾：後面的字母要大寫（報「句首要大寫」）
+  if (symbolStarts(tgt).length && !out.some((i) => i.key === 'capital:start')) add('capital', 'start', tx('check.027'));
   if (dashCapitals(tgt).length) add('capital', 'dash', tx('check.029'));
   const ds = dashStarts(tgt);
   if (ds.lower.length && !out.some((i) => i.key === 'capital:start')) add('capital', 'start', tx('check.027'));
@@ -180,14 +182,20 @@ function dashCapitals(tgt: string): number[] {
   const out: number[] = [];
   for (const m of tgt.matchAll(/—["'(]*(?!I\b|I')([A-Z])/g)) {
     const before = tgt.slice(0, m.index).replace(TOKEN, ' ');
-    if (!/[\p{L}\p{N}]/u.test(before) || /[.?!]["')\]]*\s*["'(\[]*$/.test(before)) continue;
+    if (!/[\p{L}\p{N}]/u.test(before) || /[.?!~～\p{So}]["')\]]*\s*["'(\[]*$/u.test(before)) continue;
     out.push(m.index! + m[0].length - 1);
   }
   return out;
 }
 
 /** 句子結尾：句點、驚歎號、問號、~、…、全形的句末標點，後面可以跟著收尾的括號、引號，再接可有可無的空格 */
-const SENTENCE_END = /[.!?~…。！？～]["'”’)\]）」』]*\s*$/;
+const SENTENCE_END = /[.!?~…。！？～\p{So}]["'”’)\]）」』]*\s*$/u;
+
+/** 波浪號、♪、♡ 這類特殊符號（其他符號類的字）後面接空格再接小寫字母：那個字母的位置 */
+const SYMBOL_END = /[~～\p{So}]["'”’)\]）」』]*\s+["'(]*([a-z])/gu;
+function symbolStarts(tgt: string): number[] {
+  return [...tgt.replace(TOKEN, (t) => ' '.repeat(t.length)).matchAll(SYMBOL_END)].map((m) => m.index! + m[0].length - 1);
+}
 
 /**
  * 破折號後是新句子的情況，後面的字母要大寫（lower 是小寫字母的位置）：
@@ -249,6 +257,7 @@ export function locateIssues(tgt: string, checks: Set<CheckId>): { start: number
     for (const m of tgt.matchAll(/(?:^|[^.])[.?!]["')]*\s+["'(]*([a-z])/g)) { const i = m.index! + m[0].length - 1; out.push({ start: i, end: i + 1 }); }
     for (const i of dashCapitals(tgt)) out.push({ start: i, end: i + 1 });
     for (const i of dashStarts(tgt).lower) out.push({ start: i, end: i + 1 });
+    for (const i of symbolStarts(tgt)) out.push({ start: i, end: i + 1 });
   }
   return out;
 }

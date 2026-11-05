@@ -146,3 +146,14 @@ describe('夜間檢查 2026-10-09', () => {
     expect(ids('他說。', 'He said <b> ')).toContain('ending');
   });
 });
+
+describe('波浪號和特殊符號也算句子結尾', () => {
+  it('後面接空格再接小寫字母：報句首要大寫', () => {
+    expect(msgs('', 'Hey~ come here.')).toEqual(['句首要大寫']);
+    expect(msgs('', 'I love you♡ see you.')).toEqual(['句首要大寫']);
+    expect(msgs('', 'La la♪ next song.')).toEqual(['句首要大寫']);
+    expect(msgs('', 'Hey~ Come here.')).toEqual([]);
+    expect(msgs('', 'I love you♡ See you.')).toEqual([]);
+    expect(locateIssues('Hey~ come here.', new Set(['capital']))).toEqual([{ start: 5, end: 6 }]);
+  });
+});
