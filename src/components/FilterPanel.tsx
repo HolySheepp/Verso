@@ -16,7 +16,12 @@ export function filterKeys(customIds: string[]): string[] {
   return [...marks, 'issues', 'srcupd', 'note', ...customIds.map((id) => 'c:' + id)];
 }
 
-const next = (v: 1 | -1 | undefined): 1 | -1 | undefined => (v === undefined ? 1 : v === 1 ? -1 : undefined);
+/** 左鍵：空 → 包含 → 排除 → 空；右鍵（back）反過來：空 → 排除 → 包含 → 空 */
+const next = (v: 1 | -1 | undefined, back = false): 1 | -1 | undefined => (back
+  ? (v === undefined ? -1 : v === -1 ? 1 : undefined)
+  : (v === undefined ? 1 : v === 1 ? -1 : undefined));
+/** 右鍵：不開瀏覽器選單，往回切 */
+const onBack = (fn: () => void) => (ev: React.MouseEvent) => { ev.preventDefault(); fn(); };
 
 /** 勾選、排除、不選的小方框 */
 function StateBox({ v }: { v: 1 | -1 | undefined | 'mixed' }) {
@@ -61,14 +66,14 @@ export function FilterPanel({ counts }: { counts: Record<string, number> }) {
   }, [open]);
 
   const put = (f: Filter) => set({ filter: f, cellSel: null });
-  const toggle = (k: string) => {
-    const v = next(filter[k]);
+  const toggle = (k: string, back = false) => {
+    const v = next(filter[k], back);
     const f = { ...filter };
     if (v === undefined) delete f[k]; else f[k] = v;
     put(f);
   };
-  const toggleAll = () => {
-    const v = next(allState === 'mixed' ? lastAll.current : allState);
+  const toggleAll = (back = false) => {
+    const v = next(allState === 'mixed' ? lastAll.current : allState, back);
     lastAll.current = v;
     put(v === undefined ? {} : Object.fromEntries(keys.map((k) => [k, v])));
   };
@@ -88,13 +93,13 @@ export function FilterPanel({ counts }: { counts: Record<string, number> }) {
       {open && (
         <div role="dialog" aria-label={tx('list.026')} className="pop"
           style={{ position: 'absolute', top: 40, right: 0, zIndex: 40, width: 440, maxWidth: 'calc(100vw - 32px)', padding: 8, display: 'flex', flexDirection: 'column', gap: 6 }}>
-          <button type="button" className="dd" onClick={toggleAll} aria-label={tx('list.004') + tx('common.colon') + stateText(allState)} title={stateText(allState)}
+          <button type="button" className="dd" onClick={() => toggleAll()} onContextMenu={onBack(() => toggleAll(true))} aria-label={tx('list.004') + tx('common.colon') + stateText(allState)} title={stateText(allState)}
             style={{ ...item, fontWeight: 600, borderBottom: '1px solid var(--line)', borderRadius: 0, paddingBottom: 2 }}>
             <StateBox v={allState} />{tx('list.004')}
           </button>
           <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(130px, 1fr))', gap: 2 }}>
             {keys.map((k) => (
-              <button key={k} type="button" className="dd" onClick={() => toggle(k)} aria-label={label(k) + tx('common.colon') + stateText(filter[k])} title={stateText(filter[k])} style={item}>
+              <button key={k} type="button" className="dd" onClick={() => toggle(k)} onContextMenu={onBack(() => toggle(k, true))} aria-label={label(k) + tx('common.colon') + stateText(filter[k])} title={stateText(filter[k])} style={item}>
                 <StateBox v={filter[k]} />
                 {k === 'issues' ? <IconWarn size={12} sw={2.2} stroke="var(--warntx)" />
                   : k === 'note' ? <svg width={12} height={12} viewBox="0 0 24 24" fill="none" stroke="var(--text2)" strokeWidth={2.2} strokeLinejoin="round" aria-hidden="true"><path d="M4 5h16v11H9.5L4 20.5z" /></svg>
