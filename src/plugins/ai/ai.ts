@@ -357,13 +357,14 @@ export function aiTarget() {
 const CHECKS_RULE = 'If get_task lists checks for an entry, that entry must be fixed even when its meaning is fine (for example, shorten it until it fits the length limit); only if it cannot be fixed without losing important meaning, leave it and explain why in write_note.';
 
 /** 分批拿條目：每批做完再拿下一批 */
-const BATCH_RULE = 'The task comes in batches: the first batch is attached at the end of these instructions (you can also get it with get_task offset 0). Finish the entries of one batch, then call get_task with offset = next_offset, until next_offset is null.';
+const BATCH_RULE = 'The task comes in batches: the first batch is in the user message (you can also get it with get_task offset 0). Finish the entries of one batch, then call get_task with offset = next_offset, until next_offset is null.';
 
-/** 準則和第一批條目直接附在指示後面（get_task 還是可以用，之後的批次照 next_offset 拿） */
-const attach = (guide: string, first: unknown) => [
-  guide ? '\n\n<guidelines>\n' + guide.trim() + '\n</guidelines>' : '',
-  '\n\nThe first batch of the task (the same as get_task with offset 0):\n<task>\n' + JSON.stringify(first) + '\n</task>',
-].join('');
+/**
+ * 給 Claude 的內容分兩段：每次都一樣的（固定指示、翻譯準則）放進系統指示，跨次可以快取；
+ * 每次不同的（第一批條目）放在訊息裡。get_task 還是可以用，之後的批次照 next_offset 拿
+ */
+const systemOf = (fixed: string, guide: string) => fixed + (guide ? '\n\n<guidelines>\n' + guide.trim() + '\n</guidelines>' : '');
+const taskMessage = (first: unknown) => 'The first batch of the task (the same as get_task with offset 0):\n<task>\n' + JSON.stringify(first) + '\n</task>';
 
 const prompts = {
   translate: (guide: string) => [
@@ -422,7 +423,7 @@ async function launchAi(s: ReturnType<typeof useStore.getState>, mode: 'translat
   try {
     useStore.setState({ aiBusy: true, aiLocked: job.uids });
     progress(job);
-    await invoke('ai_run', { prompt: prompts[mode](guide) + attach(guide, getTask(job, 0, BATCH)), model, effort });
+    await invoke('ai_run', { system: systemOf(prompts[mode](guide), guide), prompt: taskMessage(getTask(job, 0, BATCH)), model, effort });
   } catch (e) {
     job = null;
     useStore.setState({ aiBusy: false, aiLocked: [] });

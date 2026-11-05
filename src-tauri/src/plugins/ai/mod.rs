@@ -196,7 +196,7 @@ fn find_claude() -> Option<std::path::PathBuf> {
 
 /// 在背景執行 Claude Code：只能用 Verso 給的工具。做完（或被停止）時發出 ai-done
 #[tauri::command]
-pub fn ai_run(app: AppHandle, state: State<Ai>, prompt: String, model: Option<String>, effort: Option<String>) -> Result<(), String> {
+pub fn ai_run(app: AppHandle, state: State<Ai>, prompt: String, system: Option<String>, model: Option<String>, effort: Option<String>) -> Result<(), String> {
     let (port, key) = state.server.lock().unwrap().clone().ok_or("AI 服務還沒開")?;
     let exe = find_claude().ok_or("not-installed")?;
     let mut child_slot = state.child.lock().unwrap();
@@ -207,7 +207,11 @@ pub fn ai_run(app: AppHandle, state: State<Ai>, prompt: String, model: Option<St
     let cfg = dir.join("mcp.json");
     let conf = json!({ "mcpServers": { "verso": { "type": "http", "url": format!("http://127.0.0.1:{}/mcp", port), "headers": { "Authorization": format!("Bearer {}", key) } } } });
     std::fs::write(&cfg, conf.to_string()).map_err(|e| e.to_string())?;
+    // 每次都一樣的部分（固定指示、翻譯準則）放進系統指示，Claude 才能跨次快取；每次不同的條目資料從標準輸入給
+    let sys = dir.join("system.md");
+    let has_sys = match &system { Some(t) if !t.trim().is_empty() => { std::fs::write(&sys, t).map_err(|e| e.to_string())?; true } _ => false };
     let mut cmd = Command::new(exe);
+    if has_sys { cmd.arg("--append-system-prompt-file").arg(&sys); }
     // 指示（含翻譯準則、條目資料）從標準輸入給，放在命令列會超過 Windows 的長度上限
     cmd.current_dir(&dir)
         .arg("-p")
