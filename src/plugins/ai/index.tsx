@@ -38,7 +38,8 @@ function AiButton() {
 function AiDevOption() {
   const enabled = useStore((s) => s.aiEnabled);
   const cloud = useStore((s) => s.cloudMode);
-  const projects = useStore((s) => s.cloudProjects);
+  // 雲端專案表裡的全部專案（cloudProjects 只有本機原本沒有的那些）
+  const projects = useStore((s) => s.cloudProjectNames);
   const set = useStore((s) => s.set);
   return (
     <>

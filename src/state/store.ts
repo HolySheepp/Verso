@@ -278,6 +278,8 @@ interface State {
   cloudProjectStd: Record<string, StdValue>;
   /** 雲端模式才有的專案（只在雲端資料裡，不存進存檔資料夾） */
   cloudProjects: string[];
+  /** 雲端模式：雲端專案表裡的全部專案名稱（照表上的順序） */
+  cloudProjectNames: string[];
   /** AI 正在處理 */
   aiBusy: boolean;
   /** AI 正在處理的條目（不能改） */
@@ -873,6 +875,7 @@ export const useStore = create<Store>((set, get) => {
     cloudDictFile: {},
     cloudProjectStd: {},
     cloudProjects: [],
+    cloudProjectNames: [],
     aiBusy: false,
     aiLocked: [],
     aiProgress: null,

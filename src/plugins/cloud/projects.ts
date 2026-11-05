@@ -61,7 +61,7 @@ function applyProjects() {
   const files: Record<string, string> = {};
   const stds: Record<string, StdValue> = {};
   ps.forEach((p) => { const sid = sidOf(p.dictUrl); if (sid) files[p.name] = sid; if (p.std) stds[p.name] = p.std; });
-  useStore.setState({ cloudDictFile: files, cloudProjectStd: stds });
+  useStore.setState({ cloudDictFile: files, cloudProjectStd: stds, cloudProjectNames: ps.map((p) => p.name) });
 }
 
 /** 雲端檔案、字典用到的專案：本地沒有的加進清單（記成「雲端才有」，存檔時不碰） */
@@ -90,7 +90,7 @@ export function leaveProjects() {
     const used = new Set([...p.files.filter((f) => !f.cloud).map((f) => f.project), ...p.dicts.filter((d) => !d.cloud).map((d) => d.project)]);
     useStore.setState({ project: { ...p, projects: p.projects.filter((x) => !extra.includes(x) || used.has(x)) } });
   }
-  useStore.setState({ cloudProjects: [], cloudDictFile: {}, cloudProjectStd: {} });
+  useStore.setState({ cloudProjects: [], cloudDictFile: {}, cloudProjectStd: {}, cloudProjectNames: [] });
   const local = useCloud.getState().cfg.localPresets;
   if (local) { useStore.setState({ lengthPresets: local }); setConfig({ localPresets: undefined }); }
   presetsSig = '';
