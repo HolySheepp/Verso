@@ -1,3 +1,4 @@
+import { useScrollTabs } from './ScrollTabs';
 import { tx } from '../i18n';
 import { MAX_CELL_CHARS } from '../model/names';
 import { useDeferredValue, useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react';
@@ -609,13 +610,15 @@ function NotesSectionInner() {
 }
 
 export function SidePanel({ width }: { width: number }) {
+  // 分頁列放不下時：滾輪或 Shift＋滾輪左右捲動
+  const tabsScroll = useScrollTabs();
   const side = useStore((s) => s.side);
   const set = useStore((s) => s.set);
   return (
     <aside aria-label={tx('side.043')} style={{ width, flexShrink: 0, display: 'flex', flexDirection: 'column', background: 'var(--bar)', borderLeft: '1px solid var(--line)' }}>
       <div style={{ height: 68, flexShrink: 0, display: 'flex', alignItems: 'flex-end', padding: '0 10px', borderBottom: '1px solid var(--line)', boxSizing: 'border-box' }}>
         {/* 設計檔在預設寬度下分頁文字會斷行，這裡改為不斷行，太窄時可橫向捲動 */}
-        <div role="tablist" aria-label={tx('side.044')} className="no-scrollbar" style={{ minWidth: 0, display: 'flex', overflowX: 'auto' }}>
+        <div ref={tabsScroll.ref} role="tablist" aria-label={tx('side.044')} className="no-scrollbar" style={{ minWidth: 0, display: 'flex', overflowX: 'auto', ...tabsScroll.style }}>
           {TABS.map(({ id, label, Icon }) => {
             const on = side === id;
             return (

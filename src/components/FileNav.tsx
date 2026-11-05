@@ -1,5 +1,5 @@
 import { tx } from '../i18n';
-import { useRef, useState } from 'react';
+import { useRef, useState, useEffect } from 'react';
 import { currentOf, isShown, shownCount, showToast, useStore, useStorePick } from '../state/store';
 import { plugins } from '../plugins/registry';
 import { tabHook } from '../plugins/hooks';
@@ -69,6 +69,31 @@ export function FileNav({ tabW }: { tabW: number }) {
   const justDragged = useRef(false);
   const n = fileDoc.sheets.length;
 
+  // 滾輪或 Shift＋滾輪：往下（右）切到下一個頁簽，往上（左）切到上一個。
+  // 觸控板、高解析度滾輪一次會送很多小事件：累積到一格的量才切一次，切完稍等一下再接受下一次
+  const [carEl, setCarEl] = useState<HTMLDivElement | null>(null);
+  useEffect(() => {
+    if (!carEl) return;
+    let acc = 0, last = 0;
+    const onWheel = (ev: WheelEvent) => {
+      ev.preventDefault();
+      const d = Math.abs(ev.deltaY) >= Math.abs(ev.deltaX) ? ev.deltaY : ev.deltaX;
+      const px = ev.deltaMode === 1 ? d * 40 : ev.deltaMode === 2 ? d * 400 : d;
+      if (Math.sign(px) !== Math.sign(acc)) acc = 0;
+      acc += px;
+      const now = performance.now();
+      if (Math.abs(acc) < 50 || now - last < 120) return;
+      const dir = acc > 0 ? 1 : -1;
+      acc = 0; last = now;
+      const st = useStore.getState();
+      const { sheetIdx: idx, fileDoc: f } = currentOf(st);
+      const next = idx + dir;
+      if (next >= 0 && next < f.sheets.length) st.setSheet(next);
+    };
+    carEl.addEventListener('wheel', onWheel, { passive: false });
+    return () => carEl.removeEventListener('wheel', onWheel);
+  }, [carEl]);
+
   const onPointerDown = (ev: React.PointerEvent<HTMLDivElement>) => {
     if (ev.button !== 0) return;
     drag.current = { x: ev.clientX, moved: false, id: ev.pointerId };
@@ -113,7 +138,7 @@ export function FileNav({ tabW }: { tabW: number }) {
       <button type="button" className="ib" aria-label={tx('nav.002')} style={navBtn} onClick={() => s.setSheet(sheetIdx - 1)}>
         <IconChevL sw={2.2} />
       </button>
-      <div onPointerDown={onPointerDown} onPointerMove={onPointerMove} onPointerUp={endDrag} onPointerCancel={endDrag}
+      <div ref={setCarEl} onPointerDown={onPointerDown} onPointerMove={onPointerMove} onPointerUp={endDrag} onPointerCancel={endDrag}
         onClickCapture={(ev) => { if (justDragged.current) { ev.stopPropagation(); ev.preventDefault(); justDragged.current = false; } }}
         style={{
           width: carW, height: 44, flexShrink: 0, overflow: 'hidden', position: 'relative', WebkitMaskImage: carMask, maskImage: carMask,

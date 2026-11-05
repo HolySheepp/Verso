@@ -1,4 +1,4 @@
-// 頁簽列：滑鼠移上去直接用滾輪就能左右捲動（不用按 Shift）；
+// 頁簽列：滑鼠移上去直接用滾輪、或按住 Shift 用滾輪，都能左右捲動；
 // 頁簽多到放不下時，看不到的那一邊漸漸淡出，提示還有更多頁簽。
 // 用法：const tabs = useScrollTabs(); <div ref={tabs.ref} style={{ ...原本的樣式, ...tabs.style }}>
 import { useCallback, useEffect, useState } from 'react';
@@ -15,10 +15,10 @@ export function useScrollTabs() {
       setEdge((e) => (e.l === l && e.r === r ? e : { l, r }));
     };
     const onWheel = (ev: WheelEvent) => {
-      // 放得下就不攔；觸控板本來就能左右滑的也不攔
-      if (el.scrollWidth <= el.clientWidth || Math.abs(ev.deltaX) > Math.abs(ev.deltaY)) return;
+      // 放得下就不攔；觸控板本來就能左右滑的也不攔（按住 Shift 時有的瀏覽器把滾輪換成左右，照樣自己處理）
+      if (el.scrollWidth <= el.clientWidth || (!ev.shiftKey && Math.abs(ev.deltaX) > Math.abs(ev.deltaY))) return;
       ev.preventDefault();
-      el.scrollLeft += ev.deltaY;
+      el.scrollLeft += ev.deltaY || ev.deltaX;
     };
     update();
     el.addEventListener('wheel', onWheel, { passive: false });
