@@ -336,14 +336,15 @@ function DictBlock() {
 function SearchBlock() {
   const files = useStore((s) => s.project!.files);
   const at = useStore(useShallow((s) => ({ file: s.file, sheet: currentOf(s).sheetIdx, cloudMode: s.cloudMode })));
-  const [q, setQ] = useState('');
-  const [dq, setDq] = useState('');
+  // 跟搜尋分頁共用同一個搜尋字，這樣條目欄的高亮兩邊都有
+  const q = useStore((s) => s.searchQuery);
+  const [dq, setDq] = useState(q.trim());
   useEffect(() => { const t = setTimeout(() => setDq(q.trim()), 300); return () => clearTimeout(t); }, [q]);
   const results = useMemo(() => (dq ? searchAll(files, dq, 'all', at).slice(0, 50) : []), [dq, files, at]);
-  const { select } = useStore.getState();
+  const { select, set } = useStore.getState();
   return (
     <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
-      <input type="search" className="field" aria-label={tx('side.027')} value={q} onChange={(e) => setQ(e.target.value)} placeholder={tx('side.027')} style={{ height: 30 }} />
+      <input type="search" className="field" aria-label={tx('side.027')} value={q} onChange={(e) => set({ searchQuery: e.target.value })} placeholder={tx('side.027')} style={{ height: 30 }} />
       {results.map((r) => (
         <button key={r.f + ':' + r.sh + ':' + r.i} type="button" className="sr" onClick={() => leaveFile(files[r.f] ?? null, (idx) => { if (idx >= 0) select(idx, r.sh, r.i); })}
           style={{ display: 'flex', flexDirection: 'column', gap: 2, padding: '6px 9px', textAlign: 'left', background: 'var(--card)', border: '1px solid var(--line2)', borderRadius: 8 }}>

@@ -210,7 +210,7 @@ const EntryRow = memo(function EntryRow({ e, i, aiLock, k, m, issues, on, hit, s
 
 export function EntryList() {
   // 只訂閱這個區塊用到的資料（包含 currentOf 等輔助函式間接用到的）
-  const s = useStorePick('project', 'file', 'sheetBy', 'selBy', 'searchQuery', 'side', 'hideSide', 'mode', 'fonts', 'colWidths', 'cellSel', 'filter', 'reported', 'checkSettings', 'moveDir', 'moveSeq', 'set', 'select', 'selectCells', 'editSheet', 'undoSheet', 'redoSheet', 'checkAll', 'applyAllNewSources');
+  const s = useStorePick('project', 'file', 'sheetBy', 'selBy', 'searchQuery', 'side', 'general', 'hideSide', 'mode', 'fonts', 'colWidths', 'cellSel', 'filter', 'reported', 'checkSettings', 'moveDir', 'moveSeq', 'set', 'select', 'selectCells', 'editSheet', 'undoSheet', 'redoSheet', 'checkAll', 'applyAllNewSources');
   const project = s.project!;
   const { sheet, sheetIdx, sel } = currentOf(s);
   const filter = s.filter;
@@ -289,9 +289,10 @@ export function EntryList() {
   };
 
   const fileStd = currentFileStd(s);
-  // 工具欄開著搜尋頁時，符合搜尋的條目高亮
+  // 工具欄開著搜尋頁（或綜合頁的搜尋區塊）時，符合搜尋的條目高亮
   const searchQ = s.searchQuery.trim();
-  const searchOn = s.side === 'search' && !s.hideSide && !!searchQ;
+  // 搜尋分頁開著，或綜合分頁裡的搜尋區塊沒收起來時，都算搜尋中
+  const searchOn = (s.side === 'search' || (s.side === 'general' && !s.general.closed.includes('search'))) && !s.hideSide && !!searchQ;
   // 每一條的標記和問題、各篩選的數量：條目、檢查結果、篩選變了才重算（選取、捲動不用重算）
   const { all, cnt } = useMemo(() => {
     const cnt: Record<string, number> = {};
