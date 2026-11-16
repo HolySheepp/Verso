@@ -13,7 +13,7 @@ import { leaveFile } from '../state/saver';
 import { io } from '../data/fsio';
 import {
   addProjectMemory, addRow, applyMatch, deleteProjectMemory, deleteRows, deletedRows, editRow, exportTmDb, importRows, matchText, moveRows,
-  readTmDb, renameProjectMemory, restoreRow, rowsFromFile, sourceOf, tmProjectList, tmProjectsOn, undoTm, useTm, useTmMatches, versionsOf,
+  readTmDb, renameProjectMemory, restoreRow, rowsFromFile, sourceOf, TM_FILE, tmProjectList, tmProjectsOn, undoTm, useTm, useTmMatches, versionsOf,
 } from '../state/tm';
 import { ConfirmDialog } from './ConfirmDialog';
 import { Select } from './Select';
@@ -532,11 +532,14 @@ function ExportDialog() {
   const pick = [...rows.values()].filter((r) => on.has(r.project));
   const run = async () => {
     try {
-      const name = (fmt === 'db' ? '翻譯記憶' : 'Verso') + (fmt === 'db' ? '.sqlite' : '.tmx');
+      const name = (fmt === 'db' ? '翻譯記憶-匯出' : 'Verso') + (fmt === 'db' ? '.sqlite' : '.tmx');
       if (isTauri()) {
         const { save } = await import('@tauri-apps/plugin-dialog');
         const p = await save({ defaultPath: name, filters: [{ name: fmt === 'db' ? 'SQLite' : 'TMX', extensions: [fmt === 'db' ? 'sqlite' : 'tmx'] }] });
         if (!p) return;
+        // 選到正在用的記憶檔：匯出會先刪掉再換，整份記憶就變成子集，直接拒絕
+        const norm = (x: string) => x.replace(/\\/g, '/').toLowerCase();
+        if (fmt === 'db' && norm(p) === norm(io.join(useStore.getState().saveRoot, TM_FILE))) { showToast(tx('tm.exportFailed', { reason: TM_FILE }), { warn: true }); return; }
         if (fmt === 'db') await exportTmDb(p, pick); else await io.writeText(p, toTmx(pick));
       } else {
         const a = document.createElement('a');

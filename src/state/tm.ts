@@ -140,12 +140,16 @@ function changed(put: TmRow[], del: TmRow[], opts: { ops?: boolean; hist?: TmRow
   for (const r of put) { rows.set(r.id, r); index.add(r); }
   if (index.stale) index = new TmIndex([...rows.values()]);
   useTm.setState((st) => ({ rows, ver: st.ver + 1 }));
+  // 同一個 id 又放又刪（換專案、退回）：只留最後的動作，不然寫檔時先放後刪，那條就沒了
+  const putIds = new Set(put.map((r) => r.id)), delIds = new Set(del.map((r) => r.id));
+  pending.put = pending.put.filter((r) => !putIds.has(r.id) && !delIds.has(r.id));
+  pending.del = pending.del.filter((id) => !putIds.has(id));
   pending.put.push(...put);
-  pending.del.push(...del.map((r) => r.id));
+  pending.del.push(...del.filter((r) => !putIds.has(r.id)).map((r) => r.id));
   const now = Date.now();
   for (const h of opts.hist ?? []) pending.hist.push([h.id, now, JSON.stringify(h)]);
   if (opts.ops !== false) {
-    for (const r of del) { const op: TmOp = { k: 'del', op: opId(), t: now, id: r.id, project: r.project }; pendingOps.push(op); pending.outboxAdd.push(JSON.stringify(op)); }
+    for (const r of del) { const op: TmOp = { k: 'del', op: opId(), t: putIds.has(r.id) ? now - 1 : now, id: r.id, project: r.project }; pendingOps.push(op); pending.outboxAdd.push(JSON.stringify(op)); }
     for (const r of put) { const op: TmOp = { k: 'put', op: opId(), t: now, row: r }; pendingOps.push(op); pending.outboxAdd.push(JSON.stringify(op)); }
   }
   schedule();
@@ -331,7 +335,9 @@ export function sourceOf(r: TmRow): { file: number; sheet: number; index: number
   const list = p.files[fi].sheets[si].entries;
   let ei = r.eid ? list.findIndex((e) => e.id === r.eid) : -1;
   if (ei < 0) ei = list.findIndex((e) => shownSrc(e) === r.src);
-  return { file: fi, sheet: si, index: Math.max(0, ei) };
+  // 來源條目已經不在了：回傳 null，不要默默跳到第一條
+  if (ei < 0) return null;
+  return { file: fi, sheet: si, index: ei };
 }
 
 // ---- 手動管理 ----
@@ -514,7 +520,7 @@ export function mergeRemote(ops: TmOp[], mine: Set<string>) {
     if (mine.has(op.op)) continue;
     const id = op.k === 'put' ? op.row.id : op.id;
     const prev = latest.get(id);
-    if (!prev || prev.t <= op.t) latest.set(id, op);
+    if (!prev || prev.t < op.t || (prev.t === op.t && !(prev.k === 'put' && op.k === 'del'))) latest.set(id, op);
   }
   const put: TmRow[] = [], del: TmRow[] = [], hist: TmRow[] = [];
   for (const [id, op] of latest) {

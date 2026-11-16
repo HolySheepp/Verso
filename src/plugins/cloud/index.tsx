@@ -9,7 +9,7 @@ import { cleanName } from '../../model/comments';
 import { SHARED } from '../../model/types';
 import { currentOf, ensureUserName, showToast, useStore } from '../../state/store';
 import { isDirty, saveNow } from '../../state/saver';
-import { compactNow, startTmSync } from './tmSync';
+import { compactNow, retryTmWrite, startTmSync } from './tmSync';
 import { ConfirmDialog } from '../../components/ConfirmDialog';
 import { Select } from '../../components/Select';
 import { Preview, type DraftSheet } from '../../components/ImportDialog';
@@ -117,7 +117,7 @@ function SyncButton() {
   if (!isCloud) return null;
   const title = error || (last ? tx('cloud.lastSync', { time: new Date(last).toLocaleTimeString() }) : tx('cloud.sync'));
   return (
-    <button type="button" className="btn btn-ghost" title={title} aria-label={tx('cloud.sync')} disabled={syncing} onClick={() => void refreshAll(false)}
+    <button type="button" className="btn btn-ghost" title={title} aria-label={tx('cloud.sync')} disabled={syncing} onClick={() => { retryTmWrite(); void refreshAll(false); }}
       style={{ height: 34, display: 'flex', alignItems: 'center', gap: 6, padding: '0 12px', background: 'var(--btn)', border: '1px solid ' + (error ? 'var(--errtx)' : 'var(--line3)'), borderRadius: 8, fontSize: fz(12.5), color: error ? 'var(--errtx)' : 'var(--text2)' }}>
       <IconRefresh size={14} style={syncing ? { animation: 'verso-spin 0.9s linear infinite' } : undefined} />{syncing ? tx('cloud.syncing') : tx('cloud.sync')}
     </button>
