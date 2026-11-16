@@ -1476,7 +1476,7 @@ export const useStore = create<Store>((set, get) => {
       const file = s.file === i ? Math.max(0, Math.min(i, p.files.length - 2)) : map(s.file);
       set({
         project: { ...p, files: p.files.filter((_, j) => j !== i) },
-        file, sheetBy, selBy, cellSel: s.file === i ? null : s.cellSel, ...noPopups, ...noView,
+        file, sheetBy, selBy, cellSel: s.file === i ? null : s.cellSel, ...(s.file === i ? { filter: {} } : {}), ...noPopups, ...noView,
       });
     },
 

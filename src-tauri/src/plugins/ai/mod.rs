@@ -237,7 +237,11 @@ pub fn ai_run(app: AppHandle, state: State<Ai>, prompt: String, system: Option<S
         use std::os::windows::process::CommandExt;
         cmd.creation_flags(0x0800_0000); // 不跳出命令列視窗
     }
-    let mut child = cmd.spawn().map_err(|e| e.to_string())?;
+    // 啟動失敗：通行碼檔不能留在硬碟上
+    let mut child = match cmd.spawn() {
+        Ok(c) => c,
+        Err(e) => { let _ = std::fs::remove_file(&cfg); return Err(e.to_string()); }
+    };
     if let Some(mut input) = child.stdin.take() {
         // 寫完就關掉，Claude 才知道指示結束了
         std::thread::spawn(move || { let _ = input.write_all(prompt.as_bytes()); });

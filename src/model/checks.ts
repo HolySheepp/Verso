@@ -82,6 +82,8 @@ const endsWell = (s: string) => ENDINGS.some((e) => s.endsWith(e) || s.endsWith(
 // 句首、句尾的判斷先拿掉前後的標籤、變數、字面的 \n（例如 Hello.<br> 或 {name} hello）
 const EDGE_TOKEN = `(?:${TOKEN_SRC}|\\s)+`;
 const LEAD = new RegExp('^' + EDGE_TOKEN);
+/** 去掉開頭的變數後剩下 's 或 ’s（後面不是字母）：所有格 */
+const POSSESSIVE = /^['’]s(?![A-Za-z])/;
 /** 去掉結尾連續的標籤、變數、空白：從尾巴往回掃（用 (?:標籤|空白)+$ 比對，遇到一長串空白或標籤會大量回溯而凍住） */
 const stripTail = (s: string) => {
   const endAt = new Map<number, number>();
@@ -157,7 +159,10 @@ export function runChecks(src: string, tgt: string): Issue[] {
   if (curly.length) add('curlyQuotes', curly.join(''), tx('check.026', { v1: curly.join(' ') }));
 
   // 大小寫：句首、句號/問號/驚嘆號後要大寫；破折號後要小寫（I 除外）
-  const firstLetter = tgt.replace(LEAD, '').match(/^[\s"'(\[.]*([A-Za-z])/);
+  // 變數後面接 's（{name}'s sword.）：那個 s 是所有格，不算句首
+  const body = tgt.replace(LEAD, '');
+  const possessive = body.length < tgt.length && POSSESSIVE.test(body);
+  const firstLetter = possessive ? null : body.match(/^[\s"'(\[.]*([A-Za-z])/);
   if (firstLetter && /[a-z]/.test(firstLetter[1])) add('capital', 'start', tx('check.027'));
   // 刪節號後不檢查（例如 Are you... are you mad?），只有整句以刪節號開頭時，刪節號後的字算句首
   if (/(?:^|[^.])[.?!]["')]*\s+["'(]*[a-z]/.test(tgt)) add('capital', 'sentence', tx('check.028'));
@@ -182,14 +187,14 @@ function dashCapitals(tgt: string): number[] {
   const out: number[] = [];
   for (const m of tgt.matchAll(/—["'(]*(?!I\b|I')([A-Z])/g)) {
     const before = tgt.slice(0, m.index).replace(TOKEN, ' ');
-    if (!/[\p{L}\p{N}]/u.test(before) || /[.?!~～\p{So}]["')\]]*\s*["'(\[]*$/u.test(before)) continue;
+    if (!/[\p{L}\p{N}]/u.test(before) || SENTENCE_END_OPEN.test(before)) continue;
     out.push(m.index! + m[0].length - 1);
   }
   return out;
 }
 
-/** 句子結尾：句點、驚歎號、問號、~、…、全形的句末標點，後面可以跟著收尾的括號、引號，再接可有可無的空格 */
-const SENTENCE_END = /[.!?~…。！？～\p{So}]["'”’)\]）」』]*\s*$/u;
+/** 句子結尾：句點、驚歎號、問號、~、…、全形的句末標點，後面可以跟著收尾的括號、引號，再接可有可無的空格；破折號前面可以再有開頭的引號、括號（Stop. "—go） */
+const SENTENCE_END_OPEN = /[.!?~…。！？～\p{So}]["'”’)\]）」』]*\s*["'“‘(\[（「『]*$/u;
 
 /** 波浪號、♪、♡ 這類特殊符號（其他符號類的字）後面接空格再接小寫字母：那個字母的位置 */
 const SYMBOL_END = /[~～\p{So}]["'”’)\]）」』]*\s+["'(]*([a-z])/gu;
@@ -207,7 +212,7 @@ function dashStarts(tgt: string): { lower: number[] } {
   for (const m of tgt.matchAll(/—(\s*)["'(\[]*([A-Za-z])?/g)) {
     const at = m.index!, gap = m[1].length;
     const before = tgt.slice(0, at).replace(TOKEN, '');
-    const atStart = !/[\p{L}\p{N}]/u.test(before) || SENTENCE_END.test(before);
+    const atStart = !/[\p{L}\p{N}]/u.test(before) || SENTENCE_END_OPEN.test(before);
     if (m[2] && /[a-z]/.test(m[2]) && (atStart || gap)) lower.push(at + m[0].length - 1);
   }
   return { lower };
@@ -252,7 +257,7 @@ export function locateIssues(tgt: string, checks: Set<CheckId>): { start: number
     // 句首小寫、句號問號驚嘆號後小寫、破折號後大寫：標出那個字母
     // 判斷時先去掉開頭的標籤、變數（LEAD），標色的位置要加回去
     const lead = tgt.match(LEAD)?.[0].length ?? 0;
-    const first = tgt.slice(lead).match(/^[\s"'(\[.]*([a-z])/);
+    const first = lead > 0 && POSSESSIVE.test(tgt.slice(lead)) ? null : tgt.slice(lead).match(/^[\s"'(\[.]*([a-z])/);
     if (first) { const i = lead + first[0].length - 1; out.push({ start: i, end: i + 1 }); }
     for (const m of tgt.matchAll(/(?:^|[^.])[.?!]["')]*\s+["'(]*([a-z])/g)) { const i = m.index! + m[0].length - 1; out.push({ start: i, end: i + 1 }); }
     for (const i of dashCapitals(tgt)) out.push({ start: i, end: i + 1 });

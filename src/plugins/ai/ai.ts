@@ -395,7 +395,7 @@ const BATCH_RULE = 'The task comes in batches: the first batch is in the user me
  */
 const systemOf = (fixed: string, guide: string) => fixed + (guide ? '\n\n<guidelines>\n' + guide.trim() + '\n</guidelines>' : '');
 const taskMessage = (first: unknown, extra: string) => (extra.trim() ? '<extra_instructions>\n' + extra.trim() + '\n</extra_instructions>\n\n' : '')
-  + 'The first batch of the task (the same as get_task with offset 0):\n<task>\n' + JSON.stringify(first) + '\n</task>';
+  + 'The first batch of the task (the same as get_task with offset 0):\n<task>\n' + JSON.stringify(first).replace(/</g, '\\u003c') + '\n</task>';
 
 /**
  * AI 備註用的語言：跟使用者選的介面語言（中文介面用繁體中文、English 介面用英文、語言包用那個語言包的名稱）；
@@ -414,7 +414,7 @@ const prompts = {
     guide ? 'Follow the translation guidelines below.' : 'Translate from the source language into English unless the entries clearly show another target language.',
     BATCH_RULE,
     EXTRA_RULE,
-    'For every entry, translate its src, following the glossary translations, the speaker, the note and the surrounding context, then call write_translation(index, text) with the full translation.',
+    'For every entry, translate its src, following the glossary translations, the speaker, the note, its extra columns and the surrounding context, then call write_translation(index, text) with the full translation.',
     'When all entries are written, call get_checks and rewrite the entries it reports (especially length overflows) until nothing is left.',
     CHECKS_RULE,
     `Only after that, for entries that need the translator's attention (or a problem you could not fix without losing important meaning), call write_note(index, text) once with your final note in ${noteLang()} (unless the extra instructions or the guidelines say otherwise). Never write notes about intermediate attempts. Do not do anything else.`,
@@ -452,22 +452,29 @@ let launching = false;
 
 async function launchAi(s: ReturnType<typeof useStore.getState>, mode: 'translate' | 'verify', indices: number[]) {
   await startAi();
-  const { fileDoc, sheetIdx, sheet } = currentOf(s);
-  const pairs = indices.map((i) => ({ i, e: sheet.entries[i] })).filter((x) => x.e);
-  const list = pairs.map((x) => x.e);
-  job = { fid: fileDoc.fid ?? '', sheet: sheetIdx, mode, indices: pairs.map((x) => x.i), uids: list.map((e) => e.uid), before: Object.fromEntries(list.map((e) => [e.uid, e])), wrote: {}, notes: {} };
-  const ps = s.project?.tagSettings?.[projectTag(fileDoc.project)]?.ai ?? {};
+  const cur0 = currentOf(s);
+  const fid = cur0.fileDoc.fid ?? '';
+  const ps = s.project?.tagSettings?.[projectTag(cur0.fileDoc.project)]?.ai ?? {};
   // 準則檔：專案設定選的檔案，讀出內容直接放進指示（不用 skill）
   const guidePath = ((mode === 'translate' ? ps.guideTranslate : ps.guideVerify) || '').trim();
   let guide = '';
   if (guidePath) {
-    try { guide = await invoke<string>('ai_read_text', { path: guidePath }); } catch { job = null; showToast(tx('ai.errGuide'), { warn: true }); return; }
+    try { guide = await invoke<string>('ai_read_text', { path: guidePath }); } catch { showToast(tx('ai.errGuide'), { warn: true }); return; }
   }
+  // 讀完檔案才記下條目：按下按鈕到鎖住之間使用者改的內容，不會在結束或還原時被舊的快照蓋掉
+  const fresh = useStore.getState();
+  const doc = fresh.project?.files.find((x) => (x.fid ?? '') === fid);
+  const sheet = doc?.sheets[cur0.sheetIdx];
+  if (!doc || !sheet) return;
+  const sheetIdx = cur0.sheetIdx;
+  const pairs = indices.map((i) => ({ i, e: sheet.entries[i] })).filter((x) => x.e);
+  const list = pairs.map((x) => x.e);
+  job = { fid, sheet: sheetIdx, mode, indices: pairs.map((x) => x.i), uids: list.map((e) => e.uid), before: Object.fromEntries(list.map((e) => [e.uid, e])), wrote: {}, notes: {} };
   const model = ps.model || 'opus', effort = ps.effort || 'medium';
   try {
     useStore.setState({ aiBusy: true, aiLocked: job.uids });
     progress(job);
-    await invoke('ai_run', { system: systemOf(prompts[mode](guide), guide), prompt: taskMessage(getTask(job, 0, BATCH), s.aiExtra), model, effort });
+    await invoke('ai_run', { system: systemOf(prompts[mode](guide), guide), prompt: taskMessage(getTask(job, 0, BATCH), fresh.aiExtra), model, effort });
   } catch (e) {
     job = null;
     useStore.setState({ aiBusy: false, aiLocked: [] });

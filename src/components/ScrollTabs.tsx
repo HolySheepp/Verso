@@ -45,6 +45,8 @@ export function useScrollTabs() {
     };
     const onMove = (ev: PointerEvent) => {
       if (!drag || ev.pointerId !== drag.id) return;
+      // 在視窗外放開時沒收到放開的事件：沒按著鍵就當成已經放開，不再跟著滑鼠捲
+      if (!ev.buttons) { onUp(ev); return; }
       const dx = ev.clientX - drag.x;
       if (!drag.moved) {
         if (Math.abs(dx) < 5) return;
