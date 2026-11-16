@@ -114,7 +114,8 @@ function saveCacheSoon(doc: FileDoc) {
     cacheJobs.delete(sid);
     const out: Record<string, Record<string, Kept>> = {};
     doc.sheets.forEach((sh) => {
-      const keys = keysOf(sh.entries);
+      const keys0 = keysOf(sh.entries);
+      const keys = sh.entries.map((e, i) => base.get(e.uid)?.key ?? keys0[i]);
       const m: Record<string, Kept> = {};
       sh.entries.forEach((e, i) => {
         const b = base.get(e.uid);
@@ -599,6 +600,8 @@ async function flushInner(sid: string, all: boolean): Promise<void> {
           if (writeNote) cells.push({ gid: sh.gid!, row, col: tab.fields.note!.col, rich: w.note });
           done.push({ e, key, w, row });
         }
+        const idChanged = done.some(({ e }) => e.id !== base.get(e.uid)!.id);
+        const keysBefore = idChanged ? await rowKeys(sid, tab.title, tab.fields) : null;
         await writeRich(sid, cells);
         // 資料表裡這個檔案的分頁：有這條就改那一列，沒有就加在最後（沒有分頁就先建）
         const dataDone = did ? done.filter(({ e, w }) => w.dataSig !== base.get(e.uid)!.data) : [];
@@ -624,6 +627,7 @@ async function flushInner(sid: string, all: boolean): Promise<void> {
           ...base.get(e.uid)!, id: e.id, speaker: e.speaker, src: effSrc(e), tgt: e.tgt, cell: w.cell.text, cellSig: richSig(w.cell), note: e.note, noteSig: richSig(w.note), blueFrom: w.blueFrom, row,
           ...(did ? { core: w.core, data: w.dataSig, comments: w.comments } : {}),
         }));
+        if (keysBefore) await rekey(sid, sh.gid!, keysBefore, await rowKeys(sid, tab.title, tab.fields), (r) => r);
         // 寫回成功：本機暫存裡「還沒寫回」的記錄跟著更新（免得下次開啟又當成沒寫回）
         if (done.length) { const f = fileOf(sid); if (f) saveCacheSoon(f); }
         if (missing.length) showToast(tx('cloud.missingId', { name: sh.name, ids: missing.slice(0, 5).join(tx('common.sep')) }), { warn: true });
@@ -1120,6 +1124,8 @@ export function tabDelete(i: number): boolean {
       const PREVIEW = 30;
       const rows = vals.slice(0, PREVIEW).map((v, r) => ({ row: r, cells: v.map((x, c): [string, string] => [colName(c), x]).filter(([, x]) => x.trim()) })).filter((r) => r.cells.length);
       useCloud.setState({ askDelete: { title: tx('cloud.deleteTabAsk', { name: sh.name, n: vals.length }), rows, run: async () => {
+        // 確認框開著時 AI 開始了：Google 刪了、本機卻不能刪，所以先擋下
+        if (useStore.getState().aiBusy) { showToast(tx('list.aiLocked')); return; }
         try {
           await deleteTab(sid, sh.gid!);
           await saveTabs(sid, conf.tabs.filter((t) => t.gid !== sh.gid));
@@ -1236,6 +1242,7 @@ export async function applyCloudUpdate(sid: string, sheetIdx: number, out: Entry
     await insertRowsAt(sid, tab.gid, at, n);
     remapRows(out.filter((e) => base.has(e.uid)), (y) => (y >= at ? y + n : y));
     fields = shiftFields(fields, at, n);
+    out.slice(i, j).forEach((e) => { if (e.id || e.src || e.tgt || e.note) pendingNew.add(e.uid); });
     out.slice(i, j).forEach((e, k) => base.set(e.uid, {
       id: '', speaker: '無', src: '', tgt: '', cell: '', cellSig: plainSig(''), note: '', noteSig: plainSig(''), row: at + k,
       core: JSON.stringify(dataCore({ ...e, mark: '', sugg: '', ver: undefined }, customs)), data: JSON.stringify(['', '', '', '', '', '', '']),
@@ -1373,6 +1380,7 @@ export function tabRemove(i: number): boolean {
   if (!sid || !conf || sh?.gid === undefined || fileDoc.cloud?.stub) return false;
   if (fileDoc.sheets.length <= 1) { showToast(tx('cloud.removeLastTab'), { warn: true }); return true; }
   useCloud.setState({ confirm: { title: tx('cloud.removeTabAsk', { name: sh.name }), body: tx('cloud.removeTabBody'), ok: tx('cloud.removeOk'), run: async () => {
+    if (useStore.getState().aiBusy) { showToast(tx('list.aiLocked')); return; }
     try {
       await flush(sid, true);
       await saveRemoved(sid, { tabs: [sh.gid!] });
