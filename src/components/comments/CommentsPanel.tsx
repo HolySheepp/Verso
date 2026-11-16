@@ -2,6 +2,7 @@
 // 面板用 position:absolute 填滿外層容器，外層容器的高度由版面決定（不會被訊息撐高）。
 
 import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react';
+import { AI_AUTHOR } from '../../model/aiNote';
 import type { KeyboardEvent as RKeyboardEvent, MouseEvent as RMouseEvent, CSSProperties, ReactNode } from 'react';
 import { formatTime, newCommentId, type CommentReply, type CommentThread } from '../../model/comments';
 import { tx } from '../../i18n';
@@ -199,7 +200,7 @@ export function CommentsPanel({ entryKey, srcNotes = [], notes, me, onChange, en
     const q = 'quoteId' in m && m.quoteId ? findMsg(notes, m.quoteId) : null;
     const replies = 'replies' in m ? m.replies || [] : [];
     const hasTab = !!o.tab && replies.length > 0;
-    const canEdit = mine;                 // 只能編輯自己的訊息
+    const canEdit = mine || m.author === AI_AUTHOR;  // 只能編輯自己的訊息；AI 的留言所有人都能編輯
     const canDelete = !o.noDelete;        // 任何人的訊息都能刪（討論串最上層那則除外）
     const toolW = (2 + (canEdit ? 1 : 0) + (canDelete ? 1 : 0)) * TOOL_BTN + MSG_TOOL_PAD;
     const need = natW[key] ? Math.max(0, toolW + 12 - natW[key]) : 0;  // 短訊息需要撐開的寬度
@@ -326,10 +327,13 @@ export function CommentsPanel({ entryKey, srcNotes = [], notes, me, onChange, en
       // 正在編輯的那則被同步刪掉了：清掉編輯狀態，不要當成新留言送出
       if (edit && edit.layer === layer && !ed) { setEdit(null); setDraft((d) => ({ ...d, [layer]: '' })); return; }
       // 第一次留言要先填名字：填完再用那一條最新的留言送出（視窗開著時可能同步進別人的留言）
-      const author = ed ? me : me || (ensureName ? await ensureName() : null);
-      if (!ed && !author) return;
+      // 編輯 AI 的留言：作者改成編輯者，所以也要先有名字
+      const aiMsg = !!ed && ed.msg.author === AI_AUTHOR;
+      const author = ed && !aiMsg ? me : me || (ensureName ? await ensureName() : null);
+      if ((!ed || aiMsg) && !author) return;
       if (ed) {
-        if (ed.msg.text !== text) onChange((ns) => patchMsg(ns, ed.msg.id, { text, edited: true }));
+        // AI 的留言編輯後作者改成編輯者（之後就不算 AI 的，離開條目時不會被自動解決）
+        if (ed.msg.text !== text || aiMsg) onChange((ns) => patchMsg(ns, ed.msg.id, { text, edited: true, ...(aiMsg ? { author: author! } : {}) }));
         setEdit(null);
       } else if (layer === 'thread' && thread) {
         const r: CommentReply = { id: newId(), author: author!, time: formatNow(), text };

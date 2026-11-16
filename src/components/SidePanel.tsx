@@ -552,12 +552,13 @@ function NotesSectionInner() {
               </span>
             )}
             {cur.sugg && <span style={{ flexShrink: 0, flexGrow: suggIssues.length ? 0 : 1, textAlign: 'right', fontSize: fz(11.5), color: 'var(--mute)' }}>{tx('side.037', { n: cur.sugg.length })}</span>}
-            {mode === 'translate' && cur.sugg && (
+            {(mode === 'translate' || mode === 'verify') && cur.sugg && (
               <span style={{ display: 'flex', gap: 6 }}>
-                <button type="button" className="btn btn-ghost" title={tx('side.038')} onClick={() => s.updateEntry({ sugg: '' })}
+                {/* 驗證模式只有套用：建議翻譯寫成修改，不直接蓋掉譯文 */}
+                {mode === 'translate' && <button type="button" className="btn btn-ghost" title={tx('side.038')} onClick={() => s.updateEntry({ sugg: '' })}
                   style={{ height: 26, display: 'flex', alignItems: 'center', padding: '0 10px', background: 'var(--btn)', border: '1px solid var(--line4)', borderRadius: 6, fontSize: fz(12), fontWeight: 500, color: 'var(--text)' }}>
                   {tx('side.039')}
-                </button>
+                </button>}
                 <button type="button" className="btn btn-ghost" title={tx('side.040')} onClick={() => s.applySuggestion()}
                   style={{ height: 26, display: 'flex', alignItems: 'center', gap: 5, padding: '0 10px', background: 'var(--btn)', border: '1px solid var(--line4)', borderRadius: 6, fontSize: fz(12), fontWeight: 500, color: 'var(--text)' }}>
                   <IconUse size={12} sw={2.4} />{tx('side.041')}

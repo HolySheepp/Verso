@@ -16,6 +16,9 @@ import { compose, editsOf, type VEdit } from '../model/verify';
 import { DEFAULT_QS, type QuickSearch } from '../model/quickSearch';
 import { composeNote, mergeComments, parseNote, type CommentThread } from '../model/comments';
 import { maxOf, minOf } from '../model/num';
+import { tidyOnLeave } from '../model/aiNote';
+import { entryFits } from '../model/cellLimit';
+import { wordEdits } from '../model/wordDiff';
 
 /** 條目欄的篩選：條件（標記 id 或 'issues'）→ 1 勾選、-1 排除；沒列的是不選，空的就是全部 */
 export type Filter = Record<string, 1 | -1>;
@@ -660,6 +663,7 @@ export const useStore = create<Store>((set, get) => {
     return { file: s.file, id: docId(doc), doc, sheet: currentOf(s).sheetIdx, keys: s.cellSel?.keys ?? [] };
   };
   const pushSnap = (snap: Snap) => {
+    lastEdit = null;
     const st = stacksOf(snap.id);
     const add = (x: Snap) => {
       st.undo.push(x);
@@ -689,6 +693,8 @@ export const useStore = create<Store>((set, get) => {
 
   // 工作欄輸入框的編輯：進輸入框時記下當時的檔案，離開時有改動就把整段編輯算成一步
   let editSnap: Snap | null = null;
+  // 最後一步是不是剛剛在輸入框裡改這一條（離開條目時的自動整理併進那一步）
+  let lastEdit: string | null = null;
 
   const replaceFile = (fileIdx: number, doc: FileDoc) => {
     const p = get().project!;
@@ -784,8 +790,35 @@ export const useStore = create<Store>((set, get) => {
     set({ reported });
   };
 
-  /** 離開目前條目時檢查它 */
+  /**
+   * 離開條目時自動整理 AI 留下的東西（翻譯、驗證模式才做）：跟建議翻譯一樣的就刪掉建議翻譯，
+   * 沒有修改也沒有建議翻譯了就把 AI 的備註算處理完。跟剛剛在輸入框裡的修改算同一步，Ctrl+Z 一起復原
+   */
+  const tidyCurrent = () => {
+    const s = get();
+    if (s.mode !== 'translate' && s.mode !== 'verify') return;
+    const { entry, sel } = cur();
+    if (!entry || s.aiLocked.includes(entry.uid)) return;
+    const next = tidyOnLeave(entry, (x) => withSugg(x, ''));
+    if (next === entry) return;
+    if (editSnap) { patchEntry(sel, () => next); return; }
+    const st = currentStacks();
+    const last = st?.undo[st.undo.length - 1];
+    if (last && lastEdit === entry.uid) {
+      // 剛剛那一步：本機記的是改之前的整個檔案，復原時自然一起退回；雲端記的是改前改後，把改後換成整理後的
+      patchEntry(sel, () => next);
+      const c = last.changes?.find((x) => x.uid === entry.uid);
+      if (c) c.after = next;
+      return;
+    }
+    pushUndo();
+    patchEntry(sel, () => next);
+  };
+
+  /** 離開目前條目時：整理 AI 留下的東西，再檢查它 */
   const leaveCurrent = () => {
+    tidyCurrent();
+    lastEdit = null;
     const { entry } = cur();
     if (entry) checkEntries([entry]);
   };
@@ -1143,7 +1176,7 @@ export const useStore = create<Store>((set, get) => {
     endEdit() {
       const snap = editSnap;
       editSnap = null;
-      if (snap && get().project?.files[snap.file] !== snap.doc) pushSnap(snap);
+      if (snap && get().project?.files[snap.file] !== snap.doc) { pushSnap(snap); lastEdit = snap.uid ?? cur().entry?.uid ?? null; }
     },
 
     record(text) {
@@ -1260,6 +1293,18 @@ export const useStore = create<Store>((set, get) => {
     applySuggestion() {
       const { entry } = cur();
       if (!entry?.sugg) return;
+      if (get().mode === 'verify') {
+        // 驗證模式：建議翻譯寫成修改（譯文不直接蓋掉），建議翻譯清空；有修改就維持疑慮
+        const edits = wordEdits(entry.tgt, entry.sugg);
+        if (edits.length && !entryFits({ ...entry, ver: { ...entry.ver, base: entry.tgt, edits } })) { showToast(tx('work.tooLong')); return; }
+        if (!editSnap) pushUndo();
+        patchEntry(cur().sel, (e) => {
+          if (!edits.length) return withSugg(e, '');
+          return { ...e, sugg: '', pending: false, ver: { ...e.ver, base: e.tgt, edits } };
+        });
+        set(noView);
+        return;
+      }
       if (entry.tgt) get().record(entry.tgt);
       // 套用後建議翻譯清空，標記退回原本的
       get().updateEntry({ tgt: entry.sugg, sugg: '' });

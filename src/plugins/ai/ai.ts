@@ -13,6 +13,7 @@ import { composeNote, newCommentId, parseNote } from '../../model/comments';
 import { ratio } from '../../model/srcUpdate';
 import { editsOf } from '../../model/verify';
 import { wordEdits } from '../../model/wordDiff';
+import { AI_AUTHOR, aiNoteLine } from '../../model/aiNote';
 import { dictKey, projectTag, type Entry } from '../../model/types';
 import { findHits } from '../../state/dictHits';
 import { checkText, fileStdFor, currentOf, currentProjectOf, dictEnabledIn, shownSrc, showToast, useStore, withSugg } from '../../state/store';
@@ -302,8 +303,9 @@ function finish() {
     const { aiPatch } = useStore.getState();
     // 雲端檔案：AI 的備註是一則作者叫「AI」的留言；本機檔案照舊接在備註後面
     for (const [uid, text] of Object.entries(j.notes)) aiPatch(j.fid, j.sheet, uid, (x) => {
-      if (!x.comments) return { ...x, note: appendNote(x.note, 'AI：' + text) };
-      const comments = [...x.comments, { id: newCommentId(), author: 'AI', time: new Date().toISOString(), text, replies: [] }];
+      // 本機備註：AI 那一行不換行，離開條目自動清掉時才不會刪到使用者自己的字
+      if (!x.comments) return { ...x, note: appendNote(x.note, aiNoteLine(text)) };
+      const comments = [...x.comments, { id: newCommentId(), author: AI_AUTHOR, time: new Date().toISOString(), text, replies: [] }];
       const base = x.noteBase ?? parseNote(x.note, x.comments).base;
       return { ...x, comments, noteBase: base, note: composeNote(base, comments) };
     });
