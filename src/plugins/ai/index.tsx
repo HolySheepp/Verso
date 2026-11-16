@@ -66,7 +66,7 @@ function AiExtraField() {
   return (
     <div style={{ display: 'flex', flexDirection: 'column', gap: 6, marginTop: 10 }}>
       <label htmlFor="verso-ai-extra" style={{ fontSize: fz(12.5), color: 'var(--text2)' }}>{tx('settings.aiExtra')}</label>
-      <textarea id="verso-ai-extra" className="field" rows={3} value={extra} placeholder={tx('settings.aiExtraPh')} onChange={(e) => set({ aiExtra: e.target.value })}
+      <textarea id="verso-ai-extra" className="field" rows={3} value={extra} onChange={(e) => set({ aiExtra: e.target.value })}
         style={{ resize: 'vertical', minHeight: 64, padding: '8px 10px', lineHeight: 1.5, fontFamily: 'inherit' }} />
     </div>
   );

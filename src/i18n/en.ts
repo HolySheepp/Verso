@@ -803,7 +803,6 @@ export const EN: Partial<Record<TextKey, string>> = {
   'settings.aiEnabled': 'AI Assist (Beta)',
   'settings.aiHint': 'When on, an AI button appears above the entry list. Clicking it processes the selected entries with Claude Code in the background (the command-line Claude Code must be installed and signed in).',
   'settings.aiExtra': 'Extra Instructions',
-  'settings.aiExtraPh': 'Added to every AI translation and review, for all projects; takes priority over the guidelines',
   'list.aiButton': 'Let AI process the selected entries',
   'list.aiStop': 'Stop',
   'ai.done': 'AI finished',

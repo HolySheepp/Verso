@@ -344,7 +344,6 @@ export const ZH = {
   'settings.aiEnabled': 'AI 協助（測試中）', // 設定 > 開發者選項：開關
   'settings.aiHint': '打開後條目欄上方會出現 AI 按鈕，按下時在背景用 Claude Code 處理選取的條目（需要先裝好、登入命令列版 Claude Code）', // 設定 > 開發者選項：說明
   'settings.aiExtra': '額外指示', // 設定 > 開發者選項：AI 的額外指示（全部專案共用）
-  'settings.aiExtraPh': '每次 AI 翻譯、驗證都會加上，全部專案共用；跟準則衝突時以這裡為準', // 設定 > 開發者選項：額外指示輸入框的提示
   'list.aiButton': '讓 AI 處理選取的條目', // 條目欄上方 AI 按鈕的滑鼠提示
   'list.aiStop': '停止', // AI 處理中時，AI 按鈕變成這個
   'ai.done': 'AI 處理完成', // AI 做完時的提示
