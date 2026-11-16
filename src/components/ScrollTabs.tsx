@@ -24,6 +24,18 @@ export function useScrollTabs() {
     };
     // 按住拖動：超過 5px 才算拖動；拖動後放開的那一下點擊吃掉，不會切換頁簽
     let drag: { x: number; left: number; id: number; moved: boolean } | null = null;
+    let shifted = 0;
+    const kids = () => [...el.children] as HTMLElement[];
+    const shift = (px: number) => {
+      shifted = px;
+      for (const k of kids()) k.style.translate = px ? `${px}px 0` : '';
+    };
+    const springBack = () => {
+      if (!shifted) return;
+      const from = shifted;
+      shift(0);
+      for (const k of kids()) k.animate([{ translate: `${from}px 0` }, { translate: '0px 0' }], { duration: 320, easing: 'cubic-bezier(0.2, 0.8, 0.2, 1)' });
+    };
     let eat = false;
     const onDown = (ev: PointerEvent) => {
       if (ev.button !== 0 || el.scrollWidth <= el.clientWidth) return;
@@ -38,22 +50,22 @@ export function useScrollTabs() {
         if (Math.abs(dx) < 5) return;
         drag.moved = true;
         try { el.setPointerCapture(drag.id); } catch { /* 無法捕捉時照常運作 */ }
-        el.style.transition = 'none';
       }
       const max = el.scrollWidth - el.clientWidth;
       const want = drag.left - dx;
       el.scrollLeft = Math.max(0, Math.min(max, want));
-      // 拉過頭：整列跟著移一點點（越拉越緊），放開再彈回
+      // 拉過頭：裡面的頁簽跟著移一點點（越拉越緊），放開再彈回。
+      // 只移頁簽、不移整列，頁簽列外面的東西不會被蓋到（超出的部分被頁簽列裁掉）；
+      // 用 translate 不用 transform，頁簽自己的 transform（例如拖動排序）不受影響
       const over = want < 0 ? -want : want > max ? max - want : 0;
-      el.style.transform = over ? `translateX(${Math.sign(over) * Math.min(60, Math.abs(over) * 0.35)}px)` : '';
+      shift(over ? Math.sign(over) * Math.min(60, Math.abs(over) * 0.35) : 0);
     };
     const onUp = (ev: PointerEvent) => {
       if (!drag || ev.pointerId !== drag.id) return;
       if (drag.moved) {
         eat = true;
         setTimeout(() => { eat = false; }, 0);
-        el.style.transition = 'transform 320ms cubic-bezier(0.2, 0.8, 0.2, 1)';
-        el.style.transform = '';
+        springBack();
       }
       drag = null;
     };
