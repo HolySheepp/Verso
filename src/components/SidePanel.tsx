@@ -289,8 +289,16 @@ function jumpSearch(dir: 1 | -1) {
   const h = dir > 0
     ? hits.find((x) => byPos(x, here) > 0) ?? hits[0]
     : [...hits].reverse().find((x) => byPos(x, here) < 0) ?? hits[hits.length - 1];
-  leaveFile(s.project.files[h.f] ?? null, (idx) => { if (idx >= 0) useStore.getState().select(idx, h.sh, h.i); });
+  leaveFile(s.project.files[h.f] ?? null, (idx) => {
+    if (idx < 0) return;
+    useStore.getState().select(idx, h.sh, h.i);
+    // 搜尋結果清單也捲到這一筆
+    window.dispatchEvent(new CustomEvent(SEARCH_JUMP, { detail: { f: idx, sh: h.sh, i: h.i } }));
+  });
 }
+
+/** 跳到上一筆／下一筆之後通知搜尋結果清單捲到那一筆 */
+const SEARCH_JUMP = 'verso-search-jump';
 
 /** 搜尋框按 Enter 跳下一筆，Shift＋Enter 跳上一筆 */
 const searchKey = (ev: React.KeyboardEvent) => {
@@ -373,16 +381,41 @@ function SearchResults({ results, files, dq, q, compact }: { results: SearchHit[
     io.observe(el);
     return () => io.disconnect();
   }, [shown, results]);
+  // 用上一筆、下一筆跳過去：那一筆還沒顯示就先多顯示到那裡，再捲過去（避開上方固定的輸入框）
+  const listRef = useRef<HTMLSpanElement>(null);
+  const [jumpTo, setJumpTo] = useState<string | null>(null);
+  useEffect(() => {
+    const on = (ev: Event) => {
+      const d = (ev as CustomEvent<{ f: number; sh: number; i: number }>).detail;
+      const k = results.findIndex((r) => r.f === d.f && r.sh === d.sh && r.i === d.i);
+      if (k < 0) return;
+      setShown((n) => Math.max(n, k + 1));
+      setJumpTo(d.f + ':' + d.sh + ':' + d.i);
+    };
+    window.addEventListener(SEARCH_JUMP, on);
+    return () => window.removeEventListener(SEARCH_JUMP, on);
+  }, [results]);
+  useEffect(() => {
+    if (!jumpTo) return;
+    const el = listRef.current?.parentElement?.querySelector(`[data-hit="${jumpTo}"]`);
+    el?.scrollIntoView({ block: 'nearest' });
+    setJumpTo(null);
+  }, [jumpTo, shown]);
+  const here = useStore(useShallow((s) => { const c = currentOf(s); return { f: s.file, sh: c.sheetIdx, i: c.sel }; }));
   return (
     <>
-      {results.slice(0, shown).map((r) => (
-        <button key={r.f + ':' + r.sh + ':' + r.i} type="button" className="sr" onClick={() => leaveFile(files[r.f] ?? null, (idx) => { if (idx >= 0) select(idx, r.sh, r.i); })}
-          style={{ display: 'flex', flexDirection: 'column', gap: compact ? 2 : 4, padding: compact ? '6px 9px' : '10px 12px', textAlign: 'left', background: 'var(--card)', border: '1px solid var(--line2)', borderRadius: 8 }}>
+      <span ref={listRef} hidden />
+      {results.slice(0, shown).map((r) => {
+        const on = r.f === here.f && r.sh === here.sh && r.i === here.i;
+        return (
+        <button key={r.f + ':' + r.sh + ':' + r.i} data-hit={r.f + ':' + r.sh + ':' + r.i} aria-current={on || undefined} type="button" className="sr" onClick={() => leaveFile(files[r.f] ?? null, (idx) => { if (idx >= 0) select(idx, r.sh, r.i); })}
+          style={{ display: 'flex', flexDirection: 'column', gap: compact ? 2 : 4, padding: compact ? '6px 9px' : '10px 12px', textAlign: 'left', background: 'var(--card)', border: `1px solid ${on ? 'var(--accent)' : 'var(--line2)'}`, borderRadius: 8, scrollMarginTop: compact ? 44 : 92, scrollMarginBottom: 8 }}>
           <span className="mono" style={{ fontSize: fz(compact ? 10.5 : 11), color: 'var(--mute)' }}>{r.where}</span>
           <span style={{ fontSize: fz(compact ? 11.5 : 13), lineHeight: compact ? 1.35 : 1.5 }}>{r.src}</span>
           <span style={{ fontSize: fz(compact ? 11 : 12.5), lineHeight: compact ? 1.35 : 1.5, color: 'var(--text2)' }}>{r.tgt}</span>
         </button>
-      ))}
+        );
+      })}
       {results.length > shown && <div ref={sentinel} style={{ height: 1 }} />}
       {dq && dq === q.trim() && results.length === 0 && <div className="empty" style={{ padding: compact ? '20px 12px' : '24px 8px', textAlign: 'center', color: 'var(--mute)' }}>{tx('side.020', { q: dq })}</div>}
     </>
