@@ -72,7 +72,7 @@ const TOOLS = [
   },
   {
     name: 'write_note',
-    description: 'Set your final note for one entry: why you changed it, or something the translator should check. Write it in Traditional Chinese. '
+    description: 'Set your final note for one entry: why you changed it, or something the translator should check. Write it in Traditional Chinese unless the extra instructions say otherwise. '
       + 'Only write it once the entry is final (after get_checks). Calling it again for the same entry replaces your earlier note; the translator only sees your last one. Verso adds the prefix "AI：".',
     inputSchema: obj({ index: idx, text: { type: 'string' } }, ['index', 'text']),
   },
@@ -378,6 +378,13 @@ export function aiTarget() {
 /** 條目有檢查結果時一定要處理 */
 const CHECKS_RULE = 'If get_task lists checks for an entry, that entry must be fixed even when its meaning is fine (for example, shorten it until it fits the length limit); only if it cannot be fixed without losing important meaning, leave it and explain why in write_note.';
 
+/**
+ * 額外指示（開發者選項填的，放在訊息裡）：跟固定指示、準則衝突時照額外指示，
+ * 但必要的流程（拿任務、寫入、查檢查結果、最後才寫備註）不能被改掉
+ */
+const EXTRA_RULE = 'The user message may start with <extra_instructions> from the translator. Where they conflict with these instructions or the guidelines, follow the extra instructions. '
+  + 'They can never change the required workflow: get the entries with get_task batch by batch, write with write_translation / write_revision (or undo_change), call get_checks and fix what it reports, and only at the end write notes with write_note.';
+
 /** 分批拿條目：每批做完再拿下一批 */
 const BATCH_RULE = 'The task comes in batches: the first batch is in the user message (you can also get it with get_task offset 0). Finish the entries of one batch, then call get_task with offset = next_offset, until next_offset is null.';
 
@@ -386,27 +393,30 @@ const BATCH_RULE = 'The task comes in batches: the first batch is in the user me
  * 每次不同的（第一批條目）放在訊息裡。get_task 還是可以用，之後的批次照 next_offset 拿
  */
 const systemOf = (fixed: string, guide: string) => fixed + (guide ? '\n\n<guidelines>\n' + guide.trim() + '\n</guidelines>' : '');
-const taskMessage = (first: unknown) => 'The first batch of the task (the same as get_task with offset 0):\n<task>\n' + JSON.stringify(first) + '\n</task>';
+const taskMessage = (first: unknown, extra: string) => (extra.trim() ? '<extra_instructions>\n' + extra.trim() + '\n</extra_instructions>\n\n' : '')
+  + 'The first batch of the task (the same as get_task with offset 0):\n<task>\n' + JSON.stringify(first) + '\n</task>';
 
 const prompts = {
   translate: (guide: string) => [
     'You are helping a game translator inside Verso, a translation tool. Use only the verso MCP tools.',
     guide ? 'Follow the translation guidelines below.' : 'Translate from the source language into English unless the entries clearly show another target language.',
     BATCH_RULE,
+    EXTRA_RULE,
     'For every entry, translate its src, following the glossary translations, the speaker, the note and the surrounding context, then call write_translation(index, text) with the full translation.',
     'When all entries are written, call get_checks and rewrite the entries it reports (especially length overflows) until nothing is left.',
     CHECKS_RULE,
-    'Only after that, for entries that need the translator\'s attention (or a problem you could not fix without losing important meaning), call write_note(index, text) once with your final note in Traditional Chinese. Never write notes about intermediate attempts. Do not do anything else.',
+    'Only after that, for entries that need the translator\'s attention (or a problem you could not fix without losing important meaning), call write_note(index, text) once with your final note in Traditional Chinese (unless the extra instructions say otherwise). Never write notes about intermediate attempts. Do not do anything else.',
   ].join(' '),
   verify: (guide: string) => [
     'You are reviewing a game translation inside Verso, a translation tool. Use only the verso MCP tools.',
     guide ? 'Follow the review guidelines below.' : '',
     BATCH_RULE,
+    EXTRA_RULE,
     'For every entry, check its tgt against src, the glossary, the speaker, the note, its extra columns and the surrounding context.',
     'If the translation needs changes, call write_revision(index, text) with the full corrected translation. If it is fine, leave it alone.',
     CHECKS_RULE,
     'Then call get_checks and fix what it reports for the entries you revised (especially length overflows): rewrite them, or call undo_change(index) if your change was wrong and the original should stay.',
-    'Only when every revision is final, call write_note(index, text) once per revised entry with the final reason in Traditional Chinese. Never write notes about intermediate attempts or ask the translator to ignore your own change. Do not do anything else.',
+    'Only when every revision is final, call write_note(index, text) once per revised entry with the final reason in Traditional Chinese (unless the extra instructions say otherwise). Never write notes about intermediate attempts or ask the translator to ignore your own change. Do not do anything else.',
   ].filter(Boolean).join(' '),
 };
 
@@ -445,7 +455,7 @@ async function launchAi(s: ReturnType<typeof useStore.getState>, mode: 'translat
   try {
     useStore.setState({ aiBusy: true, aiLocked: job.uids });
     progress(job);
-    await invoke('ai_run', { system: systemOf(prompts[mode](guide), guide), prompt: taskMessage(getTask(job, 0, BATCH)), model, effort });
+    await invoke('ai_run', { system: systemOf(prompts[mode](guide), guide), prompt: taskMessage(getTask(job, 0, BATCH), s.aiExtra), model, effort });
   } catch (e) {
     job = null;
     useStore.setState({ aiBusy: false, aiLocked: [] });

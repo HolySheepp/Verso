@@ -48,6 +48,7 @@ function AiDevOption() {
         {tx('settings.aiEnabled')}
       </label>
       <div style={{ fontSize: fz(12), color: 'var(--mute)' }}>{tx('settings.aiHint')}</div>
+      {enabled && <AiExtraField />}
       {enabled && cloud && projects.map((name, n) => (
         <div key={name} style={{ display: 'flex', flexDirection: 'column', gap: 8, marginTop: 10, padding: '10px 12px', border: '1px solid var(--line3)', borderRadius: 8 }}>
           <h3 style={h3}>{name}</h3>
@@ -55,6 +56,19 @@ function AiDevOption() {
         </div>
       ))}
     </>
+  );
+}
+
+/** 額外指示：全部專案共用，每次 AI 翻譯、驗證都加上 */
+function AiExtraField() {
+  const extra = useStore((s) => s.aiExtra);
+  const set = useStore((s) => s.set);
+  return (
+    <div style={{ display: 'flex', flexDirection: 'column', gap: 6, marginTop: 10 }}>
+      <label htmlFor="verso-ai-extra" style={{ fontSize: fz(12.5), color: 'var(--text2)' }}>{tx('settings.aiExtra')}</label>
+      <textarea id="verso-ai-extra" className="field" rows={3} value={extra} placeholder={tx('settings.aiExtraPh')} onChange={(e) => set({ aiExtra: e.target.value })}
+        style={{ resize: 'vertical', minHeight: 64, padding: '8px 10px', lineHeight: 1.5, fontFamily: 'inherit' }} />
+    </div>
   );
 }
 

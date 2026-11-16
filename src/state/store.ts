@@ -296,6 +296,8 @@ interface State {
   /** 開發者選項：翻譯、驗證時要 AI 用的 skill 名稱（空白是不指定） */
   aiSkillTranslate: string;
   aiSkillVerify: string;
+  /** 開發者選項：AI 的額外指示（全部專案共用，每次翻譯、驗證都加上；空白是沒有） */
+  aiExtra: string;
   /** 存起來的常用長度標準 */
   lengthPresets: { name: string; std: LengthStd }[];
   /** 長度標準設定視窗：設定檔案的標準，或只設定目前這一條 */
@@ -916,6 +918,7 @@ export const useStore = create<Store>((set, get) => {
     aiStopAsk: null,
     aiSkillTranslate: '',
     aiSkillVerify: '',
+    aiExtra: '',
     lengthPresets: [],
     lengthDialog: null,
     shortcuts: defaultBindings(),
