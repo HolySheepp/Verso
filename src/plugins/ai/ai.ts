@@ -14,6 +14,7 @@ import { ratio } from '../../model/srcUpdate';
 import { editsOf } from '../../model/verify';
 import { wordEdits } from '../../model/wordDiff';
 import { AI_AUTHOR, aiNoteLine } from '../../model/aiNote';
+import { PACK } from '../../i18n/lang';
 import { dictKey, projectTag, type Entry } from '../../model/types';
 import { findHits } from '../../state/dictHits';
 import { checkText, fileStdFor, currentOf, currentProjectOf, dictEnabledIn, shownSrc, showToast, useStore, withSugg } from '../../state/store';
@@ -72,7 +73,7 @@ const TOOLS = [
   },
   {
     name: 'write_note',
-    description: 'Set your final note for one entry: why you changed it, or something the translator should check. Write it in Traditional Chinese unless the extra instructions say otherwise. '
+    description: 'Set your final note for one entry: why you changed it, or something the translator should check. Write it in the note language given in your instructions unless the extra instructions or the guidelines say otherwise. '
       + 'Only write it once the entry is final (after get_checks). Calling it again for the same entry replaces your earlier note; the translator only sees your last one. Verso adds the prefix "AI：".',
     inputSchema: obj({ index: idx, text: { type: 'string' } }, ['index', 'text']),
   },
@@ -396,6 +397,17 @@ const systemOf = (fixed: string, guide: string) => fixed + (guide ? '\n\n<guidel
 const taskMessage = (first: unknown, extra: string) => (extra.trim() ? '<extra_instructions>\n' + extra.trim() + '\n</extra_instructions>\n\n' : '')
   + 'The first batch of the task (the same as get_task with offset 0):\n<task>\n' + JSON.stringify(first) + '\n</task>';
 
+/**
+ * AI 備註用的語言：跟使用者選的介面語言（中文介面用繁體中文、English 介面用英文、語言包用那個語言包的名稱）；
+ * 額外指示或準則另有要求時照那邊
+ */
+function noteLang(): string {
+  const l = useStore.getState().uiLang;
+  if (l === 'zh') return 'Traditional Chinese';
+  if (l.startsWith(PACK)) return `the language of the translator's interface language pack "${l.slice(PACK.length)}"`;
+  return 'English';
+}
+
 const prompts = {
   translate: (guide: string) => [
     'You are helping a game translator inside Verso, a translation tool. Use only the verso MCP tools.',
@@ -405,7 +417,7 @@ const prompts = {
     'For every entry, translate its src, following the glossary translations, the speaker, the note and the surrounding context, then call write_translation(index, text) with the full translation.',
     'When all entries are written, call get_checks and rewrite the entries it reports (especially length overflows) until nothing is left.',
     CHECKS_RULE,
-    'Only after that, for entries that need the translator\'s attention (or a problem you could not fix without losing important meaning), call write_note(index, text) once with your final note in Traditional Chinese (unless the extra instructions say otherwise). Never write notes about intermediate attempts. Do not do anything else.',
+    `Only after that, for entries that need the translator's attention (or a problem you could not fix without losing important meaning), call write_note(index, text) once with your final note in ${noteLang()} (unless the extra instructions or the guidelines say otherwise). Never write notes about intermediate attempts. Do not do anything else.`,
   ].join(' '),
   verify: (guide: string) => [
     'You are reviewing a game translation inside Verso, a translation tool. Use only the verso MCP tools.',
@@ -416,7 +428,7 @@ const prompts = {
     'If the translation needs changes, call write_revision(index, text) with the full corrected translation. If it is fine, leave it alone.',
     CHECKS_RULE,
     'Then call get_checks and fix what it reports for the entries you revised (especially length overflows): rewrite them, or call undo_change(index) if your change was wrong and the original should stay.',
-    'Only when every revision is final, call write_note(index, text) once per revised entry with the final reason in Traditional Chinese (unless the extra instructions say otherwise). Never write notes about intermediate attempts or ask the translator to ignore your own change. Do not do anything else.',
+    `Only when every revision is final, call write_note(index, text) once per revised entry with the final reason in ${noteLang()} (unless the extra instructions or the guidelines say otherwise). Never write notes about intermediate attempts or ask the translator to ignore your own change. Do not do anything else.`,
   ].filter(Boolean).join(' '),
 };
 
