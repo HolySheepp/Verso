@@ -209,7 +209,11 @@ pub async fn cloud_api(app: AppHandle, state: State<'_, Cloud>, method: String, 
             _ => c.put(&url).json(body.as_ref().unwrap_or(&json!({}))),
         };
         let r = req.bearer_auth(token).send().await.map_err(|e| e.to_string())?;
-        if r.status().as_u16() == 401 && attempt == 0 { *state.access.lock().unwrap() = None; continue; }
+        if r.status().as_u16() == 401 {
+            *state.access.lock().unwrap() = None;
+            if attempt == 0 { continue; }
+            return Err("not-signed-in".into());
+        }
         // 每分鐘的請求次數用完了：回固定的錯誤，畫面跳過這一輪同步並提示
         if r.status().as_u16() == 429 { return Err("rate-limited".into()); }
         if !r.status().is_success() { return Err(google_error(r).await); }

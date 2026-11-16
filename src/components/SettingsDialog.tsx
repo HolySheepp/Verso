@@ -100,9 +100,9 @@ export function SettingsDialog() {
       <div role="dialog" aria-modal="true" aria-labelledby="verso-settings-title" className="dialog"
         style={{ width: 820, height: 640, boxShadow: '0 24px 64px rgba(0,0,0,0.55)' }}>
         <div style={{ height: 56, flexShrink: 0, display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '0 12px 0 22px', borderBottom: '1px solid var(--line)' }}>
-          {/* 連點標題 5 次（每次間隔 1.5 秒內）開關開發者模式；每點一下抖一下，越點越明顯 */}
-          <h2 id="verso-settings-title" key={devShake.k} className={devShake.k ? 'shake' : undefined} onClick={onDevClick}
-            style={{ margin: 0, fontSize: fz(16), fontWeight: 600, userSelect: 'none', ['--amp' as string]: (1 + devShake.n * 0.6) + 'px' }}>{tx('settings.007')}</h2>
+          {/* 連點標題 5 次（每次間隔 1.5 秒內）開關開發者模式；每點一下彈一下 */}
+          <h2 id="verso-settings-title" key={devShake.k} className={devShake.k ? 'pop-click' : undefined} onClick={onDevClick}
+            style={{ margin: 0, fontSize: fz(16), fontWeight: 600, userSelect: 'none' }}>{tx('settings.007')}</h2>
           <button type="button" className="ib" aria-label={tx('settings.008')} onClick={() => set({ settingsOpen: false })}
             style={{ width: 36, height: 36, display: 'flex', alignItems: 'center', justifyContent: 'center', background: 'transparent', border: 0, borderRadius: 8, color: 'var(--text2)' }}>
             <IconWinClose size={14} sw={1.4} />
@@ -609,8 +609,8 @@ function AppearanceSection({ onPick }: { onPick(): void }) {
         </div>
       </div>
       <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
-        <h3 key={shake.k} className={shake.k ? 'shake' : undefined} onClick={onTitleClick}
-          style={{ ...h3, userSelect: 'none', alignSelf: 'flex-start', ['--amp' as string]: (1 + shake.n * 0.6) + 'px' }}>{tx('settings.055')}</h3>
+        <h3 key={shake.k} className={shake.k ? 'pop-click' : undefined} onClick={onTitleClick}
+          style={{ ...h3, userSelect: 'none', alignSelf: 'flex-start' }}>{tx('settings.055')}</h3>
         <div role="radiogroup" aria-label={tx('settings.055')} style={{ display: 'flex', flexWrap: 'wrap', alignItems: 'center', gap: 10 }}>
           {ACCENTS.map((a) => (
             <button key={a.id} type="button" role="radio" aria-checked={accent === a.id} aria-label={a.label} title={a.label}

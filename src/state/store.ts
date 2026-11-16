@@ -585,8 +585,9 @@ export const shownSrc = (e: Entry) => e.upd?.src ?? e.src;
 /** 搜尋：原文、譯文、ID；打「#」開頭（例如 #1130）只找 ID */
 export const searchHit = (e: Entry, q: string) => {
   if (!q) return false;
-  if (q.startsWith('#') && q.length > 1) return e.id.toLowerCase().includes(q.slice(1).toLowerCase());
-  return shownSrc(e).includes(q) || e.tgt.toLowerCase().includes(q.toLowerCase()) || e.id.toLowerCase().includes(q.toLowerCase());
+  const lq = q.toLowerCase();
+  if (q.startsWith('#') && q.length > 1) return e.id.toLowerCase().includes(lq.slice(1));
+  return shownSrc(e).toLowerCase().includes(lq) || e.tgt.toLowerCase().includes(lq) || e.id.toLowerCase().includes(lq);
 };
 
 /** 上次的色彩模式與主題色（存在瀏覽器裡），啟動畫面一開始就用它鋪底色，不用等設定檔讀完 */
@@ -1733,7 +1734,7 @@ export const useStore = create<Store>((set, get) => {
       const file = s.file === i ? Math.max(0, Math.min(i, p.files.length - 2)) : map(s.file);
       set({
         project: { ...p, files: p.files.filter((_, j) => j !== i) },
-        file, sheetBy, selBy, cellSel: s.file === i ? null : s.cellSel, ...noPopups, ...noView,
+        file, sheetBy, selBy, cellSel: s.file === i ? null : s.cellSel, ...(s.file === i ? { filter: {} } : {}), ...noPopups, ...noView,
       });
     },
 

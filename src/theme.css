@@ -128,10 +128,9 @@ textarea[data-hist="1"]:focus{border-color:var(--accent) !important}
 .vl[data-accent=rainbow]{animation:verso-rainbow-light 9s steps(180) infinite}
 .rainbow-swatch{background:conic-gradient(#ff5b5b,#ffd35b,#5bff8a,#5be4ff,#6b7bff,#e35bff,#ff5b5b) !important}
 
-/* 點「主題色」標題時抖一下 */
-@keyframes verso-shake{0%,100%{transform:translateX(0)}20%{transform:translateX(calc(var(--amp) * -1))}40%{transform:translateX(var(--amp))}60%{transform:translateX(calc(var(--amp) * -0.6))}80%{transform:translateX(calc(var(--amp) * 0.4))}}
-.shake{animation:verso-shake 320ms ease-out}
-@media (prefers-reduced-motion: reduce){.shake{animation:none}}
+/* 連點設定標題時彈一下（不左右搖，看起來像失敗） */
+.pop-click{display:inline-block;transform-origin:left center;animation:qs-pop 240ms cubic-bezier(0.3,1.45,0.45,1)}
+@media (prefers-reduced-motion: reduce){.pop-click{animation:none}}
 
 /* 畫面中間的短暫提示：淡入、停一下、淡出 */
 @keyframes verso-toast{0%{opacity:0}12%{opacity:1}75%{opacity:1}100%{opacity:0}}

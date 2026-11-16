@@ -229,6 +229,12 @@ export function compactNow(): Promise<void> {
 /** 馬上同步：下載、上傳 */
 export const syncTmNow = () => serial(async () => { await download(); await upload(); });
 
+/** 使用者手動按同步：之前被擋成只讀的（403）清掉再試，拿到編輯權的就恢復上傳 */
+export function retryTmWrite() {
+  readOnly = '';
+  if (allowed) void syncTmNow();
+}
+
 /** 打開雲端模式（或換了記憶表）時：本地有還沒上傳的內容就先問 */
 function onEnter() {
   const sid = tmSid();

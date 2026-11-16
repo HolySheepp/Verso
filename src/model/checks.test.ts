@@ -3,6 +3,8 @@ import { locateIssues, runChecks } from './checks';
 
 const ids = (src: string, tgt: string) => runChecks(src, tgt).map((i) => i.check);
 const msgs = (src: string, tgt: string) => runChecks(src, tgt).map((i) => i.msg);
+/** 只看大小寫的檢查（全形符號、彎引號是另外的檢查） */
+const caps = (tgt: string) => runChecks('', tgt).filter((i) => i.check === 'capital').map((i) => i.msg);
 
 describe('標點檢測', () => {
   it('正常的譯文沒有問題', () => {
@@ -89,6 +91,15 @@ describe('標點檢測', () => {
     expect(msgs('<i>—走吧。</i>', '<i>—Go now.</i>')).toEqual([]);
     expect(msgs('<b>—什麼？！</b>', '<b>—What?!</b>')).toEqual([]);
     expect(msgs('你好。\\n—什麼？！', 'Hello.\\n—What?!')).toEqual([]);
+    expect(caps('Stop… —Go now.')).toEqual([]);
+    expect(caps('Wait!” —Go.')).toEqual([]);
+    expect(caps('Stop。—Go')).toEqual([]);
+    expect(caps('Stop. "—Go"')).toEqual([]);
+    expect(caps('Stop. "—go')).toEqual(['句首要大寫']);
+    // 變數後面接 's 是所有格，不算句首
+    expect(caps("{name}'s sword.")).toEqual([]);
+    expect(caps("%s's turn.")).toEqual([]);
+    expect(caps('{name} hello.')).toEqual(['句首要大寫']);
     expect(msgs('', 'Stop. —Go now.')).toEqual([]);
     expect(ids('', 'Wait—go now.')).toEqual([]);
     expect(ids('', 'Wait—I know.')).toEqual([]);

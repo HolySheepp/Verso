@@ -142,7 +142,7 @@ export function SrcUpdateCloud({ sid, start }: { sid: string; start: number }) {
         }}
         style={{ width: 1040, height: 680, maxWidth: 'calc(100% - 48px)', maxHeight: 'calc(100% - 48px)', boxShadow: '0 24px 64px rgba(0,0,0,0.5)', outline: 'none' }}>
         <div onMouseDown={dragWindow} style={{ height: 52, flexShrink: 0, display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '0 10px 0 20px', borderBottom: '1px solid var(--line)' }}>
-          <h2 id="verso-cupd-title" style={{ margin: 0, fontSize: fz(15), fontWeight: 600 }}>{title}{mode ? '：' + doc.name : ''}</h2>
+          <h2 id="verso-cupd-title" style={{ margin: 0, fontSize: fz(15), fontWeight: 600 }}>{title}{mode ? tx('common.colon') + doc.name : ''}</h2>
           <button type="button" className="ib" aria-label={tx('cloud.close')} onClick={close}
             style={{ width: 34, height: 34, display: 'flex', alignItems: 'center', justifyContent: 'center', background: 'transparent', border: 0, borderRadius: 8, color: 'var(--text2)' }}>
             <IconWinClose size={13} sw={1.4} />
