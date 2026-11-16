@@ -16,6 +16,7 @@ import { compose, editsOf, type VEdit } from '../model/verify';
 import { DEFAULT_QS, type QuickSearch } from '../model/quickSearch';
 import { composeNote, mergeComments, parseNote, type CommentThread } from '../model/comments';
 import { maxOf, minOf } from '../model/num';
+import { absorbVerified, buildDisplay, createGroup, findChains, mergeGroups, newGroupId, normalizeGroups, splitGroup, spreadEdit, stripTagDigits, fillBareTags, type Chain, type EntryGroup } from '../model/entrySets';
 import { tidyOnLeave } from '../model/aiNote';
 import { entryFits } from '../model/cellLimit';
 import { wordEdits } from '../model/wordDiff';
@@ -44,7 +45,13 @@ function tmConfirm(s: State, indices: number[], verified: (e: Entry) => boolean)
   if (!tmHook.confirm || !s.project) return;
   const { fileDoc, sheet } = currentOf(s);
   if (fileDoc === EMPTY_FILE) return;
-  for (const i of indices) { const e = sheet.entries[i]; if (e && e.tgt.trim()) tmHook.confirm(e, fileDoc, sheet, verified(e)); }
+  // 技能檔案：拿掉標籤數字再存（同一個條目串的每一條都一樣，只會存成一條）
+  const skill = !!fileDoc.skill && setsOn(s, fileDoc);
+  for (const i of indices) {
+    const e = sheet.entries[i];
+    if (!e || !e.tgt.trim()) continue;
+    tmHook.confirm(skill ? { ...e, src: stripTagDigits(shownSrc(e)), upd: undefined, tgt: stripTagDigits(e.tgt) } : e, fileDoc, sheet, verified(e));
+  }
 }
 export type Theme = 'dark' | 'light' | 'system';
 export type SaveStatus = 'saved' | 'dirty' | 'saving' | 'error';
@@ -271,6 +278,25 @@ interface State {
   showIds: boolean;
   /** 開發者選項：AI 協助（關掉時按鈕不出現） */
   aiEnabled: boolean;
+  /** 開發者選項：收起組與條目串（只在雲端模式作用） */
+  entrySetsOn: boolean;
+  /** 收起組、條目串展開了哪些（setKey → 1；沒記的是收起） */
+  setOpen: Record<string, 1>;
+  /** 收起組名稱正在輸入的那一組（剛建立時） */
+  groupNaming: string | null;
+  /** 選到的條目收成一組；回傳新組的 id（不能收時是 null） */
+  collapseRows(indices: number[]): string | null;
+  renameGroup(id: string, name: string): void;
+  /** 展開或收起（收起組用 g:id、條目串用 c:id） */
+  toggleSet(key: string, open?: boolean): void;
+  /** 從這一條的下方切開（在收起組裡切收起組，在條目串裡切條目串） */
+  splitAt(index: number): void;
+  /** 合併收起組 */
+  mergeSets(groupIds: string[]): void;
+  /** 合併相鄰的條目串（拿掉中間切割過的地方） */
+  mergeChains(chainIds: string[]): void;
+  setGroupAuto(id: string, on: boolean): void;
+  dissolveGroup(id: string): void;
   /** 雲端模式（雲端外掛設定）：只顯示 Google 試算表的檔案；關掉時只顯示本地檔案 */
   cloudMode: boolean;
   /** 自動檢查的總開關（設定 > 檢查最上面）；關掉時什麼都不檢查，檢查項目也不顯示 */
@@ -615,6 +641,58 @@ export function currentOf(s: Pick<State, 'project' | 'file' | 'sheetBy' | 'selBy
   return { fileDoc, sheetIdx, sheet, sel, entry: sheet.entries[sel] as Entry | undefined };
 }
 
+// ---- 收起組與條目串（雲端模式） ----
+
+/** 這個檔案有沒有用收起組、條目串（開發者選項打開、雲端模式、雲端檔案） */
+export const setsOn = (s: { entrySetsOn: boolean; devMode: boolean; cloudMode: boolean }, f: FileDoc) => s.entrySetsOn && s.devMode && s.cloudMode && !!f.cloud;
+/** 收起組、條目串在自己電腦上記展開狀態用的名字（檔案、頁簽、組或串） */
+export const setKey = (f: FileDoc, sheetIdx: number, sh: Sheet, id: string) => `${f.fid ?? f.name}|${sh.gid ?? sheetIdx}|${id}`;
+
+export interface SheetLayout { groups: EntryGroup[]; chains: Chain[]; chainOf: Map<number, Chain> }
+const NO_LAYOUT: SheetLayout = { groups: [], chains: [], chainOf: new Map() };
+const layoutCache = new WeakMap<Sheet, { skill: boolean; L: SheetLayout }>();
+/** 頁簽的收起組（整理過，只留相鄰的）和條目串；同一個頁簽物件只算一次 */
+export function sheetLayout(f: FileDoc, sh: Sheet, on: boolean): SheetLayout {
+  if (!on) return NO_LAYOUT;
+  const c = layoutCache.get(sh);
+  if (c && c.skill === !!f.skill) return c.L;
+  const groups = normalizeGroups(sh.entries, sh.groups ?? []);
+  const gOf = new Map<string, string>();
+  groups.forEach((g) => g.uids.forEach((u) => gOf.set(u, g.id)));
+  const chains = f.skill ? findChains(sh.entries, new Set(sh.chainCuts ?? []), (u) => gOf.get(u)) : [];
+  const chainOf = new Map<number, Chain>();
+  chains.forEach((ch) => ch.idx.forEach((i) => chainOf.set(i, ch)));
+  const L = { groups, chains, chainOf };
+  layoutCache.set(sh, { skill: !!f.skill, L });
+  return L;
+}
+
+/** 收起組裡原文更新過的條目：使用者展開再收起之後就不再單獨顯示（setKey → uid） */
+const dismissedUpd = new Map<string, Set<string>>();
+/** 原文更新、還沒驗證的條目：收起時也單獨顯示 */
+const updShown = (e: Entry) => (hasPendingUpdate(e) || !!e.upd?.applied) && e.mark !== 'verified';
+
+/** 目前頁簽要顯示的清單（收起組、條目串、條目）；pass 是篩選條件（沒有篩選時是 null），hit 是工具欄搜尋命中 */
+export function displayOf(s: State, pass: ((i: number) => boolean) | null, hit: ((i: number) => boolean) | null = null) {
+  const { fileDoc, sheetIdx, sheet, sel } = currentOf(s);
+  const L = sheetLayout(fileDoc, sheet, setsOn(s, fileDoc));
+  const key = (id: string) => setKey(fileDoc, sheetIdx, sheet, id);
+  return buildDisplay(sheet.entries, L.groups, L.chains, {
+    filtering: !!pass,
+    pass: pass ?? (() => true),
+    reveal: (i) => {
+      const e = sheet.entries[i];
+      if (i === sel || hit?.(i)) return true;
+      if (!updShown(e)) return false;
+      const g = L.groups.find((x) => x.uids.includes(e.uid));
+      return !(g && dismissedUpd.get(key('g:' + g.id))?.has(e.uid));
+    },
+    revealInChain: (i) => hasPendingUpdate(sheet.entries[i]),
+    groupOpen: (id) => !!s.setOpen[key('g:' + id)],
+    chainOpen: (id) => !!s.setOpen[key('c:' + id)],
+  });
+}
+
 export const useStore = create<Store>((set, get) => {
   /** 對目前頁簽的某一條做不可變更新 */
   const patchEntry = (index: number, fn: (e: Entry) => Entry) => patchEntries(new Set([index]), fn);
@@ -627,12 +705,75 @@ export const useStore = create<Store>((set, get) => {
     // AI 正在處理的條目不能改
     if (s.aiLocked.length) for (const i of [...indices]) if (sheet.entries[i] && s.aiLocked.includes(sheet.entries[i].uid)) indices.delete(i);
     if (!indices.size) return;
+    const fileDoc = s.project.files[s.file];
+    let entries = sheet.entries.map((e, i) => (indices.has(i) ? fn(e) : e));
+    let groups = sheet.groups;
+    if (fileDoc && setsOn(s, fileDoc)) ({ entries, groups } = afterSetEdit(s, fileDoc, sheetIdx, sheet, entries));
     const files = s.project.files.map((f, fi) => fi !== s.file ? f : {
       ...f,
-      sheets: f.sheets.map((sh, si) => si !== sheetIdx ? sh : {
-        ...sh, entries: sh.entries.map((e, i) => (indices.has(i) ? fn(e) : e)),
-      }),
+      sheets: f.sheets.map((sh, si) => si !== sheetIdx ? sh : { ...sh, entries, ...(groups !== sh.groups ? { groups } : {}) }),
     });
+    set({ project: { ...s.project, files } });
+  };
+
+  /**
+   * 收起組、條目串：改了條目之後
+   * - 收起的條目串裡改了一條（格式跟大多數一樣的）：其他格式一樣的條目跟著改（譯文、原文的標籤換成各自的數字；備註、標記照抄）
+   * - 打開「自動收納已驗證條目」的組：下面連著的條目變成已驗證就收進來
+   */
+  const afterSetEdit = (s: State, f: FileDoc, sheetIdx: number, sheet: Sheet, next: Entry[]): { entries: Entry[]; groups: EntryGroup[] | undefined } => {
+    const old = sheet.entries;
+    const L = sheetLayout(f, sheet, true);
+    let out = next;
+    if (L.chains.length) {
+      const patch = new Map<string, Partial<Entry>>();
+      old.forEach((o, i) => {
+        const n = next[i];
+        if (n === o || n.uid !== o.uid) return;
+        const c = L.chainOf.get(i);
+        if (!c || c.outliers.has(o.uid) || s.setOpen[setKey(f, sheetIdx, sheet, 'c:' + c.id)]) return;
+        const add = (uid: string, p: Partial<Entry>) => patch.set(uid, { ...patch.get(uid), ...p });
+        for (const field of ['tgt', 'src', 'note'] as const) {
+          if (n[field] === o[field]) continue;
+          spreadEdit(old, c, o.uid, n[field], field).forEach((v, uid) => add(uid, field === 'tgt' ? { tgt: v, pending: false } : { [field]: v }));
+        }
+        if (n.mark !== o.mark) c.uids.forEach((u) => { if (u !== o.uid && !c.outliers.has(u)) add(u, { mark: n.mark, keptMark: n.keptMark }); });
+      });
+      if (patch.size) {
+        out = next.map((e) => {
+          const p = patch.get(e.uid);
+          if (!p) return e;
+          const r = { ...e, ...p };
+          if (p.tgt !== undefined && r.mark === 'ai' && p.mark === undefined) r.mark = '';
+          return r;
+        });
+        // 編輯途中跟著改了別條：這一步復原時那些條目也要一起退回（雲端原本只記正在編輯的那一條）
+        if (editSnap) editSnap = { ...editSnap, uid: undefined };
+      }
+    }
+    const groups0 = sheet.groups;
+    const groups = groups0?.some((g) => g.auto) ? absorbVerified(out, normalizeGroups(out, groups0), (e) => e.mark === 'verified') : groups0;
+    return { entries: out, groups };
+  };
+
+  /** 目前選的條目在這些條目裡：換到它們後面（沒有就前面）第一條 */
+  const moveSelOut = (uids: string[]) => {
+    const { sheet, sheetIdx, sel } = cur();
+    const set0 = new Set(uids);
+    if (!sheet.entries[sel] || !set0.has(sheet.entries[sel].uid)) return;
+    const pos = sheet.entries.map((e, i) => (set0.has(e.uid) ? i : -1)).filter((i) => i >= 0);
+    const after = Math.max(...pos) + 1, before = Math.min(...pos) - 1;
+    const to = after < sheet.entries.length ? after : before;
+    if (to >= 0) get().select(get().file, sheetIdx, to);
+  };
+
+  /** 改目前頁簽的收起組或條目串切割（不算一步復原；雲端外掛會寫進資料表） */
+  const setLayout = (fn: (sh: Sheet, entries: Entry[]) => Partial<Sheet>) => {
+    const s = get();
+    if (!s.project) return;
+    const { sheetIdx, sheet } = currentOf(s);
+    const patch = fn(sheet, sheet.entries);
+    const files = s.project.files.map((f, fi) => fi !== s.file ? f : { ...f, sheets: f.sheets.map((sh, si) => (si !== sheetIdx ? sh : { ...sh, ...patch })) });
     set({ project: { ...s.project, files } });
   };
 
@@ -818,7 +959,23 @@ export const useStore = create<Store>((set, get) => {
   };
 
   /** 離開目前條目時：整理 AI 留下的東西，再檢查它 */
+  /**
+   * 技能檔案：離開條目串裡的一條時，譯文裡沒有數字的標籤（例如直接打了串上顯示的 {A%}）換成這一條原文裡的實際標籤。
+   * 打字當下不換，免得游標跳走
+   */
+  const fillOwnTags = () => {
+    const s = get();
+    const { fileDoc, sheet, sel, entry } = cur();
+    if (!entry || !fileDoc.skill || !setsOn(s, fileDoc) || s.aiLocked.includes(entry.uid)) return;
+    if (!sheetLayout(fileDoc, sheet, true).chainOf.get(sel)) return;
+    const t = fillBareTags(entry.tgt, entry.src);
+    if (t === entry.tgt) return;
+    const files = s.project!.files.map((f, fi) => fi !== s.file ? f : { ...f, sheets: f.sheets.map((sh) => (sh !== sheet ? sh : { ...sh, entries: sh.entries.map((e, i) => (i === sel ? { ...e, tgt: t } : e)) })) });
+    set({ project: { ...s.project!, files } });
+  };
+
   const leaveCurrent = () => {
+    fillOwnTags();
     tidyCurrent();
     lastEdit = null;
     const { entry } = cur();
@@ -905,6 +1062,9 @@ export const useStore = create<Store>((set, get) => {
     devMode: false,
     showIds: false,
     aiEnabled: false,
+    entrySetsOn: false,
+    setOpen: {},
+    groupNaming: null,
     cloudMode: false,
     checksOn: true,
     cloudDictFile: {},
@@ -1291,6 +1451,104 @@ export const useStore = create<Store>((set, get) => {
       pushUndo();
       const base = e.noteBase ?? parseNote(e.note, e.comments ?? []).base;
       patchEntry(at, (x) => ({ ...x, comments: list, noteBase: base, note: composeNote(base, list) }));
+    },
+
+    // ---- 收起組與條目串 ----
+    collapseRows(indices) {
+      const s = get();
+      const { fileDoc, sheetIdx, sheet } = cur();
+      if (!setsOn(s, fileDoc)) return null;
+      const L = sheetLayout(fileDoc, sheet, true);
+      // 收起的條目串在條目欄是一列：選到它就是整串
+      const idx = indices.flatMap((i) => { const c = L.chainOf.get(i); return c && !s.setOpen[setKey(fileDoc, sheetIdx, sheet, 'c:' + c.id)] ? c.idx : [i]; });
+      const next = createGroup(sheet.entries, L.groups, idx, '');
+      if (!next) { showToast(tx('sets.cannotCollapse')); return null; }
+      const id = next[next.length - 1].id;
+      setLayout(() => ({ groups: next }));
+      moveSelOut(next[next.length - 1].uids);
+      set({ groupNaming: id, cellSel: null });
+      return id;
+    },
+
+    renameGroup(id, name) {
+      setLayout((sh) => ({ groups: (sh.groups ?? []).map((g) => (g.id === id ? { ...g, name: name.trim() } : g)) }));
+      if (get().groupNaming === id) set({ groupNaming: null });
+    },
+
+    toggleSet(id, open) {
+      const s = get();
+      const { fileDoc, sheetIdx, sheet, sel } = cur();
+      const k = setKey(fileDoc, sheetIdx, sheet, id);
+      const now = !!s.setOpen[k];
+      const next = open ?? !now;
+      if (next === now) return;
+      const setOpen = { ...s.setOpen };
+      if (next) setOpen[k] = 1; else delete setOpen[k];
+      set({ setOpen });
+      if (next) return;
+      const L = sheetLayout(fileDoc, sheet, true);
+      if (id.startsWith('g:')) {
+        const g = L.groups.find((x) => x.id === id.slice(2));
+        if (!g) return;
+        // 收起時：原文更新過的條目之後不再單獨顯示；目前選的條目在組裡的話，換到組外面
+        dismissedUpd.set(k, new Set(g.uids.filter((u) => { const e = sheet.entries.find((x) => x.uid === u); return !!e && updShown(e); })));
+        moveSelOut(g.uids);
+      } else {
+        const c = L.chains.find((x) => x.id === id.slice(2));
+        if (c && c.idx.includes(sel) && sel !== c.rep) get().select(get().file, sheetIdx, c.rep);
+      }
+    },
+
+    splitAt(index) {
+      const s = get();
+      const { fileDoc, sheetIdx, sheet } = cur();
+      if (!setsOn(s, fileDoc)) return;
+      const e = sheet.entries[index];
+      if (!e) return;
+      const L = sheetLayout(fileDoc, sheet, true);
+      const g = L.groups.find((x) => x.uids.includes(e.uid));
+      if (g) {
+        if (g.uids[g.uids.length - 1] === e.uid) return;
+        const nid = newGroupId();
+        setLayout(() => ({ groups: splitGroup(L.groups, e.uid, nid) }));
+        // 切出來的下半跟原本那組一樣展開或收起
+        const k = (id: string) => setKey(fileDoc, sheetIdx, sheet, 'g:' + id);
+        if (s.setOpen[k(g.id)]) set({ setOpen: { ...get().setOpen, [k(nid)]: 1 } });
+        return;
+      }
+      const c = L.chainOf.get(index);
+      if (!c || c.uids[c.uids.length - 1] === e.uid) return;
+      setLayout((sh) => ({ chainCuts: [...new Set([...(sh.chainCuts ?? []), e.uid])] }));
+    },
+
+    mergeSets(ids) {
+      const { fileDoc, sheet } = cur();
+      if (!setsOn(get(), fileDoc)) return;
+      const L = sheetLayout(fileDoc, sheet, true);
+      setLayout((_, entries) => ({ groups: mergeGroups(entries, L.groups, ids) }));
+    },
+
+    mergeChains(ids) {
+      const { fileDoc, sheet } = cur();
+      if (!setsOn(get(), fileDoc)) return;
+      // 選到的範圍裡切割過的地方都拿掉（最後一條的下方不算）
+      const pos = new Map(sheet.entries.map((e, i) => [e.uid, i]));
+      const idx = ids.map((u) => pos.get(u)).filter((i): i is number => i !== undefined);
+      if (idx.length < 2) return;
+      const a = Math.min(...idx), b = Math.max(...idx);
+      const drop = new Set(sheet.entries.slice(a, b).map((e) => e.uid));
+      setLayout((sh) => ({ chainCuts: (sh.chainCuts ?? []).filter((u) => !drop.has(u)) }));
+    },
+
+    setGroupAuto(id, on) {
+      setLayout((sh, entries) => {
+        const groups = (sh.groups ?? []).map((g) => (g.id !== id ? g : on ? { ...g, auto: true } : (({ auto: _a, ...rest }) => rest)(g)));
+        return { groups: on ? absorbVerified(entries, normalizeGroups(entries, groups), (e) => e.mark === 'verified') : groups };
+      });
+    },
+
+    dissolveGroup(id) {
+      setLayout((sh) => ({ groups: (sh.groups ?? []).filter((g) => g.id !== id) }));
     },
 
     applySuggestion() {
@@ -1730,7 +1988,18 @@ function pendingTarget(s: State, from: number, delta: number): number | undefine
 
 /** 目前篩選下，條目列表裡看得到的條目 */
 export function visibleRows(s: State): number[] {
-  const { sheet } = currentOf(s);
+  const { sheet, fileDoc } = currentOf(s);
+  // 收起組、條目串：收起來的不算（收起的串算一列，就是代表它的那一條）
+  if (setsOn(s, fileDoc)) {
+    const keys0 = Object.keys(s.filter);
+    const fileStd0 = currentFileStd(s);
+    const pass = keys0.length ? (i: number) => {
+      const e = sheet.entries[i];
+      const issues = s.filter.issues !== undefined && visibleIssues(e, s.reported, s.checkSettings, fileStd0).length > 0;
+      return passesFilter(s.filter, effectiveMark(e), issues, hasNote(e));
+    } : null;
+    return displayOf(s, pass).rows;
+  }
   const out: number[] = [];
   const keys = Object.keys(s.filter);
   const fileStd = currentFileStd(s);

@@ -14,7 +14,8 @@ import { fieldsToColumns } from '../../model/importSel';
 import { columnsToEntries } from '../../model/paste';
 import { SHARED, type CloudProgress, type CustomMark, type Entry, type FileDoc, type Sheet } from '../../model/types';
 import { textToVerify, verifyToText } from '../../model/verify';
-import { currentOf, isShown, showToast, useStore } from '../../state/store';
+import { currentOf, isShown, setsOn, sheetLayout, showToast, useStore } from '../../state/store';
+import { fillTemplate, normalizeGroups } from '../../model/entrySets';
 import { ensureCols, insertRowsAt, moveRowsSeq, deleteRows, renameTab, deleteTab } from './api';
 import { colName } from '../../model/importSel';
 import { blankEntry, insertRows, moveRows } from '../../model/cells';
@@ -31,7 +32,7 @@ import { commentsToText, composeNote, mergeComments, parseNote, textToComments }
 import { fileDone, fileProgress } from '../../model/progress';
 import { addTab, appendRows, errText, meta, readCols, readRich, readTabs, sidOf, writeRich, writeRows, type Rich } from './api';
 import { blueStart, markToText, noteCell, richSig, stripMarkup, textToMark, tgtCell } from './format';
-import { allSheets, configSaved, setConfig, toFieldMap, useCloud, type CloudSheet, type CloudTab, type Conflict, type FieldRange, type Fields } from './config';
+import { allSheets, configSaved, setConfig, toFieldMap, useCloud, type CloudSets, type CloudSheet, type CloudTab, type Conflict, type FieldRange, type Fields } from './config';
 
 export const fidOf = (sid: string) => 'g:' + sid;
 
@@ -139,9 +140,11 @@ const is400 = (e: unknown) => /^400\b/.test(String((e as Error)?.message ?? e));
 
 /** 「Verso檔案」分頁：試算表ID、名稱、專案、欄位設定、更新者、更新時間、長度標準、移除、進度（新欄位一律加在右邊，舊資料不動） */
 const FILES_TAB = 'Verso檔案';
-const FILES_HEAD = ['試算表ID', '名稱', '專案', '欄位設定', '更新者', '更新時間', '長度標準', '移除', '進度', '全部頁簽'];
+const FILES_HEAD = ['試算表ID', '名稱', '專案', '欄位設定', '更新者', '更新時間', '長度標準', '移除', '進度', '全部頁簽', '技能檔案', '收起組'];
 const PROGRESS_COL = 8;
 const ALL_TABS_COL = 9;
+const SKILL_COL = 10;
+const SETS_COL = 11;
 const textToProgress = (t?: string): CloudProgress | undefined => {
   try {
     const x = t ? JSON.parse(t) : null;
@@ -171,10 +174,105 @@ export async function readShared() {
       try { removed = v[7] ? JSON.parse(v[7]) : undefined; } catch { removed = undefined; }
       removed = mergeRemoved(removed, localRemoved.get(v[0]));
       const progress = textToProgress(v[PROGRESS_COL]);
-      shared.push({ sid: v[0], title: v[1] ?? '', project: v[2] || SHARED, tabs, ...(v[6] ? { lengthStd: textToStd(v[6]) } : {}), ...(removed ? { removed } : {}), ...(progress ? { progress } : {}), ...(v[ALL_TABS_COL] === '1' ? { allTabs: true } : {}) });
+      let sets: CloudSheet['sets'];
+      try { sets = v[SETS_COL] ? JSON.parse(v[SETS_COL]) : undefined; } catch { sets = undefined; }
+      shared.push({ sid: v[0], title: v[1] ?? '', project: v[2] || SHARED, tabs, ...(v[6] ? { lengthStd: textToStd(v[6]) } : {}), ...(removed ? { removed } : {}), ...(progress ? { progress } : {}), ...(v[ALL_TABS_COL] === '1' ? { allTabs: true } : {}),
+        ...(v[SKILL_COL] === '1' ? { skill: true } : {}), ...(sets && typeof sets === 'object' ? { sets } : {}) });
     } catch { /* 壞掉的列不理 */ }
   });
   useCloud.setState({ shared });
+}
+
+// ---- 收起組、條目串（雲端模式）：哪些條目在同一組、條目串切在哪裡，寫進資料表跟同事共享 ----
+
+/** 這台電腦改了收起組、還沒寫進資料表的檔案：重新讀取時先用自己的，不被資料表裡舊的蓋掉 */
+const setsDirty = new Set<string>();
+const setsTimer = new Map<string, ReturnType<typeof setTimeout>>();
+
+/** 讀進來的分頁換上資料表記的收起組、條目串切割（條目用「ID 第幾個」對回來）；沒有變就用原本的物件 */
+function withSets(sid: string, sh: Sheet, prev: Sheet | undefined, cs: CloudSets | undefined): Sheet {
+  let groups: Sheet['groups'], cuts: Sheet['chainCuts'];
+  if (setsDirty.has(sid)) { groups = prev?.groups; cuts = prev?.chainCuts; }
+  else {
+    const uidOf = new Map<string, string>();
+    sh.entries.forEach((e) => { const k = base.get(e.uid)?.key; if (k) uidOf.set(k, e.uid); });
+    const map = (keys: string[]) => keys.map((k) => uidOf.get(k)).filter((u): u is string => !!u);
+    groups = (cs?.groups ?? []).map((g) => ({ id: g.id, name: g.name, uids: map(g.keys), ...(g.auto ? { auto: true } : {}) })).filter((g) => g.uids.length);
+    cuts = map(cs?.cuts ?? []);
+    if (!groups.length) groups = undefined;
+    if (!cuts.length) cuts = undefined;
+  }
+  if (JSON.stringify(groups ?? null) === JSON.stringify(sh.groups ?? null) && JSON.stringify(cuts ?? null) === JSON.stringify(sh.chainCuts ?? null)) return sh;
+  return { ...sh, groups, chainCuts: cuts };
+}
+
+/** 收起組、條目串切割改了：等一下寫進資料表（連續改只寫一次） */
+function saveSetsSoon(sid: string) {
+  setsDirty.add(sid);
+  clearTimeout(setsTimer.get(sid));
+  setsTimer.set(sid, setTimeout(() => void saveSets(sid), 800));
+}
+
+async function saveSets(sid: string) {
+  const mine = setsTimer.get(sid);
+  const f = fileOf(sid);
+  const conf = confOf(sid);
+  if (!f || !conf) { setsDirty.delete(sid); return; }
+  const keyOf = (u: string) => base.get(u)?.key;
+  const sets: Record<string, CloudSets> = {};
+  for (const sh of f.sheets) {
+    if (sh.gid === undefined) continue;
+    const groups = normalizeGroups(sh.entries, sh.groups ?? [])
+      .map((g) => ({ id: g.id, name: g.name, keys: g.uids.map(keyOf).filter((k): k is string => !!k), ...(g.auto ? { auto: true } : {}) }))
+      .filter((g) => g.keys.length);
+    const cuts = (sh.chainCuts ?? []).map(keyOf).filter((k): k is string => !!k);
+    if (groups.length || cuts.length) sets[String(sh.gid)] = { ...(groups.length ? { groups } : {}), ...(cuts.length ? { cuts } : {}) };
+  }
+  const next: CloudSheet = { ...conf, sets: Object.keys(sets).length ? sets : undefined };
+  const { cfg, shared } = useCloud.getState();
+  if (cfg.sheets.some((x) => x.sid === sid)) setConfig({ sheets: cfg.sheets.map((x) => (x.sid === sid ? next : x)) });
+  useCloud.setState({ shared: shared.map((x) => (x.sid === sid ? next : x)) });
+  try { await writeShared(next); } catch (e) { showToast(tx('cloud.writeFailed', { name: f.name, reason: errText(e) }), { warn: true }); }
+  // 寫的途中又改了（又排了一次）：保留「還沒寫」的狀態
+  finally { if (setsTimer.get(sid) === mine) { setsDirty.delete(sid); setsTimer.delete(sid); } }
+}
+
+/** 技能檔案開關（記在資料表，大家共用） */
+export async function setSkill(sid: string, on: boolean) {
+  const conf = confOf(sid);
+  if (!conf) return;
+  const next: CloudSheet = { ...conf, skill: on || undefined };
+  const { cfg, shared } = useCloud.getState();
+  if (cfg.sheets.some((x) => x.sid === sid)) setConfig({ sheets: cfg.sheets.map((x) => (x.sid === sid ? next : x)) });
+  useCloud.setState({ shared: shared.map((x) => (x.sid === sid ? next : x)) });
+  const p = useStore.getState().project;
+  if (p) asInternal(() => useStore.setState({ project: { ...p, files: p.files.map((f) => (f.fid === fidOf(sid) ? { ...f, skill: on || undefined } : f)) } }));
+  try { await writeShared(next); } catch (e) { showToast(tx('cloud.writeFailed', { name: conf.title, reason: errText(e) }), { warn: true }); }
+  if (on) fillChains(sid);
+}
+
+/**
+ * 技能檔案：條目串裡還沒翻的條目（新加的、原文更新後加入的）自動套用串的譯文（標籤換成各自的數字）。
+ * 當成一般的修改，之後照常寫回 Google
+ */
+function fillChains(sid: string) {
+  const s = useStore.getState();
+  const f = fileOf(sid);
+  if (!f || !f.skill || !setsOn(s, f)) return;
+  let changed = false;
+  const sheets = f.sheets.map((sh) => {
+    const L = sheetLayout(f, sh, true);
+    const fill = new Map<string, string>();
+    for (const c of L.chains) {
+      if (!c.tpl) continue;
+      c.idx.forEach((i) => { const e = sh.entries[i]; if (!e.tgt.trim() && e.src.trim() && e.mark !== 'ignore') fill.set(e.uid, fillTemplate(c.tpl, e.src)); });
+    }
+    if (!fill.size) return sh;
+    changed = true;
+    return { ...sh, entries: sh.entries.map((e) => (fill.has(e.uid) ? { ...e, tgt: fill.get(e.uid)!, pending: false } : e)) };
+  });
+  if (!changed || !s.project) return;
+  useStore.setState({ project: { ...s.project, files: s.project.files.map((x) => (x.fid === f.fid ? { ...x, sheets } : x)) } });
 }
 
 /** 把一份試算表的設定寫進資料表 */
@@ -187,7 +285,7 @@ export async function writeShared(conf: CloudSheet) {
   else if (filesHeadLen < FILES_HEAD.length) { await ensureCols(did, FILES_TAB, FILES_HEAD.length); await writeRows(did, FILES_TAB, [{ row: 0, values: FILES_HEAD }]); }
   // 進度欄照資料表現在記的寫回去（這裡是整列一起寫）
   const progress = progressSent.get(conf.sid) ?? (conf.progress ? JSON.stringify(conf.progress) : '');
-  const values = [conf.sid, conf.title, conf.project, JSON.stringify(conf.tabs), useCloud.getState().email ?? '', new Date().toISOString(), stdToText(conf.lengthStd), conf.removed ? JSON.stringify(conf.removed) : '', progress, conf.allTabs ? '1' : ''];
+  const values = [conf.sid, conf.title, conf.project, JSON.stringify(conf.tabs), useCloud.getState().email ?? '', new Date().toISOString(), stdToText(conf.lengthStd), conf.removed ? JSON.stringify(conf.removed) : '', progress, conf.allTabs ? '1' : '', conf.skill ? '1' : '', conf.sets && Object.keys(conf.sets).length ? JSON.stringify(conf.sets) : ''];
   const row = filesRows.get(conf.sid);
   if (row !== undefined) await writeRows(did, FILES_TAB, [{ row, values }]);
   else await appendRows(did, FILES_TAB, [values]);
@@ -449,7 +547,8 @@ async function loadSheetInner(sid: string, quiet: boolean, retry: boolean): Prom
     // 用讀完時最新的移除紀錄（讀的途中可能剛移除了條目或頁簽）
     const rm = removedOf(sid);
     const built = tabs.map((t, i) => (rm?.tabs?.includes(t.gid) ? null : buildSheet(t, values[i], prev?.sheets.find((s) => s.gid === t.gid), kept?.[String(t.gid)], fd, rich[i], new Set(rm?.rows?.[String(t.gid)] ?? []))))
-      .filter((x): x is Sheet => !!x);
+      .filter((x): x is Sheet => !!x)
+      .map((sh) => withSets(sid, sh, prev?.sheets.find((s) => s.gid === sh.gid), confOf(sid)?.sets?.[String(sh.gid)]));
     // R15 檔：還沒設定欄位的分頁也列出來（空的，點開時選範圍），照 Google 上的順序
     const extra = conf.allTabs ? m.tabs.filter((t) => !conf.tabs.some((c) => c.gid === t.gid) && !rm?.tabs?.includes(t.gid)).map((t): Sheet => {
       const old = prev?.sheets.find((s) => s.gid === t.gid && s.setup && s.name === t.title);
@@ -464,11 +563,12 @@ async function loadSheetInner(sid: string, quiet: boolean, retry: boolean): Prom
     void p;
     const unchanged = prev && prev.name === m.title && prev.sheets.length === sheets.length && sheets.every((s, i) => s === prev.sheets[i]);
     if (unchanged) { loaded.add(sid); return true; }
-    const doc: FileDoc = { ...(cur0 ?? {}), fid: fidOf(sid), cloud: { sid }, name: m.title, project: cur0?.project ?? project, sheets, lengthStd: conf.lengthStd };
+    const doc: FileDoc = { ...(cur0 ?? {}), fid: fidOf(sid), cloud: { sid }, name: m.title, project: cur0?.project ?? project, sheets, lengthStd: conf.lengthStd, ...(conf.skill ? { skill: true } : { skill: undefined }) };
     const cur = useStore.getState().project!;
     const at = cur.files.findIndex((f) => f.fid === doc.fid);
     asInternal(() => useStore.setState({ project: { ...cur, files: at >= 0 ? cur.files.map((f, i) => (i === at ? doc : f)) : [...cur.files, doc] } }));
     loaded.add(sid);
+    fillChains(sid);
     return true;
   } catch (e) {
     const msg = tx('cloud.loadFailed', { name: conf.title || sid, reason: errText(e) });
@@ -837,6 +937,8 @@ export function watchStore() {
             if (gone.length) void deleteRemoved(sid, sh.gid!, gone);
           }
         }
+        // 收起組、條目串切割改了：記進資料表（大家共用）
+        if (!internal && was && !was.cloud?.stub && !f.cloud?.stub && f.sheets.some((sh) => { const o = was.sheets.find((x) => x.gid === sh.gid); return !!o && (o.groups !== sh.groups || o.chainCuts !== sh.chainCuts); })) saveSetsSoon(sid);
         // 檔案的長度標準、專案改了：記進資料表（大家共用）
         if (was && !f.cloud?.stub && !was.cloud?.stub && (stdToText(was.lengthStd) !== stdToText(f.lengthStd) || was.project !== f.project)) void saveSheetMeta(sid, f);
       });

@@ -441,7 +441,7 @@ async function persistConfig(patch: Partial<AppConfig> = {}) {
   const s = useStore.getState();
   config = {
     ...config, ...patch,
-    saveRoot: s.saveRoot, autosaveMin: s.autosaveMin, uiLang: s.uiLang, devMode: s.devMode, showIds: s.showIds, aiEnabled: s.aiEnabled, aiSkillTranslate: s.aiSkillTranslate, aiSkillVerify: s.aiSkillVerify, aiExtra: s.aiExtra, theme: s.theme, accent: s.accent, customAccents: s.customAccents, rainbowUnlocked: s.rainbowUnlocked, fonts: s.fonts, recentFonts: s.recentFonts,
+    saveRoot: s.saveRoot, autosaveMin: s.autosaveMin, uiLang: s.uiLang, devMode: s.devMode, showIds: s.showIds, aiEnabled: s.aiEnabled, entrySets: s.entrySetsOn, setOpen: s.setOpen, aiSkillTranslate: s.aiSkillTranslate, aiSkillVerify: s.aiSkillVerify, aiExtra: s.aiExtra, theme: s.theme, accent: s.accent, customAccents: s.customAccents, rainbowUnlocked: s.rainbowUnlocked, fonts: s.fonts, recentFonts: s.recentFonts,
     shortcuts: s.shortcuts, checkSettings: s.checkSettings, checksOn: s.checksOn, workBoxes: s.workBoxes, workFit: s.workFit, workH: s.workH ?? undefined, dictOverrides: s.dictOverrides, tmMin: s.tmMin, tmAuto: s.tmAuto, quickSearch: s.quickSearch, tmOverrides: s.tmOverrides, general: s.general, collapsedProjects: s.collapsedProjects, colWidths: s.colWidths, finishLine: s.finishLine, lengthPresets: s.lengthPresets,
   };
   try { await saveConfig(config); } catch { /* 設定存不下不影響使用 */ }
@@ -522,6 +522,8 @@ export async function startApp(boots: Boot[] = []) {
     devMode: !!config.devMode,
     showIds: !!config.devMode && !!config.showIds,
     aiEnabled: !!config.devMode && !!config.aiEnabled,
+    entrySetsOn: !!config.devMode && !!config.entrySets,
+    setOpen: config.setOpen ?? {},
     aiSkillTranslate: config.aiSkillTranslate ?? '',
     aiSkillVerify: config.aiSkillVerify ?? '',
     aiExtra: config.aiExtra ?? '',
@@ -620,7 +622,7 @@ function watch() {
     }
     // 設定改了就存到設定檔
     if (s.theme !== prev.theme || s.accent !== prev.accent || s.customAccents !== prev.customAccents || s.rainbowUnlocked !== prev.rainbowUnlocked || s.fonts !== prev.fonts || s.recentFonts !== prev.recentFonts || s.shortcuts !== prev.shortcuts || s.checkSettings !== prev.checkSettings
-      || s.dictOverrides !== prev.dictOverrides || s.tmMin !== prev.tmMin || s.tmAuto !== prev.tmAuto || s.quickSearch !== prev.quickSearch || s.tmOverrides !== prev.tmOverrides || s.general !== prev.general || s.collapsedProjects !== prev.collapsedProjects || s.colWidths !== prev.colWidths || s.finishLine !== prev.finishLine || s.checksOn !== prev.checksOn || s.workBoxes !== prev.workBoxes || s.workFit !== prev.workFit || s.workH !== prev.workH || s.lengthPresets !== prev.lengthPresets || s.autosaveMin !== prev.autosaveMin || s.saveRoot !== prev.saveRoot || s.uiLang !== prev.uiLang || s.devMode !== prev.devMode || s.showIds !== prev.showIds || s.aiEnabled !== prev.aiEnabled || s.aiSkillTranslate !== prev.aiSkillTranslate || s.aiSkillVerify !== prev.aiSkillVerify || s.aiExtra !== prev.aiExtra) {
+      || s.dictOverrides !== prev.dictOverrides || s.tmMin !== prev.tmMin || s.tmAuto !== prev.tmAuto || s.quickSearch !== prev.quickSearch || s.tmOverrides !== prev.tmOverrides || s.general !== prev.general || s.collapsedProjects !== prev.collapsedProjects || s.colWidths !== prev.colWidths || s.finishLine !== prev.finishLine || s.checksOn !== prev.checksOn || s.workBoxes !== prev.workBoxes || s.workFit !== prev.workFit || s.workH !== prev.workH || s.lengthPresets !== prev.lengthPresets || s.autosaveMin !== prev.autosaveMin || s.saveRoot !== prev.saveRoot || s.uiLang !== prev.uiLang || s.devMode !== prev.devMode || s.showIds !== prev.showIds || s.aiEnabled !== prev.aiEnabled || s.entrySetsOn !== prev.entrySetsOn || s.setOpen !== prev.setOpen || s.aiSkillTranslate !== prev.aiSkillTranslate || s.aiSkillVerify !== prev.aiSkillVerify || s.aiExtra !== prev.aiExtra) {
       clearTimeout(configTimer);
       configTimer = setTimeout(() => void persistConfig(), 400);
     }

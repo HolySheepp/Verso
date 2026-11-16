@@ -24,7 +24,13 @@ export interface CloudSheet {
   progress?: CloudProgress;
   /** 顯示 Google 表上全部的分頁（R15 檔）：沒設定欄位的也列出來，點開時選範圍 */
   allTabs?: boolean;
+  /** 技能檔案：拿掉標籤數字、自動組成條目串（記在資料表，大家共用） */
+  skill?: boolean;
+  /** 收起組、條目串切割過的地方（分頁 ID → …；條目用「ID 第幾個」記，大家共用） */
+  sets?: Record<string, CloudSets>;
 }
+/** 一個分頁的收起組（keys 是組裡條目的「ID 第幾個」）和條目串切割過的地方 */
+export interface CloudSets { groups?: { id: string; name: string; keys: string[]; auto?: boolean }[]; cuts?: string[] }
 export interface CloudConfig {
   on: boolean; clientId: string; clientSecret: string; sheets: CloudSheet[];
   /** Verso 資料表的網址（標記、建議翻譯、修改、各檔案的欄位設定存在這裡，大家共用） */

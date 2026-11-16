@@ -24,7 +24,7 @@ import { beforeExit, rowHook, tabHook } from '../hooks';
 import type { VersoPlugin } from '../registry';
 import { builtinClient, errText, insertCol, login, loginStatus, logout, meta, readTabs, sidOf } from './api';
 import { allSheets, loadConfig, setConfig, toFields, toFieldMap, useCloud, type CloudSheet, type CloudTab } from './config';
-import { saveCachesNow, previewKeys, removedNow, setRemoved, rememberPos, isVersoTab, convertVersoTab, removeRows, tabRemove, rowOp, tabRename, tabDelete, tabInsert, currentSid, enterCloud, flushAll, pickShown, putSheet, refreshAll, removeSheet, resolveConflict, watchStore } from './sync';
+import { saveCachesNow, previewKeys, removedNow, setRemoved, rememberPos, isVersoTab, convertVersoTab, removeRows, tabRemove, rowOp, tabRename, tabDelete, tabInsert, currentSid, enterCloud, flushAll, pickShown, putSheet, refreshAll, removeSheet, resolveConflict, setSkill, watchStore } from './sync';
 
 const btn: React.CSSProperties = { height: 32, padding: '0 14px', background: 'var(--btn)', border: '1px solid var(--line4)', borderRadius: 8, fontSize: fz(12.5) };
 const primary: React.CSSProperties = { height: 36, padding: '0 18px', background: 'var(--primary)', border: 0, borderRadius: 8, color: '#ffffff', fontSize: fz(13), fontWeight: 600 };
@@ -194,6 +194,9 @@ function SetupDialog({ sid0, gid0 }: { sid0?: string; gid0?: number }) {
   const [cur, setCur] = useState(0);
   const [err, setErr] = useState('');
   const [busy, setBusy] = useState(false);
+  // 技能檔案（開發者選項打開收起組與條目串時才出現）
+  const setsFeature = useStore((s) => s.entrySetsOn && s.devMode);
+  const [skill, setSkillOn] = useState(!!old?.skill);
   // 頁簽列：滾輪左右捲動，放不下時兩邊淡出
   const tabsScroll = useScrollTabs();
 
@@ -228,6 +231,11 @@ function SetupDialog({ sid0, gid0 }: { sid0?: string; gid0?: number }) {
       <input id="verso-cloud-url" className="field" value={url} disabled={!!drafts} onChange={(e) => setUrl(e.target.value)} placeholder="https://docs.google.com/spreadsheets/d/…" style={{ flexGrow: 1, minWidth: 0 }} />
       <label htmlFor="verso-cloud-proj" style={{ fontSize: fz(12), color: 'var(--text2)', flexShrink: 0 }}>{tx('cloud.project')}</label>
       <Select id="verso-cloud-proj" value={project} options={projects.map((p) => ({ value: p, label: p }))} onChange={setProject} style={{ width: 160 }} />
+      {setsFeature && (
+        <label style={{ display: 'flex', alignItems: 'center', gap: 6, fontSize: fz(12), color: 'var(--text2)', flexShrink: 0 }}>
+          <input type="checkbox" checked={skill} onChange={(e) => setSkillOn(e.target.checked)} />{tx('cloud.skillFile')}
+        </label>
+      )}
       {!drafts && <button type="button" className="btn btn-ghost" style={btn} disabled={busy || !url.trim()} onClick={() => void read()}>{busy ? tx('cloud.reading') : tx('cloud.read')}</button>}
     </div>
   );
@@ -300,7 +308,8 @@ function SetupDialog({ sid0, gid0 }: { sid0?: string; gid0?: number }) {
       const tabsGone = (was?.tabs ?? []).filter((g) => drafts.find((x) => x.gid === g)?.removedTab !== false);
       const removed = tabsGone.length || Object.keys(rows).length ? { tabs: tabsGone, rows } : undefined;
       const was0 = oldOf(sid0 ?? sid);
-      const conf: CloudSheet = { sid, title, project, tabs, ...(was0?.allTabs ? { allTabs: true } : {}), ...(was0?.lengthStd !== undefined ? { lengthStd: was0.lengthStd } : {}), ...(removed ? { removed } : {}) };
+      const conf: CloudSheet = { sid, title, project, tabs, ...(was0?.allTabs ? { allTabs: true } : {}), ...(was0?.lengthStd !== undefined ? { lengthStd: was0.lengthStd } : {}), ...(removed ? { removed } : {}),
+        ...((setsFeature ? skill : was0?.skill) ? { skill: true } : {}), ...(was0?.sets ? { sets: was0.sets } : {}) };
       setRemoved(sid, removed);
       close();
       await putSheet(conf);
@@ -357,8 +366,9 @@ function ManageDialog() {
   const sheets = allSheets();
   const close = () => useCloud.setState({ manage: false });
   const [ask, setAsk] = useState<CloudSheet | null>(null);
+  const setsFeature = useStore((s) => s.entrySetsOn && s.devMode);
   return (
-    <Shell title={tx('cloud.manage')} width={620} onClose={close}>
+    <Shell title={tx('cloud.manage')} width={setsFeature ? 720 : 620} onClose={close}>
       <div style={{ display: 'flex', flexDirection: 'column', gap: 4, padding: '14px 20px 20px', maxHeight: 460, overflowY: 'auto' }}>
         {!sheets.length && <div style={{ fontSize: fz(12.5), color: 'var(--mute)' }}>{tx('cloud.noSheets')}</div>}
         {sheets.map((x, i) => (
@@ -366,6 +376,11 @@ function ManageDialog() {
             <span style={{ flexGrow: 1, minWidth: 0, fontSize: fz(13), overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{x.title || x.sid}</span>
             <span style={{ fontSize: fz(12), color: 'var(--mute)' }}>{x.project}</span>
             <span style={{ fontSize: fz(12), color: 'var(--mute)' }}>{tx('cloud.tabCount', { n: x.tabs.length })}</span>
+            {setsFeature && (
+              <label style={{ display: 'flex', alignItems: 'center', gap: 6, fontSize: fz(12), color: 'var(--text2)', flexShrink: 0 }}>
+                <input type="checkbox" checked={!!x.skill} onChange={(e) => void setSkill(x.sid, e.target.checked)} />{tx('cloud.skillFile')}
+              </label>
+            )}
             <button type="button" className="btn btn-ghost" style={btn} onClick={() => useCloud.setState({ manage: false, setup: { sid: x.sid } })}>{tx('cloud.resetup')}</button>
             <button type="button" className="btn btn-ghost" style={btn} onClick={() => setAsk(x)}>{tx('cloud.remove')}</button>
           </div>

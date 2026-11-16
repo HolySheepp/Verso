@@ -25,7 +25,9 @@ import { CellText } from './CellText';
 import { maxOf, minOf } from '../model/num';
 import { hasTooLongCell, MAX_CELL_CHARS, tooLongMsg } from '../model/names';
 import { entryFits } from '../model/cellLimit';
-import { showToast, useStore } from '../state/store';
+import { showToast, useStore, displayOf, setsOn, setKey, sheetLayout } from '../state/store';
+import { autoName, type Item } from '../model/entrySets';
+import { ChainBar, DotsItem, GroupItem, IconLink } from './EntrySets';
 
 /** # 欄（對話 id）、發話者欄、原文、譯文：依比例分配寬度 */
 const colsOf = (w: number[]) => w.map((x) => `minmax(0, ${x}fr)`).join(' ');
@@ -75,6 +77,8 @@ interface RowHandlers {
   cancelEdit(): void;
   /** 現在正在編輯的就是這一條的這一欄嗎（舊編輯框的卸載計時器用，免得關掉新開的編輯） */
   isEditing(uid: string, c: CellCol): boolean;
+  /** 展開收起的條目串（i 是代表它的那一條） */
+  toggleChain(i: number): void;
 }
 
 interface RowProps {
@@ -102,6 +106,18 @@ interface RowProps {
   fsId: string;
   ovfId: Overflow; ovfSpk: Overflow; ovfSrc: Overflow; ovfTgt: Overflow;
   h: React.RefObject<RowHandlers>;
+  /** 在展開的收起組、條目串裡面（左邊畫導軌）：1 是組或串、2 是組裡的串 */
+  depth?: number;
+  /** 展開的條目串裡的條目 */
+  inChain?: boolean;
+  /** 條目串裡譯文格式跟大多數不同的條目（疑慮的黃色） */
+  outlier?: boolean;
+  /** 收起的條目串：這一列代表整串（條數、拿掉標籤數字的原文、大多數的譯文格式、有沒有格式不同的） */
+  chainN?: number; chainSrc?: string; chainTpl?: string; chainWarn?: boolean;
+  /** 剛展開：跑一次彈性動畫 */
+  enter?: boolean;
+  /** 量高度用的名字（收起的條目串是 c:串的 id） */
+  rowKey?: string;
 }
 
 /** 格子裡的編輯框：被捲出畫面、換頁簽而消失時，已打的內容直接確定 */
@@ -127,8 +143,11 @@ function CellEditor({ text, h, uid, c }: { text: string; h: React.RefObject<RowH
 }
 
 /** 條目欄的一行：只有自己的內容、選取、標記等變了才重畫 */
-const EntryRow = memo(function EntryRow({ e, i, aiLock, k, m, issues, on, hit, selCols, editing, customs, cols, fitId, fitSpk, fitSrc, fitTgt, fontId, fsId, fontSpk, fontSrc, fontTgt, ovfId, ovfSpk, ovfSrc, ovfTgt, h }: RowProps) {
-  const doubt = m === 'doubt', ver = m === 'verified', ign = m === 'ignore';
+const EntryRow = memo(function EntryRow({ e, i, aiLock, k, m, issues, on, hit, selCols, editing, customs, cols, fitId, fitSpk, fitSrc, fitTgt, fontId, fsId, fontSpk, fontSrc, fontTgt, ovfId, ovfSpk, ovfSrc, ovfTgt, h, rowKey, depth = 0, inChain, outlier, chainN, chainSrc, chainTpl, chainWarn, enter }: RowProps) {
+  const doubt = m === 'doubt' || !!outlier || !!chainWarn, ver = m === 'verified', ign = m === 'ignore';
+  // 收起的條目串：原文、譯文欄顯示整串的（拿掉標籤數字）
+  const srcText = chainN ? chainSrc ?? '' : e.upd?.src ?? e.src;
+  const tgtText = chainN ? chainTpl ?? '' : e.tgt;
   const label = tx('list.010', { v1: markName(customs, m) });
   const cellProps = (c: CellCol) => {
     const isSel = selCols.includes(String(c));
@@ -144,18 +163,27 @@ const EntryRow = memo(function EntryRow({ e, i, aiLock, k, m, issues, on, hit, s
   };
   const editor = (c: CellCol) => (editing && editing.c === c ? <CellEditor text={editing.text} h={h} uid={e.uid} c={c} /> : null);
   return (
-    <div key={e.uid} className="rw" data-uid={e.uid} data-k={k} aria-current={on ? 'true' : undefined} style={{
-      display: 'grid', gridTemplateColumns: '24px 16px minmax(0, 1fr)', padding: '0 12px 0 4px',
+    <div key={e.uid} className={'rw' + (depth ? (inChain ? ' rw-chain-in' : ' rw-in') : '') + (chainN ? ' chain-row' : '') + (enter ? ' set-in' : '')} data-uid={e.uid} data-key={rowKey ?? e.uid} data-k={k} aria-current={on ? 'true' : undefined}
+      aria-label={chainN ? tx('sets.chain') + tx('common.colon') + tx('sets.count', { n: chainN }) : undefined} style={{
+      display: 'grid', gridTemplateColumns: '24px 16px minmax(0, 1fr)', padding: `0 12px 0 ${4 + (depth ? 8 : 0)}px`,
       borderTop: `1px solid ${doubt ? 'var(--dbline)' : 'transparent'}`,
       borderBottom: `1px solid ${doubt ? 'var(--dbline)' : 'transparent'}`,
-      background: doubt ? (on ? 'var(--dbon)' : 'var(--db)') : hit ? 'var(--acc-soft)' : 'transparent',
+      backgroundColor: doubt ? (on ? 'var(--dbon)' : 'var(--db)') : hit ? 'var(--acc-soft)' : chainN ? (on ? 'color-mix(in srgb, var(--accent) 14%, var(--panel))' : 'color-mix(in srgb, var(--accent) 7%, var(--panel))') : 'transparent',
       boxShadow: hit ? 'inset 3px 0 0 var(--accent)' : undefined,
+      ...(chainN ? { margin: '2px 8px 6px 6px', borderRadius: 8, border: `1px solid ${doubt ? 'var(--dbline)' : 'color-mix(in srgb, var(--accent) 30%, transparent)'}` } : {}),
     }}>
       <button type="button" className="mk" aria-haspopup="menu" aria-label={label} title={label} onClick={(ev) => h.current.openMark(ev, i)}
         style={{ width: 24, minHeight: 38, display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 0, background: 'transparent', border: 0, borderRadius: 4 }}>
         <MarkIcon mark={markVisual(customs, m)} size={14} />
       </button>
       <span className="row-pick" onMouseDown={(ev) => h.current.rowPick(ev, i)} onMouseEnter={(ev) => h.current.rowEnter(ev, i)} onContextMenu={(ev) => h.current.rowMenu(ev, i)} style={{ display: 'flex', flexDirection: 'column', gap: 3, alignItems: 'flex-start', justifyContent: 'center' }}>
+        {/* 收起的條目串：條數，點了展開 */}
+        {!!chainN && (
+          <button type="button" className="ib" aria-label={tx('sets.expand')} title={tx('sets.expand')} onMouseDown={(ev) => ev.stopPropagation()} onClick={() => h.current.toggleChain(i)}
+            style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 1, padding: '2px 0', background: 'transparent', border: 0, borderRadius: 4, color: 'var(--accent2)', fontSize: 9, fontWeight: 700, lineHeight: 1 }}>
+            <IconLink size={12} />{chainN}
+          </button>
+        )}
         {aiLock && (
           <span role="img" aria-label={tx('list.aiLocked')} title={tx('list.aiLocked')} className="ai-busy" style={{ fontSize: 9, fontWeight: 800, color: 'var(--accent)', lineHeight: 1 }}>AI</span>
         )}
@@ -184,22 +212,22 @@ const EntryRow = memo(function EntryRow({ e, i, aiLock, k, m, issues, on, hit, s
           {/* 原文更新：顯示新原文 */}
           {editor(2) ?? (e.upd?.removed
             ? <span style={{ fontSize: SRC_FS, color: 'var(--mute3)' }}>{tx('list.014')}</span>
-            : <CellText mode={ovfSrc} fontSize={SRC_FS} fit={{ width: fitSrc, font: fontSrc, text: e.upd?.src ?? e.src }}>{e.upd?.src ?? e.src}</CellText>)}
+            : <CellText mode={ovfSrc} fontSize={SRC_FS} fit={{ width: fitSrc, font: fontSrc, text: srcText }}>{srcText}</CellText>)}
         </span>
         <span {...cellProps(3)} style={{
           fontSize: TGT_FS, fontFamily: 'var(--font-tgt)',
           display: 'flex', alignItems: 'center', minWidth: 0, padding: '9px 16px', lineHeight: 1.45, borderLeft: '1px solid var(--line0)',
-          color: ver ? 'var(--mute2)' : e.tgt ? 'var(--textsoft)' : 'var(--mute2)', fontStyle: e.tgt ? 'normal' : 'italic',
+          color: ver ? 'var(--mute2)' : tgtText ? 'var(--textsoft)' : 'var(--mute2)', fontStyle: tgtText ? 'normal' : 'italic',
         }}>
           {editor(3) ?? (
-            <CellText mode={ovfTgt} fontSize={TGT_FS} fit={{ width: fitTgt - (issues.length ? 19 : 0), font: fontTgt, text: e.tgt || (ign ? tx('list.015') : tx('list.016')) }}>
+            <CellText mode={ovfTgt} fontSize={TGT_FS} fit={{ width: fitTgt - (issues.length ? 19 : 0), font: fontTgt, text: tgtText || (ign ? tx('list.015') : tx('list.016')) }}>
               {issues.length > 0 && (
                 <span role="img" aria-label={issues.map((x) => x.msg).join(tx('common.sep'))} title={issues.map((x) => x.msg).join(tx('common.sep'))}
                   style={{ display: 'inline-flex', verticalAlign: '-2px', marginRight: 6, color: 'var(--warntx)', fontStyle: 'normal' }}>
                   <IconWarn size={13} sw={2.2} />
                 </span>
               )}
-              {e.tgt || (ign ? tx('list.015') : tx('list.016'))}
+              {tgtText || (ign ? tx('list.015') : tx('list.016'))}
             </CellText>
           )}
         </span>
@@ -210,9 +238,18 @@ const EntryRow = memo(function EntryRow({ e, i, aiLock, k, m, issues, on, hit, s
 
 export function EntryList() {
   // 只訂閱這個區塊用到的資料（包含 currentOf 等輔助函式間接用到的）
-  const s = useStorePick('project', 'file', 'sheetBy', 'selBy', 'searchQuery', 'side', 'general', 'hideSide', 'mode', 'fonts', 'colWidths', 'cellSel', 'filter', 'reported', 'checkSettings', 'moveDir', 'moveSeq', 'set', 'select', 'selectCells', 'editSheet', 'undoSheet', 'redoSheet', 'checkAll', 'applyAllNewSources');
+  const s = useStorePick('project', 'file', 'sheetBy', 'selBy', 'searchQuery', 'side', 'general', 'hideSide', 'mode', 'fonts', 'colWidths', 'cellSel', 'filter', 'reported', 'checkSettings', 'moveDir', 'moveSeq', 'set', 'select', 'selectCells', 'editSheet', 'undoSheet', 'redoSheet', 'checkAll', 'applyAllNewSources', 'collapseRows', 'splitAt', 'mergeChains', 'setGroupAuto', 'mergeSets', 'dissolveGroup', 'renameGroup');
   const project = s.project!;
-  const { sheet, sheetIdx, sel } = currentOf(s);
+  const { sheet, sheetIdx, sel, fileDoc } = currentOf(s);
+  // 收起組、條目串（雲端模式、開發者選項打開時）
+  const setsActive = useStore((st) => setsOn(st, currentOf(st).fileDoc));
+  const setOpen = useStore((st) => st.setOpen);
+  const groupNaming = useStore((st) => st.groupNaming);
+  // Ctrl、Shift 點選的收起組（合併用）
+  const [groupSel, setGroupSel] = useState<string[]>([]);
+  const [groupMenu, setGroupMenu] = useState<{ x: number; y: number; id: string } | null>(null);
+  // 剛展開、收起的組或串：跑一次彈性動畫
+  const recent = useRef<{ key: string; t: number } | null>(null);
   const filter = s.filter;
   const { set } = s;
   const customs = project.customMarks;
@@ -312,13 +349,25 @@ export function EntryList() {
     set({ rowMenu: { index: i, ...rowMenuPos(ev.currentTarget, customs.length) }, stampOpen: false, fileMenuOpen: false });
   };
 
-  const { rows, visible, posOf } = useMemo(() => {
-    const rows = !Object.keys(filter).length ? all : all.filter(({ m, issues, note }) => passesFilter(filter, m, issues.length > 0, note));
-    const visible = rows.map((x) => x.i);
-    // 條目 → 在畫面上的第幾列
-    const posOf = new Map(visible.map((i, k) => [i, k]));
-    return { rows, visible, posOf };
-  }, [all, filter]);
+  // 要畫的項目（條目、收起組、條目串）；visible 是畫面上算一列的條目，posOf 是條目 → 第幾項（藏在收起的組、串裡的指向那一項）
+  const { items, visible, posOf } = useMemo(() => {
+    const filtering = Object.keys(filter).length > 0;
+    if (!setsActive) {
+      const rows = !filtering ? all : all.filter(({ m, issues, note }) => passesFilter(filter, m, issues.length > 0, note));
+      const items: Item[] = rows.map((r) => ({ t: 'row', key: r.e.uid, i: r.i, depth: 0 }));
+      const visible = rows.map((x) => x.i);
+      return { items, visible, posOf: new Map(visible.map((i, k) => [i, k])) };
+    }
+    const pass = filtering ? (i: number) => { const r = all[i]; return passesFilter(filter, r.m, r.issues.length > 0, r.note); } : null;
+    const hit = searchOn ? (i: number) => searchHit(sheet.entries[i], searchQ) : null;
+    const d = displayOf(useStore.getState(), pass, hit);
+    return { items: d.items, visible: d.rows, posOf: d.posOf };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [all, filter, setsActive, setOpen, sel, searchOn, searchQ, sheet, fileDoc]);
+  // 條目 → 畫面上第幾列（Shift 延伸選取、拖動選取用）
+  const vpos = useMemo(() => new Map(visible.map((i, k) => [i, k])), [visible]);
+  const layout = setsActive ? sheetLayout(fileDoc, sheet, true) : null;
+  const toggleSet = (key: string, open?: boolean) => { recent.current = { key, t: performance.now() }; s.set({ cellSel: null }); useStore.getState().toggleSet(key, open); };
 
   // ---- 虛擬捲動 ----
   // 量過的條目記住實際高度（依條目），沒量過的先用估的；
@@ -327,11 +376,11 @@ export function EntryList() {
   const [hVer, setHVer] = useState(0);
   const layoutKey = colPx.map(Math.round).join(',') + '|' + JSON.stringify(s.fonts) + '|' + s.mode;
   const offsets = useMemo(() => {
-    const o = new Float64Array(rows.length + 1);
-    rows.forEach((r, k) => { o[k + 1] = o[k] + (heights.current.get(r.e.uid) ?? EST_ROW); });
+    const o = new Float64Array(items.length + 1);
+    items.forEach((r, k) => { o[k + 1] = o[k] + (heights.current.get(r.key) ?? (r.t === 'dots' ? 22 : EST_ROW)); });
     return o;
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [rows, hVer, layoutKey]);
+  }, [items, hVer, layoutKey]);
   const offsetsRef = useRef(offsets);
   offsetsRef.current = offsets;
   // 條目欄捲到哪裡、有多高；只在要畫的範圍變了才重畫
@@ -404,8 +453,8 @@ export function EntryList() {
     let changed = false, above = 0;
     const o = offsetsRef.current;
     const firstK = rowAt(o, el.scrollTop - LIST_PAD);
-    el.querySelectorAll<HTMLElement>('.rw[data-uid]').forEach((row) => {
-      const uid = row.dataset.uid!, k = Number(row.dataset.k), h = row.getBoundingClientRect().height;
+    el.querySelectorAll<HTMLElement>('[data-k][data-key]').forEach((row) => {
+      const uid = row.dataset.key!, k = Number(row.dataset.k), h = row.getBoundingClientRect().height;
       const known = heights.current.get(uid);
       if (known !== undefined && Math.abs(known - h) < 0.5) return;
       heights.current.set(uid, h);
@@ -427,10 +476,10 @@ export function EntryList() {
     const t = setTimeout(syncView, 50);
     return () => clearTimeout(t);
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [rows]);
+  }, [items]);
 
   // 選到的格子；沒有特別選時就是目前這條的譯文格。被篩掉、看不到的格子不算（清除、刪除、貼上都不會動到它們）
-  const visSet = posOf;
+  const visSet = vpos;
   const picked = (s.cellSel?.keys ?? []).filter((k) => visSet.has(parseKey(k).i));
   const keys = picked.length ? picked : [cellKey(sel, TGT_COL)];
   const selected = new Set(keys);
@@ -523,7 +572,7 @@ export function EntryList() {
     sink.current?.focus({ preventScroll: true });
     const cell: Cell = { i, c: 0 };
     if (ev.shiftKey) {
-      const a = posOf.get(anchor.i) ?? -1, b = posOf.get(i) ?? -1;
+      const a = vpos.get(anchor.i) ?? -1, b = vpos.get(i) ?? -1;
       const [p0, p1] = a < b ? [a, b] : [b, a];
       pick(visible.slice(Math.max(0, p0), p1 + 1).flatMap(rowKeys), anchor);
       return;
@@ -592,7 +641,7 @@ export function EntryList() {
   const onRowEnter = (ev: React.MouseEvent, i: number) => {
     const d = rowDrag.current;
     if (!d || !(ev.buttons & 1)) return;
-    const a = posOf.get(d.i) ?? -1, b = posOf.get(i) ?? -1;
+    const a = vpos.get(d.i) ?? -1, b = vpos.get(i) ?? -1;
     const [p0, p1] = a < b ? [a, b] : [b, a];
     const rows = visible.slice(Math.max(0, p0), p1 + 1).flatMap(rowKeys);
     pick([...new Set([...d.base, ...rows])], { i: d.i, c: 0 });
@@ -621,6 +670,10 @@ export function EntryList() {
     sink.current?.focus({ preventScroll: true });
     if (readOnly) return;
     if (k === 'applySrc') { s.applyAllNewSources(selRows); return; }
+    // 收起組、條目串
+    if (k === 'collapse') { s.collapseRows(selRows); return; }
+    if (k === 'split') { s.splitAt(selRows[0]); return; }
+    if (k === 'mergeChain') { s.mergeChains(selRows.map((i) => sheet.entries[i].uid)); return; }
     const first = firstKey(keys);
     // 標記選單出現在滑鼠位置（相對於整個畫面），太靠下時往上移
     const menuAt = (x: number, y: number) => {
@@ -711,7 +764,67 @@ export function EntryList() {
     commitEdit: (refocus) => { commitEdit(); if (refocus) sink.current?.focus({ preventScroll: true }); },
     cancelEdit: () => { setEditing(null); sink.current?.focus({ preventScroll: true }); },
     isEditing: (uid, c) => editRef.current?.uid === uid && editRef.current.c === c,
+    toggleChain: (i) => { const c = layout?.chainOf.get(i); if (c) toggleSet('c:' + c.id); },
   };
+
+  // ---- 收起組、條目串的右鍵選單項目 ----
+  const inGroup = (i: number) => !!sheet.entries[i] && !!layout?.groups.some((g) => g.uids.includes(sheet.entries[i].uid));
+  const lastOfSet = (i: number) => {
+    const u = sheet.entries[i]?.uid;
+    const g = layout?.groups.find((x) => x.uids.includes(u));
+    if (g) return g.uids[g.uids.length - 1] === u;
+    const c = layout?.chainOf.get(i);
+    return !c || c.uids[c.uids.length - 1] === u;
+  };
+  const canSplit = selRows.length === 1 && (inGroup(selRows[0]) || !!layout?.chainOf.get(selRows[0])) && !lastOfSet(selRows[0])
+    && !(layout?.chainOf.get(selRows[0]) && !inGroup(selRows[0]) && !setOpen[setKey(fileDoc, sheetIdx, sheet, 'c:' + layout!.chainOf.get(selRows[0])!.id)]);
+  const cuts = new Set(sheet.chainCuts ?? []);
+  const canMergeChain = !!fileDoc.skill && selRows.length >= 2 && sheet.entries.slice(selRows[0], selRows[selRows.length - 1]).some((e) => cuts.has(e.uid));
+  const setItems = setsActive ? [
+    { key: 'collapse', label: tx('sets.collapse'), disabled: readOnly || !selRows.length },
+    ...(canSplit ? [{ key: 'split', label: tx('sets.split'), disabled: readOnly }] : []),
+    ...(canMergeChain ? [{ key: 'mergeChain', label: tx('sets.merge'), disabled: readOnly }] : []),
+  ] : [];
+
+  // 收起組：Ctrl 點加選、Shift 點選一段（合併用）
+  const pickGroup = (ev: React.MouseEvent, id: string) => {
+    if (ev.ctrlKey || ev.metaKey) { setGroupSel((g) => (g.includes(id) ? g.filter((x) => x !== id) : [...g, id])); return true; }
+    if (ev.shiftKey && groupSel.length) {
+      const order = items.flatMap((it) => (it.t === 'group' ? [it.g.id] : []));
+      const a = order.indexOf(groupSel[groupSel.length - 1]), b = order.indexOf(id);
+      if (a >= 0 && b >= 0) { const [x, y] = a < b ? [a, b] : [b, a]; setGroupSel(order.slice(x, y + 1)); return true; }
+    }
+    if (ev.shiftKey) { setGroupSel([id]); return true; }
+    if (groupSel.length) setGroupSel([]);
+    return false;
+  };
+  const groupAct = (k: string) => {
+    const gm = groupMenu;
+    setGroupMenu(null);
+    if (!gm) return;
+    const g = layout?.groups.find((x) => x.id === gm.id);
+    if (!g) return;
+    if (k === 'g-toggle') toggleSet('g:' + g.id);
+    if (readOnly) return;
+    if (k === 'g-rename') s.set({ groupNaming: g.id });
+    if (k === 'g-auto') s.setGroupAuto(g.id, !g.auto);
+    if (k === 'g-merge') { s.mergeSets([...new Set([...groupSel, g.id])]); setGroupSel([]); }
+    if (k === 'g-dissolve') s.dissolveGroup(g.id);
+  };
+  // 剛展開的組或串：底下的條目跑一次彈性動畫
+  const fresh = recent.current && performance.now() - recent.current.t < 700 ? recent.current.key : null;
+  const entering = new Set<string>();
+  if (fresh) {
+    const at = items.findIndex((it) => it.key === fresh);
+    const head = items[at];
+    if (head && (head.t === 'group' || head.t === 'chain') && head.open) {
+      const d0 = head.t === 'chain' ? head.depth : 0;
+      for (let q = at + 1; q < items.length; q++) {
+        const it = items[q];
+        if ((it.t === 'row' || it.t === 'chain') && it.depth > d0) entering.add(it.key); else break;
+      }
+    }
+  }
 
   return (
     <section aria-label={tx('list.017')} style={{
@@ -792,15 +905,39 @@ export function EntryList() {
           style={{ position: 'absolute', left: 0, top: 0, width: 1, height: 1, padding: 0, border: 0, opacity: 0, resize: 'none', pointerEvents: 'none' }} />
         {/* 畫面外的條目不畫，用上下兩塊空白撐出整個捲軸的長度 */}
         {start > 0 && <div aria-hidden="true" style={{ height: offsets[start] }} />}
-        {rows.slice(start, end).map(({ e, i, m, issues }, j) => (
-          <EntryRow key={e.uid} e={e} i={i} aiLock={aiLocked.includes(e.uid)} k={start + j} m={m} issues={issues} on={i === sel} hit={searchOn && searchHit(e, searchQ)}
-            selCols={selColsOf(i)} editing={editing && editing.uid === e.uid ? editing : null}
-            customs={customs} cols={cols} fitId={colPx[0] - 2} fitSpk={colPx[1] - 12} fitSrc={colPx[2] - 16} fitTgt={colPx[3] - 32}
-            fontId={fontId} fsId={fsId} fontSpk={cellFontCss(s.fonts, 'speaker')} fontSrc={cellFontCss(s.fonts, 'src')} fontTgt={cellFontCss(s.fonts, 'tgt')}
-            ovfId={ovf.id} ovfSpk={ovf.speaker} ovfSrc={ovf.src} ovfTgt={ovf.tgt} h={handlers} />
-        ))}
-        {end < rows.length && <div aria-hidden="true" style={{ height: offsets[rows.length] - offsets[end] }} />}
-        {rows.length === 0 && (
+        {items.slice(start, end).map((it, j) => {
+          const k = start + j;
+          if (it.t === 'group') {
+            const members = it.members.map((m) => sheet.entries[m]);
+            return (
+              <div key={it.key} data-key={it.key} data-k={k}>
+                <GroupItem g={it.g} name={it.g.name || autoName(sheet.entries, it.g)} open={it.open} members={members} shown={it.shown}
+                  naming={groupNaming === it.g.id} picked={groupSel.includes(it.g.id)} bounce={fresh === it.key}
+                  onToggle={() => toggleSet('g:' + it.g.id)} onRename={(name) => s.renameGroup(it.g.id, name)}
+                  onMenu={(ev) => { ev.preventDefault(); ev.stopPropagation(); setGroupMenu({ x: ev.clientX, y: ev.clientY, id: it.g.id }); }}
+                  onPick={(ev) => pickGroup(ev, it.g.id)} />
+              </div>
+            );
+          }
+          if (it.t === 'dots') return <div key={it.key} data-key={it.key} data-k={k}><DotsItem k={it.key} n={it.n} onOpen={() => toggleSet('g:' + it.gid, true)} /></div>;
+          if (it.t === 'chain' && it.open) {
+            return <div key={it.key} data-key={it.key} data-k={k}><ChainBar c={it.c} depth={it.depth} bounce={fresh === it.key} onToggle={() => toggleSet('c:' + it.c.id)} onMenu={(ev) => ev.preventDefault()} /></div>;
+          }
+          const { e, i, m, issues } = all[it.i];
+          const ch = it.t === 'chain' ? it.c : null;
+          return (
+            <EntryRow key={it.key} rowKey={it.key} e={e} i={i} aiLock={aiLocked.includes(e.uid)} k={k} m={m} issues={issues} on={ch ? ch.idx.includes(sel) : i === sel}
+              hit={searchOn && (ch ? ch.idx.some((x) => searchHit(sheet.entries[x], searchQ)) : searchHit(e, searchQ))}
+              selCols={selColsOf(i)} editing={editing && editing.uid === e.uid ? editing : null}
+              customs={customs} cols={cols} fitId={colPx[0] - 2} fitSpk={colPx[1] - 12} fitSrc={colPx[2] - 16} fitTgt={colPx[3] - 32}
+              fontId={fontId} fsId={fsId} fontSpk={cellFontCss(s.fonts, 'speaker')} fontSrc={cellFontCss(s.fonts, 'src')} fontTgt={cellFontCss(s.fonts, 'tgt')}
+              ovfId={ovf.id} ovfSpk={ovf.speaker} ovfSrc={ovf.src} ovfTgt={ovf.tgt} h={handlers}
+              depth={it.depth} inChain={it.t === 'row' && it.inChain} outlier={it.t === 'row' && it.outlier} enter={entering.has(it.key)}
+              chainN={ch?.uids.length} chainSrc={ch?.src} chainTpl={ch ? (ch.tpl ? ch.tpl : '') : undefined} chainWarn={!!ch && ch.outliers.size > 0} />
+          );
+        })}
+        {end < items.length && <div aria-hidden="true" style={{ height: offsets[items.length] - offsets[end] }} />}
+        {items.length === 0 && (
           <div style={{ padding: '48px 0', textAlign: 'center', color: 'var(--mute)' }}>
             {shownCount(useStore.getState()) === 0 ? tx('list.029') : sheet.entries.length === 0 ? tx('list.030') : tx('list.031')}
           </div>
@@ -812,6 +949,7 @@ export function EntryList() {
             { key: 'clear', label: tx('list.033'), disabled: readOnly },
           ] : menu.kind === 'row' ? [
             { key: 'mark', label: tx('list.034'), disabled: readOnly },
+            ...setItems,
             ...(selRows.some((i) => sheet.entries[i] && hasPendingUpdate(sheet.entries[i])) ? [{ key: 'applySrc', label: tx('list.035'), disabled: readOnly }] : []),
             { key: 'clear', label: tx('list.036'), disabled: readOnly },
             { key: 'delete', label: tx('list.037', { length: selRows.length }), danger: true, disabled: readOnly },
@@ -823,6 +961,7 @@ export function EntryList() {
             { key: 'edit', label: tx('list.041'), disabled: readOnly || !canEdit(firstKey(keys).c) },
             { key: 'clear', label: tx('list.036'), disabled: readOnly },
             { key: 'mark', label: tx('list.034'), disabled: readOnly },
+            ...setItems,
             ...(selRows.some((i) => sheet.entries[i] && hasPendingUpdate(sheet.entries[i])) ? [{ key: 'applySrc', label: tx('list.035'), disabled: readOnly }] : []),
             { key: 'up', label: tx('list.039'), disabled: readOnly },
             { key: 'down', label: tx('list.040'), disabled: readOnly },
@@ -830,6 +969,22 @@ export function EntryList() {
           ]}
           onPick={menuAct} onClose={() => { setMenu(null); sink.current?.focus({ preventScroll: true }); }} />
       )}
+      {groupMenu && (() => {
+        const g = layout?.groups.find((x) => x.id === groupMenu.id);
+        if (!g) return null;
+        const open = !!setOpen[setKey(fileDoc, sheetIdx, sheet, 'g:' + g.id)];
+        return (
+          <ContextMenu x={groupMenu.x} y={groupMenu.y} label={tx('sets.group')}
+            items={[
+              { key: 'g-toggle', label: open ? tx('sets.fold') : tx('sets.expand') },
+              { key: 'g-rename', label: tx('sets.rename'), disabled: readOnly },
+              { key: 'g-auto', label: tx('sets.auto'), checked: !!g.auto, disabled: readOnly },
+              { key: 'g-merge', label: tx('sets.merge'), disabled: readOnly || new Set([...groupSel, g.id]).size < 2 },
+              { key: 'g-dissolve', label: tx('sets.dissolve'), danger: true, disabled: readOnly },
+            ]}
+            onPick={groupAct} onClose={() => setGroupMenu(null)} />
+        );
+      })()}
       {confirm && <CopyConfirm {...confirm} onCancel={() => setConfirm(null)} onConfirm={() => void doCopy()} />}
     </section>
   );

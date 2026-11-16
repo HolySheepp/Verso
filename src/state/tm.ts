@@ -7,7 +7,8 @@ import { wordEdits } from '../model/wordDiff';
 import { io } from '../data/fsio';
 import { TmIndex, sameText, type TmMatch, type TmRow, type TermSpan } from '../model/tm';
 import { SHARED, type Entry, type FileDoc, type Sheet } from '../model/types';
-import { currentOf, currentProjectOf, shownSrc, showToast, tmHook, useStore } from './store';
+import { currentOf, currentProjectOf, setsOn, shownSrc, showToast, tmHook, useStore } from './store';
+import { fillTemplate, stripTagDigits } from '../model/entrySets';
 import { activeTermsOf, findHits } from './dictHits';
 
 /** 存檔資料夾裡的記憶檔名稱 */
@@ -250,7 +251,8 @@ export function currentMatches(): TmMatch[] {
   if (!s.project || !t.loaded) return NO_MATCHES;
   const { entry, fileDoc, sheet } = currentOf(s);
   if (!entry) return NO_MATCHES;
-  const src = shownSrc(entry);
+  // 技能檔案：拿掉標籤數字再比對（記憶裡存的也是拿掉的）
+  const src = skillFile(s) ? stripTagDigits(shownSrc(entry)) : shownSrc(entry);
   const current = currentProjectOf(s);
   const on = tmProjectsOn(current, s.tmOverrides, tmProjectList());
   const key = [entry.uid, src, t.ver, s.tmMin, [...on].join('|'), s.project.glossary.length, s.dictOverrides === lastOverrides ? 0 : 1].join('\u0000');
@@ -288,10 +290,16 @@ export function exactMatch(list: TmMatch[]): TmMatch | undefined {
 
 /** 套用記憶後的譯文（句式比對會換掉數字、標籤、字典詞） */
 export function matchText(m: TmMatch): { text: string; misses: string[] } {
-  if (m.kind !== 'pattern') return { text: m.row.tgt, misses: [] };
-  const e = currentOf(useStore.getState()).entry;
-  return index.applyPattern(m.row, e ? shownSrc(e) : '', termFinder());
+  const s = useStore.getState();
+  const e = currentOf(s).entry;
+  const skill = skillFile(s);
+  const r = m.kind !== 'pattern' ? { text: m.row.tgt, misses: [] as string[] } : index.applyPattern(m.row, e ? (skill ? stripTagDigits(shownSrc(e)) : shownSrc(e)) : '', termFinder());
+  // 技能檔案：記憶裡的標籤沒有數字，換成這一條原文裡的
+  return skill && e ? { ...r, text: fillTemplate(r.text, shownSrc(e)) } : r;
 }
+
+/** 目前的檔案是技能檔案（雲端模式的收起組與條目串打開時） */
+const skillFile = (s: ReturnType<typeof useStore.getState>) => { const f = currentOf(s).fileDoc; return !!f.skill && setsOn(s, f); };
 
 /** 套用：直接蓋掉譯文框（先記錄原本的譯文，可以 Ctrl+Z 退回）；譯文框收起來時先打開 */
 export function applyMatch(m: TmMatch) {

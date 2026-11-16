@@ -24,6 +24,21 @@ input,textarea{font-family:inherit}
 .ib:hover{background:var(--line2) !important;color:var(--text) !important}
 .ib:focus-visible,.row:focus-visible,.mk:focus-visible,.tb:focus-visible,.btn:focus-visible,.seg:focus-visible,.fs:focus-visible,.dd:focus-visible,.md:focus-visible{outline:2px solid var(--accent);outline-offset:1px}
 .rw:hover{box-shadow:inset 0 0 0 999px var(--ov1)}
+/* 收起組、條目串（雲端模式）：按鈕、展開收起的彈性動畫、組裡條目左邊的導軌 */
+.set-btn{background:var(--bar2);border:1px solid var(--line2);transition:transform 260ms cubic-bezier(.34,1.56,.64,1),background-color 120ms,border-color 120ms}
+.set-btn:hover{background:var(--card);border-color:var(--line4)}
+.set-btn:active{transform:scale(.985)}
+.set-btn-picked,.set-btn-picked:hover{border-color:var(--accent);box-shadow:0 0 0 1px var(--accent)}
+@keyframes set-bounce{0%{transform:scaleY(.92)}40%{transform:scaleY(1.04)}70%{transform:scaleY(.99)}100%{transform:scaleY(1)}}
+.set-bounce{animation:set-bounce 460ms cubic-bezier(.34,1.56,.64,1);transform-origin:50% 0}
+@keyframes set-in{0%{opacity:0;transform:translateY(-8px) scaleY(.86)}55%{opacity:1;transform:translateY(2px) scaleY(1.03)}80%{transform:translateY(-1px) scaleY(.995)}100%{transform:none}}
+.set-in{animation:set-in 420ms cubic-bezier(.34,1.56,.64,1) both;transform-origin:50% 0}
+.rw-in{background-image:linear-gradient(var(--line4),var(--line4));background-size:2px 100%;background-repeat:no-repeat;background-position:7px 0}
+.rw-chain-in{background-image:linear-gradient(color-mix(in srgb,var(--accent) 45%,transparent),color-mix(in srgb,var(--accent) 45%,transparent));background-size:2px 100%;background-repeat:no-repeat;background-position:7px 0}
+.chain-row{box-shadow:0 3px 0 -1px var(--panel),0 4px 0 -1px var(--line3)}
+.chain-row:hover{box-shadow:inset 0 0 0 999px var(--ov1),0 3px 0 -1px var(--panel),0 4px 0 -1px var(--line3)}
+.set-dots:hover{color:var(--text2)}
+@media (prefers-reduced-motion: reduce){.set-bounce,.set-in{animation:none}.set-btn{transition:none}}
 .mk:hover{background:var(--ov2) !important}
 .btn-ghost:hover{background:var(--line2) !important;border-color:var(--line6) !important}
 .btn-primary:hover{background:var(--primary-hv) !important}

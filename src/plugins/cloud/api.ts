@@ -2,9 +2,23 @@
 import { invoke } from '@tauri-apps/api/core';
 import { tx } from '../../i18n';
 import { colName } from '../../model/importSel';
+import { showToast } from '../../state/store';
 
-/** 呼叫 Google Sheets API（path 接在 spreadsheets/ 後面） */
-const call = <T = unknown>(method: 'GET' | 'POST', path: string, body?: unknown) => invoke<T>('cloud_api', { method, path, body: body ?? null });
+/**
+ * 呼叫 Google Sheets API（path 接在 spreadsheets/ 後面）。
+ * 每分鐘的請求次數用完了（很大的檔案、很多人同時用）：提示一下，等一陣子自動重試，最多等一分多鐘（Google 的上限是照每分鐘算的）
+ */
+const RATE_WAIT = [5, 10, 20, 30];
+const call = async <T = unknown>(method: 'GET' | 'POST', path: string, body?: unknown): Promise<T> => {
+  for (let k = 0; ; k++) {
+    try { return await invoke<T>('cloud_api', { method, path, body: body ?? null }); }
+    catch (e) {
+      if (String(e) !== 'rate-limited' || k >= RATE_WAIT.length) throw e;
+      showToast(tx('cloud.rateWait', { s: RATE_WAIT[k] }), { warn: true });
+      await new Promise((r) => setTimeout(r, RATE_WAIT[k] * 1000));
+    }
+  }
+};
 
 export const login = (clientId: string, clientSecret: string) => invoke<string>('cloud_login', { clientId, clientSecret });
 export const loginStatus = () => invoke<string | null>('cloud_status');

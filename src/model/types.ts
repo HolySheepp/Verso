@@ -77,6 +77,10 @@ export interface Sheet {
   gid?: number;
   /** 雲端模式：還沒選欄位範圍的分頁（R15 表裡沒對應原檔的頁簽），點開時選範圍 */
   setup?: boolean;
+  /** 雲端模式：收起組（跟同事共享） */
+  groups?: import('./entrySets').EntryGroup[];
+  /** 雲端模式的技能檔案：條目串切割過的地方（在這些條目的下方切開；跟同事共享） */
+  chainCuts?: string[];
 }
 
 /** 雲端檔案記在資料表的進度（還沒讀的檔案用它顯示）：翻譯／驗證模式各自的「完成、總數」，done 是整個檔案打勾 */
@@ -93,6 +97,8 @@ export interface FileDoc {
   /** 所屬專案 */
   project: string;
   sheets: Sheet[];
+  /** 雲端模式：技能檔案（拿掉標籤數字、自動組成條目串；跟同事共享） */
+  skill?: boolean;
 }
 
 export type SymbolId =

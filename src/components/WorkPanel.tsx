@@ -1,4 +1,5 @@
 import { tx } from '../i18n';
+import { tagSpans } from '../model/entrySets';
 import { MAX_CELL_CHARS } from '../model/names';
 import { useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react';
 import { Splitter } from './Splitter';
@@ -7,7 +8,7 @@ import { TextMarks, type MarkRange } from './TextMarks';
 import { useCurrentHits } from '../state/dictHits';
 import { locateIssues } from '../model/checks';
 import { effectiveStd } from '../model/length';
-import { STAMP_EXCLUDE, currentOf, currentStamp, showToast, useStore, useStorePick, visibleIssues, currentFileStd } from '../state/store';
+import { STAMP_EXCLUDE, currentOf, currentStamp, showToast, useStore, useStorePick, visibleIssues, currentFileStd, setsOn } from '../state/store';
 import { entryFits } from '../model/cellLimit';
 import { markName, markVisual } from '../model/marks';
 import { keyOf, type ActionId } from '../model/shortcuts';
@@ -26,6 +27,9 @@ import {
   IconWarn, IconCopyPair, IconRuler,
   IconBraces, IconCheck, IconChevD, IconChevL, IconChevR, IconCopy, IconEraser, IconEye, IconFeather, IconLock, IconPen, IconUse,
 } from './icons';
+
+/** 原文標籤在標記清單裡的編號從這裡開始（命中詞是 0 起） */
+const TAG_REF = 900;
 
 const MODE_HINTS: Partial<Record<Mode, string>> = {
   get view() { return tx('work.003'); },
@@ -86,9 +90,14 @@ function WorkPanelInner({ height, maxH }: { height: number; maxH: number }) {
   const hits = useCurrentHits();
   // 滑鼠停在原文框的哪個命中詞上：只有那一段畫底色，並在滑鼠旁顯示譯名
   const [hover, setHover] = useState<{ hit: number; span: number; x: number; y: number } | null>(null);
-  const hitRanges = useMemo<MarkRange[]>(() => hits.flatMap((h, i) => h.spans.map((sp, j) => ({
-    ...sp, kind: 'hit' as const, ref: i * 1000 + j, on: hover?.hit === i && hover.span === j,
-  }))), [hits, hover?.hit, hover?.span]);
+  // 技能檔案（雲端模式的收起組與條目串打開時）：原文裡的標籤加底線，點了插入到輸入框（跟命中詞一樣）
+  const skillTags = useStore((st) => { const f = currentOf(st).fileDoc; return !!f.skill && setsOn(st, f); });
+  const tags = useMemo(() => (skillTags ? tagSpans(cur.src) : []), [skillTags, cur.src]);
+  const hitRanges = useMemo<MarkRange[]>(() => [
+    ...hits.flatMap((h, i) => h.spans.map((sp, j) => ({ ...sp, kind: 'hit' as const, ref: i * 1000 + j, on: hover?.hit === i && hover.span === j }))),
+    // 標籤：編號從 TAG_REF 開始（跟命中詞分開）
+    ...tags.map((t, k) => ({ start: t.start, end: t.end, kind: 'hit' as const, ref: (TAG_REF + k) * 1000, on: hover?.hit === TAG_REF + k })),
+  ], [hits, tags, hover?.hit, hover?.span]);
   const total = sheet.entries.length;
   const mode = s.mode;
   const customs = project.customMarks;
@@ -485,7 +494,7 @@ function WorkPanelInner({ height, maxH }: { height: number; maxH: number }) {
   // 滑鼠在原文框上移動：找出底下是哪個命中詞
   const moveFrame = useRef(0);
   const onSrcMove = (ev: React.MouseEvent) => {
-    if (!hits.length) return;
+    if (!hits.length && !tags.length) return;
     const { clientX, clientY } = ev;
     if (moveFrame.current) return;
     moveFrame.current = requestAnimationFrame(() => {
@@ -514,6 +523,14 @@ function WorkPanelInner({ height, maxH }: { height: number; maxH: number }) {
   // 點命中詞：和快捷鍵一樣插入譯名（譯文框不能編輯時照一般的點擊）
   const onSrcDown = (ev: React.MouseEvent) => {
     if (ev.button !== 0 || !hover || !altRef.current.ok) return;
+    // 點標籤：把標籤插進輸入框
+    if (hover.hit >= TAG_REF) {
+      const t = tags[hover.hit - TAG_REF];
+      if (!t) return;
+      ev.preventDefault();
+      insertTerm(t.text);
+      return;
+    }
     const hit = hits[hover.hit];
     if (!hit) return;
     ev.preventDefault();
@@ -686,6 +703,9 @@ function WorkPanelInner({ height, maxH }: { height: number; maxH: number }) {
             )}
             {hover && hits[hover.hit] && (
               <div className="hit-tip" style={{ left: hover.x, top: hover.y - 2 }}>{[...new Set(hits[hover.hit].terms.map((t) => t.en))].join(' / ')}</div>
+            )}
+            {hover && hover.hit >= TAG_REF && tags[hover.hit - TAG_REF] && (
+              <div className="hit-tip" style={{ left: hover.x, top: hover.y - 2 }}>{tx('sets.insertTag')}</div>
             )}
           </div>
           </div>}

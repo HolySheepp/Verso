@@ -344,6 +344,24 @@ export const ZH = {
   'settings.aiEnabled': 'AI 協助（測試中）', // 設定 > 開發者選項：開關
   'settings.aiHint': '打開後條目欄上方會出現 AI 按鈕，按下時在背景用 Claude Code 處理選取的條目（需要先裝好、登入命令列版 Claude Code）', // 設定 > 開發者選項：說明
   'settings.aiExtra': '額外指示', // 設定 > 開發者選項：AI 的額外指示（全部專案共用）
+  'settings.entrySets': '收起組與條目串（雲端模式）', // 設定 > 開發者選項：收起組與條目串的總開關
+  'cloud.skillFile': '技能檔案', // 添加檔案、管理檔案：技能檔案開關（拿掉標籤數字、自動組成條目串）
+  'cloud.rateWait': 'Google 每分鐘的次數用完了，{s} 秒後自動重試', // 雲端：被 Google 限流時的提示
+  'sets.cannotCollapse': '只能收起相鄰、還沒在別的收起組裡的條目', // 條目欄：不能收起時的提示
+  'sets.collapse': '收起', // 條目欄右鍵：把選到的條目收成收起組
+  'sets.split': '切割', // 條目欄右鍵：從這一條的下方切開收起組或條目串
+  'sets.merge': '合併', // 條目欄右鍵：合併收起組或條目串
+  'sets.auto': '自動收納已驗證條目', // 收起組右鍵：下面連著的條目變成已驗證時自動收進來
+  'sets.dissolve': '解散收起組', // 收起組右鍵：解散（條目回到列表）
+  'sets.rename': '重新命名', // 收起組右鍵：改名稱
+  'sets.expand': '展開', // 收起組、條目串：展開按鈕
+  'sets.fold': '收起', // 收起組、條目串：收起按鈕
+  'sets.count': '{n} 條', // 收起組、條目串：條數
+  'sets.dots': '略過 {n} 條', // 收起組：收起時中間沒顯示的條數
+  'sets.group': '收起組', // 收起組（無障礙標籤、右鍵選單標題）
+  'sets.groupName': '收起組名稱', // 收起組名稱輸入框（無障礙標籤）
+  'sets.chain': '條目串', // 條目串（無障礙標籤）
+  'sets.insertTag': '插入標籤', // 工作欄原文：點標籤插入到輸入框
   'list.aiButton': '讓 AI 處理選取的條目', // 條目欄上方 AI 按鈕的滑鼠提示
   'list.aiStop': '停止', // AI 處理中時，AI 按鈕變成這個
   'ai.done': 'AI 處理完成', // AI 做完時的提示

@@ -39,7 +39,7 @@ export interface Issue {
 /** {0}、{name}、%s、%1$s、<color=#fff>、</color>、字面的 \n */
 // 標籤、變數：{name}、printf 格式（%s、%5.2f、%1$d…；%% 是百分號本身）、<b>／<color=#fff>、字面的 \n。
 // 標籤名稱後面直接接中文或空白的不算標籤（例如「<這>」「< 3」）。
-const TOKEN_SRC = String.raw`\{[^{}\s]*\}|%%|%(?:\d+\$)?[-+0#]*\d*(?:\.\d+)?[sdifcxXeEgG]|<\/?[A-Za-z][\w-]*(?:=[^<>\s]+)?\/?>|\\n`;
+export const TOKEN_SRC = String.raw`\{[^{}\s]*\}|%%|%(?:\d+\$)?[-+0#]*\d*(?:\.\d+)?[sdifcxXeEgG]|<\/?[A-Za-z][\w-]*(?:=[^<>\s]+)?\/?>|\\n`;
 const TOKEN = new RegExp(TOKEN_SRC, 'g');
 
 const tokens = (s: string) => (s.match(TOKEN) ?? []).filter((t) => t !== '%%');
