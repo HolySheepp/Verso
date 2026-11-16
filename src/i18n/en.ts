@@ -865,6 +865,8 @@ export const EN: Partial<Record<TextKey, string>> = {
   'cloud.syncing': 'Syncing…',
   'cloud.lastSync': 'Last synced: {time}',
   'side.scope': 'Search scope: {scope} (click to change)',
+  'side.searchPrev': 'Previous match',
+  'side.searchNext': 'Next match',
   'side.scope.sheet': 'Current Tab',
   'side.scope.file': 'Current File',
   'side.scope.project': 'Current Project',

@@ -283,7 +283,7 @@ export function PasteDialog() {
                       onDone={(v) => { if (v) patchSheet(i, () => ({ name: v })); setRenaming(null); }}
                       style={{ height: 28, width: 140, margin: '4px 0', padding: '0 8px' }} />
                   ) : (
-                    <button type="button" role="tab" className="stab" aria-selected={on} title={tx('paste.011')}
+                    <button type="button" role="tab" className="stab" aria-selected={on} title={tx('paste.011')} data-noscrolldrag=""
                       onClick={() => { if (justDragged.current) { justDragged.current = false; return; } setCur(i); }}
                       onDoubleClick={() => startRename(i)}
                       onPointerDown={(ev) => onTabPointerDown(ev, i)} onPointerMove={onTabPointerMove}

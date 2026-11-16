@@ -229,6 +229,8 @@ export const ZH = {
   'cloud.conflictSrcText': '#{id} 的原文已經被別人改過', // 雲端模式：寫回衝突
   'cloud.rowsOnly': '雲端檔案要增刪、搬動條目，請用右鍵的整列刪除、插入、上移、下移', // 雲端模式：擋下會改變條目數量或順序的操作
   'side.scope': '搜尋範圍：{scope}（點一下換範圍）', // 搜尋分頁：範圍按鈕
+  'side.searchPrev': '上一筆', // 搜尋分頁、綜合分頁搜尋區塊：跳到上一筆符合的條目
+  'side.searchNext': '下一筆', // 搜尋分頁、綜合分頁搜尋區塊：跳到下一筆符合的條目
   'side.scope.sheet': '當前頁簽', // 搜尋分頁：範圍
   'side.scope.file': '當前檔案', // 搜尋分頁：範圍
   'side.scope.project': '當前專案', // 搜尋分頁：範圍

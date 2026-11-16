@@ -150,7 +150,8 @@ function DictTab() {
   return (
     <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
       <label htmlFor="verso-dict" className="sr-only">{tx('side.012')}</label>
-      <div style={{ display: 'flex', gap: 6 }}>
+      {/* 輸入框列固定在上方，捲動時不會被捲走 */}
+      <div style={{ ...stickyTab, flexDirection: 'row', gap: 6 }}>
         <div style={{ position: 'relative', flexGrow: 1, minWidth: 0 }}>
           <IconSearch size={14} stroke="var(--mute)" style={{ position: 'absolute', left: 11, top: 11, pointerEvents: 'none' }} />
           <input id="verso-dict" type="search" className="field" value={dq} onChange={(ev) => set({ dictQuery: ev.target.value })}
@@ -242,6 +243,95 @@ function searchAll(files: FileDoc[], q: string, scope: Scope, at: { file: number
 
 const SEARCH_BATCH = 20;
 
+/** 依實際位置排：檔案、頁簽、列的順序 */
+const byPos = (a: { f: number; sh: number; i: number }, b: { f: number; sh: number; i: number }) => a.f - b.f || a.sh - b.sh || a.i - b.i;
+
+/** 綜合和搜尋分頁可能同時要同一份結果：同樣的條件只算一次 */
+let lastSearch: { files: FileDoc[]; q: string; scope: Scope; file: number; sheet: number; cloudMode: boolean; out: SearchHit[] } | null = null;
+function cachedSearch(files: FileDoc[], q: string, scope: Scope, at: { file: number; sheet: number; cloudMode: boolean }): SearchHit[] {
+  if (!q) return [];
+  const L = lastSearch;
+  if (L && L.files === files && L.q === q && L.scope === scope && L.file === at.file && L.sheet === at.sheet && L.cloudMode === at.cloudMode) return L.out;
+  const out = searchAll(files, q, scope, at);
+  lastSearch = { files, q, scope, ...at, out };
+  return out;
+}
+
+/** 搜尋字、範圍和結果（綜合、搜尋分頁共用；停止打字 0.3 秒後才搜） */
+function useSearch() {
+  const files = useStore((s) => s.project!.files);
+  const q = useStore((s) => s.searchQuery);
+  const scope = useStore((s) => s.searchScope);
+  const at = useStore(useShallow((s) => ({ file: s.file, sheet: currentOf(s).sheetIdx, cloudMode: s.cloudMode })));
+  const [dq, setDq] = useState(q.trim());
+  useEffect(() => {
+    const t = setTimeout(() => setDq(q.trim()), 300);
+    return () => clearTimeout(t);
+  }, [q]);
+  const deferredFiles = useDeferredValue(files);
+  const results = useMemo(() => cachedSearch(deferredFiles, dq, scope, at), [dq, deferredFiles, scope, at]);
+  return { files, q, dq, scope, results };
+}
+
+/**
+ * 跳到上一筆／下一筆符合的條目：照目前條目的實際位置（檔案、頁簽、列順序）找前後最近的一筆，
+ * 到頭了從另一頭接著找
+ */
+function jumpSearch(dir: 1 | -1) {
+  const s = useStore.getState();
+  const q = s.searchQuery.trim();
+  if (!q || !s.project) return;
+  const c = currentOf(s);
+  const at = { file: s.file, sheet: c.sheetIdx, cloudMode: s.cloudMode };
+  const hits = [...cachedSearch(s.project.files, q, s.searchScope, at)].sort(byPos);
+  if (!hits.length) return;
+  const here = { f: s.file, sh: c.sheetIdx, i: c.sel };
+  const h = dir > 0
+    ? hits.find((x) => byPos(x, here) > 0) ?? hits[0]
+    : [...hits].reverse().find((x) => byPos(x, here) < 0) ?? hits[hits.length - 1];
+  leaveFile(s.project.files[h.f] ?? null, (idx) => { if (idx >= 0) useStore.getState().select(idx, h.sh, h.i); });
+}
+
+/** 搜尋框按 Enter 跳下一筆，Shift＋Enter 跳上一筆 */
+const searchKey = (ev: React.KeyboardEvent) => {
+  if (ev.key !== 'Enter' || ev.nativeEvent.isComposing) return;
+  ev.preventDefault();
+  ev.stopPropagation();
+  jumpSearch(ev.shiftKey ? -1 : 1);
+};
+
+/** 上一筆（∧）、下一筆（∨）的圖示 */
+function NavChevron({ up }: { up?: boolean }) {
+  return (
+    <svg width="12" height="12" viewBox="0 0 12 12" aria-hidden="true">
+      <path d={up ? 'M2.5 7.75 6 4.25l3.5 3.5' : 'M2.5 4.25 6 7.75l3.5-3.5'} fill="none" stroke="currentColor" strokeWidth={1.8} strokeLinecap="round" strokeLinejoin="round" />
+    </svg>
+  );
+}
+
+/** 筆數（目前條目在結果裡時是「第幾筆/共幾筆」）和上一筆、下一筆按鈕 */
+function SearchNav({ results, dq }: { results: SearchHit[]; dq: string }) {
+  const here = useStore(useShallow((s) => { const c = currentOf(s); return { f: s.file, sh: c.sheetIdx, i: c.sel }; }));
+  const sorted = useMemo(() => [...results].sort(byPos), [results]);
+  if (!dq) return null;
+  const k = sorted.findIndex((h) => byPos(h, here) === 0);
+  const n = sorted.length;
+  const btn: React.CSSProperties = { width: 22, height: 22, display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 0, background: 'transparent', border: 0, borderRadius: 5, color: 'var(--text2)' };
+  return (
+    <span style={{ display: 'flex', alignItems: 'center', gap: 2, flexShrink: 0 }}>
+      <span role="status" className="mono" style={{ fontSize: fz(11.5), color: 'var(--mute)', marginRight: 4 }}>{k >= 0 ? `${k + 1}/${n}` : n}</span>
+      <button type="button" className="ib" aria-label={tx('side.searchPrev')} title={tx('side.searchPrev') + ' (Shift+Enter)'} disabled={!n} onClick={() => jumpSearch(-1)} style={btn}><NavChevron up /></button>
+      <button type="button" className="ib" aria-label={tx('side.searchNext')} title={tx('side.searchNext') + ' (Enter)'} disabled={!n} onClick={() => jumpSearch(1)} style={btn}><NavChevron /></button>
+    </span>
+  );
+}
+
+/** 綜合分頁搜尋區塊的標題列右邊：筆數和上一筆、下一筆 */
+function SearchBlockNav() {
+  const { dq, results } = useSearch();
+  return <SearchNav results={results} dq={dq} />;
+}
+
 /** 搜尋範圍的圖標：由小到大重疊的四個矩形，目前的範圍是實心 */
 function ScopeIcon({ scope }: { scope: Scope }) {
   const k = SCOPES.indexOf(scope);
@@ -256,21 +346,23 @@ function ScopeIcon({ scope }: { scope: Scope }) {
   );
 }
 
-function SearchTab() {
-  const files = useStore((s) => s.project!.files);
-  const q = useStore((s) => s.searchQuery);
+/** 搜尋範圍按鈕：點一下換下一個範圍（綜合、搜尋分頁共用同一個範圍） */
+function ScopeButton({ size }: { size: number }) {
   const scope = useStore((s) => s.searchScope);
-  const at = useStore(useShallow((s) => ({ file: s.file, sheet: currentOf(s).sheetIdx, cloudMode: s.cloudMode })));
-  const { set, select } = useStore.getState();
-  // 停止打字 0.3 秒後才搜
-  const [dq, setDq] = useState(q);
-  useEffect(() => {
-    const t = setTimeout(() => setDq(q.trim()), 300);
-    return () => clearTimeout(t);
-  }, [q]);
-  const deferredFiles = useDeferredValue(files);
-  // 範圍內全部找出來排好，畫面上先顯示一批，捲到底再顯示下一批
-  const results = useMemo(() => (dq ? searchAll(deferredFiles, dq, scope, at) : []), [dq, deferredFiles, scope, at]);
+  const scopeName = tx(('side.scope.' + scope) as 'side.scope.sheet');
+  return (
+    <button type="button" className="ib" aria-label={tx('side.scope', { scope: scopeName })} title={scopeName}
+      onClick={() => useStore.getState().set({ searchScope: SCOPES[(SCOPES.indexOf(scope) + 1) % SCOPES.length] })}
+      style={{ width: size, height: size, flexShrink: 0, display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 0, background: 'var(--btn)', border: '1px solid var(--line4)', borderRadius: 8, color: 'var(--text2)' }}>
+      <ScopeIcon scope={scope} />
+    </button>
+  );
+}
+
+/** 搜尋結果：先顯示一批，捲到底再顯示下一批 */
+function SearchResults({ results, files, dq, q, compact }: { results: SearchHit[]; files: FileDoc[]; dq: string; q: string; compact?: boolean }) {
+  const scope = useStore((s) => s.searchScope);
+  const select = useStore((s) => s.select);
   const [shown, setShown] = useState(SEARCH_BATCH);
   useEffect(() => { setShown(SEARCH_BATCH); }, [dq, scope]);
   const sentinel = useRef<HTMLDivElement>(null);
@@ -281,30 +373,42 @@ function SearchTab() {
     io.observe(el);
     return () => io.disconnect();
   }, [shown, results]);
-  const scopeName = tx(('side.scope.' + scope) as 'side.scope.sheet');
-  const nextScope = () => set({ searchScope: SCOPES[(SCOPES.indexOf(scope) + 1) % SCOPES.length] });
   return (
-    <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
-      <label htmlFor="verso-search" className="sr-only">{tx('side.027')}</label>
-      <div style={{ display: 'flex', gap: 6 }}>
-        <input id="verso-search" type="search" className="field" value={q} onChange={(ev) => set({ searchQuery: ev.target.value })}
-          placeholder={tx('side.027')} style={{ flexGrow: 1, minWidth: 0 }} />
-        {/* 搜尋範圍：點一下換下一個範圍 */}
-        <button type="button" className="ib" aria-label={tx('side.scope', { scope: scopeName })} title={scopeName} onClick={nextScope}
-          style={{ width: 36, height: 36, flexShrink: 0, display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 0, background: 'var(--btn)', border: '1px solid var(--line4)', borderRadius: 8, color: 'var(--text2)' }}>
-          <ScopeIcon scope={scope} />
-        </button>
-      </div>
+    <>
       {results.slice(0, shown).map((r) => (
         <button key={r.f + ':' + r.sh + ':' + r.i} type="button" className="sr" onClick={() => leaveFile(files[r.f] ?? null, (idx) => { if (idx >= 0) select(idx, r.sh, r.i); })}
-          style={{ display: 'flex', flexDirection: 'column', gap: 4, padding: '10px 12px', textAlign: 'left', background: 'var(--card)', border: '1px solid var(--line2)', borderRadius: 8 }}>
-          <span className="mono" style={{ fontSize: fz(11), color: 'var(--mute)' }}>{r.where}</span>
-          <span style={{ fontSize: fz(13), lineHeight: 1.5 }}>{r.src}</span>
-          <span style={{ fontSize: fz(12.5), lineHeight: 1.5, color: 'var(--text2)' }}>{r.tgt}</span>
+          style={{ display: 'flex', flexDirection: 'column', gap: compact ? 2 : 4, padding: compact ? '6px 9px' : '10px 12px', textAlign: 'left', background: 'var(--card)', border: '1px solid var(--line2)', borderRadius: 8 }}>
+          <span className="mono" style={{ fontSize: fz(compact ? 10.5 : 11), color: 'var(--mute)' }}>{r.where}</span>
+          <span style={{ fontSize: fz(compact ? 11.5 : 13), lineHeight: compact ? 1.35 : 1.5 }}>{r.src}</span>
+          <span style={{ fontSize: fz(compact ? 11 : 12.5), lineHeight: compact ? 1.35 : 1.5, color: 'var(--text2)' }}>{r.tgt}</span>
         </button>
       ))}
       {results.length > shown && <div ref={sentinel} style={{ height: 1 }} />}
-      {dq && dq === q.trim() && results.length === 0 && <div style={{ padding: '24px 8px', textAlign: 'center', color: 'var(--mute)' }}>{tx('side.020', { q: dq })}</div>}
+      {dq && dq === q.trim() && results.length === 0 && <div className="empty" style={{ padding: compact ? '20px 12px' : '24px 8px', textAlign: 'center', color: 'var(--mute)' }}>{tx('side.020', { q: dq })}</div>}
+    </>
+  );
+}
+
+/** 分頁裡固定在上方的輸入框列（分頁內容區有 14px 內距） */
+const stickyTab: React.CSSProperties = { position: 'sticky', top: -14, zIndex: 2, margin: '-14px -14px 0', padding: '14px 14px 4px', background: 'var(--bar)', display: 'flex', flexDirection: 'column', gap: 8 };
+/** 綜合分頁區塊裡固定在上方的輸入框列（區塊內容有 2px 上內距、10px 左右內距） */
+const stickyBlock: React.CSSProperties = { position: 'sticky', top: -2, zIndex: 2, margin: '-2px -10px 0', padding: '2px 10px 4px', background: 'var(--bar)', display: 'flex', gap: 6 };
+
+function SearchTab() {
+  const { files, q, dq, results } = useSearch();
+  const set = useStore((s) => s.set);
+  return (
+    <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
+      <div style={stickyTab}>
+        <label htmlFor="verso-search" className="sr-only">{tx('side.027')}</label>
+        <div style={{ display: 'flex', gap: 6 }}>
+          <input id="verso-search" type="search" className="field" value={q} onChange={(ev) => set({ searchQuery: ev.target.value })} onKeyDown={searchKey}
+            placeholder={tx('side.027')} style={{ flexGrow: 1, minWidth: 0 }} />
+          <ScopeButton size={36} />
+        </div>
+        {dq && <div style={{ display: 'flex' }}><SearchNav results={results} dq={dq} /></div>}
+      </div>
+      <SearchResults results={results} files={files} dq={dq} q={q} />
     </div>
   );
 }
@@ -325,43 +429,35 @@ function DictBlock() {
   }, [terms, dq]);
   return (
     <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
-      <input type="search" className="field" aria-label={tx('side.012')} value={q} onChange={(e) => setQ(e.target.value)} placeholder={tx('side.013')} style={{ height: 30 }} />
+      <div style={stickyBlock}>
+        <input type="search" className="field" aria-label={tx('side.012')} value={q} onChange={(e) => setQ(e.target.value)} placeholder={tx('side.013')} style={{ height: 30, flexGrow: 1, minWidth: 0 }} />
+      </div>
       {dq ? results.map((g) => <TermCard key={g.id} g={g} />) : matches.map(({ g, alt }) => <TermCard key={g.id} g={g} altKey={alt} />)}
       {(dq ? results.length === 0 : matches.length === 0) && <div className="empty" style={{ padding: '20px 12px' }}>{dq ? tx('side.020', { q: dq }) : tx('side.023')}</div>}
     </div>
   );
 }
 
-/** 綜合分頁的搜尋區塊 */
+/** 綜合分頁的搜尋區塊：跟搜尋分頁共用搜尋字和範圍（條目欄的高亮兩邊都有） */
 function SearchBlock() {
-  const files = useStore((s) => s.project!.files);
-  const at = useStore(useShallow((s) => ({ file: s.file, sheet: currentOf(s).sheetIdx, cloudMode: s.cloudMode })));
-  // 跟搜尋分頁共用同一個搜尋字，這樣條目欄的高亮兩邊都有
-  const q = useStore((s) => s.searchQuery);
-  const [dq, setDq] = useState(q.trim());
-  useEffect(() => { const t = setTimeout(() => setDq(q.trim()), 300); return () => clearTimeout(t); }, [q]);
-  const results = useMemo(() => (dq ? searchAll(files, dq, 'all', at).slice(0, 50) : []), [dq, files, at]);
-  const { select, set } = useStore.getState();
+  const { files, q, dq, results } = useSearch();
+  const set = useStore((s) => s.set);
   return (
     <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
-      <input type="search" className="field" aria-label={tx('side.027')} value={q} onChange={(e) => set({ searchQuery: e.target.value })} placeholder={tx('side.027')} style={{ height: 30 }} />
-      {results.map((r) => (
-        <button key={r.f + ':' + r.sh + ':' + r.i} type="button" className="sr" onClick={() => leaveFile(files[r.f] ?? null, (idx) => { if (idx >= 0) select(idx, r.sh, r.i); })}
-          style={{ display: 'flex', flexDirection: 'column', gap: 2, padding: '6px 9px', textAlign: 'left', background: 'var(--card)', border: '1px solid var(--line2)', borderRadius: 8 }}>
-          <span className="mono" style={{ fontSize: fz(10.5), color: 'var(--mute)' }}>{r.where}</span>
-          <span style={{ fontSize: fz(11.5), lineHeight: 1.35 }}>{r.src}</span>
-          <span style={{ fontSize: fz(11), lineHeight: 1.35, color: 'var(--text2)' }}>{r.tgt}</span>
-        </button>
-      ))}
-      {dq && results.length === 0 && <div className="empty" style={{ padding: '20px 12px' }}>{tx('side.020', { q: dq })}</div>}
+      <div style={stickyBlock}>
+        <input type="search" className="field" aria-label={tx('side.027')} value={q} onChange={(e) => set({ searchQuery: e.target.value })} onKeyDown={searchKey}
+          placeholder={tx('side.027')} style={{ height: 30, flexGrow: 1, minWidth: 0 }} />
+        <ScopeButton size={30} />
+      </div>
+      <SearchResults results={results} files={files} dq={dq} q={q} compact />
     </div>
   );
 }
 
-const BLOCKS: Record<GeneralBlock, { label(): string; tab: SideTab; Body(): React.ReactElement }> = {
+const BLOCKS: Record<GeneralBlock, { label(): string; tab: SideTab; Body(): React.ReactElement; Extra?(): React.ReactElement | null }> = {
   dict: { label: () => tx('side.001'), tab: 'dict', Body: DictBlock },
   tm: { label: () => tx('side.tm'), tab: 'tm', Body: TmBlock },
-  search: { label: () => tx('side.002'), tab: 'search', Body: SearchBlock },
+  search: { label: () => tx('side.002'), tab: 'search', Body: SearchBlock, Extra: SearchBlockNav },
 };
 const BLOCK_H = 240;
 
@@ -424,6 +520,7 @@ function GeneralTab() {
                 <IconChevD size={12} sw={2.4} style={{ transform: `rotate(${closed ? -90 : 0}deg)`, transition: 'transform 160ms' }} />
               </button>
               <span style={{ flexGrow: 1, fontSize: fz(12.5), fontWeight: 500, color: 'var(--text2)' }}>{b.label()}</span>
+              {b.Extra && <b.Extra />}
               <button type="button" className="ib" aria-label={tx('side.openTab', { name: b.label() })} title={tx('side.openTab', { name: b.label() })} onClick={() => set({ side: b.tab })}
                 style={{ width: 24, height: 24, display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 0, background: 'transparent', border: 0, borderRadius: 5, color: 'var(--mute)' }}>
                 <IconArrowR size={12} />
