@@ -1,5 +1,5 @@
 import { tx } from '../i18n';
-import { tagSpans } from '../model/entrySets';
+import { stripTagDigits, tagSpans } from '../model/entrySets';
 import { MAX_CELL_CHARS } from '../model/names';
 import { useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react';
 import { Splitter } from './Splitter';
@@ -8,7 +8,7 @@ import { TextMarks, type MarkRange } from './TextMarks';
 import { useCurrentHits } from '../state/dictHits';
 import { locateIssues } from '../model/checks';
 import { effectiveStd } from '../model/length';
-import { STAMP_EXCLUDE, currentOf, currentStamp, showToast, useStore, useStorePick, visibleIssues, currentFileStd, setsOn } from '../state/store';
+import { STAMP_EXCLUDE, currentOf, currentStamp, showToast, useStore, useStorePick, visibleIssues, currentFileStd, setsOn, setKey, sheetLayout } from '../state/store';
 import { entryFits } from '../model/cellLimit';
 import { markName, markVisual } from '../model/marks';
 import { keyOf, type ActionId } from '../model/shortcuts';
@@ -30,6 +30,7 @@ import {
 
 /** 原文標籤在標記清單裡的編號從這裡開始（命中詞是 0 起） */
 const TAG_REF = 900;
+const NO_TAGS: ReturnType<typeof tagSpans> = [];
 
 const MODE_HINTS: Partial<Record<Mode, string>> = {
   get view() { return tx('work.003'); },
@@ -92,12 +93,25 @@ function WorkPanelInner({ height, maxH }: { height: number; maxH: number }) {
   const [hover, setHover] = useState<{ hit: number; span: number; x: number; y: number } | null>(null);
   // 技能檔案（雲端模式的收起組與條目串打開時）：原文裡的標籤加底線，點了插入到輸入框（跟命中詞一樣）
   const skillTags = useStore((st) => { const f = currentOf(st).fileDoc; return !!f.skill && setsOn(st, f); });
-  const tags = useMemo(() => (skillTags ? tagSpans(cur.src) : []), [skillTags, cur.src]);
+  // 翻譯模式選到收起的條目串：輸入框裡也是拿掉標籤數字的寫法，改了就是改整串
+  const chainView = useStore((st) => {
+    const { fileDoc, sheet, sheetIdx, sel } = currentOf(st);
+    if (st.mode !== 'translate' || !fileDoc.skill || !setsOn(st, fileDoc)) return null;
+    const c = sheetLayout(fileDoc, sheet, true).chainOf.get(sel);
+    if (!c || st.setOpen[setKey(fileDoc, sheetIdx, sheet, 'c:' + c.id)] || c.outliers.has(sheet.entries[sel]?.uid ?? '')) return null;
+    return c;
+  });
+  const srcShown = chainView ? chainView.src : cur.src;
+  const tgtShown = chainView ? stripTagDigits(cur.tgt) : cur.tgt;
+  // 原文裡的參數標籤：Ctrl+數字插入第幾個；技能檔案另外加底線、點了插入
+  const allTags = useMemo(() => tagSpans(srcShown), [srcShown]);
+  const tags = skillTags ? allTags : NO_TAGS;
   const hitRanges = useMemo<MarkRange[]>(() => [
-    ...hits.flatMap((h, i) => h.spans.map((sp, j) => ({ ...sp, kind: 'hit' as const, ref: i * 1000 + j, on: hover?.hit === i && hover.span === j }))),
+    // 條目串的原文拿掉了數字，字典命中的位置對不上：只標標籤
+    ...(chainView ? [] : hits.flatMap((h, i) => h.spans.map((sp, j) => ({ ...sp, kind: 'hit' as const, ref: i * 1000 + j, on: hover?.hit === i && hover.span === j })))),
     // 標籤：編號從 TAG_REF 開始（跟命中詞分開）
     ...tags.map((t, k) => ({ start: t.start, end: t.end, kind: 'hit' as const, ref: (TAG_REF + k) * 1000, on: hover?.hit === TAG_REF + k })),
-  ], [hits, tags, hover?.hit, hover?.span]);
+  ], [hits, tags, hover?.hit, hover?.span, chainView]);
   const total = sheet.entries.length;
   const mode = s.mode;
   const customs = project.customMarks;
@@ -132,14 +146,14 @@ function WorkPanelInner({ height, maxH }: { height: number; maxH: number }) {
     if (!tmAuto || !exact || cur.tgt || !tgtEditable) return;
     applyMatch(exact);
   }, [cur.uid, exact?.row.id, tmAuto]);
-  // Ctrl+1、Ctrl+2…：套用第幾條記憶（字典是 Alt+數字）
+  // Ctrl+1、Ctrl+2…：把原文裡第幾個參數標籤放進輸入框（字典是 Alt+數字）
   useEffect(() => {
     const onKey = (ev: KeyboardEvent) => {
       if (!ev.ctrlKey || ev.altKey || ev.metaKey || ev.shiftKey || !/^Digit[1-9]$/.test(ev.code)) return;
       if (shortcutsBlocked(ev.key)) return;
       ev.preventDefault();
-      const m = tmRef.current.list[Number(ev.code.slice(5)) - 1];
-      if (m && tmRef.current.ok) applyMatch(m);
+      const t = tagRef.current[Number(ev.code.slice(5)) - 1];
+      if (t) insertTerm(t.text);
     };
     window.addEventListener('keydown', onKey);
     return () => window.removeEventListener('keydown', onKey);
@@ -461,6 +475,8 @@ function WorkPanelInner({ height, maxH }: { height: number; maxH: number }) {
 
   const onTarget = (v: string) => {
     if (!tgtEditable || showHist) return;
+    // 收起的條目串：改的是整串的譯文
+    if (chainView) { useStore.getState().editChainTgt(v); return; }
     // 改到修改的部分：那組修改算處理過了（顯示時自動移除，在輸入框 Ctrl+Z 改回來就又出現）
     verifySession.undoToSheet = false;
     // 存檔時譯文會跳脫特殊寫法、和驗證修改一起算長度：超過 Excel 一格的上限就不收這次輸入
@@ -490,6 +506,10 @@ function WorkPanelInner({ height, maxH }: { height: number; maxH: number }) {
     put(ta.value.slice(0, a) + en + ta.value.slice(b), a + en.length);
     requestAnimationFrame(() => { ta.selectionStart = ta.selectionEnd = a + en.length; });
   };
+
+  // Ctrl+數字用：目前原文裡的參數標籤
+  const tagRef = useRef(allTags);
+  tagRef.current = allTags;
 
   // 滑鼠在原文框上移動：找出底下是哪個命中詞
   const moveFrame = useRef(0);
@@ -669,7 +689,7 @@ function WorkPanelInner({ height, maxH }: { height: number; maxH: number }) {
             <span style={meta}><span>{tx('work.024', { n: (showNewSrc ? newSrc! : cur.src).length })}</span></span>
           </div>
           <div {...boxProps('src')}>
-          <textarea maxLength={MAX_CELL_CHARS} id="verso-source" ref={setSrcEl} value={showNewSrc ? newSrc : cur.src} readOnly={!srcEditable || showNewSrc} onFocus={editFocus} onBlur={editBlur}
+          <textarea maxLength={MAX_CELL_CHARS} id="verso-source" ref={setSrcEl} value={showNewSrc ? newSrc : srcShown} readOnly={!srcEditable || showNewSrc || !!chainView} onFocus={editFocus} onBlur={editBlur}
             onMouseMove={onSrcMove} onMouseLeave={() => { cancelAnimationFrame(moveFrame.current); moveFrame.current = 0; setHover(null); }} onMouseDown={onSrcDown}
             onChange={(ev) => srcEditable && s.updateEntry({ src: ev.target.value })}
             style={{
@@ -680,7 +700,7 @@ function WorkPanelInner({ height, maxH }: { height: number; maxH: number }) {
               borderRadius: 8, fontSize: 'var(--fs-src)', fontFamily: 'var(--font-src)', lineHeight: 1.6, color: 'var(--text)',
             }} />
             {/* 命中字典的詞標色 */}
-            <TextMarks target={srcEl} text={showNewSrc ? newSrc! : cur.src} ranges={showNewSrc ? srcDiffRanges : newSrc !== undefined ? [] : hitRanges} />
+            <TextMarks target={srcEl} text={showNewSrc ? newSrc! : srcShown} ranges={showNewSrc ? srcDiffRanges : newSrc !== undefined ? [] : hitRanges} />
             {srcButtons > 0 && (
               <div role="toolbar" aria-label={tx('work.025')} aria-orientation="vertical" style={{ position: 'absolute', right: 6, top: 6, display: 'flex', flexDirection: 'column', gap: 2 }}>
                 {newSrc !== undefined && <button type="button" className="hb tip" data-tip={tx('work.026')} aria-label={tx('work.026')} aria-pressed={srcPeek}
@@ -732,7 +752,7 @@ function WorkPanelInner({ height, maxH }: { height: number; maxH: number }) {
             </span>
           </div>
           <div {...boxProps('tgt')}>
-            <textarea maxLength={MAX_CELL_CHARS} id="verso-target" ref={setTgtEl} onFocus={editFocus} onBlur={editBlur} data-hist={tgtHist ? '1' : '0'} value={tgtHist ? texts[slot] : cur.tgt}
+            <textarea maxLength={MAX_CELL_CHARS} id="verso-target" ref={setTgtEl} onFocus={editFocus} onBlur={editBlur} data-hist={tgtHist ? '1' : '0'} value={tgtHist ? texts[slot] : tgtShown}
               readOnly={!tgtEditable || tgtHist}
               onChange={(ev) => onTarget(ev.target.value)} onPaste={onPaste} placeholder={ghost || undefined}
               onKeyDown={ghost ? (ev) => { if (ev.key === 'Tab' && !ev.ctrlKey && !ev.altKey && !ev.shiftKey && !ev.metaKey && exact) { ev.preventDefault(); applyMatch(exact); } } : undefined}

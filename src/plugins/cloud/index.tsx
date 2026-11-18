@@ -176,7 +176,8 @@ function versoFields(rows: string[][]): FieldMap | null {
 }
 
 /** 必選的欄位（可以是空的）；譯文不選就在原文右邊插入一欄 */
-const REQUIRED: ColKey[] = ['id', 'speaker', 'src', 'note'];
+/** 一定要選的欄位；備註欄可以不選（不選時備註、留言只存在 Verso 資料表，不寫進 Google 表） */
+const REQUIRED: ColKey[] = ['id', 'speaker', 'src'];
 
 /** removedTab：這個頁簽之前被移除了（true 維持移除，false 這次恢復）；restore：這次要恢復的條目（ID 第幾個） */
 interface Draft extends DraftSheet { gid: number; extras: { name: string; col: number }[]; removedTab?: boolean; restore: string[] }

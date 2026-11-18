@@ -22,13 +22,13 @@ export const newGroupId = () => 'g' + Date.now().toString(36) + Math.random().to
 
 // ---- 標籤 ----
 
-const tagRe = () => new RegExp(TOKEN_SRC, 'g');
+/** 參數標籤：跟檢查用的標籤一樣，另外大括號後面緊接的 % 也算在標籤裡（例如 {123A}%） */
+const TAG_SRC = TOKEN_SRC.replace(String.raw`\{[^{}\s]*\}`, String.raw`\{[^{}\s]*\}%?`);
+const tagRe = () => new RegExp(TAG_SRC, 'g');
 /** 標籤（{…}、<…>、%s 這類）裡的數字拿掉，字母和符號保留；標籤外面的字不動 */
 export const stripTagDigits = (s: string) => s.replace(tagRe(), (t) => t.replace(/\d/g, ''));
 /** 文字裡的標籤，照出現順序 */
 export const tagsIn = (s: string) => (s.match(tagRe()) ?? []).filter((t) => t !== '%%');
-/** 有沒有帶數字的標籤（沒有的話就沒有參數可以批量，不組條目串） */
-const hasDigitTag = (s: string) => tagsIn(s).some((t) => /\d/.test(t));
 
 /** 文字裡每個標籤的位置（加底線、點了插入用） */
 export function tagSpans(s: string): { start: number; end: number; text: string }[] {
@@ -102,7 +102,8 @@ export function findChains(entries: Entry[], cuts: ReadonlySet<string>, groupOf:
     key = null;
   };
   entries.forEach((e, i) => {
-    const k = e.src && hasDigitTag(e.src) ? stripTagDigits(e.src) : null;
+    // 技能檔案：拿掉標籤數字後一樣的就組成一串（沒有標籤、完全一樣的技能名稱也算）
+    const k = e.src.trim() ? stripTagDigits(e.src) : null;
     const prev = run.length ? entries[run[run.length - 1]] : null;
     if (k !== null && prev && k === key && !cuts.has(prev.uid) && groupOf(prev.uid) === groupOf(e.uid)) { run.push(i); return; }
     close();
@@ -215,21 +216,21 @@ export function absorbVerified(entries: Entry[], groups: EntryGroup[], verified:
 // ---- 顯示清單 ----
 
 export type Item =
-  /** 一般的條目（depth：在展開的組或串裡面時縮排） */
-  | { t: 'row'; key: string; i: number; depth: number; inChain?: boolean; outlier?: boolean }
+  /** 一般的條目（depth：在展開的組或串裡面；g、c：所在的展開的組、串，gEnd、cEnd：是那一組、串的最後一列） */
+  | { t: 'row'; key: string; i: number; depth: number; inChain?: boolean; outlier?: boolean; g?: string; gEnd?: boolean; c?: string; cEnd?: boolean }
   /** 收起組的按鈕（收起時）或標題列（展開時） */
   | { t: 'group'; key: string; g: EntryGroup; open: boolean; members: number[]; shown: number }
   /** 收起的組裡沒顯示出來的連續幾條 */
   | { t: 'dots'; key: string; n: number; gid: string }
   /** 條目串（收起時代表整串；展開時是標題） */
-  | { t: 'chain'; key: string; c: Chain; i: number; open: boolean; depth: number };
+  | { t: 'chain'; key: string; c: Chain; i: number; open: boolean; depth: number; g?: string; gEnd?: boolean };
 
 export interface DisplayOpts {
   /** 有篩選或搜尋條件 */
   filtering: boolean;
   /** 符合篩選或搜尋 */
   pass(i: number): boolean;
-  /** 收起時也要顯示出來的條目（原文更新、目前選的） */
+  /** 收起時也要顯示出來的條目（搜尋命中、原文更新） */
   reveal(i: number): boolean;
   /** 串收起時也要單獨顯示的條目（原文更新） */
   revealInChain(i: number): boolean;
@@ -303,6 +304,29 @@ export function buildDisplay(entries: Entry[], groups: EntryGroup[], chains: Cha
     if (shown.length && members.length - 1 - prev > 0) push({ t: 'dots', key: `d:${g.id}:end`, n: members.length - 1 - prev, gid: g.id }, []);
   });
   flush();
+  // 展開的組、串裡的每一列記下屬於哪一組、哪一串（左邊的導軌用），最後一列標出來（導軌末端往內折）
+  items.forEach((h, k) => {
+    if (h.t === 'group' && h.open) {
+      let last = -1;
+      for (let q = k + 1; q < items.length; q++) {
+        const it = items[q];
+        if ((it.t !== 'row' && it.t !== 'chain') || it.depth < 1) break;
+        it.g = h.g.id;
+        last = q;
+      }
+      if (last >= 0) (items[last] as { gEnd?: boolean }).gEnd = true;
+    }
+    if (h.t === 'chain' && h.open) {
+      let last = -1;
+      for (let q = k + 1; q < items.length; q++) {
+        const it = items[q];
+        if (it.t !== 'row' || !it.inChain || it.depth <= h.depth) break;
+        it.c = h.c.id;
+        last = q;
+      }
+      if (last >= 0) (items[last] as { cEnd?: boolean }).cEnd = true;
+    }
+  });
   const rows = items.flatMap((it) => (it.t === 'row' || (it.t === 'chain' && !it.open) ? [it.i] : []));
   return { items, rows, posOf };
 }

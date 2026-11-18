@@ -10,10 +10,10 @@ import { useStore, type Filter } from '../state/store';
 import { MarkIcon } from './MarkIcon';
 import { IconWarn } from './icons';
 
-/** 篩選面板列出的條件：內建標記、有問題、原文更新、自訂標記 */
-export function filterKeys(customIds: string[]): string[] {
+/** 篩選面板列出的條件：內建標記、有問題、原文更新、有備註、有未解決的對話（雲端模式）、自訂標記 */
+export function filterKeys(customIds: string[], cloud = false): string[] {
   const marks: MarkId[] = ['untranslated', 'translated', 'verified', 'doubt', 'think', 'ignore', ...(hasPlugin('ai') ? ['ai' as const] : [])];
-  return [...marks, 'issues', 'srcupd', 'note', ...customIds.map((id) => 'c:' + id)];
+  return [...marks, 'issues', 'srcupd', 'note', ...(cloud ? ['talk'] : []), ...customIds.map((id) => 'c:' + id)];
 }
 
 /** 左鍵：空 → 包含 → 排除 → 空；右鍵（back）反過來：空 → 排除 → 包含 → 空 */
@@ -49,7 +49,8 @@ export function FilterPanel({ counts }: { counts: Record<string, number> }) {
   const set = useStore((s) => s.set);
   const [open, setOpen] = useState(false);
   const wrap = useRef<HTMLDivElement>(null);
-  const keys = filterKeys(customs.map((c) => c.id));
+  const cloud = useStore((s) => s.cloudMode);
+  const keys = filterKeys(customs.map((c) => c.id), cloud);
   const active = keys.some((k) => filter[k] !== undefined);
   const states = keys.map((k) => filter[k]);
   const allState: 1 | -1 | undefined | 'mixed' = states.every((v) => v === states[0]) ? states[0] : 'mixed';
@@ -78,7 +79,7 @@ export function FilterPanel({ counts }: { counts: Record<string, number> }) {
     put(v === undefined ? {} : Object.fromEntries(keys.map((k) => [k, v])));
   };
   const stateText = (v: 1 | -1 | undefined | 'mixed') => (v === 1 ? tx('list.filterInclude') : v === -1 ? tx('list.filterExclude') : v === 'mixed' ? tx('list.filterMixed') : tx('list.filterNone'));
-  const label = (k: string) => (k === 'issues' ? tx('list.008') : k === 'note' ? tx('list.filterNote') : markName(customs, k as MarkId));
+  const label = (k: string) => (k === 'issues' ? tx('list.008') : k === 'note' ? tx('list.filterNote') : k === 'talk' ? tx('list.filterTalk') : markName(customs, k as MarkId));
   const item: React.CSSProperties = {
     display: 'flex', alignItems: 'center', gap: 7, minWidth: 0, height: 30, padding: '0 8px', border: 0, borderRadius: 6,
     background: 'transparent', color: 'var(--text)', fontSize: fz(12.5), textAlign: 'left',
@@ -103,6 +104,7 @@ export function FilterPanel({ counts }: { counts: Record<string, number> }) {
                 <StateBox v={filter[k]} />
                 {k === 'issues' ? <IconWarn size={12} sw={2.2} stroke="var(--warntx)" />
                   : k === 'note' ? <svg width={12} height={12} viewBox="0 0 24 24" fill="none" stroke="var(--text2)" strokeWidth={2.2} strokeLinejoin="round" aria-hidden="true"><path d="M4 5h16v11H9.5L4 20.5z" /></svg>
+                  : k === 'talk' ? <svg width={13} height={13} viewBox="0 0 24 24" fill="none" stroke="var(--text2)" strokeWidth={2} strokeLinecap="round" strokeLinejoin="round" aria-hidden="true"><path d="M9 12H7l-4 3V4h11v5" /><path d="M9 9h12v11l-4-3H9z" /></svg>
                   : <MarkIcon mark={markVisual(customs, k as MarkId)} size={12} menu />}
                 <span style={{ flexGrow: 1, minWidth: 0, overflow: 'hidden', whiteSpace: 'nowrap', textOverflow: 'ellipsis' }}>{label(k)}</span>
                 <span style={{ fontSize: fz(11), color: 'var(--mute)' }}>{counts[k] ?? 0}</span>

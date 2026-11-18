@@ -15,8 +15,11 @@ describe('條目串', () => {
     const es = [E('a', '攻擊力+{123A%}'), E('b', '攻擊力+{124A%}'), E('c', '攻擊力+{125A%}'), E('d', '防禦+{1}'), E('e', '攻擊力+{126A%}')];
     expect(findChains(es, new Set()).map((c) => c.uids)).toEqual([['a', 'b', 'c']]);
     expect(findChains(es, new Set(['a'])).map((c) => c.uids)).toEqual([['b', 'c']]);
-    // 沒有帶數字的標籤不組串
-    expect(findChains([E('x', '你好'), E('y', '你好')], new Set())).toEqual([]);
+    // 沒有標籤、完全一樣的（技能名稱）也組成一串
+    expect(findChains([E('x', '火球'), E('y', '火球'), E('z', '冰箭')], new Set()).map((c) => c.uids)).toEqual([['x', 'y']]);
+    // 大括號後面的 % 算在標籤裡
+    expect(stripTagDigits('+{12}% 傷害')).toBe('+{}% 傷害');
+    expect(fillTemplate('+{}% dmg', '+{12}% 傷害')).toBe('+{12}% dmg');
   });
 
   it('串的譯文套到每一條：標籤換成各自的數字', () => {

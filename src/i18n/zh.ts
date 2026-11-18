@@ -51,7 +51,7 @@ export const ZH = {
   'tm.sameId': '同 id', // 記憶卡片第一行：同檔案、同 id、同發話者
   'tm.pattern': '句式', // 記憶卡片第一行：數字、標籤、字典詞換掉後相同
   'tm.frag': '片段', // 記憶卡片第一行：開頭或結尾的片段相同
-  'tm.ctrlTip': '按 Ctrl+{n} 套用', // 記憶卡片的快捷鍵提示
+  'tm.ctrlTip': '按 Ctrl+{n} 套用', // 記憶卡片的快捷鍵提示（已不用：Ctrl+數字改成插入參數標籤）
   'tm.unverified': '未驗證', // 記憶的狀態
   'tm.verified': '已驗證', // 記憶的狀態
   'tm.info': '資訊', // 記憶卡片按鈕
@@ -142,7 +142,8 @@ export const ZH = {
   'import.extraName': '{col}欄名稱', // 同上：輸入名稱的標籤
   'import.extraOk': '添加', // 同上：確定按鈕
   'import.extraCol': '{col} 欄', // 同上：添加好的欄顯示是哪一欄
-  'list.filterNote': '有備註', // 條目欄篩選面板的條件（雲端檔案：有沒解決的留言）
+  'list.filterNote': '有備註', // 條目欄篩選面板的條件
+  'list.filterTalk': '有未解決的對話', // 條目欄篩選面板的條件（雲端檔案的留言）
   'list.openComments': '有未解決的備註', // 條目欄的雙氣泡圖示（讀螢幕軟體、滑鼠提示）
   'side.notesResize': '調整建議翻譯和備註區的高度', // 右側欄下方整區上面的分隔線（讀螢幕軟體）
   'cloud.userName': '暱稱', // 設定 > 雲端：留言時顯示的名字

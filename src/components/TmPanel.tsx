@@ -59,7 +59,7 @@ function Underlined({ text, under }: { text: string; under: [number, number][] }
 }
 
 /** 一條記憶。m 有值時是比對結果（顯示相似度、可以套用） */
-export function TmCard({ row, m, n }: { row: TmRow; m?: TmMatch; n?: number }) {
+export function TmCard({ row, m }: { row: TmRow; m?: TmMatch; n?: number }) {
   const [info, setInfo] = useState(false);
   const c = useContext(CompactCtx);
   const lh = c ? 1.35 : 1.5;
@@ -71,7 +71,7 @@ export function TmCard({ row, m, n }: { row: TmRow; m?: TmMatch; n?: number }) {
       {(m || !row.verified) && (
         <div style={{ display: 'flex', alignItems: 'center', gap: 8, minHeight: 16 }}>
           {m && <span style={{ fontSize: fz(11), color: m.pct === 100 && m.kind === 'fuzzy' ? 'var(--accent2)' : 'var(--mute)', fontWeight: 500 }}>{label}</span>}
-          {n !== undefined && n <= 9 && <span className="mono" title={tx('tm.ctrlTip', { n })} style={{ fontSize: fz(10.5), color: 'var(--mute)', padding: '0 5px', border: '1px solid var(--line3)', borderRadius: 4 }}>Ctrl+{n}</span>}
+
           {!row.verified && <span title={tx('tm.unverified')} aria-label={tx('tm.unverified')} style={{ display: 'flex', color: 'var(--warntx)' }}><IconWarn size={12} sw={2.2} /></span>}
         </div>
       )}

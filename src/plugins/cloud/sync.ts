@@ -650,15 +650,16 @@ async function flushInner(sid: string, all: boolean): Promise<void> {
         const done: { e: Entry; key: string; w: ReturnType<typeof wanted>; row: number }[] = [];
         const missing: string[] = [];
         // 留言：資料表現在記的（別人可能同時留了）跟自己的合併
-        const fdNow = did && tab.fields.note ? await readData(sid, true) : undefined;
+        // 沒選備註欄的檔案：備註、留言只存在資料表，照樣跟別人同時留的合併
+        const fdNow = did ? await readData(sid, true) : undefined;
         const merged: Entry[] = [];
         for (const x of changed) {
           const { e: e0, key, b } = x;
           let e = e0, w = x.w;
-          if (tab.fields.note) {
+          if (tab.fields.note || did) {
             const n = Number(key.split('\u0000')[1]);
             const row0 = b.id.trim() ? rowsOf.get(b.id.trim())?.[n] : b.row;
-            const rn0 = row0 !== undefined ? notes[row0] ?? '' : b.note;
+            const rn0 = !tab.fields.note ? '' : row0 !== undefined ? notes[row0] ?? '' : b.note;
             const theirs = parseNote(rn0, textToComments(fdNow?.rows.get(dataKey(sh.gid!, key))?.v[D.comments]));
             const comments = mergeComments(textToComments(b.comments), e.comments ?? [], theirs.threads);
             const note = composeNote(theirs.base, comments);

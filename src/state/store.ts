@@ -16,7 +16,7 @@ import { compose, editsOf, type VEdit } from '../model/verify';
 import { DEFAULT_QS, type QuickSearch } from '../model/quickSearch';
 import { composeNote, mergeComments, parseNote, type CommentThread } from '../model/comments';
 import { maxOf, minOf } from '../model/num';
-import { absorbVerified, buildDisplay, createGroup, findChains, mergeGroups, newGroupId, normalizeGroups, splitGroup, spreadEdit, stripTagDigits, fillBareTags, type Chain, type EntryGroup } from '../model/entrySets';
+import { absorbVerified, buildDisplay, createGroup, findChains, mergeGroups, newGroupId, normalizeGroups, splitGroup, spreadEdit, stripTagDigits, fillBareTags, fillTemplate, type Chain, type EntryGroup } from '../model/entrySets';
 import { tidyOnLeave } from '../model/aiNote';
 import { entryFits } from '../model/cellLimit';
 import { wordEdits } from '../model/wordDiff';
@@ -24,13 +24,15 @@ import { wordEdits } from '../model/wordDiff';
 /** 條目欄的篩選：條件（標記 id 或 'issues'）→ 1 勾選、-1 排除；沒列的是不選，空的就是全部 */
 export type Filter = Record<string, 1 | -1>;
 /** 一條在篩選下看不看得到：符合任一排除的不顯示；有勾選時要符合其中之一 */
-export function passesFilter(f: Filter, mark: string, issues: boolean, note = false): boolean {
-  if (f[mark] === -1 || (issues && f.issues === -1) || (note && f.note === -1)) return false;
+export function passesFilter(f: Filter, mark: string, issues: boolean, note = false, talk = false): boolean {
+  if (f[mark] === -1 || (issues && f.issues === -1) || (note && f.note === -1) || (talk && f.talk === -1)) return false;
   const inc = Object.values(f).includes(1);
-  return !inc || f[mark] === 1 || (issues && f.issues === 1) || (note && f.note === 1);
+  return !inc || f[mark] === 1 || (issues && f.issues === 1) || (note && f.note === 1) || (talk && f.talk === 1);
 }
-/** 篩選「有備註」：雲端檔案看有沒有沒解決的留言，本機檔案看備註有沒有字 */
-export const hasNote = (e: Entry) => (e.comments ? e.comments.some((t) => !t.resolved) : !!e.note.trim());
+/** 篩選「有備註」（條目左邊的單個對話氣泡）：雲端檔案看原本的備註、另外抓的欄，本機檔案看備註有沒有字 */
+export const hasNote = (e: Entry) => (e.comments ? !!e.noteBase?.trim() || !!e.extraNotes?.some((x) => x.text.trim()) : !!e.note.trim());
+/** 篩選「有未解決的對話」（雲端檔案，條目左邊的兩個對話氣泡） */
+export const hasTalk = (e: Entry) => !!e.comments?.some((t) => !t.resolved);
 export type SideTab = 'general' | 'dict' | 'tm' | 'search' | 'web' | 'ref';
 
 /** 綜合分頁的區塊 */
@@ -287,8 +289,10 @@ interface State {
   /** 選到的條目收成一組；回傳新組的 id（不能收時是 null） */
   collapseRows(indices: number[]): string | null;
   renameGroup(id: string, name: string): void;
-  /** 展開或收起（收起組用 g:id、條目串用 c:id） */
-  toggleSet(key: string, open?: boolean): void;
+  /** 展開或收起（收起組用 g:id、條目串用 c:id）；收起時目前的條目在裡面、或 jump 時，換到它下面那一條 */
+  toggleSet(key: string, open?: boolean, jump?: boolean): void;
+  /** 收起的條目串：編輯串的譯文（拿掉標籤數字的寫法），格式一樣的每一條照各自的數字填回去 */
+  editChainTgt(text: string): void;
   /** 從這一條的下方切開（在收起組裡切收起組，在條目串裡切條目串） */
   splitAt(index: number): void;
   /** 合併收起組 */
@@ -675,7 +679,7 @@ const updShown = (e: Entry) => (hasPendingUpdate(e) || !!e.upd?.applied) && e.ma
 
 /** 目前頁簽要顯示的清單（收起組、條目串、條目）；pass 是篩選條件（沒有篩選時是 null），hit 是工具欄搜尋命中 */
 export function displayOf(s: State, pass: ((i: number) => boolean) | null, hit: ((i: number) => boolean) | null = null) {
-  const { fileDoc, sheetIdx, sheet, sel } = currentOf(s);
+  const { fileDoc, sheetIdx, sheet } = currentOf(s);
   const L = sheetLayout(fileDoc, sheet, setsOn(s, fileDoc));
   const key = (id: string) => setKey(fileDoc, sheetIdx, sheet, id);
   return buildDisplay(sheet.entries, L.groups, L.chains, {
@@ -683,7 +687,7 @@ export function displayOf(s: State, pass: ((i: number) => boolean) | null, hit: 
     pass: pass ?? (() => true),
     reveal: (i) => {
       const e = sheet.entries[i];
-      if (i === sel || hit?.(i)) return true;
+      if (hit?.(i)) return true;
       if (!updShown(e)) return false;
       const g = L.groups.find((x) => x.uids.includes(e.uid));
       return !(g && dismissedUpd.get(key('g:' + g.id))?.has(e.uid));
@@ -758,14 +762,14 @@ export const useStore = create<Store>((set, get) => {
   };
 
   /** 目前選的條目在這些條目裡：換到它們後面（沒有就前面）第一條 */
-  const moveSelOut = (uids: string[]) => {
+  const moveSelOut = (uids: string[], force = false) => {
     const { sheet, sheetIdx, sel } = cur();
     const set0 = new Set(uids);
-    if (!sheet.entries[sel] || !set0.has(sheet.entries[sel].uid)) return;
+    if (!force && (!sheet.entries[sel] || !set0.has(sheet.entries[sel].uid))) return;
     const pos = sheet.entries.map((e, i) => (set0.has(e.uid) ? i : -1)).filter((i) => i >= 0);
     const after = Math.max(...pos) + 1, before = Math.min(...pos) - 1;
     const to = after < sheet.entries.length ? after : before;
-    if (to >= 0) get().select(get().file, sheetIdx, to);
+    if (to >= 0) { get().select(get().file, sheetIdx, to); set({ moveSeq: get().moveSeq + 1, moveDir: 1 }); }
   };
 
   /** 改目前頁簽的收起組或條目串切割（不算一步復原；雲端外掛會寫進資料表） */
@@ -1476,9 +1480,24 @@ export const useStore = create<Store>((set, get) => {
       if (get().groupNaming === id) set({ groupNaming: null });
     },
 
-    toggleSet(id, open) {
+    editChainTgt(text) {
       const s = get();
       const { fileDoc, sheetIdx, sheet, sel } = cur();
+      const c = setsOn(s, fileDoc) ? sheetLayout(fileDoc, sheet, true).chainOf.get(sel) : undefined;
+      if (!c || s.setOpen[setKey(fileDoc, sheetIdx, sheet, 'c:' + c.id)]) { get().updateEntry({ tgt: text }); return; }
+      if (!editSnap) pushUndo();
+      const tpl = stripTagDigits(text);
+      const idx = new Set(c.idx.filter((i) => !c.outliers.has(sheet.entries[i].uid)));
+      patchEntries(idx, (e) => {
+        const tgt = fillTemplate(tpl, e.src);
+        if (tgt === e.tgt) return e;
+        return { ...e, tgt, pending: false, ...(e.mark === 'ai' ? { mark: '' as const } : {}) };
+      });
+    },
+
+    toggleSet(id, open, jump) {
+      const s = get();
+      const { fileDoc, sheetIdx, sheet } = cur();
       const k = setKey(fileDoc, sheetIdx, sheet, id);
       const now = !!s.setOpen[k];
       const next = open ?? !now;
@@ -1493,10 +1512,10 @@ export const useStore = create<Store>((set, get) => {
         if (!g) return;
         // 收起時：原文更新過的條目之後不再單獨顯示；目前選的條目在組裡的話，換到組外面
         dismissedUpd.set(k, new Set(g.uids.filter((u) => { const e = sheet.entries.find((x) => x.uid === u); return !!e && updShown(e); })));
-        moveSelOut(g.uids);
+        moveSelOut(g.uids, jump);
       } else {
         const c = L.chains.find((x) => x.id === id.slice(2));
-        if (c && c.idx.includes(sel) && sel !== c.rep) get().select(get().file, sheetIdx, c.rep);
+        if (c) moveSelOut(c.uids, jump);
       }
     },
 
@@ -1997,7 +2016,7 @@ export function visibleRows(s: State): number[] {
     const pass = keys0.length ? (i: number) => {
       const e = sheet.entries[i];
       const issues = s.filter.issues !== undefined && visibleIssues(e, s.reported, s.checkSettings, fileStd0).length > 0;
-      return passesFilter(s.filter, effectiveMark(e), issues, hasNote(e));
+      return passesFilter(s.filter, effectiveMark(e), issues, hasNote(e), hasTalk(e));
     } : null;
     return displayOf(s, pass).rows;
   }
@@ -2007,7 +2026,7 @@ export function visibleRows(s: State): number[] {
   sheet.entries.forEach((e, i) => {
     if (!keys.length) { out.push(i); return; }
     const issues = s.filter.issues !== undefined && visibleIssues(e, s.reported, s.checkSettings, fileStd).length > 0;
-    if (passesFilter(s.filter, effectiveMark(e), issues, hasNote(e))) out.push(i);
+    if (passesFilter(s.filter, effectiveMark(e), issues, hasNote(e), hasTalk(e))) out.push(i);
   });
   return out;
 }

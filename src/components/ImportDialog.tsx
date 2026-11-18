@@ -294,8 +294,11 @@ export function Preview({ sheet, onFields, extras, onExtras, removed, onToggleRo
     return m;
   }, [fields]);
 
+  // 選整欄：已經設定了欄位的話，照第一個設定的欄位（照 ID、發話者、原文…的順序）的範圍延伸，不是整欄到底
+  const firstSet = COLS.map((c) => fields[c.key]).find((f) => f && f.rows.length);
+  const colSpan = firstSet ? { r0: Math.min(...firstSet.rows), r1: Math.max(...firstSet.rows) } : { r0: 0, r1: last };
   const rectFor = (kind: 'cell' | 'col' | 'row', a: { c: number; r: number }, b: { c: number; r: number }) =>
-    kind === 'col' ? { ...rectOf(a, b), r0: 0, r1: last }
+    kind === 'col' ? { ...rectOf(a, b), ...colSpan }
       : kind === 'row' ? { ...rectOf(a, b), c0: 0, c1: width - 1 }
       : rectOf(a, b);
 

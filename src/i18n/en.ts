@@ -19,6 +19,7 @@ export const EN: Partial<Record<TextKey, string>> = {
   'import.extraOk': 'Add',
   'import.extraCol': 'Column {col}',
   'list.filterNote': 'Has Notes',
+  'list.filterTalk': 'Has Open Comments',
   'list.openComments': 'Has unresolved notes',
   'side.notesResize': 'Resize suggestion and notes area',
   'cloud.userName': 'Nickname',
