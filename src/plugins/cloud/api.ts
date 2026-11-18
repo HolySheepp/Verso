@@ -51,6 +51,24 @@ export async function meta(sid: string): Promise<Meta> {
 
 const cell = (v: unknown) => (v === undefined || v === null ? '' : String(v));
 
+/** 格子的樣子（設定 Google 表時的預覽用）：底色、字的顏色、粗體、斜體、刪除線 */
+export interface CellLook { bg?: string; fg?: string; b?: boolean; i?: boolean; s?: boolean }
+type GCol = { red?: number; green?: number; blue?: number; alpha?: number };
+const css = (c?: GCol) => (c ? `rgb(${Math.round((c.red ?? 0) * 255)}, ${Math.round((c.green ?? 0) * 255)}, ${Math.round((c.blue ?? 0) * 255)})` : undefined);
+/** 讀一個分頁前面幾列的格式（太多列只讀前 maxRows 列，免得太大） */
+export async function readLooks(sid: string, title: string, cols: number, maxRows = 1500): Promise<(CellLook | undefined)[][]> {
+  const range = encodeURIComponent(`${q(title)}!A1:${colName(Math.max(0, cols - 1))}${maxRows}`);
+  const r = await call<{ sheets?: { data?: { rowData?: { values?: { effectiveFormat?: { backgroundColor?: GCol; textFormat?: { foregroundColor?: GCol; bold?: boolean; italic?: boolean; strikethrough?: boolean } } }[] }[] }[] }[] }>(
+    'GET', `${sid}?ranges=${range}&fields=sheets.data.rowData.values.effectiveFormat(backgroundColor,textFormat(foregroundColor,bold,italic,strikethrough))`);
+  const rows = r.sheets?.[0]?.data?.[0]?.rowData ?? [];
+  return rows.map((row) => (row.values ?? []).map((v) => {
+    const f = v.effectiveFormat;
+    if (!f) return undefined;
+    const t = f.textFormat;
+    return { bg: css(f.backgroundColor), fg: css(t?.foregroundColor), ...(t?.bold ? { b: true } : {}), ...(t?.italic ? { i: true } : {}), ...(t?.strikethrough ? { s: true } : {}) };
+  }));
+}
+
 /** 讀好幾個分頁的全部內容（顯示的文字） */
 export async function readTabs(sid: string, titles: string[]): Promise<string[][][]> {
   if (!titles.length) return [];

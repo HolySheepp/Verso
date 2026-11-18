@@ -22,7 +22,7 @@ import { ProjectsDialog } from './ProjectsDialog';
 import { SrcUpdateCloud, openSrcUpdate } from './SrcUpdateCloud';
 import { beforeExit, rowHook, tabHook } from '../hooks';
 import type { VersoPlugin } from '../registry';
-import { builtinClient, errText, insertCol, login, loginStatus, logout, meta, readTabs, sidOf } from './api';
+import { builtinClient, errText, insertCol, login, loginStatus, logout, meta, readLooks, readTabs, sidOf } from './api';
 import { allSheets, loadConfig, setConfig, toFields, toFieldMap, useCloud, type CloudSheet, type CloudTab } from './config';
 import { saveCachesNow, previewKeys, removedNow, setRemoved, rememberPos, isVersoTab, convertVersoTab, removeRows, tabRemove, rowOp, tabRename, tabDelete, tabInsert, currentSid, enterCloud, flushAll, pickShown, putSheet, refreshAll, removeSheet, resolveConflict, setSkill, watchStore } from './sync';
 
@@ -227,6 +227,15 @@ function SetupDialog({ sid0, gid0 }: { sid0?: string; gid0?: number }) {
     setBusy(false);
   };
   useEffect(() => { if (sid0) void read(); }, []);
+  // 預覽照 Google 表原本的樣子：換到哪個頁簽才讀那個頁簽的格式（讀過就記著）
+  useEffect(() => {
+    const d = drafts?.[cur];
+    const sid = sidOf(url);
+    if (!d || d.looks || !sid) return;
+    let alive = true;
+    readLooks(sid, d.name, d.width).then((looks) => { if (alive) setDrafts((all) => all && all.map((x) => (x.id === d.id ? { ...x, looks } : x))); }).catch(() => { /* 讀不到格式就照 Verso 的樣子 */ });
+    return () => { alive = false; };
+  }, [cur, drafts?.length]);
 
   const projectRow = (
     <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>

@@ -17,7 +17,9 @@ import { IMPORT_EXTS, readImport, type ImportBook } from '../data/importio';
 import { xlsxToFile } from '../data/xlsxio';
 import { maxOf } from '../model/num';
 
-export interface DraftSheet { id: string; name: string; rows: string[][]; width: number; fields: FieldMap }
+export interface DraftSheet { id: string; name: string; rows: string[][]; width: number; fields: FieldMap;
+  /** 設定 Google 表時：格子原本的底色、字的顏色等（預覽照 Google 表的樣子顯示） */
+  looks?: ({ bg?: string; fg?: string; b?: boolean; i?: boolean; s?: boolean } | undefined)[][] }
 
 let sheetSeq = 0;
 const ROW_H = 26;
@@ -298,8 +300,60 @@ export function Preview({ sheet, onFields, extras, onExtras, removed, onToggleRo
 
   const order = order0 ?? COLS.map((c) => c.key);
   const chips = order.map((k) => COLS.find((c) => c.key === k)!).filter(Boolean);
-  // 拖動欄位按鈕調整順序
-  const [dragKey, setDragKey] = useState<ColKey | null>(null);
+  // 拖動欄位按鈕調整順序：跟拖頁簽一樣，按鈕跟著游標水平滑動，越過旁邊按鈕的中心就交換
+  const chipPress = useRef<{ i: number; x: number; moved: boolean } | null>(null);
+  const chipDragged = useRef(false);
+  const [chipDrag, setChipDrag] = useState<{ from: number; to: number; dx: number; lefts: number[]; widths: number[] } | null>(null);
+  const CHIP_GAP = 8;
+  const chipDown = (ev: React.PointerEvent<HTMLDivElement>, i: number) => {
+    if (!onOrder || ev.button !== 0 || (ev.target as HTMLElement).closest('.ib')) return;
+    chipPress.current = { i, x: ev.clientX, moved: false };
+  };
+  const chipMove = (ev: React.PointerEvent<HTMLDivElement>) => {
+    const p = chipPress.current;
+    if (!p) return;
+    if (!p.moved && Math.abs(ev.clientX - p.x) < 5) return;
+    let d = chipDrag;
+    if (!p.moved || !d) {
+      p.moved = true;
+      // 開始拖動才捕捉滑鼠（沒拖動時點按鈕照常設定欄位）
+      try { ev.currentTarget.setPointerCapture(ev.pointerId); } catch { /* 無法捕捉時照常運作 */ }
+      const items = Array.from((ev.currentTarget.parentElement as HTMLElement).querySelectorAll<HTMLElement>('[data-chip]'));
+      d = { from: p.i, to: p.i, dx: 0, lefts: items.map((el) => el.getBoundingClientRect().left), widths: items.map((el) => el.getBoundingClientRect().width) };
+    }
+    const { from, lefts, widths } = d;
+    const n = lefts.length;
+    const dx = Math.max(lefts[0] - lefts[from], Math.min(lefts[n - 1] + widths[n - 1] - widths[from] - lefts[from], ev.clientX - p.x));
+    const left = lefts[from] + dx, right = left + widths[from];
+    let to = from;
+    for (let j = 0; j < from; j++) if (left < lefts[j] + widths[j] / 2) { to = j; break; }
+    for (let j = n - 1; j > from; j--) if (right > lefts[j] + widths[j] / 2) { to = j; break; }
+    setChipDrag({ ...d, dx, to });
+  };
+  const chipUp = () => {
+    const p = chipPress.current;
+    chipPress.current = null;
+    if (!p?.moved || !chipDrag) { setChipDrag(null); return; }
+    chipDragged.current = true;
+    setTimeout(() => { chipDragged.current = false; }, 0);
+    const { from, to } = chipDrag;
+    setChipDrag(null);
+    if (to === from || !onOrder) return;
+    const next = [...order];
+    const [moved] = next.splice(from, 1);
+    next.splice(to, 0, moved);
+    onOrder(next);
+  };
+  /** 拖動中各按鈕的位移：被拖的跟著游標，其他的讓出位置 */
+  const chipShift = (i: number) => {
+    if (!chipDrag) return 0;
+    const { from, to, dx, widths } = chipDrag;
+    if (i === from) return dx;
+    const room = widths[from] + CHIP_GAP;
+    if (from < to && i > from && i <= to) return -room;
+    if (to < from && i >= to && i < from) return room;
+    return 0;
+  };
   // 第一個設定的欄位：之後設定其他欄位時，列的範圍自動跟它一樣（跟加欄位一樣，只看選了哪一欄）
   const firstRef = useRef<ColKey | null>(null);
   const firstKey = firstRef.current && fields[firstRef.current] ? firstRef.current : order.find((k) => fields[k]?.rows.length) ?? null;
@@ -390,23 +444,18 @@ export function Preview({ sheet, onFields, extras, onExtras, removed, onToggleRo
   return (
     <div data-nodrag style={{ flexGrow: 1, minHeight: 0, display: 'flex', flexDirection: 'column', gap: 10 }}>
       <div style={{ display: 'flex', alignItems: 'center', gap: 8, flexWrap: 'wrap' }}>
-        {chips.map((c) => {
+        {chips.map((c, ci) => {
           const f = fields[c.key];
+          const dragging = chipDrag?.from === ci;
           return (
-            <div key={c.key} className={'imp-chip imp-f-' + c.key} data-set={f ? '' : undefined}
-              draggable={!!onOrder} style={dragKey === c.key ? { opacity: 0.5 } : undefined}
-              onDragStart={(ev) => { setDragKey(c.key); ev.dataTransfer.effectAllowed = 'move'; }}
-              onDragEnd={() => setDragKey(null)}
-              onDragOver={(ev) => {
-                if (!dragKey || dragKey === c.key || !onOrder) return;
-                ev.preventDefault();
-                const next = order.filter((x) => x !== dragKey);
-                const at = next.indexOf(c.key);
-                const r = ev.currentTarget.getBoundingClientRect();
-                next.splice(ev.clientX > r.left + r.width / 2 ? at + 1 : at, 0, dragKey);
-                if (next.join() !== order.join()) onOrder(next);
-              }}
-              onDrop={(ev) => ev.preventDefault()}>
+            <div key={c.key} data-chip="" className={'imp-chip imp-f-' + c.key} data-set={f ? '' : undefined}
+              onPointerDown={(ev) => chipDown(ev, ci)} onPointerMove={chipMove} onPointerUp={chipUp} onPointerCancel={() => { chipPress.current = null; setChipDrag(null); }}
+              onClickCapture={(ev) => { if (chipDragged.current) { ev.stopPropagation(); ev.preventDefault(); chipDragged.current = false; } }}
+              style={onOrder ? {
+                position: 'relative', zIndex: dragging ? 2 : undefined, touchAction: 'none', cursor: chipDrag ? 'grabbing' : undefined,
+                transform: `translateX(${chipShift(ci)}px)`, transition: chipDrag && !dragging ? 'transform 160ms cubic-bezier(0.2, 0.8, 0.2, 1)' : 'none',
+                boxShadow: dragging ? '0 6px 16px rgba(0,0,0,0.3)' : undefined,
+              } : undefined}>
               <button type="button" className="imp-chip-btn" title={tx('import.021', { label: c.label })} onClick={() => assign(c.key)}>
                 <span style={{ fontWeight: 600 }}>{c.label}</span>
                 <span style={{ color: f ? 'var(--text2)' : 'var(--mute)' }}>{f ? tx('import.fieldRange', { range: fieldLabel(f), n: f.rows.length }) : tx('import.022')}</span>
@@ -483,9 +532,13 @@ export function Preview({ sheet, onFields, extras, onExtras, removed, onToggleRo
                 {Array.from({ length: width }, (_, c) => {
                   const k = marks.get(c + ':' + r);
                   const v = row[c] ?? '';
+                  const sel = inSel(c, r);
+                  // Google 表原本的樣子（選了欄位、框選中的格子照 Verso 的標色）
+                  const lk = !k && !sel ? sheet.looks?.[r]?.[c] : undefined;
+                  const look: React.CSSProperties | undefined = lk ? { background: lk.bg, color: lk.fg, fontWeight: lk.b ? 700 : undefined, fontStyle: lk.i ? 'italic' : undefined, textDecoration: lk.s ? 'line-through' : undefined } : undefined;
                   return (
-                    <div key={c} className={'imp-cell' + (k ? ' imp-f-' + k : '')} data-sel={inSel(c, r) ? '' : undefined} title={v.length > 20 ? v : undefined}
-                      style={removed?.get(r) ? { opacity: 0.4 } : undefined}
+                    <div key={c} className={'imp-cell' + (k ? ' imp-f-' + k : '')} data-sel={sel ? '' : undefined} title={v.length > 20 ? v : undefined}
+                      style={removed?.get(r) ? { ...look, opacity: 0.4 } : look}
                       onMouseDown={(ev) => press(ev, 'cell', { c, r })} onMouseEnter={() => enter({ c, r })}>{v}</div>
                   );
                 })}

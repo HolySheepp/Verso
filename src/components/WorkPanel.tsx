@@ -31,6 +31,11 @@ import {
 /** 原文標籤在標記清單裡的編號從這裡開始（命中詞是 0 起） */
 const TAG_REF = 900;
 const NO_TAGS: ReturnType<typeof tagSpans> = [];
+/** 每個參數標籤的對應名稱：拿掉數字後的寫法＋這是第幾個這種標籤（原文、譯文裡同一個名稱的就是對應的） */
+function tagKeysOf(spans: ReturnType<typeof tagSpans>): string[] {
+  const n = new Map<string, number>();
+  return spans.map((t) => { const k = stripTagDigits(t.text); const c = n.get(k) ?? 0; n.set(k, c + 1); return k + '#' + c; });
+}
 
 const MODE_HINTS: Partial<Record<Mode, string>> = {
   get view() { return tx('work.003'); },
@@ -106,12 +111,29 @@ function WorkPanelInner({ height, maxH }: { height: number; maxH: number }) {
   // 原文裡的參數標籤：Ctrl+數字插入第幾個；技能檔案另外加底線、點了插入
   const allTags = useMemo(() => tagSpans(srcShown), [srcShown]);
   const tags = skillTags ? allTags : NO_TAGS;
+  // 技能檔案：原文、譯文、修改框裡對應的參數標籤（拿掉數字後一樣、而且是第幾個也一樣）加底線，滑鼠移到任一個上，三個框裡對應的一起高亮
+  const srcKeys = useMemo(() => tagKeysOf(tags), [tags]);
+  const tgtTags = useMemo(() => (skillTags ? tagSpans(tgtShown) : NO_TAGS), [skillTags, tgtShown]);
+  const tgtKeys = useMemo(() => tagKeysOf(tgtTags), [tgtTags]);
+  const [boxTag, setBoxTag] = useState<string | null>(null);
+  const hotTag = hover && hover.hit >= TAG_REF ? srcKeys[hover.hit - TAG_REF] ?? null : boxTag;
+  /** 一個框裡要標的標籤：原文裡有對應的才標 */
+  const tagMarks = (spans: ReturnType<typeof tagSpans>, keys: string[]): MarkRange[] => spans.flatMap((t, k) => (srcKeys.includes(keys[k])
+    ? [{ start: t.start, end: t.end, kind: 'hit' as const, ref: (TAG_REF + k) * 1000, on: !!hotTag && keys[k] === hotTag }] : []));
+  /** 滑鼠在譯文框、修改框上移動：找出底下是哪個標籤 */
+  const tagMove = (ev: React.MouseEvent<HTMLTextAreaElement>, keys: string[]) => {
+    if (!skillTags || !keys.length) return;
+    const m = markUnder(ev.currentTarget.parentElement, 'mark.tm-hit', ev.clientX, ev.clientY);
+    const k = m ? Math.floor(Number(m.dataset.ref) / 1000) - TAG_REF : -1;
+    const next = k >= 0 ? keys[k] ?? null : null;
+    setBoxTag((h) => (h === next ? h : next));
+  };
   const hitRanges = useMemo<MarkRange[]>(() => [
     // 條目串的原文拿掉了數字，字典命中的位置對不上：只標標籤
     ...(chainView ? [] : hits.flatMap((h, i) => h.spans.map((sp, j) => ({ ...sp, kind: 'hit' as const, ref: i * 1000 + j, on: hover?.hit === i && hover.span === j })))),
     // 標籤：編號從 TAG_REF 開始（跟命中詞分開）
-    ...tags.map((t, k) => ({ start: t.start, end: t.end, kind: 'hit' as const, ref: (TAG_REF + k) * 1000, on: hover?.hit === TAG_REF + k })),
-  ], [hits, tags, hover?.hit, hover?.span, chainView]);
+    ...tags.map((t, k) => ({ start: t.start, end: t.end, kind: 'hit' as const, ref: (TAG_REF + k) * 1000, on: !!hotTag && srcKeys[k] === hotTag })),
+  ], [hits, tags, hover?.hit, hover?.span, chainView, hotTag, srcKeys]);
   const total = sheet.entries.length;
   const mode = s.mode;
   const customs = project.customMarks;
@@ -175,6 +197,9 @@ function WorkPanelInner({ height, maxH }: { height: number; maxH: number }) {
   const bottom = showMod ? 'mod' : showTgt ? 'tgt' : showSrc ? 'src' : null;
   const spans = useMemo(() => spansOf(edits), [edits]);
   const modText = useMemo(() => compose(cur.tgt, edits), [cur.tgt, edits]);
+  // 修改框裡的參數標籤（技能檔案）
+  const modTags = useMemo(() => (skillTags && verify ? tagSpans(modText) : NO_TAGS), [skillTags, verify, modText]);
+  const modKeys = useMemo(() => tagKeysOf(modTags), [modTags]);
   const [modEl, setModEl] = useState<HTMLTextAreaElement | null>(null);
   // 滑鼠停在哪一組上、正在編輯哪一組（用這組在譯文的起點認）
   const [vHover, setVHover] = useState<number | null>(null);
@@ -756,7 +781,7 @@ function WorkPanelInner({ height, maxH }: { height: number; maxH: number }) {
               readOnly={!tgtEditable || tgtHist}
               onChange={(ev) => onTarget(ev.target.value)} onPaste={onPaste} placeholder={ghost || undefined}
               onKeyDown={ghost ? (ev) => { if (ev.key === 'Tab' && !ev.ctrlKey && !ev.altKey && !ev.shiftKey && !ev.metaKey && exact) { ev.preventDefault(); applyMatch(exact); } } : undefined}
-              onMouseMove={edits.length ? onVMove : undefined} onMouseLeave={edits.length ? onVLeave : undefined} onMouseDown={onTgtDown} onContextMenu={onVMenu}
+              onMouseMove={(ev) => { if (edits.length) onVMove(ev); tagMove(ev, tgtKeys); }} onMouseLeave={() => { if (edits.length) onVLeave(); setBoxTag(null); }} onMouseDown={onTgtDown} onContextMenu={onVMenu}
               style={{
                 cursor: showEdits && vHover !== null ? 'pointer' : undefined,
                 flexGrow: 1, minHeight: 0, resize: 'none', boxSizing: 'border-box', padding: verify ? '10px 12px' : '10px 44px 10px 12px',
@@ -765,7 +790,8 @@ function WorkPanelInner({ height, maxH }: { height: number; maxH: number }) {
                 borderRadius: 8, color: tgtEditable ? 'var(--texthi)' : 'var(--textsoft)', fontSize: 'var(--fs-tgt)', fontFamily: 'var(--font-tgt)', lineHeight: 1.6,
               }} />
             {/* QA 問題的位置標色 */}
-            {!tgtHist && <TextMarks target={tgtEl} text={cur.tgt} ranges={showEdits ? tgtEditRanges : issueRanges} />}
+            {/* 條目串的輸入框是拿掉數字的寫法：問題的位置對不上，只標參數標籤 */}
+            {!tgtHist && <TextMarks target={tgtEl} text={tgtShown} ranges={[...(showEdits ? tgtEditRanges : chainView ? [] : issueRanges), ...tagMarks(tgtTags, tgtKeys)]} />}
             {s.finishLine && !tgtHist && <FinishLine target={tgtEl} text={cur.tgt} std={effectiveStd(cur.lengthStd, currentFileStd(s))} />}
             {!verify && histUI}
           </div>
@@ -793,7 +819,7 @@ function WorkPanelInner({ height, maxH }: { height: number; maxH: number }) {
                 {/* 翻譯模式：修改框只給譯者看，不能改 */}
                 <textarea maxLength={MAX_CELL_CHARS} id="verso-edit" ref={setModEl} value={modHist ? texts[slot] : modText} readOnly={!verify || modHist} onFocus={verify ? editFocus : undefined} onBlur={verify ? modBlur : undefined}
                   onChange={(ev) => verify && onModValue(ev.target.value, ev.target.selectionEnd)}
-                  onMouseMove={onVMove} onMouseLeave={onVLeave} onMouseDown={onModDown} onContextMenu={onVMenu}
+                  onMouseMove={(ev) => { onVMove(ev); tagMove(ev, modKeys); }} onMouseLeave={() => { onVLeave(); setBoxTag(null); }} onMouseDown={onModDown} onContextMenu={onVMenu}
                   style={{
                     flexGrow: 1, minHeight: 0, resize: 'none', boxSizing: 'border-box', padding: verify ? '10px 44px 10px 12px' : '10px 12px',
                     cursor: !verify && vHover !== null ? 'pointer' : undefined,
@@ -801,7 +827,7 @@ function WorkPanelInner({ height, maxH }: { height: number; maxH: number }) {
                     color: verify ? 'var(--texthi)' : 'var(--textsoft)',
                     fontSize: 'var(--fs-tgt)', fontFamily: 'var(--font-tgt)', lineHeight: 1.6,
                   }} />
-                {!modHist && <TextMarks target={modEl} text={modText} ranges={[...modRanges, ...issueRanges]} />}
+                {!modHist && <TextMarks target={modEl} text={modText} ranges={[...modRanges, ...issueRanges, ...tagMarks(modTags, modKeys)]} />}
                 {s.finishLine && !modHist && <FinishLine target={modEl} text={modText} std={effectiveStd(cur.lengthStd, currentFileStd(s))} />}
                 {verify && histUI}
               </div>

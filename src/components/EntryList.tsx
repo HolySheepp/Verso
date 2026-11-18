@@ -81,6 +81,8 @@ interface RowHandlers {
   toggleChain(i: number): void;
   /** 點導軌：收起那一組或那一串（g:id、c:id），收起後跳到它下面那一條 */
   railClick(key: string): void;
+  /** 滑鼠移到導軌上、離開導軌 */
+  railHover(key: string | null): void;
 }
 
 interface RowProps {
@@ -121,6 +123,8 @@ interface RowProps {
   leave?: boolean;
   /** 所在的展開的收起組、條目串（左邊畫導軌，點了收起）；gEnd、cEnd：是最後一條（導軌末端往內折） */
   railG?: string; gEnd?: boolean; railC?: string; cEnd?: boolean;
+  /** 滑鼠在這一組（串）的導軌上：整條導軌一起變色 */
+  hotG?: boolean; hotC?: boolean;
   /** 量高度用的名字（收起的條目串是 c:串的 id） */
   rowKey?: string;
 }
@@ -148,7 +152,7 @@ function CellEditor({ text, h, uid, c }: { text: string; h: React.RefObject<RowH
 }
 
 /** 條目欄的一行：只有自己的內容、選取、標記等變了才重畫 */
-const EntryRow = memo(function EntryRow({ e, i, aiLock, k, m, issues, on, hit, selCols, editing, customs, cols, fitId, fitSpk, fitSrc, fitTgt, fontId, fsId, fontSpk, fontSrc, fontTgt, ovfId, ovfSpk, ovfSrc, ovfTgt, h, rowKey, depth = 0, outlier, chainN, chainSrc, chainTpl, chainWarn, enter, leave, railG, gEnd, railC, cEnd }: RowProps) {
+const EntryRow = memo(function EntryRow({ e, i, aiLock, k, m, issues, on, hit, selCols, editing, customs, cols, fitId, fitSpk, fitSrc, fitTgt, fontId, fsId, fontSpk, fontSrc, fontTgt, ovfId, ovfSpk, ovfSrc, ovfTgt, h, rowKey, depth = 0, outlier, chainN, chainSrc, chainTpl, chainWarn, enter, leave, railG, gEnd, railC, cEnd, hotG, hotC }: RowProps) {
   const doubt = m === 'doubt' || !!outlier || !!chainWarn, ver = m === 'verified', ign = m === 'ignore';
   // 收起的條目串：原文、譯文欄顯示整串的（拿掉標籤數字）
   const srcText = chainN ? chainSrc ?? '' : e.upd?.src ?? e.src;
@@ -178,8 +182,12 @@ const EntryRow = memo(function EntryRow({ e, i, aiLock, k, m, issues, on, hit, s
       boxShadow: hit ? 'inset 3px 0 0 var(--accent)' : undefined,
       ...(chainN ? { margin: '2px 8px 6px 6px', borderRadius: 8, border: `1px solid ${doubt ? 'var(--dbline)' : 'var(--line3)'}` } : {}),
     }}>
-      {railG && <span className={'set-rail' + (gEnd ? ' set-rail-end' : '')} style={{ left: 0 }} aria-hidden="true" title={tx('sets.fold')} onMouseDown={(ev) => { ev.stopPropagation(); ev.preventDefault(); }} onClick={() => h.current.railClick('g:' + railG)} />}
-      {railC && <span className={'set-rail' + (cEnd ? ' set-rail-end' : '')} style={{ left: railG ? 7 : 0 }} aria-hidden="true" title={tx('sets.fold')} onMouseDown={(ev) => { ev.stopPropagation(); ev.preventDefault(); }} onClick={() => h.current.railClick('c:' + railC)} />}
+      {railG && <span className={'set-rail' + (gEnd ? ' set-rail-end' : '') + (hotG ? ' set-rail-on' : '')} style={{ left: 0 }} aria-hidden="true" title={tx('sets.fold')}
+        onMouseEnter={() => h.current.railHover('g:' + railG)} onMouseLeave={() => h.current.railHover(null)}
+        onMouseDown={(ev) => { ev.stopPropagation(); ev.preventDefault(); }} onClick={() => h.current.railClick('g:' + railG)} />}
+      {railC && <span className={'set-rail' + (cEnd ? ' set-rail-end' : '') + (hotC ? ' set-rail-on' : '')} style={{ left: railG ? 7 : 0 }} aria-hidden="true" title={tx('sets.fold')}
+        onMouseEnter={() => h.current.railHover('c:' + railC)} onMouseLeave={() => h.current.railHover(null)}
+        onMouseDown={(ev) => { ev.stopPropagation(); ev.preventDefault(); }} onClick={() => h.current.railClick('c:' + railC)} />}
       <button type="button" className="mk" aria-haspopup="menu" aria-label={label} title={label} onClick={(ev) => h.current.openMark(ev, i)}
         style={{ width: 24, minHeight: 38, display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 0, background: 'transparent', border: 0, borderRadius: 4 }}>
         <MarkIcon mark={markVisual(customs, m)} size={14} />
@@ -260,6 +268,8 @@ export function EntryList() {
   const recent = useRef<{ key: string; t: number } | null>(null);
   // 正在收起的組或串：裡面的條目先跑收起的動畫，跑完才真的收起
   const [closing, setClosing] = useState<string | null>(null);
+  // 滑鼠在哪一組（串）的導軌上
+  const [railHot, setRailHot] = useState<string | null>(null);
   // 按住拖過好幾個收起組的名稱列：選取（合併用）
   const groupDrag = useRef<{ from: string; moved: boolean } | null>(null);
   const filter = s.filter;
@@ -444,7 +454,11 @@ export function EntryList() {
     // 這條本身看得到
     if (topOf(pos) < top) top = topOf(pos);
     else if (bottomOf(pos) > top + vh) top = bottomOf(pos) - vh;
-    if (p.keyboard) {
+    if (p.keyboard && p.dir === 2) {
+      // 收起組、串之後跳到下一條：放在畫面下方，底下留三條（跟一路按 Enter 下來的位置一樣）
+      top = Math.max(0, bottomOf(Math.min(pos + KEEP_VISIBLE, n - 1)) - vh);
+      if (topOf(pos) < top) top = topOf(pos);
+    } else if (p.keyboard) {
       if (p.dir > 0) { const b = bottomOf(Math.min(pos + KEEP_VISIBLE, n - 1)); if (b > top + vh) top = b - vh; }
       else { const t = topOf(Math.max(pos - KEEP_VISIBLE, 0)); if (t < top) top = t; }
     }
@@ -787,7 +801,8 @@ export function EntryList() {
     cancelEdit: () => { setEditing(null); sink.current?.focus({ preventScroll: true }); },
     isEditing: (uid, c) => editRef.current?.uid === uid && editRef.current.c === c,
     toggleChain: (i) => { const c = layout?.chainOf.get(i); if (c) toggleSet('c:' + c.id); },
-    railClick: (key) => toggleSet(key, false, true),
+    railClick: (key) => { setRailHot(null); toggleSet(key, false, true); },
+    railHover: (key) => setRailHot(key),
   };
 
   // ---- 收起組、條目串的右鍵選單項目 ----
@@ -990,6 +1005,7 @@ export function EntryList() {
               ovfId={ovf.id} ovfSpk={ovf.speaker} ovfSrc={ovf.src} ovfTgt={ovf.tgt} h={handlers}
               depth={it.depth} inChain={it.t === 'row' && it.inChain} outlier={it.t === 'row' && it.outlier} enter={entering.has(it.key)}
               railG={it.g} gEnd={it.gEnd} railC={it.t === 'row' ? it.c : undefined} cEnd={it.t === 'row' && it.cEnd}
+              hotG={!!it.g && railHot === 'g:' + it.g} hotC={it.t === 'row' && !!it.c && railHot === 'c:' + it.c}
               leave={!!closing && (closing === 'g:' + it.g || (it.t === 'row' && closing === 'c:' + it.c))}
               chainN={ch?.uids.length} chainSrc={ch?.src} chainTpl={ch ? (ch.tpl ? ch.tpl : '') : undefined} chainWarn={!!ch && ch.outliers.size > 0} />
           );

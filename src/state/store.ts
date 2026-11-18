@@ -245,7 +245,7 @@ interface State {
   moveTarget: MoveTarget | null;
   /** 用下一條、快捷鍵移動選取時遞增，條目列表據此保留前後 3 條可見（滑鼠點選不算） */
   moveSeq: number;
-  moveDir: 1 | -1;
+  moveDir: 1 | -1 | 2;
   /** 手動開關字典：key 是「目前專案>專案/字典」，沒有設定的照預設（目前專案和共用的字典啟用） */
   dictOverrides: Record<string, boolean>;
   /** 翻譯記憶：相似度下限（%） */
@@ -769,7 +769,8 @@ export const useStore = create<Store>((set, get) => {
     const pos = sheet.entries.map((e, i) => (set0.has(e.uid) ? i : -1)).filter((i) => i >= 0);
     const after = Math.max(...pos) + 1, before = Math.min(...pos) - 1;
     const to = after < sheet.entries.length ? after : before;
-    if (to >= 0) { get().select(get().file, sheetIdx, to); set({ moveSeq: get().moveSeq + 1, moveDir: 1 }); }
+    // 跟 Enter 一樣捲動：這條放在下面、底下留三條看得到（moveDir 2）
+    if (to >= 0) { get().select(get().file, sheetIdx, to); set({ moveSeq: get().moveSeq + 1, moveDir: 2 }); }
   };
 
   /** 改目前頁簽的收起組或條目串切割（不算一步復原；雲端外掛會寫進資料表） */
@@ -778,6 +779,15 @@ export const useStore = create<Store>((set, get) => {
     if (!s.project) return;
     const { sheetIdx, sheet } = currentOf(s);
     const patch = fn(sheet, sheet.entries);
+    // 算一步復原：記下改之前的收起組、條目串切割（Ctrl+Z 退回、Ctrl+Y 重做）
+    const f0 = s.project.files[s.file];
+    if (f0) {
+      const st = stacksOf(docId(f0));
+      st.undo.push({ file: s.file, id: docId(f0), doc: f0, sheet: sheetIdx, keys: [], layout: { sheet: sheetIdx, groups: sheet.groups, chainCuts: sheet.chainCuts } });
+      if (st.undo.length > 100) st.undo.shift();
+      st.redo.length = 0;
+      lastEdit = null;
+    }
     const files = s.project.files.map((f, fi) => fi !== s.file ? f : { ...f, sheets: f.sheets.map((sh, si) => (si !== sheetIdx ? sh : { ...sh, ...patch })) });
     set({ project: { ...s.project, files } });
   };
@@ -798,7 +808,9 @@ export const useStore = create<Store>((set, get) => {
   // 雲端檔案不記整個檔案：只記自己改了哪幾條、每條改前改後（changes），復原時只動那幾條，
   // 別人同時改的其他條目不受影響；那條被別人改過也照樣退回自己改之前（跟 Google 試算表一樣）
   type Change = { uid: string; before: Entry; after: Entry };
-  type Snap = { file: number; id: string; doc: FileDoc; sheet: number; keys: string[]; uid?: string; changes?: Change[] };
+  type Snap = { file: number; id: string; doc: FileDoc; sheet: number; keys: string[]; uid?: string; changes?: Change[];
+    /** 收起組、條目串切割的一步：只換回這個頁簽的收起組和切割 */
+    layout?: { sheet: number; groups?: EntryGroup[]; chainCuts?: string[] } };
   const docId = (f: FileDoc) => f.fid ?? f.project + '/' + f.name;
   const stacks = new Map<string, { undo: Snap[]; redo: Snap[] }>();
   const stacksOf = (id: string) => { let st = stacks.get(id); if (!st) { st = { undo: [], redo: [] }; stacks.set(id, st); } return st; };
@@ -880,6 +892,16 @@ export const useStore = create<Store>((set, get) => {
     // 用檔案 ID 找回那個檔案；找不到（已經不在了）就丟掉這一步
     const fi = p.files.findIndex((f) => docId(f) === popped.id);
     if (fi < 0) return;
+    if (popped.layout) {
+      const f = p.files[fi];
+      const L = popped.layout;
+      const sh = f.sheets[L.sheet];
+      if (!sh) return;
+      to.push({ ...popped, file: fi, layout: { sheet: L.sheet, groups: sh.groups, chainCuts: sh.chainCuts } });
+      replaceFile(fi, { ...f, sheets: f.sheets.map((x, i) => (i !== L.sheet ? x : { ...x, groups: L.groups, chainCuts: L.chainCuts })) });
+      set({ file: fi, sheetBy: { ...get().sheetBy, [fi]: L.sheet }, cellSel: null });
+      return;
+    }
     if (popped.changes) {
       // 雲端：只把記下的那幾條換回去（找不到的條目，例如整列被刪了，就略過）
       const f = p.files[fi];
@@ -2000,7 +2022,21 @@ function pendingRows(s: State): number[] {
 /** 從 from 往上／下找下一個待處理條目；沒有的話就到最上／最下面那條 */
 function pendingTarget(s: State, from: number, delta: number): number | undefined {
   const pending = pendingRows(s);
-  const t = delta > 0 ? pending.find((i) => i > from) : [...pending].reverse().find((i) => i < from);
+  let t = delta > 0 ? pending.find((i) => i > from) : [...pending].reverse().find((i) => i < from);
+  // 收起組、條目串：頭尾也算節點。在組（串）裡面時是它的第一條、最後一條；在外面時是前一組最後一條的下一條、下一組第一條的上一條
+  const { fileDoc, sheet } = currentOf(s);
+  if (setsOn(s, fileDoc)) {
+    const L = sheetLayout(fileDoc, sheet, true);
+    const pos = new Map(sheet.entries.map((e, i) => [e.uid, i]));
+    const spans: [number, number][] = [
+      ...L.groups.map((g): [number, number] => [pos.get(g.uids[0]) ?? -1, pos.get(g.uids[g.uids.length - 1]) ?? -1]),
+      ...L.chains.map((c): [number, number] => [c.idx[0], c.idx[c.idx.length - 1]]),
+    ].filter(([a, b]) => a >= 0 && b >= 0);
+    const vis = new Set(visibleRows(s));
+    const nodes = spans.flatMap(([a, b]) => (from >= a && from <= b ? [a, b] : [a - 1, b + 1])).filter((n) => n !== from && vis.has(n));
+    const b = delta > 0 ? Math.min(...nodes.filter((n) => n > from)) : Math.max(...nodes.filter((n) => n < from));
+    if (Number.isFinite(b) && (t === undefined || (delta > 0 ? b < t : b > t))) t = b;
+  }
   if (t !== undefined) return t;
   const visible = visibleRows(s);
   return delta > 0 ? visible[visible.length - 1] : visible[0];
