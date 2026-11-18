@@ -53,14 +53,15 @@ describe('翻譯記憶比對', () => {
     expect(new TmIndex([r2]).applyPattern(r2, '獲得5個金幣')).toEqual({ text: 'Got some coins', misses: ['5'] });
   });
 
-  it('片段：開頭到標點一樣，出現兩次以上才列', () => {
+  it('片段：開頭到標點一樣，記憶裡超過 15 條才列', () => {
     expect(headOf('你確定嗎？要離開了')).toEqual([0, 4]);
     expect(tailOf('好吧，我們走吧。')).toEqual([3, 7]);
-    const one = new TmIndex([row('你確定嗎？要離開了', 'a'), row('天空很藍', 'b')]);
-    expect(one.query({ src: '你確定嗎？今天不行', min: 90, projects: all })).toEqual([]);
-    const two = new TmIndex([row('你確定嗎？要離開了', 'a'), row('你確定嗎？不再想想', 'b')]);
+    const many = (n: number) => Array.from({ length: n }, (_, k) => row('你確定嗎？第' + k + '個', 't' + k));
+    const few = new TmIndex([...many(15), row('天空很藍', 'b')]);
+    expect(few.query({ src: '你確定嗎？今天不行', min: 90, projects: all })).toEqual([]);
+    const two = new TmIndex(many(16));
     const m = two.query({ src: '你確定嗎？今天不行', min: 90, projects: all });
-    expect(m.map((x) => x.kind)).toEqual(['frag', 'frag']);
+    expect(m.map((x) => x.kind)).toEqual(['frag', 'frag', 'frag']);
     expect(m[0].under).toEqual([[0, 4]]);
   });
 

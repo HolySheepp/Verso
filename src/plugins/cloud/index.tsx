@@ -198,6 +198,8 @@ function SetupDialog({ sid0, gid0 }: { sid0?: string; gid0?: number }) {
   // 技能檔案（開發者選項打開收起組與條目串時才出現）
   const setsFeature = useStore((s) => s.entrySetsOn && s.devMode);
   const [skill, setSkillOn] = useState(!!old?.skill);
+  // 欄位按鈕的順序：這次設定的每個頁簽共用，下次打開回到預設
+  const [order, setOrder] = useState<ColKey[]>(() => COLS.map((c) => c.key));
   // 頁簽列：滾輪左右捲動，放不下時兩邊淡出
   const tabsScroll = useScrollTabs();
 
@@ -352,7 +354,7 @@ function SetupDialog({ sid0, gid0 }: { sid0?: string; gid0?: number }) {
             </button>
           </div>
         )}
-        {sheet && <Preview key={sheet.id} sheet={sheet} removed={sheetGone} onToggleRow={toggleRow} onFields={(fields) => setDrafts((all) => all!.map((d, j) => (j === cur ? { ...d, fields } : d)))}
+        {sheet && <Preview key={sheet.id} sheet={sheet} removed={sheetGone} order={order} onOrder={setOrder} onToggleRow={toggleRow} onFields={(fields) => setDrafts((all) => all!.map((d, j) => (j === cur ? { ...d, fields } : d)))}
           extras={sheet.extras} onExtras={(extras) => setDrafts((all) => all!.map((d, j) => (j === cur ? { ...d, extras } : d)))} />}
       </div>
     </Shell>

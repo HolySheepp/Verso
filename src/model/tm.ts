@@ -165,7 +165,7 @@ export function tailOf(text: string): [number, number] | null {
 }
 
 /** 片段至少要在記憶裡出現幾次才列出來 */
-export const FRAG_MIN = 2;
+export const FRAG_MIN = 16;
 /** 一種片段最多列幾條 */
 const FRAG_SHOW = 3;
 

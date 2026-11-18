@@ -255,8 +255,10 @@ export function ImportDialog() {
 /** 另外抓的欄：名稱、第幾欄 */
 export interface ExtraCol { name: string; col: number }
 
-export function Preview({ sheet, onFields, extras, onExtras, removed, onToggleRow }: {
+export function Preview({ sheet, onFields, extras, onExtras, removed, onToggleRow, order: order0, onOrder }: {
   sheet: DraftSheet; onFields(f: FieldMap): void; extras?: ExtraCol[]; onExtras?(e: ExtraCol[]): void;
+  /** 欄位按鈕的順序（新增 Google 表時可以拖動調整；只影響按鈕的順序和一次選好幾欄時依序填的順序） */
+  order?: ColKey[]; onOrder?(o: ColKey[]): void;
   /** 雲端重新設定：之前移除的列（true＝維持移除、顯示灰色；false＝這次要恢復），點列號切換 */
   removed?: Map<number, boolean>; onToggleRow?(r: number): void;
 }) {
@@ -294,9 +296,16 @@ export function Preview({ sheet, onFields, extras, onExtras, removed, onToggleRo
     return m;
   }, [fields]);
 
-  // 選整欄：已經設定了欄位的話，照第一個設定的欄位（照 ID、發話者、原文…的順序）的範圍延伸，不是整欄到底
-  const firstSet = COLS.map((c) => fields[c.key]).find((f) => f && f.rows.length);
-  const colSpan = firstSet ? { r0: Math.min(...firstSet.rows), r1: Math.max(...firstSet.rows) } : { r0: 0, r1: last };
+  const order = order0 ?? COLS.map((c) => c.key);
+  const chips = order.map((k) => COLS.find((c) => c.key === k)!).filter(Boolean);
+  // 拖動欄位按鈕調整順序
+  const [dragKey, setDragKey] = useState<ColKey | null>(null);
+  // 第一個設定的欄位：之後設定其他欄位時，列的範圍自動跟它一樣（跟加欄位一樣，只看選了哪一欄）
+  const firstRef = useRef<ColKey | null>(null);
+  const firstKey = firstRef.current && fields[firstRef.current] ? firstRef.current : order.find((k) => fields[k]?.rows.length) ?? null;
+  // 選整欄：已經設定了欄位的話，照第一個設定的欄位的範圍延伸，不是整欄到底
+  const firstSet = firstKey ? fields[firstKey] : null;
+  const colSpan = onOrder && firstSet ? { r0: Math.min(...firstSet.rows), r1: Math.max(...firstSet.rows) } : { r0: 0, r1: last };
   const rectFor = (kind: 'cell' | 'col' | 'row', a: { c: number; r: number }, b: { c: number; r: number }) =>
     kind === 'col' ? { ...rectOf(a, b), ...colSpan }
       : kind === 'row' ? { ...rectOf(a, b), c0: 0, c1: width - 1 }
@@ -348,20 +357,23 @@ export function Preview({ sheet, onFields, extras, onExtras, removed, onToggleRo
     const cols = [...new Set(rects.flatMap((x) => Array.from({ length: x.c1 - x.c0 + 1 }, (_, j) => x.c0 + j)))].sort((a, b) => a - b);
     let next: FieldMap;
     if (cols.length > 1) {
-      // 選了好幾欄：從按的欄位開始依序填（id → 發話者 → 原文 → 譯文 → 備註），多出來的欄不填
-      const start = COLS.findIndex((c) => c.key === k);
+      // 選了好幾欄：從按的欄位開始照按鈕的順序依序填，多出來的欄不填
+      const start = order.indexOf(k);
       next = fields;
       for (const [j, col] of cols.entries()) {
-        const key = COLS[start + j]?.key;
+        const key = order[start + j];
         if (!key) break;
         const f = rectsToField(rects.filter((x) => x.c0 <= col && col <= x.c1).map((x) => ({ ...x, c0: col, c1: col })), rows.length);
-        if (typeof f !== 'string') next = put(next, key, f);
+        if (typeof f === 'string') continue;
+        // 已經有第一個設定的欄位：列的範圍跟它一樣
+        next = put(next, key, onOrder && firstSet && key !== firstKey ? { col, rows: firstSet.rows } : f);
       }
     } else {
       const f = rectsToField(rects, rows.length);
       if (typeof f === 'string') { setMsg(f); return; }
-      next = put(fields, k, f);
+      next = put(fields, k, onOrder && firstSet && k !== firstKey ? { col: f.col, rows: firstSet.rows } : f);
     }
+    if (!firstKey) firstRef.current = k;
     onFields(next);
     setRects([]);
     setMsg('');
@@ -378,10 +390,23 @@ export function Preview({ sheet, onFields, extras, onExtras, removed, onToggleRo
   return (
     <div data-nodrag style={{ flexGrow: 1, minHeight: 0, display: 'flex', flexDirection: 'column', gap: 10 }}>
       <div style={{ display: 'flex', alignItems: 'center', gap: 8, flexWrap: 'wrap' }}>
-        {COLS.map((c) => {
+        {chips.map((c) => {
           const f = fields[c.key];
           return (
-            <div key={c.key} className={'imp-chip imp-f-' + c.key} data-set={f ? '' : undefined}>
+            <div key={c.key} className={'imp-chip imp-f-' + c.key} data-set={f ? '' : undefined}
+              draggable={!!onOrder} style={dragKey === c.key ? { opacity: 0.5 } : undefined}
+              onDragStart={(ev) => { setDragKey(c.key); ev.dataTransfer.effectAllowed = 'move'; }}
+              onDragEnd={() => setDragKey(null)}
+              onDragOver={(ev) => {
+                if (!dragKey || dragKey === c.key || !onOrder) return;
+                ev.preventDefault();
+                const next = order.filter((x) => x !== dragKey);
+                const at = next.indexOf(c.key);
+                const r = ev.currentTarget.getBoundingClientRect();
+                next.splice(ev.clientX > r.left + r.width / 2 ? at + 1 : at, 0, dragKey);
+                if (next.join() !== order.join()) onOrder(next);
+              }}
+              onDrop={(ev) => ev.preventDefault()}>
               <button type="button" className="imp-chip-btn" title={tx('import.021', { label: c.label })} onClick={() => assign(c.key)}>
                 <span style={{ fontWeight: 600 }}>{c.label}</span>
                 <span style={{ color: f ? 'var(--text2)' : 'var(--mute)' }}>{f ? tx('import.fieldRange', { range: fieldLabel(f), n: f.rows.length }) : tx('import.022')}</span>
