@@ -55,6 +55,20 @@ const cell = (v: unknown) => (v === undefined || v === null ? '' : String(v));
 export interface CellLook { bg?: string; fg?: string; b?: boolean; i?: boolean; s?: boolean }
 type GCol = { red?: number; green?: number; blue?: number; alpha?: number };
 const css = (c?: GCol) => (c ? `rgb(${Math.round((c.red ?? 0) * 255)}, ${Math.round((c.green ?? 0) * 255)}, ${Math.round((c.blue ?? 0) * 255)})` : undefined);
+/** 一次讀好幾個分頁前面幾列的格式（一個請求；太多列只讀前 maxRows 列，免得太大） */
+export async function readLooksMany(sid: string, titles: string[], maxRows = 1500): Promise<(CellLook | undefined)[][][]> {
+  if (!titles.length) return [];
+  const ranges = titles.map((t) => 'ranges=' + encodeURIComponent(`${q(t)}!A1:AZ${maxRows}`)).join('&');
+  const r = await call<{ sheets?: { data?: { rowData?: { values?: { effectiveFormat?: { backgroundColor?: GCol; textFormat?: { foregroundColor?: GCol; bold?: boolean; italic?: boolean; strikethrough?: boolean } } }[] }[] }[] }[] }>(
+    'GET', `${sid}?${ranges}&fields=sheets.data.rowData.values.effectiveFormat(backgroundColor,textFormat(foregroundColor,bold,italic,strikethrough))`);
+  return (r.sheets ?? []).map((sh) => (sh.data?.[0]?.rowData ?? []).map((row) => (row.values ?? []).map((v) => {
+    const f = v.effectiveFormat;
+    if (!f) return undefined;
+    const t = f.textFormat;
+    return { bg: css(f.backgroundColor), fg: css(t?.foregroundColor), ...(t?.bold ? { b: true } : {}), ...(t?.italic ? { i: true } : {}), ...(t?.strikethrough ? { s: true } : {}) };
+  })));
+}
+
 /** 讀一個分頁前面幾列的格式（太多列只讀前 maxRows 列，免得太大） */
 export async function readLooks(sid: string, title: string, cols: number, maxRows = 1500): Promise<(CellLook | undefined)[][]> {
   const range = encodeURIComponent(`${q(title)}!A1:${colName(Math.max(0, cols - 1))}${maxRows}`);

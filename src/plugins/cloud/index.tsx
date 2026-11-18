@@ -22,7 +22,7 @@ import { ProjectsDialog } from './ProjectsDialog';
 import { SrcUpdateCloud, openSrcUpdate } from './SrcUpdateCloud';
 import { beforeExit, rowHook, tabHook } from '../hooks';
 import type { VersoPlugin } from '../registry';
-import { builtinClient, errText, insertCol, login, loginStatus, logout, meta, readLooks, readTabs, sidOf } from './api';
+import { builtinClient, errText, insertCol, login, loginStatus, logout, meta, readLooks, readLooksMany, readTabs, sidOf } from './api';
 import { allSheets, loadConfig, setConfig, toFields, toFieldMap, useCloud, type CloudSheet, type CloudTab } from './config';
 import { saveCachesNow, previewKeys, removedNow, setRemoved, rememberPos, isVersoTab, convertVersoTab, removeRows, tabRemove, rowOp, tabRename, tabDelete, tabInsert, currentSid, enterCloud, flushAll, pickShown, putSheet, refreshAll, removeSheet, resolveConflict, setSkill, watchStore } from './sync';
 
@@ -199,7 +199,7 @@ function SetupDialog({ sid0, gid0 }: { sid0?: string; gid0?: number }) {
   const setsFeature = useStore((s) => s.entrySetsOn && s.devMode);
   const [skill, setSkillOn] = useState(!!old?.skill);
   // 欄位按鈕的順序：這次設定的每個頁簽共用，下次打開回到預設
-  const [order, setOrder] = useState<ColKey[]>(() => COLS.map((c) => c.key));
+  const [order, setOrder] = useState<string[]>(() => COLS.map((c) => c.key as string));
   // 頁簽列：滾輪左右捲動，放不下時兩邊淡出
   const tabsScroll = useScrollTabs();
 
@@ -209,7 +209,8 @@ function SetupDialog({ sid0, gid0 }: { sid0?: string; gid0?: number }) {
     setBusy(true); setErr('');
     try {
       const m = await meta(sid);
-      const values = await readTabs(sid, m.tabs.map((t) => t.title));
+      // 內容和格式一起讀（格式一個請求讀全部頁簽，預覽一打開就是 Google 表原本的樣子）
+      const [values, looks] = await Promise.all([readTabs(sid, m.tabs.map((t) => t.title)), readLooksMany(sid, m.tabs.map((t) => t.title)).catch(() => [] as Awaited<ReturnType<typeof readLooksMany>>)]);
       // 之前移除的頁簽、條目（預覽裡顯示灰色，可以逐條恢復）
       // 新增的表如果已經設定過（網址對得上），也帶出它之前的欄位、移除紀錄
       const known = oldOf(sid0 ?? sid);
@@ -218,7 +219,8 @@ function SetupDialog({ sid0, gid0 }: { sid0?: string; gid0?: number }) {
       setDrafts(m.tabs.map((t, i) => {
         const rows = values[i];
         const prev = known?.tabs.find((x) => x.gid === t.gid);
-        return { id: 'g' + t.gid, gid: t.gid, name: t.title, rows, width: Math.max(1, ...rows.map((r) => r.length)), fields: prev ? toFieldMap(prev.fields, rows.length - 1) : versoFields(rows) ?? emptyFields(), extras: prev?.extras ?? [],
+        // 右邊多一欄空白欄（例如可以設成備註欄）
+        return { id: 'g' + t.gid, gid: t.gid, name: t.title, rows, width: Math.max(1, ...rows.map((r) => r.length)) + 1, ...(looks[i] ? { looks: looks[i] } : {}), fields: prev ? toFieldMap(prev.fields, rows.length - 1) : versoFields(rows) ?? emptyFields(), extras: prev?.extras ?? [],
           restore: [], ...(gone?.tabs?.includes(t.gid) ? { removedTab: true } : {}) };
       }));
       // 從還沒設定的分頁點進來：直接停在那個分頁
@@ -306,7 +308,8 @@ function SetupDialog({ sid0, gid0 }: { sid0?: string; gid0?: number }) {
         }
         // 譯文欄插在原文右邊時，另外抓的欄也跟著往右移
         const shift = !d.fields.tgt && fields.tgt ? fields.tgt.col : Infinity;
-        const extras = d.extras.map((x) => ({ ...x, col: x.col >= shift ? x.col + 1 : x.col }));
+        // 還沒選欄的另外抓的欄不存
+        const extras = d.extras.filter((x) => x.col >= 0).map((x) => ({ ...x, col: x.col >= shift ? x.col + 1 : x.col }));
         tabs.push({ gid: d.gid, title: d.name, fields: toFields(fields, d.rows.length - 1), ...(extras.length ? { extras } : {}) });
       }
       // 移除紀錄：沒恢復的留著，恢復的拿掉；長度標準、R15 檔列出全部分頁都照舊

@@ -40,8 +40,10 @@ input,textarea{font-family:inherit}
 .chain-row:hover{box-shadow:inset 0 0 0 999px var(--ov1),0 3px 0 -1px var(--panel),0 4px 0 -1px var(--line3)}
 /* 左邊的導軌：浮在條目上（不佔位置），點了收起那一組或那一串；最後一條往內折 */
 .set-rail{position:absolute;top:-1px;bottom:-1px;width:8px;cursor:pointer;z-index:2}
-.set-rail::before{content:'';position:absolute;left:2px;top:0;bottom:0;width:2px;border-radius:1px;background:var(--line4);transition:background-color 120ms,border-color 120ms}
-.set-rail-end::before{bottom:6px;width:7px;background:transparent;border-left:2px solid var(--line4);border-bottom:2px solid var(--line4);border-radius:0 0 0 7px}
+/* 導軌顏色跟文字反差大（深色模式是淺色、淺色模式是深色） */
+.set-rail::before{content:'';position:absolute;left:2px;top:0;bottom:0;width:2px;border-radius:1px;background:color-mix(in srgb,var(--text) 55%,transparent);transition:background-color 120ms,border-color 120ms}
+.set-rail-end::before{bottom:6px;width:7px;background:transparent;border-left:2px solid color-mix(in srgb,var(--text) 55%,transparent);border-bottom:2px solid color-mix(in srgb,var(--text) 55%,transparent);border-radius:0 0 0 7px}
+.imp-f-x{--imp:rgba(150,150,150,0.26)}
 /* 滑鼠移到導軌上：同一組（串）的整條導軌一起變色 */
 .set-rail-on::before{background-color:var(--accent)}
 .set-rail-end.set-rail-on::before{background-color:transparent;border-color:var(--accent)}

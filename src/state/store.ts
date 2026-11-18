@@ -2028,12 +2028,15 @@ function pendingTarget(s: State, from: number, delta: number): number | undefine
   if (setsOn(s, fileDoc)) {
     const L = sheetLayout(fileDoc, sheet, true);
     const pos = new Map(sheet.entries.map((e, i) => [e.uid, i]));
-    const spans: [number, number][] = [
-      ...L.groups.map((g): [number, number] => [pos.get(g.uids[0]) ?? -1, pos.get(g.uids[g.uids.length - 1]) ?? -1]),
-      ...L.chains.map((c): [number, number] => [c.idx[0], c.idx[c.idx.length - 1]]),
+    // 展開的組（串）：頭尾兩條是節點（從外面也會停在它的第一條、最後一條）；收起的：它前面一條、後面一條是節點
+    const { sheetIdx } = currentOf(s);
+    const open = (id: string) => !!s.setOpen[setKey(fileDoc, sheetIdx, sheet, id)];
+    const spans: [number, number, boolean][] = [
+      ...L.groups.map((g): [number, number, boolean] => [pos.get(g.uids[0]) ?? -1, pos.get(g.uids[g.uids.length - 1]) ?? -1, open('g:' + g.id)]),
+      ...L.chains.map((c): [number, number, boolean] => [c.idx[0], c.idx[c.idx.length - 1], open('c:' + c.id)]),
     ].filter(([a, b]) => a >= 0 && b >= 0);
     const vis = new Set(visibleRows(s));
-    const nodes = spans.flatMap(([a, b]) => (from >= a && from <= b ? [a, b] : [a - 1, b + 1])).filter((n) => n !== from && vis.has(n));
+    const nodes = spans.flatMap(([a, b, o]) => (o || (from >= a && from <= b) ? [a, b] : [a - 1, b + 1])).filter((n) => n !== from && vis.has(n));
     const b = delta > 0 ? Math.min(...nodes.filter((n) => n > from)) : Math.max(...nodes.filter((n) => n < from));
     if (Number.isFinite(b) && (t === undefined || (delta > 0 ? b < t : b > t))) t = b;
   }

@@ -259,16 +259,18 @@ export interface ExtraCol { name: string; col: number }
 
 export function Preview({ sheet, onFields, extras, onExtras, removed, onToggleRow, order: order0, onOrder }: {
   sheet: DraftSheet; onFields(f: FieldMap): void; extras?: ExtraCol[]; onExtras?(e: ExtraCol[]): void;
-  /** 欄位按鈕的順序（新增 Google 表時可以拖動調整；只影響按鈕的順序和一次選好幾欄時依序填的順序） */
-  order?: ColKey[]; onOrder?(o: ColKey[]): void;
+  /** 欄位按鈕的順序（新增 Google 表時可以拖動調整；只影響按鈕的順序和一次選好幾欄時依序填的順序）；另外抓的欄是 x:名稱 */
+  order?: string[]; onOrder?(o: string[]): void;
   /** 雲端重新設定：之前移除的列（true＝維持移除、顯示灰色；false＝這次要恢復），點列號切換 */
   removed?: Map<number, boolean>; onToggleRow?(r: number): void;
 }) {
   const { rows, width, fields } = sheet;
-  // 加號：先選好一欄（或那欄的格子），再輸入名稱
-  const [naming, setNaming] = useState<{ col: number; name: string } | null>(null);
+  // 加號：先輸入名稱，變成一個欄位按鈕，之後選好範圍點那個按鈕就設定那一欄
+  const [naming, setNaming] = useState<{ name: string } | null>(null);
   const [rects, setRects] = useState<Rect[]>([]);
   const [anchor, setAnchor] = useState<{ c: number; r: number } | null>(null);
+  // 方向鍵移到的格子（Shift＋方向鍵從 anchor 延伸到這裡）
+  const [focusCell, setFocusCell] = useState<{ c: number; r: number } | null>(null);
   const [top, setTop] = useState(0);
   const [viewH, setViewH] = useState(480);
   const [msg, setMsg] = useState('');
@@ -298,8 +300,16 @@ export function Preview({ sheet, onFields, extras, onExtras, removed, onToggleRo
     return m;
   }, [fields]);
 
-  const order = order0 ?? COLS.map((c) => c.key);
-  const chips = order.map((k) => COLS.find((c) => c.key === k)!).filter(Boolean);
+  // 按鈕的順序：內建欄位一定在，另外抓的欄（這個頁簽有的）跟著排；順序裡沒有的放最後
+  const order = useMemo(() => {
+    const base = (order0 ?? COLS.map((c) => c.key)).filter((k) => COLS.some((c) => c.key === k) || (extras ?? []).some((x) => 'x:' + x.name === k));
+    COLS.forEach((c) => { if (!base.includes(c.key)) base.push(c.key); });
+    (extras ?? []).forEach((x) => { if (!base.includes('x:' + x.name)) base.push('x:' + x.name); });
+    return base;
+  }, [order0, extras]);
+  const chips = order.map((k) => (k.startsWith('x:')
+    ? { key: k, label: k.slice(2), extra: (extras ?? []).find((x) => x.name === k.slice(2))! }
+    : { key: k, label: COLS.find((c) => c.key === k)!.label, extra: null }));
   // 拖動欄位按鈕調整順序：跟拖頁簽一樣，按鈕跟著游標水平滑動，越過旁邊按鈕的中心就交換
   const chipPress = useRef<{ i: number; x: number; moved: boolean } | null>(null);
   const chipDragged = useRef(false);
@@ -356,7 +366,7 @@ export function Preview({ sheet, onFields, extras, onExtras, removed, onToggleRo
   };
   // 第一個設定的欄位：之後設定其他欄位時，列的範圍自動跟它一樣（跟加欄位一樣，只看選了哪一欄）
   const firstRef = useRef<ColKey | null>(null);
-  const firstKey = firstRef.current && fields[firstRef.current] ? firstRef.current : order.find((k) => fields[k]?.rows.length) ?? null;
+  const firstKey = firstRef.current && fields[firstRef.current] ? firstRef.current : (order.find((k) => !k.startsWith('x:') && fields[k as ColKey]?.rows.length) as ColKey | undefined) ?? null;
   // 選整欄：已經設定了欄位的話，照第一個設定的欄位的範圍延伸，不是整欄到底
   const firstSet = firstKey ? fields[firstKey] : null;
   const colSpan = onOrder && firstSet ? { r0: Math.min(...firstSet.rows), r1: Math.max(...firstSet.rows) } : { r0: 0, r1: last };
@@ -373,11 +383,13 @@ export function Preview({ sheet, onFields, extras, onExtras, removed, onToggleRo
     if (ev.shiftKey && anchor) {
       setRects((rs) => [...rs.slice(0, -1), rectFor(kind, anchor, at)]);
       drag.current = { from: anchor, kind };
+      setFocusCell(at);
       return;
     }
     const add = ev.ctrlKey || ev.metaKey;
     setRects((rs) => [...(add ? rs : []), rectFor(kind, at, at)]);
     setAnchor(at);
+    setFocusCell(at);
     drag.current = { from: at, kind };
   };
   const enter = (at: { c: number; r: number }) => {
@@ -406,29 +418,29 @@ export function Preview({ sheet, onFields, extras, onExtras, removed, onToggleRo
     });
     return next;
   };
-  const assign = (k: ColKey) => {
+  /** 點欄位按鈕：把選的範圍設成那個欄位（另外抓的欄只記選了哪一欄） */
+  const assign = (k: string) => {
     setMenu(null);
     const cols = [...new Set(rects.flatMap((x) => Array.from({ length: x.c1 - x.c0 + 1 }, (_, j) => x.c0 + j)))].sort((a, b) => a - b);
-    let next: FieldMap;
-    if (cols.length > 1) {
-      // 選了好幾欄：從按的欄位開始照按鈕的順序依序填，多出來的欄不填
-      const start = order.indexOf(k);
-      next = fields;
-      for (const [j, col] of cols.entries()) {
-        const key = order[start + j];
-        if (!key) break;
-        const f = rectsToField(rects.filter((x) => x.c0 <= col && col <= x.c1).map((x) => ({ ...x, c0: col, c1: col })), rows.length);
-        if (typeof f === 'string') continue;
-        // 已經有第一個設定的欄位：列的範圍跟它一樣
-        next = put(next, key, onOrder && firstSet && key !== firstKey ? { col, rows: firstSet.rows } : f);
-      }
-    } else {
-      const f = rectsToField(rects, rows.length);
-      if (typeof f === 'string') { setMsg(f); return; }
-      next = put(fields, k, onOrder && firstSet && k !== firstKey ? { col: f.col, rows: firstSet.rows } : f);
+    if (!cols.length) { setMsg(tx('import.extraPick')); return; }
+    let next: FieldMap = fields;
+    let ex = extras ?? [];
+    // 選了好幾欄：從按的欄位開始照按鈕的順序依序填，多出來的欄不填
+    const start = order.indexOf(k);
+    const pairs: [string, number][] = cols.length > 1 ? cols.flatMap((col, j) => (order[start + j] ? [[order[start + j], col] as [string, number]] : [])) : [[k, cols[0]]];
+    for (const [key, col] of pairs) {
+      if (key.startsWith('x:')) { ex = ex.map((x) => (x.name === key.slice(2) ? { ...x, col } : x)); continue; }
+      const fk = key as ColKey;
+      const f = cols.length > 1
+        ? rectsToField(rects.filter((x) => x.c0 <= col && col <= x.c1).map((x) => ({ ...x, c0: col, c1: col })), rows.length)
+        : rectsToField(rects, rows.length);
+      if (typeof f === 'string') { if (cols.length === 1) { setMsg(f); return; } continue; }
+      // 已經有第一個設定的欄位：列的範圍跟它一樣
+      next = put(next, fk, onOrder && firstSet && fk !== firstKey ? { col, rows: firstSet.rows } : f);
+      if (!firstKey && !firstRef.current) firstRef.current = fk;
     }
-    if (!firstKey) firstRef.current = k;
-    onFields(next);
+    if (next !== fields) onFields(next);
+    if (ex !== (extras ?? []) && onExtras) onExtras(ex);
     setRects([]);
     setMsg('');
   };
@@ -439,16 +451,66 @@ export function Preview({ sheet, onFields, extras, onExtras, removed, onToggleRo
   const visible = rows.slice(first, first + count);
   const inSel = (c: number, r: number) => rects.some((x) => inRect(x, c, r));
   const colFields = (c: number) => (Object.keys(fields) as ColKey[]).filter((k) => fields[k]?.col === c);
+  const colExtras = (c: number) => (extras ?? []).filter((x) => x.col === c);
   const total = NUM_W + width * COL_W;
+  // 有讀到 Google 表的格式：預覽照 Google 表的樣子（沒有格式的格子是白底黑字），選取、欄位用半透明的顏色疊上去
+  const google = !!sheet.looks;
+
+  // ---- 鍵盤：方向鍵移動、Shift 延伸選取、Ctrl 跳到下一個有內容的格子（同時按就一邊跳一邊選） ----
+  const cellText = (c: number, r: number) => (rows[r]?.[c] ?? '').trim();
+  const onGridKey = (ev: React.KeyboardEvent) => {
+    const d = ev.key === 'ArrowUp' ? [0, -1] : ev.key === 'ArrowDown' ? [0, 1] : ev.key === 'ArrowLeft' ? [-1, 0] : ev.key === 'ArrowRight' ? [1, 0] : null;
+    if (!d) return;
+    ev.preventDefault();
+    const from = focusCell ?? anchor ?? { c: 0, r: 0 };
+    const ok = (c: number, r: number) => c >= 0 && c < width && r >= 0 && r <= last;
+    let { c, r } = from;
+    if (ev.ctrlKey || ev.metaKey) {
+      // 跟試算表一樣：在有內容的一段裡就跳到這段的尾端，不然跳到下一個有內容的格子（都沒有就到邊上）
+      if (cellText(c, r) && ok(c + d[0], r + d[1]) && cellText(c + d[0], r + d[1])) {
+        while (ok(c + d[0], r + d[1]) && cellText(c + d[0], r + d[1])) { c += d[0]; r += d[1]; }
+      } else {
+        while (ok(c + d[0], r + d[1])) { c += d[0]; r += d[1]; if (cellText(c, r)) break; }
+      }
+    } else if (ok(c + d[0], r + d[1])) { c += d[0]; r += d[1]; }
+    const to = { c, r };
+    if (ev.shiftKey) {
+      const a = anchor ?? from;
+      setRects((rs) => [...rs.slice(0, -1), rectOf(a, to)]);
+      if (!anchor) setAnchor(a);
+    } else {
+      setAnchor(to);
+      setRects([rectOf(to, to)]);
+    }
+    setFocusCell(to);
+    // 讓那一格看得到
+    const el = box.current;
+    if (el) {
+      const y = (to.r + 1) * ROW_H, x = NUM_W + to.c * COL_W;
+      if (y < el.scrollTop + ROW_H) el.scrollTop = y - ROW_H;
+      else if (y + ROW_H > el.scrollTop + el.clientHeight) el.scrollTop = y + ROW_H - el.clientHeight;
+      if (x < el.scrollLeft + NUM_W) el.scrollLeft = x - NUM_W;
+      else if (x + COL_W > el.scrollLeft + el.clientWidth) el.scrollLeft = x + COL_W - el.clientWidth;
+    }
+  };
+  // 按住 Ctrl 用滾輪：照樣上下捲動（不縮放畫面）
+  useEffect(() => {
+    const el = box.current;
+    if (!el) return;
+    const onWheel = (ev: WheelEvent) => { if (!ev.ctrlKey) return; ev.preventDefault(); el.scrollTop += ev.deltaY; };
+    el.addEventListener('wheel', onWheel, { passive: false });
+    return () => el.removeEventListener('wheel', onWheel);
+  }, []);
 
   return (
     <div data-nodrag style={{ flexGrow: 1, minHeight: 0, display: 'flex', flexDirection: 'column', gap: 10 }}>
       <div style={{ display: 'flex', alignItems: 'center', gap: 8, flexWrap: 'wrap' }}>
         {chips.map((c, ci) => {
-          const f = fields[c.key];
+          const f = c.extra ? null : fields[c.key as ColKey];
+          const set = c.extra ? c.extra.col >= 0 : !!f;
           const dragging = chipDrag?.from === ci;
           return (
-            <div key={c.key} data-chip="" className={'imp-chip imp-f-' + c.key} data-set={f ? '' : undefined}
+            <div key={c.key} data-chip="" className={'imp-chip imp-f-' + (c.extra ? 'x' : c.key)} data-set={set ? '' : undefined}
               onPointerDown={(ev) => chipDown(ev, ci)} onPointerMove={chipMove} onPointerUp={chipUp} onPointerCancel={() => { chipPress.current = null; setChipDrag(null); }}
               onClickCapture={(ev) => { if (chipDragged.current) { ev.stopPropagation(); ev.preventDefault(); chipDragged.current = false; } }}
               style={onOrder ? {
@@ -458,10 +520,13 @@ export function Preview({ sheet, onFields, extras, onExtras, removed, onToggleRo
               } : undefined}>
               <button type="button" className="imp-chip-btn" title={tx('import.021', { label: c.label })} onClick={() => assign(c.key)}>
                 <span style={{ fontWeight: 600 }}>{c.label}</span>
-                <span style={{ color: f ? 'var(--text2)' : 'var(--mute)' }}>{f ? tx('import.fieldRange', { range: fieldLabel(f), n: f.rows.length }) : tx('import.022')}</span>
+                <span style={{ color: set ? 'var(--text2)' : 'var(--mute)' }}>
+                  {c.extra ? (c.extra.col >= 0 ? tx('import.extraCol', { col: colName(c.extra.col) }) : tx('import.022')) : f ? tx('import.fieldRange', { range: fieldLabel(f), n: f.rows.length }) : tx('import.022')}
+                </span>
               </button>
-              {f && (
-                <button type="button" className="ib" aria-label={tx('import.023', { label: c.label })} title={tx('import.024')} onClick={() => clear(c.key)}
+              {(c.extra || f) && (
+                <button type="button" className="ib" aria-label={tx('import.023', { label: c.label })} title={tx('import.024')}
+                  onClick={() => { if (c.extra) { onExtras?.((extras ?? []).filter((x) => x.name !== c.extra!.name)); onOrder?.(order.filter((k) => k !== c.key)); } else clear(c.key as ColKey); }}
                   style={{ width: 22, height: 22, display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 0, background: 'transparent', border: 0, borderRadius: 5, color: 'var(--mute)' }}>
                   <IconWinClose size={9} sw={1.4} />
                 </button>
@@ -469,43 +534,22 @@ export function Preview({ sheet, onFields, extras, onExtras, removed, onToggleRo
             </div>
           );
         })}
-        {extras && onExtras && <>
-          {extras.map((x, i) => (
-            <div key={x.name + i} className="imp-chip" data-set="">
-              <span className="imp-chip-btn" style={{ cursor: 'default' }}>
-                <span style={{ fontWeight: 600 }}>{x.name}</span>
-                <span style={{ color: 'var(--text2)' }}>{tx('import.extraCol', { col: colName(x.col) })}</span>
-              </span>
-              <button type="button" className="ib" aria-label={tx('import.023', { label: x.name })} title={tx('import.024')} onClick={() => onExtras(extras.filter((_, j) => j !== i))}
-                style={{ width: 22, height: 22, display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 0, background: 'transparent', border: 0, borderRadius: 5, color: 'var(--mute)' }}>
-                <IconWinClose size={9} sw={1.4} />
-              </button>
-            </div>
-          ))}
-          {naming ? (
-            <form onSubmit={(ev) => { ev.preventDefault(); const n = naming.name.trim(); if (n && !extras.some((x) => x.name === n)) { onExtras([...extras, { name: n, col: naming.col }]); setNaming(null); setRects([]); } }}
-              style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
-              <label htmlFor="verso-extra-name" style={{ fontSize: fz(12), color: 'var(--text2)' }}>{tx('import.extraName', { col: colName(naming.col) })}</label>
-              <input id="verso-extra-name" className="field" autoFocus value={naming.name} onChange={(ev) => setNaming({ ...naming, name: ev.target.value })}
-                onKeyDown={(ev) => { if (ev.key === 'Escape') { ev.stopPropagation(); setNaming(null); } }} style={{ width: 120, height: 28 }} />
-              <button type="submit" className="btn btn-ghost" disabled={!naming.name.trim() || extras.some((x) => x.name === naming.name.trim())}
-                style={{ height: 28, padding: '0 10px', background: 'var(--btn)', border: '1px solid var(--line4)', borderRadius: 6, fontSize: fz(12) }}>{tx('import.extraOk')}</button>
-            </form>
-          ) : (
-            <button type="button" className="ib" aria-label={tx('import.extraAdd')} title={tx('import.extraAdd')}
-              onClick={() => {
-                const cols = [...new Set(rects.flatMap((x) => Array.from({ length: x.c1 - x.c0 + 1 }, (_, j) => x.c0 + j)))];
-                if (cols.length !== 1) { setMsg(tx('import.extraPick')); return; }
-                setMsg('');
-                setNaming({ col: cols[0], name: '' });
-              }}
-              style={{ width: 28, height: 28, display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 0, background: 'var(--btn)', border: '1px solid var(--line4)', borderRadius: 6, color: 'var(--text2)', fontSize: 16 }}>+</button>
-          )}
-        </>}
+        {extras && onExtras && (naming ? (
+          <form onSubmit={(ev) => { ev.preventDefault(); const n = naming.name.trim(); if (n && !extras.some((x) => x.name === n)) { onExtras([...extras, { name: n, col: -1 }]); onOrder?.([...order, 'x:' + n]); setNaming(null); } }}
+            style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+            <input className="field" autoFocus aria-label={tx('import.extraAdd')} value={naming.name} onChange={(ev) => setNaming({ name: ev.target.value })}
+              onKeyDown={(ev) => { if (ev.key === 'Escape') { ev.stopPropagation(); setNaming(null); } }} onBlur={() => { if (!naming.name.trim()) setNaming(null); }} style={{ width: 120, height: 28 }} />
+            <button type="submit" className="btn btn-ghost" disabled={!naming.name.trim() || extras.some((x) => x.name === naming.name.trim())}
+              style={{ height: 28, padding: '0 10px', background: 'var(--btn)', border: '1px solid var(--line4)', borderRadius: 6, fontSize: fz(12) }}>{tx('import.extraOk')}</button>
+          </form>
+        ) : (
+          <button type="button" className="ib" aria-label={tx('import.extraAdd')} title={tx('import.extraAdd')} onClick={() => { setMsg(''); setNaming({ name: '' }); }}
+            style={{ width: 28, height: 28, display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 0, background: 'var(--btn)', border: '1px solid var(--line4)', borderRadius: 6, color: 'var(--text2)', fontSize: 16 }}>+</button>
+        ))}
         <span role="alert" style={{ fontSize: fz(12.5), color: 'var(--errtx)' }}>{msg}</span>
       </div>
 
-      <div ref={box} tabIndex={-1} className="imp-grid" onScroll={(ev) => setTop(ev.currentTarget.scrollTop)} onMouseMove={onMove}
+      <div ref={box} tabIndex={-1} className="imp-grid" onScroll={(ev) => setTop(ev.currentTarget.scrollTop)} onMouseMove={onMove} onKeyDown={onGridKey}
         onContextMenu={(ev) => { ev.preventDefault(); setMenu({ x: ev.clientX, y: ev.clientY }); }}
         style={{ flexGrow: 1, minHeight: 0, overflow: 'auto', position: 'relative', background: 'var(--bg0)', border: '1px solid var(--line)', borderRadius: 8, outline: 'none' }}>
         <div style={{ position: 'relative', width: total, height: (rows.length + 1) * ROW_H }}>
@@ -515,6 +559,7 @@ export function Preview({ sheet, onFields, extras, onExtras, removed, onToggleRo
               <div key={c} className="imp-head" onMouseDown={(ev) => press(ev, 'col', { c, r: 0 })} onMouseEnter={() => enter({ c, r: last })}>
                 <span>{colName(c)}</span>
                 {colFields(c).map((k) => <span key={k} className={'imp-tag imp-f-' + k}>{label(k)}</span>)}
+                {colExtras(c).map((x) => <span key={'x:' + x.name} className="imp-tag imp-f-x">{x.name}</span>)}
               </div>
             ))}
           </div>
@@ -533,9 +578,13 @@ export function Preview({ sheet, onFields, extras, onExtras, removed, onToggleRo
                   const k = marks.get(c + ':' + r);
                   const v = row[c] ?? '';
                   const sel = inSel(c, r);
-                  // Google 表原本的樣子（選了欄位、框選中的格子照 Verso 的標色）
-                  const lk = !k && !sel ? sheet.looks?.[r]?.[c] : undefined;
-                  const look: React.CSSProperties | undefined = lk ? { background: lk.bg, color: lk.fg, fontWeight: lk.b ? 700 : undefined, fontStyle: lk.i ? 'italic' : undefined, textDecoration: lk.s ? 'line-through' : undefined } : undefined;
+                  // Google 表原本的樣子（沒有格式的格子是白底黑字）；欄位、選取用半透明的顏色疊在上面
+                  const lk = google ? sheet.looks![r]?.[c] : undefined;
+                  const look: React.CSSProperties | undefined = google ? {
+                    background: lk?.bg ?? '#ffffff', color: lk?.fg ?? '#000000', borderColor: '#e2e3e3',
+                    fontWeight: lk?.b ? 700 : undefined, fontStyle: lk?.i ? 'italic' : undefined, textDecoration: lk?.s ? 'line-through' : undefined,
+                    boxShadow: [k ? 'inset 0 0 0 999px var(--imp)' : '', sel ? 'inset 0 0 0 999px color-mix(in srgb, var(--accent) 26%, transparent), inset 0 0 0 1px var(--accent)' : ''].filter(Boolean).join(', ') || undefined,
+                  } : undefined;
                   return (
                     <div key={c} className={'imp-cell' + (k ? ' imp-f-' + k : '')} data-sel={sel ? '' : undefined} title={v.length > 20 ? v : undefined}
                       style={removed?.get(r) ? { ...look, opacity: 0.4 } : look}
