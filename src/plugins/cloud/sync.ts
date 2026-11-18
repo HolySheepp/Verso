@@ -614,6 +614,9 @@ export function flush(sid: string, all = false): Promise<void> {
   });
 }
 
+/** 比對過、跟 Google 上一樣的條目（條目 → 當時比對的 Google 內容）；條目或 Google 內容換了就要重新比對 */
+const cleanOf = new WeakMap<Entry, Base>();
+
 async function flushInner(sid: string, all: boolean): Promise<void> {
   // 衝突視窗開著、還沒選：暫停寫回（不寫任何東西回 Google），選完才恢復
   if (useCloud.getState().conflicts.length) return;
@@ -634,10 +637,15 @@ async function flushInner(sid: string, all: boolean): Promise<void> {
       // 讀取時記下的「第幾個」為準（移除了同 ID 的別條也不會對錯列）；ID 改過寫回後才用重算的
       const keys = sh.entries.map((e, i) => { const b = base.get(e.uid); return b?.key && b.key.split('\u0000')[0] === b.id ? b.key : computed[i]; });
       const textChanged = (e: Entry, b: Base) => e.id !== b.id || e.speaker !== b.speaker || effSrc(e) !== b.src;
+      // 上次比對過、條目和 Google 上的內容都沒變的不再算一次（大檔案每次寫回都整份重算會卡住畫面）
       const changed = sh.entries.map((e, i) => ({ e, key: keys[i], b: base.get(e.uid) }))
-        .filter((x): x is { e: Entry; key: string; b: Base } => !!x.b && x.e.uid !== skip && !locked.has(x.e.uid))
+        .filter((x): x is { e: Entry; key: string; b: Base } => !!x.b && x.e.uid !== skip && !locked.has(x.e.uid) && cleanOf.get(x.e) !== x.b)
         .map((x) => ({ ...x, w: wanted(x.e, x.b, customs, !!did) }))
-        .filter(({ e, b, w }) => textChanged(e, b) || richSig(w.cell) !== b.cellSig || richSig(w.note) !== b.noteSig || (!!did && w.dataSig !== b.data));
+        .filter(({ e, b, w }) => {
+          const diff = textChanged(e, b) || richSig(w.cell) !== b.cellSig || richSig(w.note) !== b.noteSig || (!!did && w.dataSig !== b.data);
+          if (!diff) cleanOf.set(e, b);
+          return diff;
+        });
       if (!changed.length) continue;
       try {
         // 用 ID 重新找列（別人可能插入或刪除了列）
@@ -920,6 +928,9 @@ export function pickShown() {
 
 /** 軟體裡的雲端檔案有變動：稍後寫回，並記下本機暫存；被換掉（例如換存檔資料夾）的放回去；點開空殼就讀 */
 let flushTimer: ReturnType<typeof setTimeout> | undefined;
+let leaveTimer: ReturnType<typeof setTimeout> | undefined;
+const leaveSids = new Set<string>();
+
 export function watchStore() {
   let last = new Map<string, FileDoc>();
   useStore.subscribe((s, prev) => {
@@ -965,7 +976,11 @@ export function watchStore() {
       // 剛插入的條目離開時還是空白：不用再等它寫入
       const e = a.entry;
       if (pendingNew.has(e.uid) && !e.id && !e.src && !e.tgt && !e.note) pendingNew.delete(e.uid);
-      void flush(a.fileDoc.cloud.sid);
+      // 稍等一下再寫：畫面先更新（例如驗證模式連按 Enter，剛驗證的那條馬上變灰），連續換好幾條也只寫一次
+      const leftSid = a.fileDoc.cloud.sid;
+      leaveSids.add(leftSid);
+      clearTimeout(leaveTimer);
+      leaveTimer = setTimeout(() => { const all = [...leaveSids]; leaveSids.clear(); all.forEach((x) => void flush(x)); }, 250);
     }
     // 換到別的雲端檔案：記下來（下次先開這份）；是空殼就讀
     const sid = b.fileDoc.cloud?.sid;
