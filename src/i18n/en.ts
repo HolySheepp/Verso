@@ -804,6 +804,7 @@ export const EN: Partial<Record<TextKey, string>> = {
   'settings.aiEnabled': 'AI Assist (Beta)',
   'settings.aiHint': 'When on, an AI button appears above the entry list. Clicking it processes the selected entries with Claude Code in the background (the command-line Claude Code must be installed and signed in).',
   'settings.aiExtra': 'Extra Instructions',
+  'common.loading': 'Loading...',
   'settings.entrySets': 'Collapsed Groups & Entry Sets (Cloud Mode)',
   'cloud.skillFile': 'Skill File',
   'cloud.rateWait': 'Google request limit reached; retrying in {s} s',

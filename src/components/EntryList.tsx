@@ -28,6 +28,7 @@ import { entryFits } from '../model/cellLimit';
 import { showToast, useStore, displayOf, setsOn, setKey, sheetLayout } from '../state/store';
 import { autoName, type Item } from '../model/entrySets';
 import { ChainBar, DotsItem, GroupItem, IconLink } from './EntrySets';
+import { Loading } from './Loading';
 
 /** # 欄（對話 id）、發話者欄、原文、譯文：依比例分配寬度 */
 const colsOf = (w: number[]) => w.map((x) => `minmax(0, ${x}fr)`).join(' ');
@@ -339,7 +340,7 @@ export function EntryList() {
   };
   const askCopy = () => {
     const open = sheet.entries.filter((e) => e.mark !== 'ignore');
-    const untranslated = open.filter((e) => !e.tgt && (e.src.trim() || e.pending)).length; // 原文譯文都空、而且確認過的列算完成
+    const untranslated = open.filter((e) => !e.tgt && e.src.trim()).length; // 原文是空的不算未翻譯
     // 已經標了驗證（驗證模式下還有疑慮）的條目算處理過了，不管待確認
     const handled = (e: Entry) => e.mark === 'verified' || (s.mode === 'verify' && e.mark === 'doubt');
     const pending = open.filter((e) => e.tgt && e.pending && !handled(e)).length;
@@ -1011,11 +1012,14 @@ export function EntryList() {
           );
         })}
         {end < items.length && <div aria-hidden="true" style={{ height: offsets[items.length] - offsets[end] }} />}
-        {items.length === 0 && (
+        {items.length === 0 && (fileDoc.cloud?.stub
+          // 雲端檔案還沒讀好：不是沒有條目，是還在載入
+          ? <Loading />
+          : (
           <div style={{ padding: '48px 0', textAlign: 'center', color: 'var(--mute)' }}>
             {shownCount(useStore.getState()) === 0 ? tx('list.029') : sheet.entries.length === 0 ? tx('list.030') : tx('list.031')}
           </div>
-        )}
+        ))}
       </div>
       {menu && (
         <ContextMenu x={menu.x} y={menu.y} label={tx('list.032')}

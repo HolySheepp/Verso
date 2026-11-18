@@ -20,8 +20,8 @@ describe('進度算法', () => {
   it('翻譯模式：已翻譯、已驗證、待思考、自訂標記算完成，忽略不算進分母', () => {
     expect(sheetProgress(es, 'translate')).toEqual({ done: 5, total: 9 });
   });
-  it('驗證模式：已驗證和自訂標記算完成', () => {
-    expect(sheetProgress(es, 'verify')).toEqual({ done: 2, total: 9 });
+  it('驗證模式：已驗證、自訂標記、原文譯文都空白的列算完成', () => {
+    expect(sheetProgress(es, 'verify')).toEqual({ done: 3, total: 9 });
   });
   it('沒做完不滿格；空頁簽、整頁忽略算全滿並打勾', () => {
     expect(percentOf({ done: 199, total: 200 })).toBe(99);
@@ -30,9 +30,9 @@ describe('進度算法', () => {
     expect(sheetDone([E({ mark: 'ignore' })])).toBe(true);
     expect(sheetDone(es)).toBe(false);
   });
-  it('原文譯文都空白的列：確認過才算完成', () => {
-    expect(sheetProgress([E({ src: '', tgt: '', pending: true })], 'translate')).toEqual({ done: 0, total: 1 });
-    expect(sheetDone([E({ src: '', tgt: '', pending: true })])).toBe(false);
+  it('原文譯文都空白的列：算完成（剛貼上的也一樣）', () => {
+    expect(sheetProgress([E({ src: '', tgt: '', pending: true })], 'translate')).toEqual({ done: 1, total: 1 });
+    expect(sheetDone([E({ src: '', tgt: '', pending: true })])).toBe(true);
     expect(sheetProgress([E({ src: '', tgt: '' })], 'translate')).toEqual({ done: 1, total: 1 });
   });
   it('檔案打勾：所有頁簽都打勾', () => {

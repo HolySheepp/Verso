@@ -1,5 +1,6 @@
 // 翻譯記憶的畫面：記憶卡片、目前條目的比對結果、記憶分頁（全部記憶、管理、匯入匯出、一致性）
 import { tx } from '../i18n';
+import { Loading } from './Loading';
 import { useContext } from 'react';
 import { CompactCtx, compactCard, shrink } from './compact';
 import { useEffect, useMemo, useRef, useState } from 'react';
@@ -152,7 +153,7 @@ export function TmMatches({ limit }: { limit?: number }) {
   const list = useTmMatches();
   const loaded = useTm((t) => t.loaded);
   const error = useTm((t) => t.error);
-  if (!loaded) return <div className="empty" style={{ padding: '20px 12px' }}>{error ? tx('tm.loadFailed', { reason: error }) : tx('tm.loading')}</div>;
+  if (!loaded) return error ? <div className="empty" style={{ padding: '20px 12px' }}>{tx('tm.loadFailed', { reason: error })}</div> : <Loading />;
   const shown = limit ? list.slice(0, limit) : list;
   return (
     <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>

@@ -609,7 +609,7 @@ function wanted(e: Entry, b: Base, customs: CustomMark[], useData: boolean) {
 /** 把改過的譯文、備註、標記等寫回 Google；all：連正在編輯的那條也寫（結束、關掉雲端模式時） */
 export function flush(sid: string, all = false): Promise<void> {
   return serial(async () => {
-    try { await flushInner(sid, all); } finally { flushVer.set(sid, (flushVer.get(sid) ?? 0) + 1); }
+    try { await flushInner(sid, all); useCloud.setState({ unsynced: false }); } finally { flushVer.set(sid, (flushVer.get(sid) ?? 0) + 1); }
     await writeProgress(sid);
   });
 }
@@ -956,6 +956,8 @@ export function watchStore() {
       }
       last = now;
       if (dirty.length) { clearTimeout(flushTimer); flushTimer = setTimeout(() => dirty.forEach((sid) => void flush(sid)), 2000); }
+      // 自己改了東西（不是讀進來的）：同步按鈕顯示有還沒同步的變更
+      if (dirty.length && !internal && !useCloud.getState().unsynced) useCloud.setState({ unsynced: true });
     }
     const a = currentOf(prev), b = currentOf(s);
     // 離開某一條：那條馬上寫回

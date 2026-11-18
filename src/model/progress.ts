@@ -19,6 +19,8 @@ export function isComplete(e: Entry, mode: Mode): boolean | null {
   const m = effectiveMark(e);
   if (m === 'ignore') return null;
   if (m.startsWith('c:')) return true;
+  // 原文、譯文都空白：沒有東西要翻、要驗證，算完成
+  if (!e.src.trim() && !e.tgt.trim() && !e.upd) return true;
   if (mode === 'verify') return m === 'verified';
   return m === 'translated' || m === 'verified' || m === 'think';
 }

@@ -114,12 +114,16 @@ function SyncButton() {
   const syncing = useCloud((s) => s.syncing);
   const last = useCloud((s) => s.lastSync);
   const error = useCloud((s) => s.syncError);
+  const unsynced = useCloud((s) => s.unsynced);
   if (!isCloud) return null;
-  const title = error || (last ? tx('cloud.lastSync', { time: new Date(last).toLocaleTimeString() }) : tx('cloud.sync'));
+  // 只有圖示（寬度固定，旁邊的 AI 按鈕不會被擠開）：雲朵上是循環箭頭（有還沒同步的變更、同步中會轉）或勾勾（都同步好了）
+  const label = syncing ? tx('cloud.syncing') : tx('cloud.sync');
+  const title = error || (last ? label + tx('common.colon') + tx('cloud.lastSync', { time: new Date(last).toLocaleTimeString() }) : label);
+  const done = !syncing && !unsynced && !!last && !error;
   return (
-    <button type="button" className="btn btn-ghost" title={title} aria-label={tx('cloud.sync')} disabled={syncing} onClick={() => { retryTmWrite(); void refreshAll(false); }}
-      style={{ height: 34, display: 'flex', alignItems: 'center', gap: 6, padding: '0 12px', background: 'var(--btn)', border: '1px solid ' + (error ? 'var(--errtx)' : 'var(--line3)'), borderRadius: 8, fontSize: fz(12.5), color: error ? 'var(--errtx)' : 'var(--text2)' }}>
-      <IconRefresh size={14} style={syncing ? { animation: 'verso-spin 0.9s linear infinite' } : undefined} />{syncing ? tx('cloud.syncing') : tx('cloud.sync')}
+    <button type="button" className="ib" title={title} aria-label={label} disabled={syncing} onClick={() => { retryTmWrite(); void refreshAll(false); }}
+      style={{ width: 34, height: 34, display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 0, background: 'var(--btn)', border: '1px solid ' + (error ? 'var(--errtx)' : 'var(--line3)'), borderRadius: 8, color: error ? 'var(--errtx)' : 'var(--text2)' }}>
+      <IconCloudSync done={done} spin={syncing} />
     </button>
   );
 }
@@ -181,6 +185,23 @@ const REQUIRED: ColKey[] = ['id', 'speaker', 'src'];
 
 /** removedTab：這個頁簽之前被移除了（true 維持移除，false 這次恢復）；restore：這次要恢復的條目（ID 第幾個） */
 interface Draft extends DraftSheet { gid: number; extras: { name: string; col: number }[]; removedTab?: boolean; restore: string[] }
+
+/** 同步按鈕的圖示：雲朵，上面是循環箭頭（spin：轉圈）或勾勾（done） */
+function IconCloudSync({ done, spin }: { done: boolean; spin: boolean }) {
+  return (
+    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+      <path d="M7 18.5h10.5a4 4 0 0 0 .6-7.95A6 6 0 0 0 6.6 9.1 4.7 4.7 0 0 0 7 18.5z" />
+      {done
+        ? <path d="M9.4 13.6l1.9 1.9 3.6-3.8" strokeWidth="2" />
+        : (
+          <g style={spin ? { transformOrigin: '12px 13.6px', animation: 'verso-spin 0.9s linear infinite' } : undefined}>
+            <path d="M14.6 12.6a2.7 2.7 0 1 1-.9-1.8" strokeWidth="1.7" />
+            <path d="M14.1 9.6l-.3 1.4 1.4.3" strokeWidth="1.7" />
+          </g>
+        )}
+    </svg>
+  );
+}
 
 /** 設定一份 Google 表：貼網址、選專案，再像匯入檔案一樣在預覽裡選各欄的範圍 */
 function SetupDialog({ sid0, gid0 }: { sid0?: string; gid0?: number }) {

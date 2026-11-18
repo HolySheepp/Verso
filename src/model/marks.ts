@@ -37,9 +37,9 @@ export type MarkVisual =
 
 type MarkFields = Pick<Entry, 'mark' | 'tgt'> & { pending?: boolean; src?: string; upd?: Entry['upd'] };
 /** 有譯文、且不是待確認，才算已翻譯；原文和譯文都空白的條目沒有東西要翻，確認過（不是待確認）也算已翻譯 */
-/** 有譯文、且不是待確認，才算已翻譯；原文和譯文都空白的條目沒有東西要翻，也算已翻譯 */
+/** 有譯文、且不是待確認，才算已翻譯；原文是空的就沒有東西要翻，譯文空白也算已翻譯（剛貼上的也一樣） */
 export function isTranslated(e: MarkFields): boolean {
-  if (e.src !== undefined && !e.src.trim() && !e.tgt.trim()) return !e.pending;
+  if (e.src !== undefined && !e.src.trim() && !e.tgt.trim()) return true;
   return !!e.tgt && !e.pending;
 }
 

@@ -183,6 +183,10 @@ mark.tm-gap[data-on]::before{left:-4px;width:8px;opacity:1;background:var(--acc-
 .ai-busy { animation: ai-busy 1.2s ease-in-out infinite; }
 @keyframes ai-busy { 0%, 100% { opacity: 1; } 50% { opacity: 0.25; } }
 @keyframes verso-spin{to{transform:rotate(360deg)}}
+/* 載入中：三個點照順序跳 */
+@keyframes load-dot{0%,60%,100%{transform:translateY(0);opacity:.45}30%{transform:translateY(-6px);opacity:1}}
+.load-dot{width:7px;height:7px;border-radius:50%;background:var(--text2);animation:load-dot 1s ease-in-out infinite}
+@media (prefers-reduced-motion: reduce){.load-dot{animation:none}}
 .vd{--bubo:#262a33;--bubd:#1c1f25;--bubhl:#4a3f1d}
 .vl{--bubo:#e6e9ee;--bubd:#eceef1;--bubhl:#f6e7b8}
 @keyframes qs-pop{0%{transform:scale(.95)}45%{transform:scale(1.08)}100%{transform:scale(1)}}

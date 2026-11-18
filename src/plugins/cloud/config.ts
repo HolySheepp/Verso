@@ -58,6 +58,8 @@ export const useCloud = create<{
   conflicts: Conflict[];
   /** 同步中、上次同步完成的時間、上次同步的錯誤（給同步按鈕顯示） */
   syncing: boolean; lastSync: number | null; syncError: string;
+  /** 上次同步之後，軟體裡有還沒寫回 Google 的變更 */
+  unsynced: boolean;
   /** Verso 資料表裡記的各檔案欄位設定（同一張資料表的人共用） */
   shared: CloudSheet[];
   /** 這個版本內建了 Google 用戶端（不用自己填 ID、密鑰） */
@@ -72,7 +74,7 @@ export const useCloud = create<{
   srcUpd: { sid: string; sheet: number } | null;
   /** 需要使用者確認的動作（例如移除） */
   confirm: { title: string; body: string; ok: string; run(): Promise<void> } | null;
-}>(() => ({ builtin: false, projects: [], projectsOpen: false, askDelete: null, srcUpd: null, confirm: null, cfg: EMPTY, loaded: false, email: null, setup: null, manage: false, conflicts: [], syncing: false, lastSync: null, syncError: '', shared: [] }));
+}>(() => ({ builtin: false, projects: [], projectsOpen: false, askDelete: null, srcUpd: null, confirm: null, cfg: EMPTY, loaded: false, email: null, setup: null, manage: false, conflicts: [], syncing: false, lastSync: null, syncError: '', unsynced: false, shared: [] }));
 
 /** 用得到的試算表：資料表裡共用的設定為準，加上這台電腦自己設定的，扣掉不再使用的 */
 export function allSheets(): CloudSheet[] {

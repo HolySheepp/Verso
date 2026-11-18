@@ -345,6 +345,7 @@ export const ZH = {
   'settings.aiEnabled': 'AI 協助（測試中）', // 設定 > 開發者選項：開關
   'settings.aiHint': '打開後條目欄上方會出現 AI 按鈕，按下時在背景用 Claude Code 處理選取的條目（需要先裝好、登入命令列版 Claude Code）', // 設定 > 開發者選項：說明
   'settings.aiExtra': '額外指示', // 設定 > 開發者選項：AI 的額外指示（全部專案共用）
+  'common.loading': '加載中...', // 還在載入（不是沒有內容）時的字樣
   'settings.entrySets': '收起組與條目串（雲端模式）', // 設定 > 開發者選項：收起組與條目串的總開關
   'cloud.skillFile': '技能檔案', // 添加檔案、管理檔案：技能檔案開關（拿掉標籤數字、自動組成條目串）
   'cloud.rateWait': 'Google 每分鐘的次數用完了，{s} 秒後自動重試', // 雲端：被 Google 限流時的提示
