@@ -3,7 +3,7 @@ import { plugins } from '../plugins/registry';
 import { rowHook } from '../plugins/hooks';
 import { memo, useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react';
 import { flushSync } from 'react-dom';
-import { shownCount, currentOf, hasNote, hasTalk, hasPendingUpdate, passesFilter, searchHit, useStorePick, visibleIssues, currentFileStd } from '../state/store';
+import { currentFilters, shownCount, currentOf, hasNote, hasTalk, hasPendingUpdate, passesFilter, searchHit, useStorePick, visibleIssues, currentFileStd } from '../state/store';
 import { FilterPanel } from './FilterPanel';
 import { effectiveMark, markName, markVisual } from '../model/marks';
 import { columnToClipboard, parseHtmlTable, parseTsv, writeColumn } from '../model/clipboard';
@@ -29,6 +29,8 @@ import { showToast, useStore, displayOf, setsOn, setKey, sheetLayout } from '../
 import { autoName, type Item } from '../model/entrySets';
 import { ChainBar, DotsItem, GroupItem, IconLink } from './EntrySets';
 import { Loading } from './Loading';
+import { matchedKeys } from '../model/customFilter';
+const NO_EXTRA: string[] = [];
 
 /** # 欄（對話 id）、發話者欄、原文、譯文：依比例分配寬度 */
 const colsOf = (w: number[]) => w.map((x) => `minmax(0, ${x}fr)`).join(' ');
@@ -354,9 +356,13 @@ export function EntryList() {
   // 搜尋分頁開著，或綜合分頁裡的搜尋區塊沒收起來時，都算搜尋中
   const searchOn = (s.side === 'search' || (s.side === 'general' && !s.general.closed.includes('search'))) && !s.hideSide && !!searchQ;
   // 每一條的標記和問題、各篩選的數量：條目、檢查結果、篩選變了才重算（選取、捲動不用重算）
+  // 這個頁簽的自訂篩選條件：每一條符合哪些
+  const cfs = useStore((st) => currentFilters(st));
   const { all, cnt } = useMemo(() => {
     const cnt: Record<string, number> = {};
     const all = sheet.entries.map((e, i) => {
+      const extra = cfs.length ? matchedKeys(e, cfs) : NO_EXTRA;
+      extra.forEach((k) => { cnt[k] = (cnt[k] ?? 0) + 1; });
       const m = effectiveMark(e);
       const issues = visibleIssues(e, s.reported, s.checkSettings, fileStd);
       cnt[m] = (cnt[m] ?? 0) + 1;
@@ -364,10 +370,10 @@ export function EntryList() {
       const note = hasNote(e), talk = hasTalk(e);
       if (note) cnt.note = (cnt.note ?? 0) + 1;
       if (talk) cnt.talk = (cnt.talk ?? 0) + 1;
-      return { e, i, m, issues, note, talk };
+      return { e, i, m, issues, note, talk, extra };
     });
     return { all, cnt };
-  }, [sheet.entries, s.reported, s.checkSettings, fileStd]);
+  }, [sheet.entries, s.reported, s.checkSettings, fileStd, cfs]);
 
   const openMark = (ev: React.MouseEvent<HTMLButtonElement>, i: number) => {
     set({ rowMenu: { index: i, ...rowMenuPos(ev.currentTarget, customs.length) }, stampOpen: false, fileMenuOpen: false });
@@ -377,12 +383,12 @@ export function EntryList() {
   const { items, visible, posOf } = useMemo(() => {
     const filtering = Object.keys(filter).length > 0;
     if (!setsActive) {
-      const rows = !filtering ? all : all.filter(({ m, issues, note, talk }) => passesFilter(filter, m, issues.length > 0, note, talk));
+      const rows = !filtering ? all : all.filter(({ m, issues, note, talk, extra }) => passesFilter(filter, m, issues.length > 0, note, talk, extra));
       const items: Item[] = rows.map((r) => ({ t: 'row', key: r.e.uid, i: r.i, depth: 0 }));
       const visible = rows.map((x) => x.i);
       return { items, visible, posOf: new Map(visible.map((i, k) => [i, k])) };
     }
-    const pass = filtering ? (i: number) => { const r = all[i]; return passesFilter(filter, r.m, r.issues.length > 0, r.note, r.talk); } : null;
+    const pass = filtering ? (i: number) => { const r = all[i]; return passesFilter(filter, r.m, r.issues.length > 0, r.note, r.talk, r.extra); } : null;
     const hit = searchOn ? (i: number) => searchHit(sheet.entries[i], searchQ) : null;
     const d = displayOf(useStore.getState(), pass, hit);
     return { items: d.items, visible: d.rows, posOf: d.posOf };
@@ -706,7 +712,7 @@ export function EntryList() {
     setMenu(null);
     sink.current?.focus({ preventScroll: true });
     if (readOnly) return;
-    if (k === 'applySrc') { s.applyAllNewSources(selRows); return; }
+    if (k === 'applySrc') { s.applyAllNewSources(withChains(selRows)); return; }
     // 收起組、條目串
     if (k === 'collapse') { s.collapseRows(selRows); return; }
     if (k === 'split') { s.splitAt(selRows[0]); return; }
@@ -720,15 +726,15 @@ export function EntryList() {
       return { x: Math.round(x - rr.left), y: Math.round(Math.max(8, Math.min(y - rr.top, (root?.offsetHeight ?? 800) - h - 10))) };
     };
     if (k === 'mark' && menu) {
-      // 框選了幾條就一次改幾條
-      const rowsSel = [...new Set(keys.map((x) => parseKey(x).i))].sort((a, b) => a - b);
+      // 框選了幾條就一次改幾條（收起的條目串是整串）
+      const rowsSel = withChains([...new Set(keys.map((x) => parseKey(x).i))]);
       set({ rowMenu: { index: rowsSel[0], indices: rowsSel, ...menuAt(menu.x, menu.y) }, stampOpen: false, fileMenuOpen: false });
       return;
     }
     // 雲端模式「移除」：選到的條目整條不再讀取
-    if (k === 'remove') { rowHook.fn?.('remove', selRows, 0); return; }
+    if (k === 'remove') { rowHook.fn?.('remove', withChains(selRows), 0); return; }
     if (k === 'edit') startEdit(first.i, first.c);
-    if (k === 'clear') s.editSheet((es) => ({ entries: clearCells(es, keys), keys }));
+    if (k === 'clear') { const ks = keys.flatMap((x) => { const { i, c } = parseKey(x); return withChains([i]).map((j) => cellKey(j, c)); }); s.editSheet((es) => ({ entries: clearCells(es, ks), keys })); }
     if (menu?.kind === 'row') {
       // 整列：條目本身一起刪、插入、移動（標記、備註跟著走）
       const last = selRows[selRows.length - 1];
@@ -872,7 +878,24 @@ export function EntryList() {
     if (k === 'g-auto') s.setGroupAuto(g.id, !g.auto);
     if (k === 'g-merge') { s.mergeSets([...new Set([...groupSel, g.id])]); setGroupSel([]); }
     if (k === 'g-dissolve') s.dissolveGroup(g.id);
+    // 對整組（選了好幾組就是每一組）的條目一次操作：標記、不再使用
+    const ids = new Set([...groupSel, g.id]);
+    const members = [...new Set((layout?.groups ?? []).filter((x) => ids.has(x.id)).flatMap((x) => x.uids))]
+      .map((u) => sheet.entries.findIndex((e) => e.uid === u)).filter((i) => i >= 0).sort((a, b) => a - b);
+    if (!members.length) return;
+    if (k === 'g-mark') {
+      const root = listRef.current?.closest('[data-root]') as HTMLElement | null;
+      const rr = root?.getBoundingClientRect() ?? new DOMRect();
+      const h = 44 + (6 + customs.length) * 32 + (customs.length ? 9 : 0) + 42;
+      set({ rowMenu: { index: members[0], indices: members, x: Math.round(gm.x - rr.left), y: Math.round(Math.max(8, Math.min(gm.y - rr.top, (root?.offsetHeight ?? 800) - h - 10))) }, stampOpen: false, fileMenuOpen: false });
+    }
+    if (k === 'g-remove') { rowHook.fn?.('remove', members, 0); setGroupSel([]); }
   };
+  /** 收起的條目串在條目欄是一列（代表它的那一條）：對它操作就是對整串 */
+  const withChains = (rows: number[]) => [...new Set(rows.flatMap((i) => {
+    const c = layout?.chainOf.get(i);
+    return c && i === c.rep && !setOpen[setKey(fileDoc, sheetIdx, sheet, 'c:' + c.id)] ? c.idx : [i];
+  }))].sort((a, b) => a - b);
   // 組、串裡有哪些標記、各幾條（照頁簽的順序：未翻譯、已翻譯、AI、已驗證、疑慮、待思考、忽略、自訂）
   const MARK_ORDER: MarkId[] = ['untranslated', 'translated', 'ai', 'verified', 'doubt', 'think', 'ignore', ...customs.map((c) => `c:${c.id}` as MarkId)];
   const marksOf = (idx: number[]) => {
@@ -1057,6 +1080,8 @@ export function EntryList() {
               { key: 'g-toggle', label: open ? tx('sets.fold') : tx('sets.expand') },
               { key: 'g-rename', label: tx('sets.rename'), disabled: readOnly },
               { key: 'g-auto', label: tx('sets.auto'), checked: !!g.auto, disabled: readOnly },
+              { key: 'g-mark', label: tx('list.034'), disabled: readOnly },
+              ...(cloudFile ? [{ key: 'g-remove', label: tx('cloud.remove'), danger: true, disabled: readOnly }] : []),
               { key: 'g-merge', label: tx('sets.merge'), disabled: readOnly || new Set([...groupSel, g.id]).size < 2 },
               { key: 'g-dissolve', label: tx('sets.dissolve'), danger: true, disabled: readOnly },
             ]}

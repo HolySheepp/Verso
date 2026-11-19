@@ -81,6 +81,8 @@ export interface Sheet {
   groups?: import('./entrySets').EntryGroup[];
   /** 雲端模式的技能檔案：條目串切割過的地方（在這些條目的下方切開；跟同事共享） */
   chainCuts?: string[];
+  /** 雲端模式：這個頁簽的自訂篩選條件（跟同事共享；本機檔案的存在設定裡） */
+  filters?: import('./customFilter').CustomFilter[];
 }
 
 /** 雲端檔案記在資料表的進度（還沒讀的檔案用它顯示）：翻譯／驗證模式各自的「完成、總數」，done 是整個檔案打勾 */

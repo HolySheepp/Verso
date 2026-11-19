@@ -18,17 +18,25 @@ import { composeNote, mergeComments, parseNote, type CommentThread } from '../mo
 import { maxOf, minOf } from '../model/num';
 import { absorbVerified, buildDisplay, createGroup, findChains, mergeGroups, newGroupId, normalizeGroups, splitGroup, spreadEdit, stripTagDigits, fillBareTags, fillTemplate, type Chain, type EntryGroup } from '../model/entrySets';
 import { tidyOnLeave } from '../model/aiNote';
+import { matchedKeys, type CustomFilter } from '../model/customFilter';
 import { entryFits } from '../model/cellLimit';
 import { wordEdits } from '../model/wordDiff';
 
 /** 條目欄的篩選：條件（標記 id 或 'issues'）→ 1 勾選、-1 排除；沒列的是不選，空的就是全部 */
 export type Filter = Record<string, 1 | -1>;
 /** 一條在篩選下看不看得到：符合任一排除的不顯示；有勾選時要符合其中之一 */
-export function passesFilter(f: Filter, mark: string, issues: boolean, note = false, talk = false): boolean {
-  if (f[mark] === -1 || (issues && f.issues === -1) || (note && f.note === -1) || (talk && f.talk === -1)) return false;
+export function passesFilter(f: Filter, mark: string, issues: boolean, note = false, talk = false, extra: string[] = []): boolean {
+  if (f[mark] === -1 || (issues && f.issues === -1) || (note && f.note === -1) || (talk && f.talk === -1) || extra.some((k) => f[k] === -1)) return false;
   const inc = Object.values(f).includes(1);
-  return !inc || f[mark] === 1 || (issues && f.issues === 1) || (note && f.note === 1) || (talk && f.talk === 1);
+  return !inc || f[mark] === 1 || (issues && f.issues === 1) || (note && f.note === 1) || (talk && f.talk === 1) || extra.some((k) => f[k] === 1);
 }
+/** 目前頁簽的自訂篩選條件（雲端檔案記在頁簽裡、跟同事共享；本機檔案記在自己的電腦） */
+export function currentFilters(s: Pick<State, 'project' | 'file' | 'sheetBy' | 'selBy' | 'localFilters'> & { cloudMode?: boolean }): CustomFilter[] {
+  const { fileDoc, sheet } = currentOf(s);
+  return fileDoc.cloud ? sheet.filters ?? NO_FILTERS : s.localFilters[localFilterKey(fileDoc, sheet)] ?? NO_FILTERS;
+}
+const NO_FILTERS: CustomFilter[] = [];
+const localFilterKey = (f: FileDoc, sh: Sheet) => `${f.fid ?? f.project + '/' + f.name}|${sh.name}`;
 /** 篩選「有備註」（條目左邊的單個對話氣泡）：雲端檔案看原本的備註、另外抓的欄，本機檔案看備註有沒有字 */
 export const hasNote = (e: Entry) => (e.comments ? !!e.noteBase?.trim() || !!e.extraNotes?.some((x) => x.text.trim()) : !!e.note.trim());
 /** 篩選「有未解決的對話」（雲端檔案，條目左邊的兩個對話氣泡） */
@@ -286,6 +294,10 @@ interface State {
   setOpen: Record<string, 1>;
   /** 收起組名稱正在輸入的那一組（剛建立時） */
   groupNaming: string | null;
+  /** 本機檔案各頁簽的自訂篩選條件 */
+  localFilters: Record<string, CustomFilter[]>;
+  /** 換掉目前頁簽的自訂篩選條件（拿掉的條件也從篩選裡拿掉） */
+  setSheetFilters(list: CustomFilter[]): void;
   /** 選到的條目收成一組；回傳新組的 id（不能收時是 null） */
   collapseRows(indices: number[]): string | null;
   renameGroup(id: string, name: string): void;
@@ -1092,6 +1104,7 @@ export const useStore = create<Store>((set, get) => {
     entrySetsOn: false,
     setOpen: {},
     groupNaming: null,
+    localFilters: {},
     cloudMode: false,
     checksOn: true,
     cloudDictFile: {},
@@ -1481,6 +1494,18 @@ export const useStore = create<Store>((set, get) => {
     },
 
     // ---- 收起組與條目串 ----
+    setSheetFilters(list) {
+      const s = get();
+      const { fileDoc, sheet } = cur();
+      if (!s.project) return;
+      // 拿掉的條件也從目前的篩選裡拿掉
+      const ids = new Set(list.map((f) => 'u:' + f.id));
+      const filter = Object.fromEntries(Object.entries(s.filter).filter(([k]) => !k.startsWith('u:') || ids.has(k)));
+      if (fileDoc.cloud) setLayout(() => ({ filters: list.length ? list : undefined }));
+      else set({ localFilters: { ...s.localFilters, [localFilterKey(fileDoc, sheet)]: list } });
+      set({ filter });
+    },
+
     collapseRows(indices) {
       const s = get();
       const { fileDoc, sheetIdx, sheet } = cur();
@@ -2048,6 +2073,7 @@ function pendingTarget(s: State, from: number, delta: number): number | undefine
 /** 目前篩選下，條目列表裡看得到的條目 */
 export function visibleRows(s: State): number[] {
   const { sheet, fileDoc } = currentOf(s);
+  const cfs = currentFilters(s);
   // 收起組、條目串：收起來的不算（收起的串算一列，就是代表它的那一條）
   if (setsOn(s, fileDoc)) {
     const keys0 = Object.keys(s.filter);
@@ -2055,7 +2081,7 @@ export function visibleRows(s: State): number[] {
     const pass = keys0.length ? (i: number) => {
       const e = sheet.entries[i];
       const issues = s.filter.issues !== undefined && visibleIssues(e, s.reported, s.checkSettings, fileStd0).length > 0;
-      return passesFilter(s.filter, effectiveMark(e), issues, hasNote(e), hasTalk(e));
+      return passesFilter(s.filter, effectiveMark(e), issues, hasNote(e), hasTalk(e), cfs.length ? matchedKeys(e, cfs) : []);
     } : null;
     return displayOf(s, pass).rows;
   }
@@ -2065,7 +2091,7 @@ export function visibleRows(s: State): number[] {
   sheet.entries.forEach((e, i) => {
     if (!keys.length) { out.push(i); return; }
     const issues = s.filter.issues !== undefined && visibleIssues(e, s.reported, s.checkSettings, fileStd).length > 0;
-    if (passesFilter(s.filter, effectiveMark(e), issues, hasNote(e), hasTalk(e))) out.push(i);
+    if (passesFilter(s.filter, effectiveMark(e), issues, hasNote(e), hasTalk(e), cfs.length ? matchedKeys(e, cfs) : [])) out.push(i);
   });
   return out;
 }

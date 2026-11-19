@@ -180,6 +180,23 @@ mark.tm-gap[data-on]::before{left:-4px;width:8px;opacity:1;background:var(--acc-
 .imp-cell{flex-shrink:0;width:180px;box-sizing:border-box;padding:0 8px;line-height:26px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;border-right:1px solid var(--line0);border-bottom:1px solid var(--line0);color:var(--textsoft);cursor:default}
 .imp-cell[class*=imp-f-]{background:var(--imp);color:var(--text)}
 .imp-cell[data-sel]{background:var(--acc-soft);box-shadow:inset 0 0 0 1px var(--acc-line)}
+/* 預覽欄標題的篩選器按鈕：滑鼠移到欄標題才出現，有篩選時一直顯示 */
+.imp-funnel{margin-left:auto;width:20px;height:20px;display:flex;align-items:center;justify-content:center;padding:0;background:transparent;border:0;border-radius:4px;color:var(--mute);opacity:0}
+.imp-head:hover .imp-funnel,.imp-funnel-on{opacity:1}
+.imp-funnel-on{color:var(--accent2)}
+.pf-val{min-width:0;overflow:hidden;white-space:nowrap;text-overflow:ellipsis}
+/* 名稱放不下：末端漸隱；滑鼠移上去像跑馬燈一樣捲到底再回來 */
+.fade-label{flex-grow:1;min-width:0;overflow:hidden;white-space:nowrap}
+.fade-label>span{display:inline-block}
+.fade-label-over{-webkit-mask-image:linear-gradient(90deg,#000 calc(100% - 22px),transparent);mask-image:linear-gradient(90deg,#000 calc(100% - 22px),transparent)}
+@keyframes fade-run{0%,15%{transform:translateX(0)}50%,65%{transform:translateX(var(--run))}100%{transform:translateX(0)}}
+.dd:hover .fade-label-over{-webkit-mask-image:none;mask-image:none}
+.dd:hover .fade-label-over>span{animation:fade-run var(--dur) ease-in-out infinite}
+@media (prefers-reduced-motion: reduce){.dd:hover .fade-label-over>span{animation:none}}
+/* 自訂篩選條件的編輯、移除：在數字左邊，自己的範圍，不會蓋到名稱 */
+.cf-acts{flex-shrink:0;display:flex;gap:1px}
+.cf-act{width:18px;height:20px;display:flex;align-items:center;justify-content:center;border-radius:4px;color:var(--mute);cursor:pointer}
+.cf-act:hover{background:var(--ov1);color:var(--text)}
 
 /* AI 正在處理的條目：小字「AI」慢慢閃 */
 .ai-busy { animation: ai-busy 1.2s ease-in-out infinite; }

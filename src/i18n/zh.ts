@@ -144,6 +144,23 @@ export const ZH = {
   'import.extraCol': '{col} 欄', // 同上：添加好的欄顯示是哪一欄
   'list.filterNote': '有備註', // 條目欄篩選面板的條件
   'list.filterTalk': '有未解決的對話', // 條目欄篩選面板的條件（雲端檔案的留言）
+  'list.cfAdd': '新增篩選條件', // 條目篩選器：加號按鈕（無障礙標籤）
+  'list.cfCol': '欄', // 自訂篩選條件：選哪一欄（無障礙標籤）
+  'list.cfOp': '條件', // 自訂篩選條件：選條件（無障礙標籤）
+  'list.cfValue': '內容', // 自訂篩選條件：要比對的內容
+  'list.cfName': '名稱', // 自訂篩選條件：名稱
+  'list.cfOk': '確定', // 自訂篩選條件：確定按鈕
+  'list.cfCancel': '取消', // 自訂篩選條件：取消按鈕
+  'list.cfEdit': '編輯', // 自訂篩選條件：編輯按鈕
+  'list.cfRemove': '移除', // 自訂篩選條件：移除按鈕
+  'list.op.blank': '空白', // 自訂篩選條件的條件
+  'list.op.contains': '包含', // 自訂篩選條件的條件
+  'list.op.word': '單詞包含', // 自訂篩選條件的條件（完整的單詞）
+  'list.op.starts': '文字開頭', // 自訂篩選條件的條件
+  'list.op.ends': '文字結尾', // 自訂篩選條件的條件
+  'list.op.exact': '完全符合', // 自訂篩選條件的條件
+  'list.op.gt': '大於', // 自訂篩選條件的條件（數字）
+  'list.op.eq': '等於', // 自訂篩選條件的條件（數字）
   'list.openComments': '有未解決的備註', // 條目欄的雙氣泡圖示（讀螢幕軟體、滑鼠提示）
   'side.notesResize': '調整建議翻譯和備註區的高度', // 右側欄下方整區上面的分隔線（讀螢幕軟體）
   'cloud.userName': '暱稱', // 設定 > 雲端：留言時顯示的名字
@@ -346,6 +363,13 @@ export const ZH = {
   'settings.aiHint': '打開後條目欄上方會出現 AI 按鈕，按下時在背景用 Claude Code 處理選取的條目（需要先裝好、登入命令列版 Claude Code）', // 設定 > 開發者選項：說明
   'settings.aiExtra': '額外指示', // 設定 > 開發者選項：AI 的額外指示（全部專案共用）
   'common.loading': '加載中...', // 還在載入（不是沒有內容）時的字樣
+  'pf.byColor': '依顏色篩選', // 設定 Google 表：欄的篩選器
+  'pf.byValue': '依值篩選', // 設定 Google 表：欄的篩選器
+  'pf.textColor': '文字顏色', // 設定 Google 表：欄的篩選器（依顏色）
+  'pf.fillColor': '填滿顏色', // 設定 Google 表：欄的篩選器（依顏色）
+  'pf.blank': '空白', // 設定 Google 表：欄的篩選器（依值）
+  'pf.nonblank': '非空白', // 設定 Google 表：欄的篩選器（依值）
+  'pf.more': '顯示更多', // 設定 Google 表：欄的篩選器（值太多時）
   'settings.entrySets': '收起組與條目串（雲端模式）', // 設定 > 開發者選項：收起組與條目串的總開關
   'cloud.skillFile': '技能檔案', // 添加檔案、管理檔案：技能檔案開關（拿掉標籤數字、自動組成條目串）
   'cloud.rateWait': 'Google 每分鐘的次數用完了，{s} 秒後自動重試', // 雲端：被 Google 限流時的提示

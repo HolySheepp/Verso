@@ -1,4 +1,6 @@
 import { tx } from '../i18n';
+import { PreviewFilter, cellTags, passTags, type ColFilter } from './PreviewFilter';
+import { FunnelIcon } from './FilterPanel';
 import { useScrollTabs } from './ScrollTabs';
 import { DEFAULT_FILE_NAME } from '../model/names';
 import { useEffect, useMemo, useRef, useState } from 'react';
@@ -271,6 +273,17 @@ export function Preview({ sheet, onFields, extras, onExtras, removed, onToggleRo
   const [anchor, setAnchor] = useState<{ c: number; r: number } | null>(null);
   // 方向鍵移到的格子（Shift＋方向鍵從 anchor 延伸到這裡）
   const [focusCell, setFocusCell] = useState<{ c: number; r: number } | null>(null);
+  // 欄的篩選器（新增 Google 表時；一次只有一欄）：不符合的列不顯示，設定欄位時也跳過
+  const [colFilter, setColFilter] = useState<ColFilter | null>(null);
+  const [filterMenu, setFilterMenu] = useState<{ col: number; x: number; y: number } | null>(null);
+  const hasLooks = !!sheet.looks;
+  const disp = useMemo(() => {
+    if (!colFilter || !Object.keys(colFilter.f).length) return rows.map((_, r) => r);
+    const c = colFilter.col;
+    return rows.map((_, r) => r).filter((r) => passTags(colFilter.f, cellTags(rows[r]?.[c] ?? '', sheet.looks?.[r]?.[c], hasLooks)));
+  }, [rows, colFilter, sheet.looks, hasLooks]);
+  const dispPos = useMemo(() => new Map(disp.map((r, k) => [r, k])), [disp]);
+  const shownRow = (r: number) => dispPos.has(r);
   const [top, setTop] = useState(0);
   const [viewH, setViewH] = useState(480);
   const [msg, setMsg] = useState('');
@@ -435,8 +448,11 @@ export function Preview({ sheet, onFields, extras, onExtras, removed, onToggleRo
         ? rectsToField(rects.filter((x) => x.c0 <= col && col <= x.c1).map((x) => ({ ...x, c0: col, c1: col })), rows.length)
         : rectsToField(rects, rows.length);
       if (typeof f === 'string') { if (cols.length === 1) { setMsg(f); return; } continue; }
-      // 已經有第一個設定的欄位：列的範圍跟它一樣
-      next = put(next, fk, onOrder && firstSet && fk !== firstKey ? { col, rows: firstSet.rows } : f);
+      // 已經有第一個設定的欄位：列的範圍跟它一樣；篩選掉的列不算
+      const sel = onOrder && firstSet && fk !== firstKey ? { col, rows: firstSet.rows } : f;
+      const kept = sel.rows.filter(shownRow);
+      if (!kept.length) continue;
+      next = put(next, fk, { col: sel.col, rows: kept });
       if (!firstKey && !firstRef.current) firstRef.current = fk;
     }
     if (next !== fields) onFields(next);
@@ -448,7 +464,8 @@ export function Preview({ sheet, onFields, extras, onExtras, removed, onToggleRo
 
   const first = Math.max(0, Math.floor(top / ROW_H) - 5);
   const count = Math.ceil(viewH / ROW_H) + 10;
-  const visible = rows.slice(first, first + count);
+  // 畫面上的第幾列 → 表上的第幾列（有篩選時跳過不符合的列）
+  const visible = disp.slice(first, first + count);
   const inSel = (c: number, r: number) => rects.some((x) => inRect(x, c, r));
   const colFields = (c: number) => (Object.keys(fields) as ColKey[]).filter((k) => fields[k]?.col === c);
   const colExtras = (c: number) => (extras ?? []).filter((x) => x.col === c);
@@ -463,17 +480,20 @@ export function Preview({ sheet, onFields, extras, onExtras, removed, onToggleRo
     if (!d) return;
     ev.preventDefault();
     const from = focusCell ?? anchor ?? { c: 0, r: 0 };
-    const ok = (c: number, r: number) => c >= 0 && c < width && r >= 0 && r <= last;
-    let { c, r } = from;
+    // 照畫面上的列移動（篩選掉的列跳過）
+    const ok = (c: number, k: number) => c >= 0 && c < width && k >= 0 && k < disp.length;
+    const txt = (c: number, k: number) => cellText(c, disp[k]);
+    let c = from.c, k = dispPos.get(from.r) ?? 0;
     if (ev.ctrlKey || ev.metaKey) {
       // 跟試算表一樣：在有內容的一段裡就跳到這段的尾端，不然跳到下一個有內容的格子（都沒有就到邊上）
-      if (cellText(c, r) && ok(c + d[0], r + d[1]) && cellText(c + d[0], r + d[1])) {
-        while (ok(c + d[0], r + d[1]) && cellText(c + d[0], r + d[1])) { c += d[0]; r += d[1]; }
+      if (txt(c, k) && ok(c + d[0], k + d[1]) && txt(c + d[0], k + d[1])) {
+        while (ok(c + d[0], k + d[1]) && txt(c + d[0], k + d[1])) { c += d[0]; k += d[1]; }
       } else {
-        while (ok(c + d[0], r + d[1])) { c += d[0]; r += d[1]; if (cellText(c, r)) break; }
+        while (ok(c + d[0], k + d[1])) { c += d[0]; k += d[1]; if (txt(c, k)) break; }
       }
-    } else if (ok(c + d[0], r + d[1])) { c += d[0]; r += d[1]; }
-    const to = { c, r };
+    } else if (ok(c + d[0], k + d[1])) { c += d[0]; k += d[1]; }
+    if (disp[k] === undefined) return;
+    const to = { c, r: disp[k] };
     if (ev.shiftKey) {
       const a = anchor ?? from;
       setRects((rs) => [...rs.slice(0, -1), rectOf(a, to)]);
@@ -486,7 +506,7 @@ export function Preview({ sheet, onFields, extras, onExtras, removed, onToggleRo
     // 讓那一格看得到
     const el = box.current;
     if (el) {
-      const y = (to.r + 1) * ROW_H, x = NUM_W + to.c * COL_W;
+      const y = (k + 1) * ROW_H, x = NUM_W + to.c * COL_W;
       if (y < el.scrollTop + ROW_H) el.scrollTop = y - ROW_H;
       else if (y + ROW_H > el.scrollTop + el.clientHeight) el.scrollTop = y + ROW_H - el.clientHeight;
       if (x < el.scrollLeft + NUM_W) el.scrollLeft = x - NUM_W;
@@ -552,7 +572,7 @@ export function Preview({ sheet, onFields, extras, onExtras, removed, onToggleRo
       <div ref={box} tabIndex={-1} className="imp-grid" onScroll={(ev) => setTop(ev.currentTarget.scrollTop)} onMouseMove={onMove} onKeyDown={onGridKey}
         onContextMenu={(ev) => { ev.preventDefault(); setMenu({ x: ev.clientX, y: ev.clientY }); }}
         style={{ flexGrow: 1, minHeight: 0, overflow: 'auto', position: 'relative', background: 'var(--bg0)', border: '1px solid var(--line)', borderRadius: 8, outline: 'none' }}>
-        <div style={{ position: 'relative', width: total, height: (rows.length + 1) * ROW_H }}>
+        <div style={{ position: 'relative', width: total, height: (disp.length + 1) * ROW_H }}>
           <div style={{ position: 'sticky', top: 0, zIndex: 3, display: 'flex', width: total, height: ROW_H, background: 'var(--bar)', borderBottom: '1px solid var(--line)' }}>
             <div className="imp-num" style={{ zIndex: 4, background: 'var(--bar)' }} />
             {Array.from({ length: width }, (_, c) => (
@@ -560,13 +580,24 @@ export function Preview({ sheet, onFields, extras, onExtras, removed, onToggleRo
                 <span>{colName(c)}</span>
                 {colFields(c).map((k) => <span key={k} className={'imp-tag imp-f-' + k}>{label(k)}</span>)}
                 {colExtras(c).map((x) => <span key={'x:' + x.name} className="imp-tag imp-f-x">{x.name}</span>)}
+                {onOrder && (() => {
+                  const on = colFilter?.col === c && Object.keys(colFilter.f).length > 0;
+                  return (
+                    <button type="button" className={'ib imp-funnel' + (on ? ' imp-funnel-on' : '')} aria-label={tx('list.026')} title={tx('list.026')}
+                      onMouseDown={(ev) => ev.stopPropagation()}
+                      onClick={(ev) => { const b = ev.currentTarget.getBoundingClientRect(); setFilterMenu({ col: c, x: b.left, y: b.bottom + 4 }); }}>
+                      <FunnelIcon on={on} size={12} />
+                    </button>
+                  );
+                })()}
               </div>
             ))}
           </div>
-          {visible.map((row, j) => {
-            const r = first + j;
+          {visible.map((r, j) => {
+            const row = rows[r] ?? [];
+            const k0 = first + j;
             return (
-              <div key={r} style={{ position: 'absolute', top: (r + 1) * ROW_H, left: 0, display: 'flex', width: total, height: ROW_H }}>
+              <div key={r} style={{ position: 'absolute', top: (k0 + 1) * ROW_H, left: 0, display: 'flex', width: total, height: ROW_H }}>
                 {removed?.has(r) ? (
                   <button type="button" className="imp-num" onClick={() => onToggleRow?.(r)} aria-pressed={!removed.get(r)}
                     title={removed.get(r) ? tx('cloud.removedRow') : tx('cloud.restoredRow')} aria-label={(removed.get(r) ? tx('cloud.removedRow') : tx('cloud.restoredRow')) + ' ' + (r + 1)}
@@ -596,6 +627,11 @@ export function Preview({ sheet, onFields, extras, onExtras, removed, onToggleRo
           })}
         </div>
       </div>
+      {filterMenu && (
+        <PreviewFilter col={filterMenu.col} x={filterMenu.x} y={filterMenu.y} rows={rows} looks={sheet.looks}
+          filter={colFilter?.col === filterMenu.col ? colFilter.f : {}}
+          onChange={(f) => setColFilter(Object.keys(f).length ? { col: filterMenu.col, f } : null)} onClose={() => setFilterMenu(null)} />
+      )}
       {menu && (
         <ContextMenu x={menu.x} y={menu.y} label={tx('import.025')}
           items={COLS.map((c) => ({ key: c.key, label: tx('import.026', { label: c.label }), disabled: !rects.length }))}

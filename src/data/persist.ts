@@ -58,6 +58,8 @@ export interface AppConfig {
   aiEnabled?: boolean;
   /** 開發者選項：收起組與條目串（雲端模式） */
   entrySets?: boolean;
+  /** 本機檔案各頁簽的自訂篩選條件（檔案 ID|頁簽名稱 → 條件） */
+  localFilters?: Record<string, import('../model/customFilter').CustomFilter[]>;
   /** 收起組、條目串展開了哪些（存在自己的電腦；沒記的是收起） */
   setOpen?: Record<string, 1>;
   aiSkillTranslate?: string;

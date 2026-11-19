@@ -30,7 +30,13 @@ export interface CloudSheet {
   sets?: Record<string, CloudSets>;
 }
 /** 一個分頁的收起組（keys 是組裡條目的「ID 第幾個」）和條目串切割過的地方 */
-export interface CloudSets { groups?: { id: string; name: string; keys: string[]; auto?: boolean }[]; cuts?: string[] }
+export interface CloudSets {
+  /** 收起組都是相鄰的條目：只記第一條和最後一條（from、to）；舊版記全部條目（keys） */
+  groups?: { id: string; name: string; keys?: string[]; from?: string; to?: string; auto?: boolean }[];
+  cuts?: string[];
+  /** 這個分頁的自訂篩選條件 */
+  filters?: import('../../model/customFilter').CustomFilter[];
+}
 export interface CloudConfig {
   on: boolean; clientId: string; clientSecret: string; sheets: CloudSheet[];
   /** Verso 資料表的網址（標記、建議翻譯、修改、各檔案的欄位設定存在這裡，大家共用） */

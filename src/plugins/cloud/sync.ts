@@ -168,15 +168,15 @@ export async function readShared() {
   rows.forEach((v, r) => {
     if (r === 0 || !v[0]) return;
     try {
-      const tabs = JSON.parse(v[3] ?? '') as CloudTab[];
+      const tabs = JSON.parse(unpackCell(v, 3)) as CloudTab[];
       if (!Array.isArray(tabs)) return;
       filesRows.set(v[0], r);
       let removed: CloudSheet['removed'];
-      try { removed = v[7] ? JSON.parse(v[7]) : undefined; } catch { removed = undefined; }
+      try { const t = unpackCell(v, 7); removed = t ? JSON.parse(t) : undefined; } catch { removed = undefined; }
       removed = mergeRemoved(removed, localRemoved.get(v[0]));
       const progress = textToProgress(v[PROGRESS_COL]);
       let sets: CloudSheet['sets'];
-      try { sets = v[SETS_COL] ? JSON.parse(v[SETS_COL]) : undefined; } catch { sets = undefined; }
+      try { const t = unpackCell(v, SETS_COL); sets = t ? JSON.parse(t) : undefined; } catch { sets = undefined; }
       shared.push({ sid: v[0], title: v[1] ?? '', project: v[2] || SHARED, tabs, ...(v[6] ? { lengthStd: textToStd(v[6]) } : {}), ...(removed ? { removed } : {}), ...(progress ? { progress } : {}), ...(v[ALL_TABS_COL] === '1' ? { allTabs: true } : {}),
         ...(v[SKILL_COL] === '1' ? { skill: true } : {}), ...(sets && typeof sets === 'object' ? { sets } : {}) });
     } catch { /* 壞掉的列不理 */ }
@@ -193,18 +193,25 @@ const setsTimer = new Map<string, ReturnType<typeof setTimeout>>();
 /** 讀進來的分頁換上資料表記的收起組、條目串切割（條目用「ID 第幾個」對回來）；沒有變就用原本的物件 */
 function withSets(sid: string, sh: Sheet, prev: Sheet | undefined, cs: CloudSets | undefined): Sheet {
   let groups: Sheet['groups'], cuts: Sheet['chainCuts'];
+  const filters = setsDirty.has(sid) ? prev?.filters : cs?.filters?.length ? cs.filters : undefined;
   if (setsDirty.has(sid)) { groups = prev?.groups; cuts = prev?.chainCuts; }
   else {
     const uidOf = new Map<string, string>();
     sh.entries.forEach((e) => { const k = base.get(e.uid)?.key; if (k) uidOf.set(k, e.uid); });
     const map = (keys: string[]) => keys.map((k) => uidOf.get(k)).filter((u): u is string => !!u);
-    groups = (cs?.groups ?? []).map((g) => ({ id: g.id, name: g.name, uids: map(g.keys), ...(g.auto ? { auto: true } : {}) })).filter((g) => g.uids.length);
+    const pos = new Map(sh.entries.map((e, i) => [e.uid, i]));
+    // 新版只記第一條、最後一條：中間的條目照現在的順序補回來
+    const span = (from?: string, to?: string) => {
+      const a = from ? pos.get(uidOf.get(from) ?? '') : undefined, b = to ? pos.get(uidOf.get(to) ?? '') : undefined;
+      return a === undefined || b === undefined || b < a ? [] : sh.entries.slice(a, b + 1).map((e) => e.uid);
+    };
+    groups = (cs?.groups ?? []).map((g) => ({ id: g.id, name: g.name, uids: g.keys ? map(g.keys) : span(g.from, g.to), ...(g.auto ? { auto: true } : {}) })).filter((g) => g.uids.length);
     cuts = map(cs?.cuts ?? []);
     if (!groups.length) groups = undefined;
     if (!cuts.length) cuts = undefined;
   }
-  if (JSON.stringify(groups ?? null) === JSON.stringify(sh.groups ?? null) && JSON.stringify(cuts ?? null) === JSON.stringify(sh.chainCuts ?? null)) return sh;
-  return { ...sh, groups, chainCuts: cuts };
+  if (JSON.stringify(groups ?? null) === JSON.stringify(sh.groups ?? null) && JSON.stringify(cuts ?? null) === JSON.stringify(sh.chainCuts ?? null) && JSON.stringify(filters ?? null) === JSON.stringify(sh.filters ?? null)) return sh;
+  return { ...sh, groups, chainCuts: cuts, filters };
 }
 
 /** 收起組、條目串切割改了：等一下寫進資料表（連續改只寫一次） */
@@ -223,11 +230,13 @@ async function saveSets(sid: string) {
   const sets: Record<string, CloudSets> = {};
   for (const sh of f.sheets) {
     if (sh.gid === undefined) continue;
+    // 收起組只記第一條、最後一條（大檔案整組幾千條也不會超過一格的上限）
     const groups = normalizeGroups(sh.entries, sh.groups ?? [])
-      .map((g) => ({ id: g.id, name: g.name, keys: g.uids.map(keyOf).filter((k): k is string => !!k), ...(g.auto ? { auto: true } : {}) }))
-      .filter((g) => g.keys.length);
+      .map((g) => ({ id: g.id, name: g.name, from: keyOf(g.uids[0]), to: keyOf(g.uids[g.uids.length - 1]), ...(g.auto ? { auto: true } : {}) }))
+      .filter((g): g is { id: string; name: string; from: string; to: string; auto?: true } => !!g.from && !!g.to);
     const cuts = (sh.chainCuts ?? []).map(keyOf).filter((k): k is string => !!k);
-    if (groups.length || cuts.length) sets[String(sh.gid)] = { ...(groups.length ? { groups } : {}), ...(cuts.length ? { cuts } : {}) };
+    const filters = sh.filters ?? [];
+    if (groups.length || cuts.length || filters.length) sets[String(sh.gid)] = { ...(groups.length ? { groups } : {}), ...(cuts.length ? { cuts } : {}), ...(filters.length ? { filters } : {}) };
   }
   const next: CloudSheet = { ...conf, sets: Object.keys(sets).length ? sets : undefined };
   const { cfg, shared } = useCloud.getState();
@@ -276,6 +285,29 @@ function fillChains(sid: string) {
   useStore.setState({ project: { ...s.project, files: s.project.files.map((x) => (x.fid === f.fid ? { ...x, sheets } : x)) } });
 }
 
+/** Google 一格最多五萬字：超過的拆成好幾段放到這一列最後面的欄位，原本的格子記「@從第幾欄,幾段」 */
+const CELL_MAX = 45000;
+function packRow(values: string[], longCols: number[]): string[] {
+  const extra: string[] = [];
+  for (const i of longCols) {
+    const v = values[i] ?? '';
+    if (v.length <= CELL_MAX) continue;
+    const parts: string[] = [];
+    for (let k = 0; k < v.length; k += CELL_MAX) parts.push(v.slice(k, k + CELL_MAX));
+    values[i] = `@${values.length + extra.length},${parts.length}`;
+    extra.push(...parts);
+  }
+  return [...values, ...extra];
+}
+/** 讀一格：是拆開存的就接回來 */
+function unpackCell(v: string[], i: number): string {
+  const s = v[i] ?? '';
+  const m = /^@(\d+),(\d+)$/.exec(s);
+  if (!m) return s;
+  const a = Number(m[1]), n = Number(m[2]);
+  return v.slice(a, a + n).map((x) => x ?? '').join('');
+}
+
 /** 把一份試算表的設定寫進資料表 */
 export async function writeShared(conf: CloudSheet) {
   const did = dataSid();
@@ -286,7 +318,9 @@ export async function writeShared(conf: CloudSheet) {
   else if (filesHeadLen < FILES_HEAD.length) { await ensureCols(did, FILES_TAB, FILES_HEAD.length); await writeRows(did, FILES_TAB, [{ row: 0, values: FILES_HEAD }]); }
   // 進度欄照資料表現在記的寫回去（這裡是整列一起寫）
   const progress = progressSent.get(conf.sid) ?? (conf.progress ? JSON.stringify(conf.progress) : '');
-  const values = [conf.sid, conf.title, conf.project, JSON.stringify(conf.tabs), useCloud.getState().email ?? '', new Date().toISOString(), stdToText(conf.lengthStd), conf.removed ? JSON.stringify(conf.removed) : '', progress, conf.allTabs ? '1' : '', conf.skill ? '1' : '', conf.sets && Object.keys(conf.sets).length ? JSON.stringify(conf.sets) : ''];
+  // 欄位設定、移除的條目、收起組可能很長（大檔案移除了很多條）：超過一格的上限就拆開存
+  const values = packRow([conf.sid, conf.title, conf.project, JSON.stringify(conf.tabs), useCloud.getState().email ?? '', new Date().toISOString(), stdToText(conf.lengthStd), conf.removed ? JSON.stringify(conf.removed) : '', progress, conf.allTabs ? '1' : '', conf.skill ? '1' : '', conf.sets && Object.keys(conf.sets).length ? JSON.stringify(conf.sets) : ''], [3, 7, SETS_COL]);
+  if (values.length > FILES_HEAD.length) await ensureCols(did, FILES_TAB, values.length);
   const row = filesRows.get(conf.sid);
   if (row !== undefined) await writeRows(did, FILES_TAB, [{ row, values }]);
   else await appendRows(did, FILES_TAB, [values]);
@@ -846,11 +880,15 @@ export async function putSheet(conf: CloudSheet) {
     sheets: cfg.sheets.some((x) => x.sid === conf.sid) ? cfg.sheets.map((x) => (x.sid === conf.sid ? conf : x)) : [...cfg.sheets, conf],
     hidden: (cfg.hidden ?? []).filter((x) => x !== conf.sid),
   });
-  try { await writeShared(conf); } catch (e) { showToast(tx('cloud.writeFailed', { name: tx('cloud.dataUrl'), reason: errText(e) }), { warn: true }); }
-  useCloud.setState({ shared: useCloud.getState().shared.map((x) => (x.sid === conf.sid ? conf : x)) });
-  // 重新設定：欄位可能換了，整份重讀
+  // 重新設定：欄位可能換了，先寫回再整份重讀
   const i = useStore.getState().project?.files.findIndex((f) => f.fid === fidOf(conf.sid)) ?? -1;
   if (i >= 0) { await flush(conf.sid, true); loaded.delete(conf.sid); useStore.getState().deleteFile(i); }
+  // 先在軟體裡建好這個檔案（空殼）並換過去：條目欄顯示「加載中...」，大檔案讀完才出現內容
+  useCloud.setState({ shared: useCloud.getState().shared.map((x) => (x.sid === conf.sid ? conf : x)) });
+  ensureStubs();
+  selectSheet(conf.sid);
+  try { await writeShared(conf); } catch (e) { showToast(tx('cloud.writeFailed', { name: tx('cloud.dataUrl'), reason: errText(e) }), { warn: true }); }
+  useCloud.setState({ shared: useCloud.getState().shared.map((x) => (x.sid === conf.sid ? conf : x)) });
   if (await loadSheet(conf.sid)) selectSheet(conf.sid);
 }
 
@@ -954,7 +992,7 @@ export function watchStore() {
           }
         }
         // 收起組、條目串切割改了：記進資料表（大家共用）
-        if (!internal && was && !was.cloud?.stub && !f.cloud?.stub && f.sheets.some((sh) => { const o = was.sheets.find((x) => x.gid === sh.gid); return !!o && (o.groups !== sh.groups || o.chainCuts !== sh.chainCuts); })) saveSetsSoon(sid);
+        if (!internal && was && !was.cloud?.stub && !f.cloud?.stub && f.sheets.some((sh) => { const o = was.sheets.find((x) => x.gid === sh.gid); return !!o && (o.groups !== sh.groups || o.chainCuts !== sh.chainCuts || o.filters !== sh.filters); })) saveSetsSoon(sid);
         // 檔案的長度標準、專案改了：記進資料表（大家共用）
         if (was && !f.cloud?.stub && !was.cloud?.stub && (stdToText(was.lengthStd) !== stdToText(f.lengthStd) || was.project !== f.project)) void saveSheetMeta(sid, f);
       });
