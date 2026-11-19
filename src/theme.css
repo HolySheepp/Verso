@@ -41,8 +41,10 @@ input,textarea{font-family:inherit}
 /* 左邊的導軌：浮在條目上（不佔位置），點了收起那一組或那一串；最後一條往內折 */
 .set-rail{position:absolute;top:-1px;bottom:-1px;width:8px;cursor:pointer;z-index:2}
 /* 導軌顏色跟文字反差大（深色模式是淺色、淺色模式是深色） */
-.set-rail::before{content:'';position:absolute;left:2px;top:0;bottom:0;width:2px;border-radius:1px;background:color-mix(in srgb,var(--text) 55%,transparent);transition:background-color 120ms,border-color 120ms}
-.set-rail-end::before{bottom:6px;width:7px;background:transparent;border-left:2px solid color-mix(in srgb,var(--text) 55%,transparent);border-bottom:2px solid color-mix(in srgb,var(--text) 55%,transparent);border-radius:0 0 0 7px}
+/* 導軌每一列各畫一段，上下各多畫 1px 接起來；用不透明的顏色、兩端不圓角，接縫重疊的地方才不會比較深、看起來一段一段 */
+.vd,.vl{--railc:color-mix(in srgb,var(--text) 55%,var(--panel))}
+.set-rail::before{content:'';position:absolute;left:2px;top:0;bottom:0;width:2px;background:var(--railc);transition:background-color 120ms,border-color 120ms}
+.set-rail-end::before{bottom:6px;width:7px;background:transparent;border-left:2px solid var(--railc);border-bottom:2px solid var(--railc);border-radius:0 0 0 7px}
 .imp-f-x{--imp:rgba(150,150,150,0.26)}
 /* 滑鼠移到導軌上：同一組（串）的整條導軌一起變色 */
 .set-rail-on::before{background-color:var(--accent)}
