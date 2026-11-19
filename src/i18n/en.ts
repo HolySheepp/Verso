@@ -829,7 +829,6 @@ export const EN: Partial<Record<TextKey, string>> = {
   'pf.blank': '(Blank)',
   'pf.nonblank': '(Not Blank)',
   'pf.more': 'Show More',
-  'settings.entrySets': 'Groups & Skill Threads (Cloud Mode)',
   'cloud.skillFile': 'Skill File',
   'cloud.rateWait': 'Google request limit reached; retrying in {s} s',
   'sets.cannotCollapse': 'Only adjacent entries that are not already in a group can be collapsed',

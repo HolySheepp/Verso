@@ -370,7 +370,6 @@ export const ZH = {
   'pf.blank': '空白', // 設定 Google 表：欄的篩選器（依值）
   'pf.nonblank': '非空白', // 設定 Google 表：欄的篩選器（依值）
   'pf.more': '顯示更多', // 設定 Google 表：欄的篩選器（值太多時）
-  'settings.entrySets': '群組與技能串（雲端模式）', // 設定 > 開發者選項：群組與技能串的總開關
   'cloud.skillFile': '技能檔案', // 添加檔案、管理檔案：技能檔案開關（拿掉標籤數字、自動組成技能串）
   'cloud.rateWait': 'Google 每分鐘的次數用完了，{s} 秒後自動重試', // 雲端：被 Google 限流時的提示
   'sets.cannotCollapse': '只能收起相鄰、還沒在別的群組裡的條目', // 條目欄：不能收起時的提示

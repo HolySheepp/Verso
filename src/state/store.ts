@@ -288,8 +288,6 @@ interface State {
   showIds: boolean;
   /** 開發者選項：AI 協助（關掉時按鈕不出現） */
   aiEnabled: boolean;
-  /** 開發者選項：收起組與條目串（只在雲端模式作用） */
-  entrySetsOn: boolean;
   /** 收起組、條目串展開了哪些（setKey → 1；沒記的是收起） */
   setOpen: Record<string, 1>;
   /** 收起組名稱正在輸入的那一組（剛建立時） */
@@ -660,8 +658,8 @@ export function currentOf(s: Pick<State, 'project' | 'file' | 'sheetBy' | 'selBy
 
 // ---- 收起組與條目串（雲端模式） ----
 
-/** 這個檔案有沒有用收起組、條目串（開發者選項打開、雲端模式、雲端檔案） */
-export const setsOn = (s: { entrySetsOn: boolean; devMode: boolean; cloudMode: boolean }, f: FileDoc) => s.entrySetsOn && s.devMode && s.cloudMode && !!f.cloud;
+/** 這個檔案有沒有用群組、技能串（正式功能：雲端模式的雲端檔案一直開著） */
+export const setsOn = (s: { cloudMode: boolean }, f: FileDoc) => s.cloudMode && !!f.cloud;
 /** 收起組、條目串在自己電腦上記展開狀態用的名字（檔案、頁簽、組或串） */
 export const setKey = (f: FileDoc, sheetIdx: number, sh: Sheet, id: string) => `${f.fid ?? f.name}|${sh.gid ?? sheetIdx}|${id}`;
 
@@ -1101,7 +1099,6 @@ export const useStore = create<Store>((set, get) => {
     devMode: false,
     showIds: false,
     aiEnabled: false,
-    entrySetsOn: false,
     setOpen: {},
     groupNaming: null,
     localFilters: {},

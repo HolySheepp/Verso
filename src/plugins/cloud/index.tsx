@@ -217,7 +217,7 @@ function SetupDialog({ sid0, gid0 }: { sid0?: string; gid0?: number }) {
   const [err, setErr] = useState('');
   const [busy, setBusy] = useState(false);
   // 技能檔案（開發者選項打開收起組與條目串時才出現）
-  const setsFeature = useStore((s) => s.entrySetsOn && s.devMode);
+  const setsFeature = true; // 群組與技能串是正式功能：技能檔案開關一直顯示
   const [skill, setSkillOn] = useState(!!old?.skill);
   // 欄位按鈕的順序：這次設定的每個頁簽共用，下次打開回到預設
   const [order, setOrder] = useState<string[]>(() => COLS.map((c) => c.key as string));
@@ -402,7 +402,7 @@ function ManageDialog() {
   const sheets = allSheets();
   const close = () => useCloud.setState({ manage: false });
   const [ask, setAsk] = useState<CloudSheet | null>(null);
-  const setsFeature = useStore((s) => s.entrySetsOn && s.devMode);
+  const setsFeature = true; // 群組與技能串是正式功能：技能檔案開關一直顯示
   return (
     <Shell title={tx('cloud.manage')} width={setsFeature ? 720 : 620} onClose={close}>
       <div style={{ display: 'flex', flexDirection: 'column', gap: 4, padding: '14px 20px 20px', maxHeight: 460, overflowY: 'auto' }}>

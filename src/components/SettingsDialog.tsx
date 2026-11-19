@@ -57,7 +57,7 @@ export function SettingsDialog() {
       c.n = 0;
       const on = !useStore.getState().devMode;
       // 關掉開發者模式時「顯示字句 ID」也一起關
-      useStore.getState().set(on ? { devMode: true } : { devMode: false, showIds: false, aiEnabled: false, entrySetsOn: false });
+      useStore.getState().set(on ? { devMode: true } : { devMode: false, showIds: false, aiEnabled: false });
       if (!on && section === 'dev') setSection('general');
       showToast(on ? tx('settings.devOn') : tx('settings.devOff'));
     }
@@ -408,7 +408,6 @@ function ShortcutsSection() {
 /** 開發者選項：以後其他開發者工具也放這裡 */
 function DevSection() {
   const showIds = useStore((s) => s.showIds);
-  const entrySets = useStore((s) => s.entrySetsOn);
   const set = useStore((s) => s.set);
   return (
     <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
@@ -417,11 +416,6 @@ function DevSection() {
         {tx('settings.showIds')}
       </label>
       <div style={{ fontSize: fz(12), color: 'var(--mute)' }}>{tx('settings.showIdsHint')}</div>
-      {/* 收起組與條目串（只在雲端模式作用）：放在 AI 開關上面 */}
-      <label style={{ display: 'flex', alignItems: 'center', gap: 10, fontSize: fz(13), marginTop: 12 }}>
-        <input type="checkbox" checked={entrySets} onChange={(e) => set({ entrySetsOn: e.target.checked })} />
-        {tx('settings.entrySets')}
-      </label>
       {/* 外掛的開關（例如 AI） */}
       {plugins.map((p) => p.DevOptions && <p.DevOptions key={p.id} />)}
 
