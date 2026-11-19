@@ -358,10 +358,17 @@ export function EntryList() {
   // 每一條的標記和問題、各篩選的數量：條目、檢查結果、篩選變了才重算（選取、捲動不用重算）
   // 這個頁簽的自訂篩選條件：每一條符合哪些
   const cfs = useStore((st) => currentFilters(st));
+  // 收起組、條目串的篩選：在組裡、串裡的條目（展開與否都算）
+  const setsLayout = setsActive ? sheetLayout(fileDoc, sheet, true) : null;
   const { all, cnt } = useMemo(() => {
     const cnt: Record<string, number> = {};
+    const inGroup = new Set(setsLayout?.groups.flatMap((g) => g.uids) ?? []);
     const all = sheet.entries.map((e, i) => {
-      const extra = cfs.length ? matchedKeys(e, cfs) : NO_EXTRA;
+      let extra = cfs.length ? matchedKeys(e, cfs) : NO_EXTRA;
+      if (setsLayout) {
+        const t = [...(inGroup.has(e.uid) ? ['group'] : []), ...(setsLayout.chainOf.has(i) ? ['chain'] : [])];
+        if (t.length) extra = [...extra, ...t];
+      }
       extra.forEach((k) => { cnt[k] = (cnt[k] ?? 0) + 1; });
       const m = effectiveMark(e);
       const issues = visibleIssues(e, s.reported, s.checkSettings, fileStd);
@@ -373,7 +380,7 @@ export function EntryList() {
       return { e, i, m, issues, note, talk, extra };
     });
     return { all, cnt };
-  }, [sheet.entries, s.reported, s.checkSettings, fileStd, cfs]);
+  }, [sheet.entries, s.reported, s.checkSettings, fileStd, cfs, setsLayout]);
 
   const openMark = (ev: React.MouseEvent<HTMLButtonElement>, i: number) => {
     set({ rowMenu: { index: i, ...rowMenuPos(ev.currentTarget, customs.length) }, stampOpen: false, fileMenuOpen: false });

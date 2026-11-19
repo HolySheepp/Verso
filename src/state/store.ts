@@ -2074,6 +2074,10 @@ function pendingTarget(s: State, from: number, delta: number): number | undefine
 export function visibleRows(s: State): number[] {
   const { sheet, fileDoc } = currentOf(s);
   const cfs = currentFilters(s);
+  // 收起組、條目串的篩選：在組裡、串裡的條目
+  const L = setsOn(s, fileDoc) ? sheetLayout(fileDoc, sheet, true) : null;
+  const inGroup = new Set(L?.groups.flatMap((g) => g.uids) ?? []);
+  const tagsOf = (e: Entry, i: number) => [...(cfs.length ? matchedKeys(e, cfs) : []), ...(inGroup.has(e.uid) ? ['group'] : []), ...(L?.chainOf.has(i) ? ['chain'] : [])];
   // 收起組、條目串：收起來的不算（收起的串算一列，就是代表它的那一條）
   if (setsOn(s, fileDoc)) {
     const keys0 = Object.keys(s.filter);
@@ -2081,7 +2085,7 @@ export function visibleRows(s: State): number[] {
     const pass = keys0.length ? (i: number) => {
       const e = sheet.entries[i];
       const issues = s.filter.issues !== undefined && visibleIssues(e, s.reported, s.checkSettings, fileStd0).length > 0;
-      return passesFilter(s.filter, effectiveMark(e), issues, hasNote(e), hasTalk(e), cfs.length ? matchedKeys(e, cfs) : []);
+      return passesFilter(s.filter, effectiveMark(e), issues, hasNote(e), hasTalk(e), tagsOf(e, i));
     } : null;
     return displayOf(s, pass).rows;
   }
@@ -2091,7 +2095,7 @@ export function visibleRows(s: State): number[] {
   sheet.entries.forEach((e, i) => {
     if (!keys.length) { out.push(i); return; }
     const issues = s.filter.issues !== undefined && visibleIssues(e, s.reported, s.checkSettings, fileStd).length > 0;
-    if (passesFilter(s.filter, effectiveMark(e), issues, hasNote(e), hasTalk(e), cfs.length ? matchedKeys(e, cfs) : [])) out.push(i);
+    if (passesFilter(s.filter, effectiveMark(e), issues, hasNote(e), hasTalk(e), tagsOf(e, i))) out.push(i);
   });
   return out;
 }

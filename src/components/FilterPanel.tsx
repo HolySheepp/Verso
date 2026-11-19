@@ -6,7 +6,8 @@ import { fz } from '../model/fonts';
 import { markName, markVisual } from '../model/marks';
 import { hasPlugin } from '../plugins/has';
 import type { MarkId } from '../model/types';
-import { currentFilters, currentOf, useStore, type Filter } from '../state/store';
+import { currentFilters, currentOf, setsOn, useStore, type Filter } from '../state/store';
+import { IconLink, IconStack } from './EntrySets';
 import { useShallow } from 'zustand/react/shallow';
 import { COLS } from '../model/paste';
 import { FILTER_OPS, filterKey, newFilterId, type CustomFilter, type FilterOp } from '../model/customFilter';
@@ -79,10 +80,12 @@ function CustomForm({ init, cols, onDone }: { init: CustomFilter | null; cols: {
   return (
     <form onSubmit={submit} onKeyDown={(ev) => { if (ev.key === 'Escape') { ev.stopPropagation(); onDone(null); } }}
       style={{ display: 'flex', flexWrap: 'wrap', alignItems: 'center', gap: 6, paddingTop: 6, borderTop: '1px solid var(--line)' }}>
-      <Select value={col} options={cols} onChange={setCol} ariaLabel={tx('list.cfCol')} style={{ width: 110 }} />
-      <Select value={op} options={FILTER_OPS.map((o) => ({ value: o, label: tx(('list.op.' + o) as 'list.op.blank') }))} onChange={(v) => setOp(v as FilterOp)} ariaLabel={tx('list.cfOp')} style={{ width: 110 }} />
-      {op !== 'blank' && <input className="field" autoFocus aria-label={tx('list.cfValue')} placeholder={tx('list.cfValue')} value={value} onChange={(e) => setValue(e.target.value)} style={{ flexGrow: 1, minWidth: 90, height: 30 }} />}
-      <input className="field" aria-label={tx('list.cfName')} placeholder={tx('list.cfName')} value={name} onChange={(e) => setName(e.target.value)} style={{ flexGrow: 1, minWidth: 90, height: 30 }} />
+      {/* 第一行：名稱、欄、條件；第二行：內容、確定、取消 */}
+      <input className="field" autoFocus aria-label={tx('list.cfName')} placeholder={tx('list.cfName')} value={name} onChange={(e) => setName(e.target.value)} style={{ width: 120, height: 30 }} />
+      <Select value={col} options={cols} onChange={setCol} ariaLabel={tx('list.cfCol')} style={{ width: 110, height: 30 }} />
+      <Select value={op} options={FILTER_OPS.map((o) => ({ value: o, label: tx(('list.op.' + o) as 'list.op.blank') }))} onChange={(v) => setOp(v as FilterOp)} ariaLabel={tx('list.cfOp')} style={{ width: 110, height: 30 }} />
+      <span style={{ flexBasis: '100%', height: 0 }} />
+      <input className="field" aria-label={tx('list.cfValue')} placeholder={tx('list.cfValue')} value={op === 'blank' ? '' : value} disabled={op === 'blank'} onChange={(e) => setValue(e.target.value)} style={{ flexGrow: 1, minWidth: 0, height: 30 }} />
       <button type="submit" className="ib" disabled={!ok} aria-label={tx('list.cfOk')} title={tx('list.cfOk')} style={{ ...ib, color: ok ? 'var(--accent2)' : 'var(--mute)' }}><IconCheck size={13} sw={2.4} /></button>
       <button type="button" className="ib" aria-label={tx('list.cfCancel')} title={tx('list.cfCancel')} onClick={() => onDone(null)} style={ib}><IconWinClose size={10} sw={1.6} /></button>
     </form>
@@ -101,7 +104,9 @@ export function FilterPanel({ counts }: { counts: Record<string, number> }) {
   const [form, setForm] = useState<{ edit: CustomFilter | null } | null>(null);
   const extraNames = useStore(useShallow((s) => [...new Set(currentOf(s).sheet.entries.flatMap((e) => e.extraNotes?.map((n) => n.name) ?? []))]));
   const cfCols = [...COLS.map((c) => ({ value: c.key as string, label: c.label })), ...extraNames.map((n) => ({ value: 'x:' + n, label: n }))];
-  const keys = [...filterKeys(customs.map((c) => c.id), cloud), ...cfs.map((f) => filterKey(f.id))];
+  // 收起組、條目串（雲端模式打開這個功能時）：篩選出組裡、串裡的條目
+  const setKeys = useStore((s) => { const f = currentOf(s).fileDoc; return setsOn(s, f) ? (f.skill ? 'gc' : 'g') : ''; });
+  const keys = [...filterKeys(customs.map((c) => c.id), cloud), ...(setKeys ? ['group'] : []), ...(setKeys === 'gc' ? ['chain'] : []), ...cfs.map((f) => filterKey(f.id))];
   const cfOf = (k: string) => (k.startsWith('u:') ? cfs.find((f) => filterKey(f.id) === k) : undefined);
   const saveCf = (f: CustomFilter | null) => {
     setForm(null);
@@ -117,7 +122,8 @@ export function FilterPanel({ counts }: { counts: Record<string, number> }) {
 
   useEffect(() => {
     if (!open) return;
-    const down = (ev: MouseEvent) => { if (!wrap.current?.contains(ev.target as Node)) { setOpen(false); setForm(null); } };
+    // 點的地方可能已經不在畫面上了（例如下拉選單收起時的背景），用事件經過的路徑判斷是不是點在篩選器裡
+    const down = (ev: MouseEvent) => { if (wrap.current && !ev.composedPath().includes(wrap.current)) { setOpen(false); setForm(null); } };
     const key = (ev: KeyboardEvent) => { if (ev.key === 'Escape') { ev.stopPropagation(); setOpen(false); } };
     document.addEventListener('mousedown', down);
     document.addEventListener('keydown', key, true);
@@ -137,7 +143,7 @@ export function FilterPanel({ counts }: { counts: Record<string, number> }) {
     put(v === undefined ? {} : Object.fromEntries(keys.map((k) => [k, v])));
   };
   const stateText = (v: 1 | -1 | undefined | 'mixed') => (v === 1 ? tx('list.filterInclude') : v === -1 ? tx('list.filterExclude') : v === 'mixed' ? tx('list.filterMixed') : tx('list.filterNone'));
-  const label = (k: string) => (cfOf(k)?.name ?? (k === 'issues' ? tx('list.008') : k === 'note' ? tx('list.filterNote') : k === 'talk' ? tx('list.filterTalk') : markName(customs, k as MarkId)));
+  const label = (k: string) => (cfOf(k)?.name ?? (k === 'group' ? tx('sets.group') : k === 'chain' ? tx('sets.chain') : k === 'issues' ? tx('list.008') : k === 'note' ? tx('list.filterNote') : k === 'talk' ? tx('list.filterTalk') : markName(customs, k as MarkId)));
   const item: React.CSSProperties = {
     display: 'flex', alignItems: 'center', gap: 7, minWidth: 0, height: 30, padding: '0 8px', border: 0, borderRadius: 6,
     background: 'transparent', color: 'var(--text)', fontSize: fz(12.5), textAlign: 'left',
@@ -163,6 +169,8 @@ export function FilterPanel({ counts }: { counts: Record<string, number> }) {
               <button key={k} type="button" className="dd cf-item" onClick={() => toggle(k)} onContextMenu={onBack(() => toggle(k, true))} aria-label={label(k) + tx('common.colon') + stateText(filter[k])} title={stateText(filter[k])} style={item}>
                 <StateBox v={filter[k]} />
                 {cf ? <FunnelIcon on={false} size={12} />
+                  : k === 'group' ? <span style={{ display: 'flex', color: 'var(--text2)' }}><IconStack size={12} /></span>
+                  : k === 'chain' ? <span style={{ display: 'flex', color: 'var(--text2)' }}><IconLink size={12} /></span>
                   : k === 'issues' ? <IconWarn size={12} sw={2.2} stroke="var(--warntx)" />
                   : k === 'note' ? <svg width={12} height={12} viewBox="0 0 24 24" fill="none" stroke="var(--text2)" strokeWidth={2.2} strokeLinejoin="round" aria-hidden="true"><path d="M4 5h16v11H9.5L4 20.5z" /></svg>
                   : k === 'talk' ? <svg width={13} height={13} viewBox="0 0 24 24" fill="none" stroke="var(--text2)" strokeWidth={2} strokeLinecap="round" strokeLinejoin="round" aria-hidden="true"><path d="M9 12H7l-4 3V4h11v5" /><path d="M9 9h12v11l-4-3H9z" /></svg>
