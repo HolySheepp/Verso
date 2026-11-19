@@ -175,13 +175,14 @@ const EntryRow = memo(function EntryRow({ e, i, aiLock, k, m, issues, on, hit, s
   return (
     <div key={e.uid} className={'rw' + (chainN ? ' chain-row' : '') + (enter ? ' set-in' : '') + (leave ? ' set-out' : '')} data-uid={e.uid} data-key={rowKey ?? e.uid} data-k={k} aria-current={on ? 'true' : undefined}
       aria-label={chainN ? tx('sets.chain') + tx('common.colon') + tx('sets.count', { n: chainN }) : undefined} style={{
-      position: 'relative', display: 'grid', gridTemplateColumns: '24px 16px minmax(0, 1fr)', padding: '0 12px 0 4px',
+      position: 'relative', display: 'grid', gridTemplateColumns: '24px 16px minmax(0, 1fr)', padding: chainN ? '0 11px 0 3px' : '0 12px 0 4px',
       borderTop: `1px solid ${doubt ? 'var(--dbline)' : 'transparent'}`,
       borderBottom: `1px solid ${doubt ? 'var(--dbline)' : 'transparent'}`,
       // 組、串裡的條目和收起的串：底色稍微不同（不用主題色）
       backgroundColor: doubt ? (on ? 'var(--dbon)' : 'var(--db)') : hit ? 'var(--acc-soft)' : chainN || railC ? 'var(--chainbg)' : railG || depth ? 'var(--setbg)' : 'transparent',
       boxShadow: hit ? 'inset 3px 0 0 var(--accent)' : undefined,
-      ...(chainN ? { margin: '2px 8px 6px 6px', borderRadius: 8, border: `1px solid ${doubt ? 'var(--dbline)' : 'var(--line3)'}` } : {}),
+      // 收起的條目串：跟一般條目一樣寬、欄位對齊（外框的 1px 從內距扣掉），不內縮
+      ...(chainN ? { margin: '2px 0 6px', borderRadius: 8, border: `1px solid ${doubt ? 'var(--dbline)' : 'var(--line3)'}` } : {}),
     }}>
       {railG && <span className={'set-rail' + (gEnd ? ' set-rail-end' : '') + (hotG ? ' set-rail-on' : '')} style={{ left: 0 }} aria-hidden="true" title={tx('sets.fold')}
         onMouseEnter={() => h.current.railHover('g:' + railG)} onMouseLeave={() => h.current.railHover(null)}
