@@ -577,6 +577,8 @@ async function loadSheetInner(sid: string, quiet: boolean, retry: boolean): Prom
     // 這之後到換上新內容之間沒有 await，寫回不會插進來
     await serial(async () => {});
     if (retry && (flushVer.get(sid) ?? 0) !== v0) return 'again';
+    // 重讀了幾次還是一直有寫回（例如連按 Enter 驗證好幾條）：這次讀到的是舊內容，不要拿來用（不然剛寫上去的標記會被蓋回去），等下一次重新讀取
+    if ((flushVer.get(sid) ?? 0) !== v0) return true;
     const cur0 = fileOf(sid);
     const prev = cur0 && !cur0.cloud?.stub ? cur0 : undefined;
     // 用讀完時最新的移除紀錄（讀的途中可能剛移除了條目或頁簽）
