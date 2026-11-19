@@ -340,7 +340,7 @@ export const ZH = {
   'projset.ai': 'AI 設定', // 專案設定
   'projset.model': '模型', // 專案設定：AI 用的模型
   'projset.effort': 'Effort', // 專案設定：AI 的 effort
-  'app.aiProgress': 'AI {done}/{total}', // 狀態列：AI 工作的進度（寫過幾條／共幾條）
+  'app.aiProgress': 'AI {done}/{total}', // 狀態列：AI 工作的進度（看過幾條／共幾條）
   'app.aiStillWorking': 'AI 還在工作，要停止嗎？', // AI 工作中要關閉 Verso、換存檔資料夾、改名或刪除專案時
   'app.aiKeep': '取消', // 上面那句的按鈕：不關閉，AI 繼續
   'app.aiStop': '停止 AI', // 上面那句的按鈕：停止 AI 再繼續

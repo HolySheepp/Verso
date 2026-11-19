@@ -80,7 +80,9 @@ const TOOLS = [
 ];
 
 /** notes：AI 的備註先記在這裡，做完才寫進條目（同一條寫第二次就換掉，譯者只看到最後的） */
-interface Job { fid: string; sheet: number; mode: 'translate' | 'verify'; indices: number[]; uids: string[]; before: Record<string, Entry>; wrote: Record<string, 'tgt' | 'sugg'>; notes: Record<string, string> }
+interface Job { fid: string; sheet: number; mode: 'translate' | 'verify'; indices: number[]; uids: string[]; before: Record<string, Entry>; wrote: Record<string, 'tgt' | 'sugg'>; notes: Record<string, string>;
+  /** AI 已經看過（處理完）的條數：拿下一批代表前面都看完了；寫到第幾條也算看到那裡；查檢查結果代表全部看完 */
+  reached: number }
 /** 這次 AI 在處理的檔案、頁簽和條目（按下按鈕時記下，中途換頁簽也寫回原本那頁） */
 let job: Job | null = null;
 
@@ -229,9 +231,10 @@ function callTool(name: string, args: Record<string, unknown>): unknown {
   if (!j) throw new Error('No AI job is running.');
   const sheet = sheetOf(j);
   if (!sheet) throw new Error('The file or sheet is no longer open in Verso.');
-  if (name === 'get_task') return getTask(j, Number(args.offset ?? 0), Number(args.limit ?? BATCH));
-  if (name === 'get_checks') return getChecks(j);
+  if (name === 'get_task') { j.reached = Math.max(j.reached, Math.min(j.indices.length, Math.floor(Number(args.offset ?? 0)) || 0)); progress(j); return getTask(j, Number(args.offset ?? 0), Number(args.limit ?? BATCH)); }
+  if (name === 'get_checks') { j.reached = j.indices.length; progress(j); return getChecks(j); }
   const k = j.indices.indexOf(Number(args.index));
+  if (k >= 0 && k + 1 > j.reached) j.reached = k + 1;
   const e = k < 0 ? undefined : sheet.entries[rowOf(j, sheet, k)];
   if (!e) throw new Error('This entry is not part of the task.');
   const text = String(args.text ?? '').replace(/\r\n?/g, '\n');
@@ -316,7 +319,8 @@ function finish() {
 }
 
 /** 狀態列的進度：寫過幾條／共幾條 */
-const progress = (j: Job) => useStore.setState({ aiProgress: { done: Object.keys(j.wrote).length, total: j.uids.length } });
+/** 進度：AI 實際看到第幾條（驗證時沒改的條目也算看過），不是只算改了幾條 */
+const progress = (j: Job) => useStore.setState({ aiProgress: { done: Math.min(j.uids.length, Math.max(j.reached, Object.keys(j.wrote).length)), total: j.uids.length } });
 
 /** 失敗的原因，用一句看得懂的話說（不顯示原始錯誤） */
 function failReason(text: string): string {
@@ -469,7 +473,7 @@ async function launchAi(s: ReturnType<typeof useStore.getState>, mode: 'translat
   const sheetIdx = cur0.sheetIdx;
   const pairs = indices.map((i) => ({ i, e: sheet.entries[i] })).filter((x) => x.e);
   const list = pairs.map((x) => x.e);
-  job = { fid, sheet: sheetIdx, mode, indices: pairs.map((x) => x.i), uids: list.map((e) => e.uid), before: Object.fromEntries(list.map((e) => [e.uid, e])), wrote: {}, notes: {} };
+  job = { fid, sheet: sheetIdx, mode, indices: pairs.map((x) => x.i), uids: list.map((e) => e.uid), before: Object.fromEntries(list.map((e) => [e.uid, e])), wrote: {}, notes: {}, reached: 0 };
   const model = ps.model || 'opus', effort = ps.effort || 'medium';
   try {
     useStore.setState({ aiBusy: true, aiLocked: job.uids });
