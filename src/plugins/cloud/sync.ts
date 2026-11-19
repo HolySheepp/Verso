@@ -439,7 +439,8 @@ function buildSheet(tab: CloudTab, rows: string[][], prev: Sheet | undefined, ke
     const rData = JSON.stringify([...(d ? d.slice(D.mark, D.blue + 1).map((x) => x ?? '') : ['', '', '', '', '', '']), d?.[D.upd] ?? '', d?.[D.comments] ?? '']);
     // 備註：資料表記的留言對上 Google 備註格，分出原備註和留言（Google 上直接打的 [名字] 內容 也算留言）
     const rComments = textToComments(d?.[D.comments]);
-    const parsed = parseNote(n.note, rComments);
+    // 沒選備註欄的檔案：留言只存在資料表，不用跟 Google 的備註格對（對不到的留言會被當成別人刪掉）
+    const parsed = tab.fields.note ? parseNote(n.note, rComments) : { base: '', threads: rComments };
     const extraNotes = tab.extras?.length ? tab.extras.map((x) => ({ name: x.name, text: rows[row]?.[x.col] ?? '' })) : undefined;
     const o = old.get(keys[i]);
     const b = o ? base.get(o.uid) : undefined;
@@ -704,7 +705,8 @@ async function flushInner(sid: string, all: boolean): Promise<void> {
             const n = Number(key.split('\u0000')[1]);
             const row0 = b.id.trim() ? rowsOf.get(b.id.trim())?.[n] : b.row;
             const rn0 = !tab.fields.note ? '' : row0 !== undefined ? notes[row0] ?? '' : b.note;
-            const theirs = parseNote(rn0, textToComments(fdNow?.rows.get(dataKey(sh.gid!, key))?.v[D.comments]));
+            const dataThreads = textToComments(fdNow?.rows.get(dataKey(sh.gid!, key))?.v[D.comments]);
+            const theirs = tab.fields.note ? parseNote(rn0, dataThreads) : { base: '', threads: dataThreads };
             const comments = mergeComments(textToComments(b.comments), e.comments ?? [], theirs.threads);
             const note = composeNote(theirs.base, comments);
             if (note !== e.note || !sameComments(comments, e.comments) || theirs.base !== e.noteBase) {
