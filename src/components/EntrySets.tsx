@@ -114,9 +114,9 @@ export function DotsItem({ n, onOpen }: { n: number; onOpen(): void }) {
 }
 
 /** 條目串展開時的開頭列：串的原文（拿掉標籤數字）、條數；點了收起 */
-export function ChainBar({ c, depth, bounce, marks, customs, onToggle }: { c: Chain; depth: number; bounce: boolean; marks: { id: MarkId; n: number }[]; customs: CustomMark[]; onToggle(): void }) {
+export function ChainBar({ c, bounce, marks, customs, onToggle }: { c: Chain; depth: number; bounce: boolean; marks: { id: MarkId; n: number }[]; customs: CustomMark[]; onToggle(): void }) {
   return (
-    <div className={'set-wrap' + (bounce ? ' set-bounce' : '')} style={{ padding: `2px 8px 0 ${6 + (depth ? 8 : 0)}px` }}>
+    <div className={'set-wrap' + (bounce ? ' set-bounce' : '')} style={{ padding: '2px 8px 0 6px' }}>
       <div role="button" tabIndex={-1} className="set-btn chain-btn" aria-expanded aria-label={tx('sets.chain') + tx('common.colon') + c.src} title={tx('sets.fold')} onClick={onToggle}
         style={{ minHeight: 30, display: 'grid', gridTemplateColumns: '1fr auto 1fr', alignItems: 'center', gap: 10, padding: '0 12px', borderRadius: '8px 8px 0 0', cursor: 'pointer', fontSize: fz(12), color: 'var(--text2)', borderColor: c.outliers.size ? 'var(--dbline)' : undefined }}>
         <span />
