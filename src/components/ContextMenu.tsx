@@ -34,7 +34,7 @@ export function ContextMenu({ x, y, label, items, onPick, onClose }: Props) {
         style={{ position: 'fixed', inset: 0, zIndex: 60 }} />
       <div role="menu" aria-label={label} className="pop"
         onKeyDown={(ev) => { if (ev.key === 'Escape') { ev.stopPropagation(); onClose(); } }}
-        style={{ position: 'fixed', left: Math.min(x, window.innerWidth - 150), top: Math.min(y, window.innerHeight - (items.length * 32 + 20)), zIndex: 61, width: items.some((it) => it.stepper) ? 156 : 128 }}>
+        style={{ position: 'fixed', left: Math.min(x, window.innerWidth - 290), top: Math.min(y, window.innerHeight - (items.length * 32 + 20)), zIndex: 61, minWidth: items.some((it) => it.stepper) ? 156 : 128, width: 'max-content', maxWidth: 280 }}>
         {items.map((it, j) => {
           const btn = (
             <button key={it.key} type="button" role={it.checked !== undefined ? 'menuitemcheckbox' : 'menuitem'} aria-checked={it.checked} className="dd pop-item" autoFocus={j === 0} disabled={it.disabled}
@@ -48,7 +48,7 @@ export function ContextMenu({ x, y, label, items, onPick, onClose }: Props) {
               } : undefined}
               style={{
                 background: 'transparent', color: it.disabled ? 'var(--dis)' : it.danger ? 'var(--errtx)' : undefined,
-                cursor: it.disabled ? 'default' : undefined, flexGrow: 1, minWidth: 0,
+                cursor: it.disabled ? 'default' : undefined, flexGrow: 1, minWidth: 0, textAlign: 'left', whiteSpace: 'nowrap',
                 ...(it.sub ? { display: 'flex', alignItems: 'center', justifyContent: 'space-between' } : {}),
               }}>{it.checked !== undefined && <span aria-hidden="true" style={{ display: 'inline-block', width: 18 }}>{it.checked ? '✓' : ''}</span>}{it.sub ? <><span>{it.label}</span><span aria-hidden="true" style={{ color: 'var(--mute)' }}>›</span></> : it.label}</button>
           );

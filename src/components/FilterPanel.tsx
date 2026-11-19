@@ -18,7 +18,7 @@ import { IconCheck, IconPen, IconWarn, IconWinClose } from './icons';
 /** 篩選面板列出的條件：內建標記、有問題、原文更新、有備註、有未解決的對話（雲端模式）、自訂標記 */
 export function filterKeys(customIds: string[], cloud = false): string[] {
   const marks: MarkId[] = ['untranslated', 'translated', 'verified', 'doubt', 'think', 'ignore', ...(hasPlugin('ai') ? ['ai' as const] : [])];
-  return [...marks, 'issues', 'srcupd', 'note', ...(cloud ? ['talk'] : []), ...customIds.map((id) => 'c:' + id)];
+  return [...marks, 'issues', 'srcupd', 'note', ...(cloud ? ['talk', 'resolved'] : []), ...customIds.map((id) => 'c:' + id)];
 }
 
 /** 左鍵：空 → 包含 → 排除 → 空；右鍵（back）反過來：空 → 排除 → 包含 → 空 */
@@ -143,7 +143,7 @@ export function FilterPanel({ counts }: { counts: Record<string, number> }) {
     put(v === undefined ? {} : Object.fromEntries(keys.map((k) => [k, v])));
   };
   const stateText = (v: 1 | -1 | undefined | 'mixed') => (v === 1 ? tx('list.filterInclude') : v === -1 ? tx('list.filterExclude') : v === 'mixed' ? tx('list.filterMixed') : tx('list.filterNone'));
-  const label = (k: string) => (cfOf(k)?.name ?? (k === 'group' ? tx('sets.group') : k === 'chain' ? tx('sets.chain') : k === 'issues' ? tx('list.008') : k === 'note' ? tx('list.filterNote') : k === 'talk' ? tx('list.filterTalk') : markName(customs, k as MarkId)));
+  const label = (k: string) => (cfOf(k)?.name ?? (k === 'group' ? tx('sets.group') : k === 'chain' ? tx('sets.chain') : k === 'issues' ? tx('list.008') : k === 'note' ? tx('list.filterNote') : k === 'talk' ? tx('list.filterTalk') : k === 'resolved' ? tx('list.filterResolved') : markName(customs, k as MarkId)));
   const item: React.CSSProperties = {
     display: 'flex', alignItems: 'center', gap: 7, minWidth: 0, height: 30, padding: '0 8px', border: 0, borderRadius: 6,
     background: 'transparent', color: 'var(--text)', fontSize: fz(12.5), textAlign: 'left',
@@ -174,6 +174,7 @@ export function FilterPanel({ counts }: { counts: Record<string, number> }) {
                   : k === 'issues' ? <IconWarn size={12} sw={2.2} stroke="var(--warntx)" />
                   : k === 'note' ? <svg width={12} height={12} viewBox="0 0 24 24" fill="none" stroke="var(--text2)" strokeWidth={2.2} strokeLinejoin="round" aria-hidden="true"><path d="M4 5h16v11H9.5L4 20.5z" /></svg>
                   : k === 'talk' ? <svg width={13} height={13} viewBox="0 0 24 24" fill="none" stroke="var(--text2)" strokeWidth={2} strokeLinecap="round" strokeLinejoin="round" aria-hidden="true"><path d="M9 12H7l-4 3V4h11v5" /><path d="M9 9h12v11l-4-3H9z" /></svg>
+                  : k === 'resolved' ? <svg width={13} height={13} viewBox="0 0 24 24" fill="none" stroke="var(--text2)" strokeWidth={2} strokeLinecap="round" strokeLinejoin="round" aria-hidden="true"><path d="M9 12H7l-4 3V4h11v5" /><path d="M9 9h12v11l-4-3H9z" /><path d="M12.5 14l2 2 3.5-3.5" /></svg>
                   : <MarkIcon mark={markVisual(customs, k as MarkId)} size={12} menu />}
                 <FadeLabel text={label(k)} />
                 {/* 自訂條件：數字左邊的編輯、移除（按了不會切換這個條件） */}

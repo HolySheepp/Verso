@@ -1,6 +1,7 @@
 // 條目篩選器的自訂條件：選一欄、一個條件、（需要的話）要比對的內容，取一個名字。
 // 每個頁簽自己的；雲端檔案記在 Verso 資料表跟同事共享，本機檔案記在自己的電腦。
 import type { Entry } from './types';
+import { commentLine } from './comments';
 
 export type FilterOp = 'blank' | 'contains' | 'word' | 'starts' | 'ends' | 'exact' | 'gt' | 'eq';
 export const FILTER_OPS: FilterOp[] = ['blank', 'contains', 'word', 'starts', 'ends', 'exact', 'gt', 'eq'];
@@ -24,7 +25,11 @@ function colText(e: Entry, col: string): string {
   if (col === 'speaker') return e.speaker;
   if (col === 'src') return e.upd?.src ?? e.src;
   if (col === 'tgt') return e.tgt;
-  if (col === 'note') return e.note;
+  // 備註：雲端檔案連已解決的留言也算（[名字] 內容，回覆是 -[名字] 內容）
+  if (col === 'note') {
+    if (!e.comments?.length) return e.note;
+    return [e.noteBase ?? '', ...e.comments.flatMap((t) => [commentLine(t.author, t.text), ...t.replies.map((r) => commentLine(r.author, r.text, true))])].filter(Boolean).join('\n');
+  }
   if (col.startsWith('x:')) return e.extraNotes?.find((n) => n.name === col.slice(2))?.text ?? '';
   return '';
 }

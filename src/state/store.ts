@@ -25,6 +25,8 @@ import { wordEdits } from '../model/wordDiff';
 /** 條目欄的篩選：條件（標記 id 或 'issues'）→ 1 勾選、-1 排除；沒列的是不選，空的就是全部 */
 export type Filter = Record<string, 1 | -1>;
 /** 一條在篩選下看不看得到：符合任一排除的不顯示；有勾選時要符合其中之一 */
+/** 篩選「有已解決的對話」（雲端檔案的留言） */
+export const hasResolved = (e: Entry) => !!e.comments?.some((t) => t.resolved || t.replies.some((r) => r.resolved));
 export function passesFilter(f: Filter, mark: string, issues: boolean, note = false, talk = false, extra: string[] = []): boolean {
   if (f[mark] === -1 || (issues && f.issues === -1) || (note && f.note === -1) || (talk && f.talk === -1) || extra.some((k) => f[k] === -1)) return false;
   const inc = Object.values(f).includes(1);
@@ -2074,7 +2076,7 @@ export function visibleRows(s: State): number[] {
   // 收起組、條目串的篩選：在組裡、串裡的條目
   const L = setsOn(s, fileDoc) ? sheetLayout(fileDoc, sheet, true) : null;
   const inGroup = new Set(L?.groups.flatMap((g) => g.uids) ?? []);
-  const tagsOf = (e: Entry, i: number) => [...(cfs.length ? matchedKeys(e, cfs) : []), ...(inGroup.has(e.uid) ? ['group'] : []), ...(L?.chainOf.has(i) ? ['chain'] : [])];
+  const tagsOf = (e: Entry, i: number) => [...(cfs.length ? matchedKeys(e, cfs) : []), ...(hasResolved(e) ? ['resolved'] : []), ...(inGroup.has(e.uid) ? ['group'] : []), ...(L?.chainOf.has(i) ? ['chain'] : [])];
   // 收起組、條目串：收起來的不算（收起的串算一列，就是代表它的那一條）
   if (setsOn(s, fileDoc)) {
     const keys0 = Object.keys(s.filter);

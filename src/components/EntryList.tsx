@@ -3,7 +3,7 @@ import { plugins } from '../plugins/registry';
 import { rowHook } from '../plugins/hooks';
 import { memo, useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react';
 import { flushSync } from 'react-dom';
-import { currentFilters, shownCount, currentOf, hasNote, hasTalk, hasPendingUpdate, passesFilter, searchHit, useStorePick, visibleIssues, currentFileStd } from '../state/store';
+import { currentFilters, hasResolved, shownCount, currentOf, hasNote, hasTalk, hasPendingUpdate, passesFilter, searchHit, useStorePick, visibleIssues, currentFileStd } from '../state/store';
 import { FilterPanel } from './FilterPanel';
 import { effectiveMark, markName, markVisual } from '../model/marks';
 import { columnToClipboard, parseHtmlTable, parseTsv, writeColumn } from '../model/clipboard';
@@ -365,6 +365,7 @@ export function EntryList() {
     const inGroup = new Set(setsLayout?.groups.flatMap((g) => g.uids) ?? []);
     const all = sheet.entries.map((e, i) => {
       let extra = cfs.length ? matchedKeys(e, cfs) : NO_EXTRA;
+      if (hasResolved(e)) extra = [...extra, 'resolved'];
       if (setsLayout) {
         const t = [...(inGroup.has(e.uid) ? ['group'] : []), ...(setsLayout.chainOf.has(i) ? ['chain'] : [])];
         if (t.length) extra = [...extra, ...t];
