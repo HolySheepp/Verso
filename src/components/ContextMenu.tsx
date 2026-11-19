@@ -28,8 +28,6 @@ export function ContextMenu({ x, y, label, items, onPick, onClose }: Props) {
   // 用鍵盤打開時焦點移進子選單；滑鼠移上去時不搶焦點
   const openSub = (key: string, el: HTMLElement, kb = false) => { const r = el.getBoundingClientRect(); setOpen({ key, x: r.right + 2, y: r.top - 6, kb }); };
   const sub = open ? items.find((it) => it.key === open.key)?.sub : undefined;
-  // 有打勾的項目時，每一項前面都留打勾的位置，文字才會對齊
-  const hasCheck = items.some((it) => it.checked !== undefined);
   return (
     <>
       <div onMouseDown={onClose} onContextMenu={(ev) => { ev.preventDefault(); onClose(); }}
@@ -51,8 +49,9 @@ export function ContextMenu({ x, y, label, items, onPick, onClose }: Props) {
               style={{
                 background: 'transparent', color: it.disabled ? 'var(--dis)' : it.danger ? 'var(--errtx)' : undefined,
                 cursor: it.disabled ? 'default' : undefined, flexGrow: 1, minWidth: 0, textAlign: 'left', whiteSpace: 'nowrap',
-                ...(it.sub ? { display: 'flex', alignItems: 'center', justifyContent: 'space-between' } : {}),
-              }}>{hasCheck && <span aria-hidden="true" style={{ display: 'inline-block', width: 18 }}>{it.checked ? '✓' : ''}</span>}{it.sub ? <><span>{it.label}</span><span aria-hidden="true" style={{ color: 'var(--mute)' }}>›</span></> : it.label}</button>
+                // 有子選單、可以打勾的項目：文字靠左，箭頭、勾勾放在最右邊
+                ...(it.sub || it.checked !== undefined ? { display: 'flex', alignItems: 'center', justifyContent: 'space-between' } : {}),
+              }}>{it.sub ? <><span>{it.label}</span><span aria-hidden="true" style={{ color: 'var(--mute)' }}>›</span></> : it.label}{it.checked !== undefined && <span aria-hidden="true" style={{ display: 'inline-block', width: 14, marginLeft: 12, textAlign: 'right' }}>{it.checked ? '✓' : ''}</span>}</button>
           );
           if (!it.stepper) return btn;
           const st = it.stepper;
