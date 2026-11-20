@@ -54,6 +54,12 @@ function countOf(list: string[]) {
  * 整句只有刪節號時的句點：頭尾的標籤、變數、括號、引號、空白先拿掉再看，例如 <i>......</i>、(......)。
  * 不是只有句點時回傳 null；start 是句點在原字串裡的位置。
  */
+/** 整句只有刪節號（可以包在引號、括號、標籤裡）：不管幾個點都統一成剛好 6 個；其他句子不動，重複套用結果不變 */
+export function normalizeDots(text: string): string {
+  const d = onlyDots(text);
+  return d && d.dots.length !== 6 ? text.slice(0, d.start) + '......' + text.slice(d.start + d.dots.length) : text;
+}
+
 export function onlyDots(tgt: string): { dots: string; start: number } | null {
   // 先粗篩：拿掉標籤後只剩句點、括號、引號、空白才細看
   if (!tgt.includes('.') || !/^[\s"'()[\]（）［］【】「」『』〔〕〈〉《》.]*$/.test(tgt.replace(TOKEN, ''))) return null;

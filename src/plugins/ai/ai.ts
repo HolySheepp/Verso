@@ -4,7 +4,7 @@
 import { invoke, isTauri } from '@tauri-apps/api/core';
 import { listen } from '@tauri-apps/api/event';
 import { stripIds, tx } from '../../i18n';
-import { enabledIssues } from '../../model/checks';
+import { enabledIssues, normalizeDots } from '../../model/checks';
 import { effectiveStd, type LengthStd } from '../../model/length';
 import { measure } from '../../model/measure';
 import { TGT_COL, parseKey } from '../../model/cells';
@@ -237,7 +237,8 @@ function callTool(name: string, args: Record<string, unknown>): unknown {
   if (k >= 0 && k + 1 > j.reached) j.reached = k + 1;
   const e = k < 0 ? undefined : sheet.entries[rowOf(j, sheet, k)];
   if (!e) throw new Error('This entry is not part of the task.');
-  const text = String(args.text ?? '').replace(/\r\n?/g, '\n');
+  // 整句只有刪節號的譯文：統一成剛好 6 個點（跟手動輸入一樣）
+  const text = normalizeDots(String(args.text ?? '').replace(/\r\n?/g, '\n'));
   const { aiPatch } = useStore.getState();
   if (name === 'write_note') {
     if (!text.trim()) throw new Error('Empty note.');

@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { locateIssues, runChecks } from './checks';
+import { locateIssues, normalizeDots, runChecks } from './checks';
 
 const ids = (src: string, tgt: string) => runChecks(src, tgt).map((i) => i.check);
 const msgs = (src: string, tgt: string) => runChecks(src, tgt).map((i) => i.msg);
@@ -166,5 +166,15 @@ describe('波浪號和特殊符號也算句子結尾', () => {
     expect(msgs('', 'Hey~ Come here.')).toEqual([]);
     expect(msgs('', 'I love you♡ See you.')).toEqual([]);
     expect(locateIssues('Hey~ come here.', new Set(['capital']))).toEqual([{ start: 5, end: 6 }]);
+  });
+});
+
+describe('整句只有刪節號：統一成 6 個點', () => {
+  it('不管幾個點都變成 6 個，包在引號、括號裡也一樣；其他句子不動', () => {
+    for (const x of ['...', '......', '.........', '....']) expect(normalizeDots(x)).toBe('......');
+    expect(normalizeDots('"..."')).toBe('"......"');
+    expect(normalizeDots('(.........)')).toBe('(......)');
+    expect(normalizeDots(normalizeDots('...'))).toBe('......');
+    expect(normalizeDots('Wait...')).toBe('Wait...');
   });
 });

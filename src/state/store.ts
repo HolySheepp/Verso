@@ -8,7 +8,7 @@ import { effectiveMark, findCustom, toStoredMark } from '../model/marks';
 import { TGT_COL, cellKey, parseKey, rectKeys, type Cell, type CellCol } from '../model/cells';
 import { DEFAULT_FONTS, type FontSettings } from '../model/fonts';
 import { defaultBindings, type ActionId, type Bindings, type ShortcutContext } from '../model/shortcuts';
-import { defaultCheckSettings, enabledIssues, type CheckId, type CheckSettings, type Issue, setChecksEnabled } from '../model/checks';
+import { defaultCheckSettings, enabledIssues, normalizeDots, type CheckId, type CheckSettings, type Issue, setChecksEnabled } from '../model/checks';
 import { SHARED, dictKey, newFileId, projectTag, type CustomMark, type DictInfo, type Entry, type FileDoc, type GlossaryTerm, type MarkId, type Mode, type ProjectData, type Sheet } from '../model/types';
 import { sortProjects, type RootConflict } from '../data/persist';
 import { DICT_DIR, safeName, sameName, sheetNameError } from '../model/names';
@@ -1043,7 +1043,23 @@ export const useStore = create<Store>((set, get) => {
     set({ project: { ...s.project!, files } });
   };
 
+  /** 整句只有刪節號的譯文（驗證模式是修改後的句子）：離開時統一成剛好 6 個點 */
+  const fixDots = () => {
+    const s = get();
+    const { entry, sel } = cur();
+    if (!entry || s.aiLocked.includes(entry.uid) || (s.mode !== 'translate' && s.mode !== 'verify')) return;
+    if (s.mode === 'translate' || !editsOf(entry).length) {
+      if (s.mode !== 'translate') return;
+      const t = normalizeDots(entry.tgt);
+      if (t !== entry.tgt) patchEntry(sel, (e) => ({ ...e, tgt: t }));
+      return;
+    }
+    const shown = checkText(entry), t = normalizeDots(shown);
+    if (t !== shown) patchEntry(sel, (e) => ({ ...e, ver: { ...e.ver!, base: e.tgt, edits: wordEdits(e.tgt, t) } }));
+  };
+
   const leaveCurrent = () => {
+    fixDots();
     fillOwnTags();
     tidyCurrent();
     lastEdit = null;
