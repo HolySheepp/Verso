@@ -543,6 +543,19 @@ export function dedupeGlossary(glossary: GlossaryTerm[]): GlossaryTerm[] {
   return out.length === glossary.length ? glossary : out;
 }
 
+/** 只清這一本字典裡完全重複的詞條（跟管理字典的「清除重複詞條」一樣，留第一筆），其他字典不動 */
+export function dedupeDict(glossary: GlossaryTerm[], proj: string, dict: string): GlossaryTerm[] {
+  const seen = new Set<string>();
+  const out = glossary.filter((g) => {
+    if (g.proj !== proj || g.dict !== dict) return true;
+    const k = JSON.stringify([g.term.trim(), g.en.trim(), g.note.trim()]);
+    if (seen.has(k)) return false;
+    seen.add(k);
+    return true;
+  });
+  return out.length === glossary.length ? glossary : out;
+}
+
 /**
  * 修改都沒了：自動標上的疑慮取消，回到原本的標記，拿掉修改記錄。
  * 建議翻譯還有內容時保留疑慮，原本的標記繼續記著（等建議翻譯也清空再退回）。
@@ -1678,7 +1691,8 @@ export const useStore = create<Store>((set, get) => {
       const glossary: GlossaryTerm[] = d.id
         ? project.glossary.map((g) => (g.id === d.id ? { ...g, ...data } : g))
         : [...project.glossary, { id: 'u' + Date.now(), ...data }];
-      set({ project: { ...withDict(project, projName, dictName), glossary }, termDraft: null });
+      // 新增詞條後：這本字典自動清一次完全重複的詞條
+      set({ project: { ...withDict(project, projName, dictName), glossary: d.id ? glossary : dedupeDict(glossary, projName, dictName) }, termDraft: null });
     },
 
     deleteTerm(id) {
@@ -1750,8 +1764,9 @@ export const useStore = create<Store>((set, get) => {
       // 只拿這次貼入的跟目標字典比，重複的不加；其他字典完全不動
       const target = project.glossary.filter((g) => g.proj === proj && g.dict === dict);
       const fresh = dedupeGlossary([...target, ...terms]).slice(target.length);
+      // 加完之後：這本字典自動清一次完全重複的詞條（原本就重複的也一起清）
       set({
-        project: { ...withDict(project, proj, dict), glossary: [...project.glossary, ...fresh] },
+        project: { ...withDict(project, proj, dict), glossary: dedupeDict([...project.glossary, ...fresh], proj, dict) },
         dictPasteOpen: false,
       });
     },
