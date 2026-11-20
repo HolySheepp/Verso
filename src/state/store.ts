@@ -1470,7 +1470,10 @@ export const useStore = create<Store>((set, get) => {
           next.ver = { base: text, edits, ...(prev !== undefined ? { prev } : {}), ...(prevKept ? { prevKept } : {}) };
         } else {
           // 修改全部套用或清除：自動標的疑慮取消，回到原本的標記
-          return revertAutoDoubt(next);
+          const r = revertAutoDoubt(next);
+          // 翻譯模式套用完修改（譯文換成改好的）、沒有建議翻譯：還是疑慮就改成已翻譯
+          if (get().mode === 'translate' && tgt !== undefined && r.mark === 'doubt' && !r.sugg.trim()) return withMark(r, 'translated');
+          return r;
         }
         return next;
       });
