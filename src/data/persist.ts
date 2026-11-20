@@ -56,6 +56,8 @@ export interface AppConfig {
   devMode?: boolean;
   showIds?: boolean;
   aiEnabled?: boolean;
+  /** 各專案上次新增詞條時加到哪個專案的哪本字典（下次新增時預先選好） */
+  lastDict?: Record<string, { proj: string; dict: string }>;
   /** 本機檔案各頁簽的自訂篩選條件（檔案 ID|頁簽名稱 → 條件） */
   localFilters?: Record<string, import('../model/customFilter').CustomFilter[]>;
   /** 收起組、條目串展開了哪些（存在自己的電腦；沒記的是收起） */

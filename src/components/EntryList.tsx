@@ -25,8 +25,8 @@ import { CellText } from './CellText';
 import { maxOf, minOf } from '../model/num';
 import { hasTooLongCell, MAX_CELL_CHARS, tooLongMsg } from '../model/names';
 import { entryFits } from '../model/cellLimit';
-import { showToast, useStore, displayOf, setsOn, setKey, sheetLayout } from '../state/store';
-import { autoName, type Item } from '../model/entrySets';
+import { checkText, shownSrc, showToast, useStore, displayOf, setsOn, setKey, sheetLayout } from '../state/store';
+import { autoName, stripTagDigits, type Item } from '../model/entrySets';
 import { ChainBar, DotsItem, GroupItem, IconLink } from './EntrySets';
 import { Loading } from './Loading';
 import { matchedKeys } from '../model/customFilter';
@@ -725,6 +725,7 @@ export function EntryList() {
     if (k === 'collapse') { s.collapseRows(selRows); return; }
     if (k === 'split') { s.splitAt(selRows[0]); return; }
     if (k === 'mergeChain') { s.mergeChains(selRows.map((i) => sheet.entries[i].uid)); return; }
+    if (k === 'addDict') { useStore.getState().openDictPaste(dictPairs(withChains(selRows))); return; }
     const first = firstKey(keys);
     // 標記選單出現在滑鼠位置（相對於整個畫面），太靠下時往上移
     const menuAt = (x: number, y: number) => {
@@ -833,11 +834,14 @@ export function EntryList() {
     && !(layout?.chainOf.get(selRows[0]) && !inGroup(selRows[0]) && !setOpen[setKey(fileDoc, sheetIdx, sheet, 'c:' + layout!.chainOf.get(selRows[0])!.id)]);
   const cuts = new Set(sheet.chainCuts ?? []);
   const canMergeChain = !!fileDoc.skill && selRows.length >= 2 && sheet.entries.slice(selRows[0], selRows[selRows.length - 1]).some((e) => cuts.has(e.uid));
-  const setItems = setsActive ? [
+  const setItems = [
+    { key: 'addDict', label: tx('list.addDict'), disabled: !selRows.length },
+    ...(setsActive ? [
     { key: 'collapse', label: tx('sets.collapse'), disabled: readOnly || !selRows.length },
     ...(canSplit ? [{ key: 'split', label: tx('sets.split'), disabled: readOnly }] : []),
     ...(canMergeChain ? [{ key: 'mergeChain', label: tx('sets.merge'), disabled: readOnly }] : []),
-  ] : [];
+  ] : []),
+  ];
 
   // 收起組的名稱列：按住拖過好幾個是選取（合併用），沒拖動就是點一下（展開或收起）
   const groupOrder = () => items.flatMap((it) => (it.t === 'group' ? [it.g.id] : []));
@@ -898,6 +902,30 @@ export function EntryList() {
       set({ rowMenu: { index: members[0], indices: members, x: Math.round(gm.x - rr.left), y: Math.round(Math.max(8, Math.min(gm.y - rr.top, (root?.offsetHeight ?? 800) - h - 10))) }, stampOpen: false, fileMenuOpen: false });
     }
     if (k === 'g-remove') { rowHook.fn?.('remove', members, 0); setGroupSel([]); }
+    if (k === 'g-dict') { useStore.getState().openDictPaste(dictPairs(members)); setGroupSel([]); }
+  };
+  /**
+   * 加入字典的原文、譯文（譯文有修改就是改好的）：技能串只加一條拿掉標籤數字的寫法；
+   * 原文或譯文空白的不加，一樣的只加一次
+   */
+  const dictPairs = (rows: number[]): [string, string][] => {
+    const out: [string, string][] = [];
+    const seen = new Set<string>();
+    const doneChain = new Set<string>();
+    for (const i of rows) {
+      const e = sheet.entries[i];
+      if (!e) continue;
+      const c = layout?.chainOf.get(i);
+      if (c && doneChain.has(c.id)) continue;
+      if (c) doneChain.add(c.id);
+      const rep = c ? sheet.entries[c.rep] : e;
+      const src = c ? c.src : shownSrc(e);
+      const tgt = c ? stripTagDigits(checkText(rep)) : checkText(e);
+      if (!src.trim() || !tgt.trim() || seen.has(src + '\u0000' + tgt)) continue;
+      seen.add(src + '\u0000' + tgt);
+      out.push([src.trim(), tgt.trim()]);
+    }
+    return out;
   };
   /** 收起的條目串在條目欄是一列（代表它的那一條）：對它操作就是對整串 */
   const withChains = (rows: number[]) => [...new Set(rows.flatMap((i) => {
@@ -1089,6 +1117,7 @@ export function EntryList() {
               { key: 'g-rename', label: tx('sets.rename'), disabled: readOnly },
               { key: 'g-auto', label: tx('sets.auto'), checked: !!g.auto, disabled: readOnly },
               { key: 'g-mark', label: tx('list.034'), disabled: readOnly },
+              { key: 'g-dict', label: tx('list.addDict') },
               ...(cloudFile ? [{ key: 'g-remove', label: tx('cloud.remove'), danger: true, disabled: readOnly }] : []),
               { key: 'g-merge', label: tx('sets.merge'), disabled: readOnly || new Set([...groupSel, g.id]).size < 2 },
               { key: 'g-dissolve', label: tx('sets.dissolve'), danger: true, disabled: readOnly },

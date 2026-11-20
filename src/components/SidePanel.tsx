@@ -158,7 +158,7 @@ function DictTab() {
             placeholder={tx('side.013')} style={{ width: '100%', padding: '0 12px 0 32px' }} />
         </div>
         <button type="button" className="ib" aria-label={tx('side.014')} title={tx('side.014')}
-          onClick={() => set({ termDraft: { id: null, term: q && results.length === 0 ? q : '', en: '', note: '', dict: dicts.find((d) => d.project === current)?.name ?? '', proj: current } })}
+          onClick={() => useStore.getState().openTerm(q && results.length === 0 ? q : '', '')}
           style={{ width: 36, height: 36, flexShrink: 0, display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 0, background: 'var(--btn)', border: '1px solid var(--line4)', borderRadius: 8, color: 'var(--text2)' }}>
           <IconPlus size={15} sw={2.2} />
         </button>

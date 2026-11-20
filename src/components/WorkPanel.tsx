@@ -8,7 +8,7 @@ import { TextMarks, type MarkRange } from './TextMarks';
 import { useCurrentHits } from '../state/dictHits';
 import { locateIssues } from '../model/checks';
 import { effectiveStd } from '../model/length';
-import { STAMP_EXCLUDE, currentOf, currentStamp, showToast, useStore, useStorePick, visibleIssues, currentFileStd, setsOn, setKey, sheetLayout } from '../state/store';
+import { STAMP_EXCLUDE, currentOf, currentStamp, showToast, useStore, useStorePick, visibleIssues, currentFileStd, setsOn, setKey, sheetLayout, checkText } from '../state/store';
 import { entryFits } from '../model/cellLimit';
 import { markName, markVisual } from '../model/marks';
 import { keyOf, type ActionId } from '../model/shortcuts';
@@ -25,7 +25,7 @@ import { srcDiff } from '../model/srcUpdate';
 import { fz } from '../model/fonts';
 import {
   IconWarn, IconCopyPair, IconRuler,
-  IconBraces, IconCheck, IconChevD, IconChevL, IconChevR, IconCopy, IconEraser, IconEye, IconFeather, IconLock, IconPen, IconUse,
+  IconBraces, IconBook, IconCheck, IconChevD, IconChevL, IconChevR, IconCopy, IconEraser, IconEye, IconFeather, IconLock, IconPen, IconUse,
 } from './icons';
 
 /** 原文標籤在標記清單裡的編號從這裡開始（命中詞是 0 起） */
@@ -853,6 +853,11 @@ function WorkPanelInner({ height, maxH }: { height: number; maxH: number }) {
               <IconBraces size={15} />
             </button>
           )}
+          {/* 加入字典：原文、譯文（有修改就是改好的；收起的技能串是拿掉標籤數字的寫法）填進新增詞條 */}
+          <button type="button" className="ib btn-side" aria-label={tx('work.addDict')} title={tx('work.addDict')}
+            onClick={() => useStore.getState().openTerm(srcShown, chainView ? stripTagDigits(checkText(cur)) : checkText(cur))}>
+            <IconBook size={15} />
+          </button>
           {mode === 'view' && (
             <button type="button" className="ib btn-side" aria-label={tx('work.047')} title={tx('work.048')}
               onClick={() => { void navigator.clipboard?.writeText(cur.tgt); }}>

@@ -1,7 +1,7 @@
 {
   "name": "verso",
   "private": true,
-  "version": "0.119.6",
+  "version": "0.120.0",
   "type": "module",
   "scripts": {
     "dev": "vite",

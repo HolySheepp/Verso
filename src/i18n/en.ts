@@ -20,6 +20,8 @@ export const EN: Partial<Record<TextKey, string>> = {
   'import.extraCol': 'Column {col}',
   'list.filterNote': 'Has Notes',
   'list.filterTalk': 'Has Open Comments',
+  'list.addDict': 'Add to Dictionary',
+  'work.addDict': 'Add to Dictionary',
   'list.filterResolved': 'Has Resolved Comments',
   'list.cfAdd': 'Add Filter',
   'list.cfCol': 'Column',

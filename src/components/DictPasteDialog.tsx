@@ -1,6 +1,6 @@
 import { tx } from '../i18n';
 import { useEffect, useState } from 'react';
-import { currentProjectOf, useStore } from '../state/store';
+import { currentProjectOf, termTarget, useStore } from '../state/store';
 import { DictPicker, NEW, ProjectPicker, firstDict, nameError, picked } from './Pickers';
 import { PasteBox, type BoxSel } from './PasteBox';
 import { dragWindow } from './windowDrag';
@@ -28,9 +28,14 @@ export function DictPasteDialog() {
 
   useEffect(() => {
     if (open) {
-      const p = currentProjectOf(useStore.getState());
-      setProjSel(p); setNewProj(''); setTarget(firstDict(p)); setNewName('');
-      cols.reset({ src: null, tgt: null }); setSelRow(null); }
+      // 專案、字典：這個專案上次加的字典（還在的話），不然是這個專案的第一本
+      const st = useStore.getState();
+      const t = termTarget(st);
+      const p = t.dict ? t.proj : currentProjectOf(st);
+      setProjSel(p); setNewProj(''); setTarget(t.dict && t.proj === p ? t.dict : firstDict(p)); setNewName('');
+      // 從條目欄右鍵加進字典：原文、譯文先填好
+      const init = st.dictPasteInit;
+      cols.reset(init ? { src: { rows: init.src, extra: 0 }, tgt: { rows: init.tgt, extra: 0 } } : { src: null, tgt: null }); setSelRow(null); }
   }, [open]);
 
   if (!open) return null;
@@ -63,7 +68,7 @@ export function DictPasteDialog() {
         style={{ width: 640, height: 560, maxWidth: 'calc(100% - 48px)', maxHeight: 'calc(100% - 48px)', boxShadow: '0 24px 64px rgba(0,0,0,0.5)' }}>
         <div style={{ height: 52, flexShrink: 0, display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '0 10px 0 20px', borderBottom: '1px solid var(--line)' }}>
           <h2 id="verso-dict-paste-title" style={{ margin: 0, fontSize: fz(15), fontWeight: 600 }}>{tx('dictpaste.002')}</h2>
-          <button type="button" className="ib" aria-label={tx('dictpaste.003')} onClick={() => set({ dictPasteOpen: false })}
+          <button type="button" className="ib" aria-label={tx('dictpaste.003')} onClick={() => set({ dictPasteOpen: false, dictPasteInit: null })}
             style={{ width: 34, height: 34, display: 'flex', alignItems: 'center', justifyContent: 'center', background: 'transparent', border: 0, borderRadius: 8, color: 'var(--text2)' }}>
             <IconWinClose size={13} sw={1.4} />
           </button>
@@ -91,7 +96,7 @@ export function DictPasteDialog() {
             {error || (pairs.length ? tx('dictpaste.008', { length: pairs.length }) : '')}
           </span>
           <div style={{ display: 'flex', gap: 8 }}>
-            <button type="button" className="btn btn-ghost" onClick={() => set({ dictPasteOpen: false })}
+            <button type="button" className="btn btn-ghost" onClick={() => set({ dictPasteOpen: false, dictPasteInit: null })}
               style={{ height: 36, padding: '0 16px', background: 'var(--btn)', border: '1px solid var(--line4)', borderRadius: 8, fontSize: fz(13) }}>{tx('dictpaste.009')}</button>
             <button type="button" className="btn btn-primary" disabled={!canSave} onClick={() => addTerms(projName, dictName, pairs)}
               style={{ height: 36, padding: '0 18px', background: 'var(--primary)', border: 0, borderRadius: 8, color: '#ffffff', fontSize: fz(13), fontWeight: 600 }}>{tx('dictpaste.010')}</button>

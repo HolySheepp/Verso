@@ -32,6 +32,15 @@ export function passesFilter(f: Filter, mark: string, issues: boolean, note = fa
   const inc = Object.values(f).includes(1);
   return !inc || f[mark] === 1 || (issues && f.issues === 1) || (note && f.note === 1) || (talk && f.talk === 1) || extra.some((k) => f[k] === 1);
 }
+/** 新增詞條預設加到哪裡：這個專案上次加的字典（還在的話），不然是這個專案的第一本字典 */
+export function termTarget(s: State): { proj: string; dict: string } {
+  const current = currentProjectOf(s);
+  const last = s.lastDict[current];
+  const dicts = s.project?.dicts ?? [];
+  if (last && dicts.some((d) => d.project === last.proj && d.name === last.dict)) return last;
+  return { proj: current, dict: dicts.find((d) => d.project === current)?.name ?? '' };
+}
+
 /** 目前頁簽的自訂篩選條件（雲端檔案記在頁簽裡、跟同事共享；本機檔案記在自己的電腦） */
 export function currentFilters(s: Pick<State, 'project' | 'file' | 'sheetBy' | 'selBy' | 'localFilters'> & { cloudMode?: boolean }): CustomFilter[] {
   const { fileDoc, sheet } = currentOf(s);
@@ -296,6 +305,14 @@ interface State {
   groupNaming: string | null;
   /** 本機檔案各頁簽的自訂篩選條件 */
   localFilters: Record<string, CustomFilter[]>;
+  /** 各專案上次新增詞條時加到哪個專案的哪本字典 */
+  lastDict: Record<string, { proj: string; dict: string }>;
+  /** 打開貼入字典視窗時預先填好的原文、譯文 */
+  dictPasteInit: { src: string[]; tgt: string[] } | null;
+  /** 打開新增詞條視窗，填好原文、譯文，專案、字典用這個專案上次加的 */
+  openTerm(term: string, en: string): void;
+  /** 打開貼入字典視窗，填好原文、譯文 */
+  openDictPaste(pairs: [string, string][]): void;
   /** 換掉目前頁簽的自訂篩選條件（拿掉的條件也從篩選裡拿掉） */
   setSheetFilters(list: CustomFilter[]): void;
   /** 選到的條目收成一組；回傳新組的 id（不能收時是 null） */
@@ -1104,6 +1121,8 @@ export const useStore = create<Store>((set, get) => {
     setOpen: {},
     groupNaming: null,
     localFilters: {},
+    lastDict: {},
+    dictPasteInit: null,
     cloudMode: false,
     checksOn: true,
     cloudDictFile: {},
@@ -1638,11 +1657,22 @@ export const useStore = create<Store>((set, get) => {
       set(noView);
     },
 
+    openTerm(term, en) {
+      const { proj, dict } = termTarget(get());
+      set({ termDraft: { id: null, term, en, note: '', dict, proj } });
+    },
+
+    openDictPaste(pairs) {
+      set({ dictPasteOpen: true, dictPasteInit: { src: pairs.map((p) => p[0]), tgt: pairs.map((p) => p[1]) } });
+    },
+
     saveTerm(d) {
       const project = get().project;
       if (!project) return;
       const dictName = d.dict.trim() ? safeName(d.dict) : '未分類';
       const projName = d.proj.trim() ? safeName(d.proj) : SHARED;
+      // 新增詞條：記下這個專案這次加到哪本字典，下次預先選好
+      if (!d.id) set({ lastDict: { ...get().lastDict, [currentProjectOf(get())]: { proj: projName, dict: dictName } } });
       const data = { term: d.term.trim(), en: d.en.trim(), note: d.note.trim(), dict: dictName, proj: projName };
       if (!data.term || !data.en) return;
       const glossary: GlossaryTerm[] = d.id
@@ -1712,6 +1742,7 @@ export const useStore = create<Store>((set, get) => {
     addTerms(proj, dict, pairs) {
       const project = get().project;
       if (!project) return;
+      set({ lastDict: { ...get().lastDict, [currentProjectOf(get())]: { proj, dict } }, dictPasteInit: null });
       const base = Date.now().toString(36);
       const terms: GlossaryTerm[] = pairs.map(([term, en], i) => ({
         id: 'p' + base + i, term, en, note: '', dict, proj,

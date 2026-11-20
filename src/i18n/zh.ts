@@ -144,6 +144,8 @@ export const ZH = {
   'import.extraCol': '{col} 欄', // 同上：添加好的欄顯示是哪一欄
   'list.filterNote': '有備註', // 條目欄篩選面板的條件
   'list.filterTalk': '有未解決的對話', // 條目欄篩選面板的條件（雲端檔案的留言）
+  'list.addDict': '加入字典', // 條目欄、群組右鍵：把選到的原文譯文加進字典
+  'work.addDict': '加入字典', // 工作欄右側按鈕：把這條的原文譯文加進字典
   'list.filterResolved': '有已解決的對話', // 條目欄篩選面板的條件（雲端檔案的留言）
   'list.cfAdd': '新增篩選條件', // 條目篩選器：加號按鈕（無障礙標籤）
   'list.cfCol': '欄', // 自訂篩選條件：選哪一欄（無障礙標籤）
