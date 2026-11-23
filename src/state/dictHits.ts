@@ -114,10 +114,12 @@ function prepared(terms: GlossaryTerm[], current?: string): Prepared[] {
 }
 
 /** 目前這一條原文的命中詞 */
-export function useCurrentHits(): DictHit[] {
+/** 收起的技能串傳入它顯示的原文（拿掉標籤數字的寫法） */
+export function useCurrentHits(override?: string): DictHit[] {
   const terms = useActiveTerms();
   // 畫面上顯示的原文（有新原文時用新原文）
   const src = useStore((s) => { const e = currentOf(s).entry; return e ? shownSrc(e) : ''; });
   const current = useStore((s) => currentProjectOf(s));
-  return useMemo(() => findHits(src, terms, current), [src, terms, current]);
+  const text = override ?? src;
+  return useMemo(() => findHits(text, terms, current), [text, terms, current]);
 }

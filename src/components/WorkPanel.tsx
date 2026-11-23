@@ -92,8 +92,6 @@ function WorkPanelInner({ height, maxH }: { height: number; maxH: number }) {
   const cur = entry!;
   const [tgtEl, setTgtEl] = useState<HTMLTextAreaElement | null>(null);
   const [srcEl, setSrcEl] = useState<HTMLTextAreaElement | null>(null);
-  // 目前這一條原文命中的字典詞（只算這一條）
-  const hits = useCurrentHits();
   // 滑鼠停在原文框的哪個命中詞上：只有那一段畫底色，並在滑鼠旁顯示譯名
   const [hover, setHover] = useState<{ hit: number; span: number; x: number; y: number } | null>(null);
   // 技能檔案（雲端模式的收起組與條目串打開時）：原文裡的標籤加底線，點了插入到輸入框（跟命中詞一樣）
@@ -107,6 +105,8 @@ function WorkPanelInner({ height, maxH }: { height: number; maxH: number }) {
     return c;
   });
   const srcShown = chainView ? chainView.src : cur.src;
+  // 目前這一條原文命中的字典詞（只算這一條；收起的技能串比對拿掉標籤數字的原文）
+  const hits = useCurrentHits(chainView ? chainView.src : undefined);
   const tgtShown = chainView ? stripTagDigits(cur.tgt) : cur.tgt;
   // 原文裡的參數標籤：Ctrl+數字插入第幾個；技能檔案另外加底線、點了插入
   const allTags = useMemo(() => tagSpans(srcShown), [srcShown]);
@@ -130,7 +130,7 @@ function WorkPanelInner({ height, maxH }: { height: number; maxH: number }) {
   };
   const hitRanges = useMemo<MarkRange[]>(() => [
     // 條目串的原文拿掉了數字，字典命中的位置對不上：只標標籤
-    ...(chainView ? [] : hits.flatMap((h, i) => h.spans.map((sp, j) => ({ ...sp, kind: 'hit' as const, ref: i * 1000 + j, on: hover?.hit === i && hover.span === j })))),
+    ...(hits.flatMap((h, i) => h.spans.map((sp, j) => ({ ...sp, kind: 'hit' as const, ref: i * 1000 + j, on: hover?.hit === i && hover.span === j })))),
     // 標籤：編號從 TAG_REF 開始（跟命中詞分開）
     ...tags.map((t, k) => ({ start: t.start, end: t.end, kind: 'hit' as const, ref: (TAG_REF + k) * 1000, on: !!hotTag && srcKeys[k] === hotTag })),
   ], [hits, tags, hover?.hit, hover?.span, chainView, hotTag, srcKeys]);
