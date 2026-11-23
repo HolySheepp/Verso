@@ -1368,6 +1368,8 @@ export const useStore = create<Store>((set, get) => {
       patchEntry(cur().sel, (e) => {
         let next = { ...e, ...patch, sugg: e.sugg };
         if (patch.sugg !== undefined && patch.sugg !== e.sugg) next = withSugg(next, patch.sugg);
+        // 翻譯模式建議翻譯清空、也沒有修改：還是疑慮就改成已翻譯
+        if (patch.sugg !== undefined && get().mode === 'translate' && next.mark === 'doubt' && !next.sugg.trim() && !editsOf(next).length) next = withMark(next, 'translated');
         if (patch.tgt !== undefined && patch.tgt !== e.tgt) {
           next.pending = false;
           // 改過譯文：AI 翻譯算確認了
@@ -1471,8 +1473,8 @@ export const useStore = create<Store>((set, get) => {
         } else {
           // 修改全部套用或清除：自動標的疑慮取消，回到原本的標記
           const r = revertAutoDoubt(next);
-          // 翻譯模式套用完修改（譯文換成改好的）、沒有建議翻譯：還是疑慮就改成已翻譯
-          if (get().mode === 'translate' && tgt !== undefined && r.mark === 'doubt' && !r.sugg.trim()) return withMark(r, 'translated');
+          // 翻譯模式修改清空（套用或清除）、也沒有建議翻譯：還是疑慮就改成已翻譯
+          if (get().mode === 'translate' && r.mark === 'doubt' && !r.sugg.trim()) return withMark(r, 'translated');
           return r;
         }
         return next;
