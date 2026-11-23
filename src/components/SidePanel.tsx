@@ -3,7 +3,7 @@ import { tx } from '../i18n';
 import { MAX_CELL_CHARS } from '../model/names';
 import { useDeferredValue, useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react';
 import { useShallow } from 'zustand/react/shallow';
-import { currentOf, shownSrc, currentProjectOf, dictEnabledIn, overrideKey, searchHit, useStore, useStorePick, type SideTab, currentFileStd, isShown, dictDefaultOn, ensureUserName } from '../state/store';
+import { currentOf, hitSrc, shownSrc, currentProjectOf, dictEnabledIn, overrideKey, searchHit, useStore, useStorePick, type SideTab, currentFileStd, isShown, dictDefaultOn, ensureUserName } from '../state/store';
 import { CommentsPanel } from './comments/CommentsPanel';
 import { CompactCtx, compactCard, shrink } from './compact';
 import { useContext } from 'react';
@@ -89,7 +89,7 @@ function DictTab() {
     overrides: s.dictOverrides,
     current: currentProjectOf(s),
     uid: currentOf(s).entry?.uid ?? '',
-    src: currentOf(s).entry ? shownSrc(currentOf(s).entry!) : '',
+    src: hitSrc(s),
   })));
   const set = useStore((s) => s.set);
   // 雲端模式：字典標示是雲端還是本地
@@ -450,7 +450,7 @@ function SearchTab() {
 function DictBlock() {
   const terms = useActiveTerms();
   const current = useStore((s) => currentProjectOf(s));
-  const src = useStore((s) => { const e = currentOf(s).entry; return e ? shownSrc(e) : ''; });
+  const src = useStore(hitSrc);
   const [q, setQ] = useState('');
   const dq = useDeferredValue(q.trim());
   const matches = useMemo(() => findHits(src, terms, current).flatMap((h, k) => h.terms.map((g, j) => ({ g, alt: j === 0 && k < 9 ? k + 1 : undefined }))), [terms, src, current]);

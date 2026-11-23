@@ -3,7 +3,7 @@
 import { useMemo } from 'react';
 import { useShallow } from 'zustand/react/shallow';
 import { SHARED, dictKey, type DictInfo, type GlossaryTerm } from '../model/types';
-import { currentOf, shownSrc, currentProjectOf, dictEnabledIn, useStore } from './store';
+import { hitSrc, currentProjectOf, dictEnabledIn, useStore } from './store';
 
 export interface DictHit {
   /** 第一個譯名（Alt+數字插入這個）：目前專案的字典優先 */
@@ -114,12 +114,10 @@ function prepared(terms: GlossaryTerm[], current?: string): Prepared[] {
 }
 
 /** 目前這一條原文的命中詞 */
-/** 收起的技能串傳入它顯示的原文（拿掉標籤數字的寫法） */
-export function useCurrentHits(override?: string): DictHit[] {
+export function useCurrentHits(): DictHit[] {
   const terms = useActiveTerms();
-  // 畫面上顯示的原文（有新原文時用新原文）
-  const src = useStore((s) => { const e = currentOf(s).entry; return e ? shownSrc(e) : ''; });
+  // 畫面上顯示的原文（有新原文時用新原文；收起的技能串用拿掉標籤數字的寫法）
+  const src = useStore(hitSrc);
   const current = useStore((s) => currentProjectOf(s));
-  const text = override ?? src;
-  return useMemo(() => findHits(text, terms, current), [text, terms, current]);
+  return useMemo(() => findHits(src, terms, current), [src, terms, current]);
 }

@@ -2193,3 +2193,20 @@ export function ensureUserName(): Promise<string | null> {
   if (n) return Promise.resolve(n);
   return new Promise((resolve) => useStore.setState({ userNameAsk: { resolve } }));
 }
+
+/** 翻譯模式選到收起的技能串：回傳那串（工作欄顯示拿掉標籤數字的寫法），不然是 null */
+export function collapsedChain(s: State) {
+  const { fileDoc, sheet, sheetIdx, sel } = currentOf(s);
+  if (s.mode !== 'translate' || !fileDoc?.skill || !sheet || !setsOn(s, fileDoc)) return null;
+  const c = sheetLayout(fileDoc, sheet, true).chainOf.get(sel);
+  if (!c || s.setOpen[setKey(fileDoc, sheetIdx, sheet, 'c:' + c.id)] || c.outliers.has(sheet.entries[sel]?.uid ?? '')) return null;
+  return c;
+}
+
+/** 字典比對用的原文：收起的技能串用拿掉標籤數字的寫法，不然是畫面上顯示的原文 */
+export function hitSrc(s: State): string {
+  const c = collapsedChain(s);
+  if (c) return c.src;
+  const e = currentOf(s).entry;
+  return e ? shownSrc(e) : '';
+}

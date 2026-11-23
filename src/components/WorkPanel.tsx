@@ -106,7 +106,7 @@ function WorkPanelInner({ height, maxH }: { height: number; maxH: number }) {
   });
   const srcShown = chainView ? chainView.src : cur.src;
   // 目前這一條原文命中的字典詞（只算這一條；收起的技能串比對拿掉標籤數字的原文）
-  const hits = useCurrentHits(chainView ? chainView.src : undefined);
+  const hits = useCurrentHits();
   const tgtShown = chainView ? stripTagDigits(cur.tgt) : cur.tgt;
   // 原文裡的參數標籤：Ctrl+數字插入第幾個；技能檔案另外加底線、點了插入
   const allTags = useMemo(() => tagSpans(srcShown), [srcShown]);
