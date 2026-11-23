@@ -2210,3 +2210,6 @@ export function hitSrc(s: State): string {
   const e = currentOf(s).entry;
   return e ? shownSrc(e) : '';
 }
+
+/** 技能檔案（雲端模式）：字典比對時原文標籤裡的數字不算 */
+export const skillHits = (s: State) => { const f = currentOf(s).fileDoc; return !!f?.skill && setsOn(s, f); };

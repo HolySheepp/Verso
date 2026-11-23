@@ -3,7 +3,7 @@ import { tx } from '../i18n';
 import { MAX_CELL_CHARS } from '../model/names';
 import { useDeferredValue, useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react';
 import { useShallow } from 'zustand/react/shallow';
-import { currentOf, hitSrc, shownSrc, currentProjectOf, dictEnabledIn, overrideKey, searchHit, useStore, useStorePick, type SideTab, currentFileStd, isShown, dictDefaultOn, ensureUserName } from '../state/store';
+import { currentOf, hitSrc, skillHits, shownSrc, currentProjectOf, dictEnabledIn, overrideKey, searchHit, useStore, useStorePick, type SideTab, currentFileStd, isShown, dictDefaultOn, ensureUserName } from '../state/store';
 import { CommentsPanel } from './comments/CommentsPanel';
 import { CompactCtx, compactCard, shrink } from './compact';
 import { useContext } from 'react';
@@ -12,7 +12,7 @@ import { SHARED, dictKey, type DictInfo, type FileDoc, type GlossaryTerm } from 
 import { fz } from '../model/fonts';
 import { enabledIssues } from '../model/checks';
 import { effectiveStd } from '../model/length';
-import { findHits, foldText, useActiveTerms } from '../state/dictHits';
+import { findHits, findSkillHits, foldText, useActiveTerms } from '../state/dictHits';
 import { bestRank, sortByRank } from '../model/matchRank';
 import { leaveFile } from '../state/saver';
 import { ContextMenu } from './ContextMenu';
@@ -134,7 +134,8 @@ function DictTab() {
   }, [uid, src]);
   const matchSrc = uid !== srcNow.uid ? src : srcNow.src;
   // 同一個原文在好幾本字典有不同譯名時，全部列出來
-  const matches = useMemo(() => findHits(matchSrc, hitTerms, current).flatMap((h, k) => h.terms.map((g, j) => ({ g, alt: j === 0 && k < 9 ? k + 1 : undefined }))), [hitTerms, matchSrc, current]);
+  const skill = useStore(skillHits);
+  const matches = useMemo(() => (skill ? findSkillHits : findHits)(matchSrc, hitTerms, current).flatMap((h, k) => h.terms.map((g, j) => ({ g, alt: j === 0 && k < 9 ? k + 1 : undefined }))), [hitTerms, matchSrc, current, skill]);
   // 目前專案的字典排最前面，再來是共用，其他照原本順序
   const rank = (d: DictInfo) => (d.project === current ? 0 : d.project === SHARED ? 1 : 2);
   const sorted = [...dicts].sort((a, b) => rank(a) - rank(b));
@@ -453,7 +454,8 @@ function DictBlock() {
   const src = useStore(hitSrc);
   const [q, setQ] = useState('');
   const dq = useDeferredValue(q.trim());
-  const matches = useMemo(() => findHits(src, terms, current).flatMap((h, k) => h.terms.map((g, j) => ({ g, alt: j === 0 && k < 9 ? k + 1 : undefined }))), [terms, src, current]);
+  const skill = useStore(skillHits);
+  const matches = useMemo(() => (skill ? findSkillHits : findHits)(src, terms, current).flatMap((h, k) => h.terms.map((g, j) => ({ g, alt: j === 0 && k < 9 ? k + 1 : undefined }))), [terms, src, current, skill]);
   const results = useMemo(() => {
     if (!dq) return [];
     const fq = foldText(dq);

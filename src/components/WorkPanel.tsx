@@ -31,6 +31,18 @@ import {
 /** 原文標籤在標記清單裡的編號從這裡開始（命中詞是 0 起） */
 const TAG_REF = 900;
 const NO_TAGS: ReturnType<typeof tagSpans> = [];
+/** 一段範圍挖掉裡面的標籤，剩下的幾段 */
+function cutOut(sp: { start: number; end: number }, tags: { start: number; end: number }[]) {
+  const out: { start: number; end: number }[] = [];
+  let at = sp.start;
+  for (const t of tags) {
+    if (t.end <= at || t.start >= sp.end) continue;
+    if (t.start > at) out.push({ start: at, end: t.start });
+    at = Math.max(at, t.end);
+  }
+  if (at < sp.end) out.push({ start: at, end: sp.end });
+  return out;
+}
 /** 每個參數標籤的對應名稱：拿掉數字後的寫法＋這是第幾個這種標籤（原文、譯文裡同一個名稱的就是對應的） */
 function tagKeysOf(spans: ReturnType<typeof tagSpans>): string[] {
   const n = new Map<string, number>();
@@ -129,8 +141,8 @@ function WorkPanelInner({ height, maxH }: { height: number; maxH: number }) {
     setBoxTag((h) => (h === next ? h : next));
   };
   const hitRanges = useMemo<MarkRange[]>(() => [
-    // 條目串的原文拿掉了數字，字典命中的位置對不上：只標標籤
-    ...(hits.flatMap((h, i) => h.spans.map((sp, j) => ({ ...sp, kind: 'hit' as const, ref: i * 1000 + j, on: hover?.hit === i && hover.span === j })))),
+    // 字典命中詞：裡面的標籤挖掉（標籤自己另外標，才不會被蓋住）
+    ...hits.flatMap((h, i) => h.spans.flatMap((sp, j) => cutOut(sp, tags).map((p) => ({ ...p, kind: 'hit' as const, ref: i * 1000 + j, on: hover?.hit === i && hover.span === j })))),
     // 標籤：編號從 TAG_REF 開始（跟命中詞分開）
     ...tags.map((t, k) => ({ start: t.start, end: t.end, kind: 'hit' as const, ref: (TAG_REF + k) * 1000, on: !!hotTag && srcKeys[k] === hotTag })),
   ], [hits, tags, hover?.hit, hover?.span, chainView, hotTag, srcKeys]);

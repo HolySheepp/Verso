@@ -3,7 +3,8 @@
 import { useMemo } from 'react';
 import { useShallow } from 'zustand/react/shallow';
 import { SHARED, dictKey, type DictInfo, type GlossaryTerm } from '../model/types';
-import { hitSrc, currentProjectOf, dictEnabledIn, useStore } from './store';
+import { hitSrc, currentProjectOf, dictEnabledIn, skillHits, useStore } from './store';
+import { stripTagDigits, tagSpans } from '../model/entrySets';
 
 export interface DictHit {
   /** 第一個譯名（Alt+數字插入這個）：目前專案的字典優先 */
@@ -119,5 +120,33 @@ export function useCurrentHits(): DictHit[] {
   // 畫面上顯示的原文（有新原文時用新原文；收起的技能串用拿掉標籤數字的寫法）
   const src = useStore(hitSrc);
   const current = useStore((s) => currentProjectOf(s));
-  return useMemo(() => findHits(src, terms, current), [src, terms, current]);
+  // 技能檔案：標籤裡的數字不算
+  const skill = useStore(skillHits);
+  return useMemo(() => (skill ? findSkillHits : findHits)(src, terms, current), [src, terms, current, skill]);
 }
+
+/**
+ * 技能檔案的命中詞：原文標籤裡的數字拿掉再比對（字典裡的詞是拿掉數字的寫法），
+ * 找到的位置換回原文裡的位置
+ */
+export function findSkillHits(src: string, terms: GlossaryTerm[], current?: string): DictHit[] {
+  const stripped = stripTagDigits(src);
+  if (stripped === src) return findHits(src, terms, current);
+  // 拿掉數字後第 k 個字在原文的位置
+  const pos: number[] = [];
+  let at = 0;
+  for (const t of tagSpans(src)) {
+    for (let k = at; k < t.start; k++) pos.push(k);
+    for (let k = t.start; k < t.end; k++) if (!/\d/.test(src[k])) pos.push(k);
+    at = t.end;
+  }
+  for (let k = at; k < src.length; k++) pos.push(k);
+  const back = (k: number) => (k < pos.length ? pos[k] : src.length);
+  const key = src + '\u0000' + current;
+  const hit = skillCache.get(terms);
+  if (hit?.key === key) return hit.out;
+  const out = findHits(stripped, terms, current).map((h) => ({ ...h, spans: h.spans.map((sp) => ({ start: back(sp.start), end: back(sp.end - 1) + 1 })) }));
+  skillCache.set(terms, { key, out });
+  return out;
+}
+const skillCache = new WeakMap<GlossaryTerm[], { key: string; out: DictHit[] }>();
