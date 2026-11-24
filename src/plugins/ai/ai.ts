@@ -16,7 +16,7 @@ import { wordEdits } from '../../model/wordDiff';
 import { AI_AUTHOR, aiNoteLine } from '../../model/aiNote';
 import { PACK } from '../../i18n/lang';
 import { dictKey, projectTag, type Entry } from '../../model/types';
-import { findHits } from '../../state/dictHits';
+import { findHits, foldText } from '../../state/dictHits';
 import { checkText, fileStdFor, currentOf, currentProjectOf, dictEnabledIn, shownSrc, showToast, useStore, withSugg } from '../../state/store';
 
 /** 整句換掉的程度：新舊譯文相似度低於這個，就放進「建議翻譯」，不放修改框 */
@@ -40,6 +40,7 @@ const TOOLS = [
       + 'and this batch of entries. Each entry has index, id, speaker, source text (src), current translation (tgt; it already includes the translator\'s edits that are not applied yet, and then tgt_before_edits is the translation without them), suggestion, note, '
       + 'extra (other columns of the sheet, as name and text; reference material to consider when translating and checking; left out when there are none), '
       + 'the 5 entries before and after it (context: id, speaker, src, tgt with edits applied, and suggestion when there is one, then tgt_before_edits too; entries that are themselves in this batch are left out of the context, look at them in entries), the glossary terms found in its source text (glossary: term and its required translations), '
+      + 'context_glossary (glossary terms found in the surrounding entries and the speakers but not in its own source text: names and terms you may need when the translation has to add words the source leaves out, such as an implied subject; left out when there are none), '
       + 'length_limit (max_lines the English must fit in, at the given width and font; null when there is no limit), '
       + 'checks (problems Verso\'s checks already find in the current translation, with the edits applied; for overflows also max_lines, lines_now and about_chars_to_cut) '
       + 'and suggestion_checks (the same for the suggestion). Both are left out when there is nothing to report.',
@@ -47,6 +48,12 @@ const TOOLS = [
       offset: { type: 'integer', description: 'Where this batch starts (0 for the first batch, then next_offset from the previous call)' },
       limit: { type: 'integer', description: `How many entries to get (default ${BATCH}, at most ${BATCH_MAX})` },
     }),
+  },
+  {
+    name: 'lookup_glossary',
+    description: 'Look up words in the glossary, for words the translation needs that are not in glossary or context_glossary (for example a name you have to add because the source leaves the subject out). '
+      + 'Give the words in the source language. For each word it gives the glossary terms that match it (term and its required translations); an empty list means the glossary has nothing for it.',
+    inputSchema: obj({ words: { type: 'array', items: { type: 'string' }, description: 'Source-language words or names to look up' } }, ['words']),
   },
   {
     name: 'get_checks',
@@ -108,6 +115,21 @@ function activeTerms() {
   const current = currentProjectOf(s);
   const on = new Set(p.dicts.filter((d) => dictEnabledIn(current, s.dictOverrides, d)).map((d) => dictKey(d.project, d.name)));
   return { terms: p.glossary.filter((g) => g.term && on.has(dictKey(g.proj, g.dict))), current };
+}
+
+/** 查字典：一樣的詞（不分大小寫、全形半形），沒有的話是包含它或被它包含的詞條，每個詞最多 10 條 */
+export function lookupGlossary(words: string[], terms = activeTerms().terms) {
+  return words.slice(0, 50).map((w) => {
+    const q = foldText(w.trim());
+    if (!q) return { word: w, matches: [] };
+    const group = (pick: (t: string) => boolean) => {
+      const m = new Map<string, Set<string>>();
+      for (const g of terms) { const t = foldText(g.term); if (pick(t)) { const set = m.get(g.term) ?? new Set<string>(); set.add(g.en); m.set(g.term, set); } }
+      return [...m].slice(0, 10).map(([term, en]) => ({ term, translations: [...en] }));
+    };
+    const exact = group((t) => t === q);
+    return { word: w, matches: exact.length ? exact : group((t) => t.includes(q) || q.includes(t)) };
+  });
 }
 
 /** 有修改時是修改後的句子；沒有修改時是 undefined */
@@ -201,6 +223,10 @@ function getTask(j: Job, offset = 0, limit = BATCH) {
       const e = sheet.entries[row];
       if (!e) return null;
       const hits = findHits(shownSrc(e), terms, current);
+      // 前後文和說話者命中、這條原文沒有的詞條：譯文要補原文沒寫的詞（例如省略的主詞）時用
+      const own = new Set(hits.map((h) => h.term.term));
+      const around = [e.speaker, ...sheet.entries.slice(Math.max(0, row - CONTEXT), row + 1 + CONTEXT).flatMap((x) => [x.speaker, shownSrc(x)])].filter(Boolean).join('\n');
+      const near = findHits(around, terms, current).filter((h) => !own.has(h.term.term));
       return {
         // 有還沒套用的修改：tgt 給修改後的句子（檢查結果也是照這句算），原句另外給
         index: i, id: e.id, speaker: e.speaker, src: shownSrc(e), tgt: editedOf(e) ?? e.tgt,
@@ -209,6 +235,7 @@ function getTask(j: Job, offset = 0, limit = BATCH) {
         context_before: ctx(Math.max(0, row - CONTEXT), row),
         context_after: ctx(row + 1, row + 1 + CONTEXT),
         glossary: hits.map((h) => ({ term: h.term.term, translations: [...new Set(h.terms.map((t) => t.en))] })),
+        ...(near.length ? { context_glossary: near.map((h) => ({ term: h.term.term, translations: [...new Set(h.terms.map((t) => t.en))] })) } : {}),
         length_limit: limitOf(stdOf(j, e)),
         ...checksOf(j, e),
       };
@@ -232,6 +259,7 @@ function callTool(name: string, args: Record<string, unknown>): unknown {
   const sheet = sheetOf(j);
   if (!sheet) throw new Error('The file or sheet is no longer open in Verso.');
   if (name === 'get_task') { j.reached = Math.max(j.reached, Math.min(j.indices.length, Math.floor(Number(args.offset ?? 0)) || 0)); progress(j); return getTask(j, Number(args.offset ?? 0), Number(args.limit ?? BATCH)); }
+  if (name === 'lookup_glossary') return lookupGlossary(Array.isArray(args.words) ? args.words.map(String) : []);
   if (name === 'get_checks') { j.reached = j.indices.length; progress(j); return getChecks(j); }
   const k = j.indices.indexOf(Number(args.index));
   if (k >= 0 && k + 1 > j.reached) j.reached = k + 1;
@@ -413,6 +441,9 @@ function noteLang(): string {
   return 'English';
 }
 
+/** 譯文要補原文沒寫的人名、專有名詞時：先用前後文的詞條，沒有就查字典，查不到才自己翻 */
+const GLOSSARY_RULE = 'When the translation has to include a name or term that is not in the entry\'s src (for example an implied subject or a character named elsewhere), use its translation from context_glossary; if it is not there, call lookup_glossary with the source-language word first, and only translate it yourself when the glossary has nothing for it.';
+
 const prompts = {
   translate: (guide: string) => [
     'You are helping a game translator inside Verso, a translation tool. Use only the verso MCP tools.',
@@ -420,6 +451,7 @@ const prompts = {
     BATCH_RULE,
     EXTRA_RULE,
     'For every entry, translate its src, following the glossary translations, the speaker, the note, its extra columns and the surrounding context, then call write_translation(index, text) with the full translation.',
+    GLOSSARY_RULE,
     'When all entries are written, call get_checks and rewrite the entries it reports (especially length overflows) until nothing is left.',
     CHECKS_RULE,
     `Only after that, for entries that need the translator's attention (or a problem you could not fix without losing important meaning), call write_note(index, text) once with your final note in ${noteLang()} (unless the extra instructions or the guidelines say otherwise). Never write notes about intermediate attempts. Do not do anything else.`,
@@ -430,6 +462,7 @@ const prompts = {
     BATCH_RULE,
     EXTRA_RULE,
     'For every entry, check its tgt against src, the glossary, the speaker, the note, its extra columns and the surrounding context.',
+    GLOSSARY_RULE,
     'If the translation needs changes, call write_revision(index, text) with the full corrected translation. If it is fine, leave it alone.',
     CHECKS_RULE,
     'Then call get_checks and fix what it reports for the entries you revised (especially length overflows): rewrite them, or call undo_change(index) if your change was wrong and the original should stay.',
