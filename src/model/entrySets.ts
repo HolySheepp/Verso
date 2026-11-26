@@ -290,12 +290,8 @@ export function buildDisplay(entries: Entry[], groups: EntryGroup[], chains: Cha
       segment(members, 1);
       return;
     }
-    // 打開了「自動收納已驗證條目」的組：收起時不參與篩選（照樣顯示成按鈕，不單獨顯示裡面的條目）
-    const filtering = o.filtering && !g.auto;
-    // 整組都符合（例如篩選「收起組」）：只顯示按鈕，不把每一條都列出來
-    const allPass = filtering && members.every((m) => o.pass(m));
-    const shown = members.filter((m) => (filtering && !allPass && o.pass(m)) || o.reveal(m));
-    if (filtering && !members.some((m) => o.pass(m))) return;
+    // 收起的組不參與篩選：照樣顯示成按鈕，不因為篩選單獨顯示裡面的條目（搜尋命中、原文更新照舊）
+    const shown = members.filter((m) => o.reveal(m));
     push({ t: 'group', key: 'g:' + g.id, g, open: false, members, shown: shown.length }, members.filter((m) => !shown.includes(m)));
     // 收起時顯示出來的條目：中間略過的用一列「…」表示
     let prev = -1;

@@ -3,7 +3,7 @@ import { PreviewFilter, cellTags, passTags, type ColFilter } from './PreviewFilt
 import { FunnelIcon } from './FilterPanel';
 import { useScrollTabs } from './ScrollTabs';
 import { DEFAULT_FILE_NAME } from '../model/names';
-import { useEffect, useMemo, useRef, useState } from 'react';
+import { useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react';
 import { currentProjectOf, useStore } from '../state/store';
 import { leaveFile } from '../state/saver';
 import { NEW, ProjectPicker, nameError, picked } from './Pickers';
@@ -323,60 +323,101 @@ export function Preview({ sheet, onFields, extras, onExtras, removed, onToggleRo
   const chips = order.map((k) => (k.startsWith('x:')
     ? { key: k, label: k.slice(2), extra: (extras ?? []).find((x) => x.name === k.slice(2))! }
     : { key: k, label: COLS.find((c) => c.key === k)!.label, extra: null }));
-  // 拖動欄位按鈕調整順序：跟拖頁簽一樣，按鈕跟著游標水平滑動，越過旁邊按鈕的中心就交換
-  const chipPress = useRef<{ i: number; x: number; moved: boolean } | null>(null);
+  // 拖動欄位按鈕調整順序：按鈕跟著游標走（欄位多到換行也一樣），停在哪個按鈕上就排到那裡，其他按鈕滑過去讓位
+  const chipPress = useRef<{ key: string; x: number; y: number; gx: number; gy: number; moved: boolean; pid: number } | null>(null);
   const chipDragged = useRef(false);
-  const [chipDrag, setChipDrag] = useState<{ from: number; to: number; dx: number; lefts: number[]; widths: number[] } | null>(null);
-  const CHIP_GAP = 8;
-  const chipDown = (ev: React.PointerEvent<HTMLDivElement>, i: number) => {
-    if (!onOrder || ev.button !== 0 || (ev.target as HTMLElement).closest('.ib')) return;
-    chipPress.current = { i, x: ev.clientX, moved: false };
+  const [chipDrag, setChipDrag] = useState<{ key: string; to: number } | null>(null);
+  const chipEls = useRef(new Map<string, HTMLDivElement>());
+  const chipBox = useRef<HTMLDivElement | null>(null);
+  const chipPt = useRef({ x: 0, y: 0 });
+  /** 拖動中顯示的順序：被拖的按鈕移到 to */
+  const shownOrder = useMemo(() => {
+    if (!chipDrag) return order;
+    const next = order.filter((k) => k !== chipDrag.key);
+    next.splice(chipDrag.to, 0, chipDrag.key);
+    return next;
+  }, [order, chipDrag]);
+  /** 被拖的按鈕放到游標底下（版面上的位置 + 位移） */
+  const placeDragged = () => {
+    const p = chipPress.current, box = chipBox.current;
+    const el = p ? chipEls.current.get(p.key) : undefined;
+    if (!p?.moved || !el || !box) return;
+    const r = box.getBoundingClientRect();
+    el.style.transform = `translate(${chipPt.current.x - r.left - p.gx - el.offsetLeft}px, ${chipPt.current.y - r.top - p.gy - el.offsetTop}px)`;
   };
-  const chipMove = (ev: React.PointerEvent<HTMLDivElement>) => {
+  // 換位置後：其他按鈕從原本的位置滑到新位置（FLIP），被拖的照樣跟著游標
+  const lastPos = useRef(new Map<string, { x: number; y: number }>());
+  useLayoutEffect(() => {
+    const now = new Map<string, { x: number; y: number }>();
+    for (const [k, el] of chipEls.current) now.set(k, { x: el.offsetLeft, y: el.offsetTop });
+    if (chipDrag) {
+      for (const [k, el] of chipEls.current) {
+        if (k === chipDrag.key) continue;
+        const was = lastPos.current.get(k), at = now.get(k)!;
+        if (!was || (was.x === at.x && was.y === at.y)) continue;
+        el.style.transition = 'none';
+        el.style.transform = `translate(${was.x - at.x}px, ${was.y - at.y}px)`;
+        void el.offsetWidth;
+        el.style.transition = 'transform 160ms cubic-bezier(0.2, 0.8, 0.2, 1)';
+        el.style.transform = '';
+      }
+      placeDragged();
+    }
+    lastPos.current = now;
+  });
+  const chipDown = (ev: React.PointerEvent<HTMLDivElement>, key: string) => {
+    if (!onOrder || ev.button !== 0 || (ev.target as HTMLElement).closest('.ib')) return;
+    const r = ev.currentTarget.getBoundingClientRect();
+    chipPress.current = { key, x: ev.clientX, y: ev.clientY, gx: ev.clientX - r.left, gy: ev.clientY - r.top, moved: false, pid: ev.pointerId };
+    // 拖動中按鈕會換位置（重新排版），所以移動、放開都在整個視窗上接
+    const move = (e: PointerEvent) => { if (e.pointerId === chipPress.current?.pid) chipMoveRef.current(e); };
+    const up = (e: PointerEvent) => {
+      if (e.pointerId !== chipPress.current?.pid && chipPress.current) return;
+      window.removeEventListener('pointermove', move); window.removeEventListener('pointerup', up); window.removeEventListener('pointercancel', up);
+      chipUpRef.current(e.type === 'pointercancel');
+    };
+    window.addEventListener('pointermove', move); window.addEventListener('pointerup', up); window.addEventListener('pointercancel', up);
+  };
+  const chipMove = (ev: PointerEvent) => {
     const p = chipPress.current;
     if (!p) return;
-    if (!p.moved && Math.abs(ev.clientX - p.x) < 5) return;
-    let d = chipDrag;
-    if (!p.moved || !d) {
-      p.moved = true;
-      // 開始拖動才捕捉滑鼠（沒拖動時點按鈕照常設定欄位）
-      try { ev.currentTarget.setPointerCapture(ev.pointerId); } catch { /* 無法捕捉時照常運作 */ }
-      const items = Array.from((ev.currentTarget.parentElement as HTMLElement).querySelectorAll<HTMLElement>('[data-chip]'));
-      d = { from: p.i, to: p.i, dx: 0, lefts: items.map((el) => el.getBoundingClientRect().left), widths: items.map((el) => el.getBoundingClientRect().width) };
-    }
-    const { from, lefts, widths } = d;
-    const n = lefts.length;
-    const dx = Math.max(lefts[0] - lefts[from], Math.min(lefts[n - 1] + widths[n - 1] - widths[from] - lefts[from], ev.clientX - p.x));
-    const left = lefts[from] + dx, right = left + widths[from];
-    let to = from;
-    for (let j = 0; j < from; j++) if (left < lefts[j] + widths[j] / 2) { to = j; break; }
-    for (let j = n - 1; j > from; j--) if (right > lefts[j] + widths[j] / 2) { to = j; break; }
-    setChipDrag({ ...d, dx, to });
+    if (!p.moved && Math.hypot(ev.clientX - p.x, ev.clientY - p.y) < 5) return;
+    chipPt.current = { x: ev.clientX, y: ev.clientY };
+    const box = chipBox.current;
+    if (!box) return;
+    p.moved = true;
+    const cur = chipDrag?.to ?? order.indexOf(p.key);
+    // 游標停在哪個按鈕的位置上（看版面上的位置，不看滑動中的樣子）：排到那裡
+    const r = box.getBoundingClientRect();
+    const x = ev.clientX - r.left, y = ev.clientY - r.top;
+    let to = cur;
+    shownOrder.forEach((k, j) => {
+      const el = chipEls.current.get(k);
+      if (!el || k === p.key) return;
+      const l = el.offsetLeft, t = el.offsetTop, w = el.offsetWidth, h = el.offsetHeight;
+      // 左右各留四分之一不算，換完位置不會馬上又換回來
+      if (y >= t && y < t + h && x >= l + w / 4 && x < l + w - w / 4) to = j;
+    });
+    if (!chipDrag || to !== chipDrag.to) setChipDrag({ key: p.key, to });
+    placeDragged();
   };
-  const chipUp = () => {
+  const chipUp = (cancel: boolean) => {
     const p = chipPress.current;
     chipPress.current = null;
-    if (!p?.moved || !chipDrag) { setChipDrag(null); return; }
+    const el = p ? chipEls.current.get(p.key) : undefined;
+    if (el) { el.style.transition = 'none'; el.style.transform = ''; }
+    if (cancel || !p?.moved || !chipDrag) { setChipDrag(null); return; }
     chipDragged.current = true;
     setTimeout(() => { chipDragged.current = false; }, 0);
-    const { from, to } = chipDrag;
+    const next = shownOrder;
     setChipDrag(null);
-    if (to === from || !onOrder) return;
-    const next = [...order];
-    const [moved] = next.splice(from, 1);
-    next.splice(to, 0, moved);
+    if (!onOrder || next.every((k, i) => k === order[i])) return;
     onOrder(next);
   };
-  /** 拖動中各按鈕的位移：被拖的跟著游標，其他的讓出位置 */
-  const chipShift = (i: number) => {
-    if (!chipDrag) return 0;
-    const { from, to, dx, widths } = chipDrag;
-    if (i === from) return dx;
-    const room = widths[from] + CHIP_GAP;
-    if (from < to && i > from && i <= to) return -room;
-    if (to < from && i >= to && i < from) return room;
-    return 0;
-  };
+  const chipMoveRef = useRef(chipMove);
+  chipMoveRef.current = chipMove;
+  const chipUpRef = useRef(chipUp);
+  chipUpRef.current = chipUp;
   // 第一個設定的欄位：之後設定其他欄位時，列的範圍自動跟它一樣（跟加欄位一樣，只看選了哪一欄）
   const firstRef = useRef<ColKey | null>(null);
   const firstKey = firstRef.current && fields[firstRef.current] ? firstRef.current : (order.find((k) => !k.startsWith('x:') && fields[k as ColKey]?.rows.length) as ColKey | undefined) ?? null;
@@ -524,18 +565,17 @@ export function Preview({ sheet, onFields, extras, onExtras, removed, onToggleRo
 
   return (
     <div data-nodrag style={{ flexGrow: 1, minHeight: 0, display: 'flex', flexDirection: 'column', gap: 10 }}>
-      <div style={{ display: 'flex', alignItems: 'center', gap: 8, flexWrap: 'wrap' }}>
-        {chips.map((c, ci) => {
+      <div ref={chipBox} style={{ display: 'flex', alignItems: 'center', gap: 8, flexWrap: 'wrap', position: 'relative' }}>
+        {shownOrder.map((k) => chips.find((c) => c.key === k)!).filter(Boolean).map((c) => {
           const f = c.extra ? null : fields[c.key as ColKey];
           const set = c.extra ? c.extra.col >= 0 : !!f;
-          const dragging = chipDrag?.from === ci;
+          const dragging = chipDrag?.key === c.key;
           return (
-            <div key={c.key} data-chip="" className={'imp-chip imp-f-' + (c.extra ? 'x' : c.key)} data-set={set ? '' : undefined}
-              onPointerDown={(ev) => chipDown(ev, ci)} onPointerMove={chipMove} onPointerUp={chipUp} onPointerCancel={() => { chipPress.current = null; setChipDrag(null); }}
+            <div key={c.key} ref={(el) => { if (el) chipEls.current.set(c.key, el); else chipEls.current.delete(c.key); }} data-chip="" className={'imp-chip imp-f-' + (c.extra ? 'x' : c.key)} data-set={set ? '' : undefined}
+              onPointerDown={(ev) => chipDown(ev, c.key)}
               onClickCapture={(ev) => { if (chipDragged.current) { ev.stopPropagation(); ev.preventDefault(); chipDragged.current = false; } }}
               style={onOrder ? {
                 position: 'relative', zIndex: dragging ? 2 : undefined, touchAction: 'none', cursor: chipDrag ? 'grabbing' : undefined,
-                transform: `translateX(${chipShift(ci)}px)`, transition: chipDrag && !dragging ? 'transform 160ms cubic-bezier(0.2, 0.8, 0.2, 1)' : 'none',
                 boxShadow: dragging ? '0 6px 16px rgba(0,0,0,0.3)' : undefined,
               } : undefined}>
               <button type="button" className="imp-chip-btn" title={tx('import.021', { label: c.label })} onClick={() => assign(c.key)}>

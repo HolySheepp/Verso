@@ -78,9 +78,11 @@ describe('顯示清單', () => {
     expect(d.posOf.get(2)).toBe(1);
     expect(d.posOf.get(4)).toBe(2);
   });
-  it('搜尋命中收起組裡的條目：按鈕下面只顯示那一條，其他用「…」表示', () => {
-    const d = buildDisplay(es, groups, chains, opts({ filtering: true, pass: (i) => i === 2 }));
+  it('搜尋命中收起組裡的條目：按鈕下面只顯示那一條，其他用「…」表示；篩選不會讓收起的組展開', () => {
+    const d = buildDisplay(es, groups, chains, opts({ filtering: true, pass: () => false, reveal: (i) => i === 2 }));
     expect(d.items.map((x) => x.t)).toEqual(['group', 'dots', 'row']);
+    const f = buildDisplay(es, groups, chains, opts({ filtering: true, pass: (i) => i === 2 }));
+    expect(f.items.map((x) => x.t)).toEqual(['group']);
   });
   it('展開的組、串顯示全部', () => {
     const d = buildDisplay(es, groups, chains, opts({ groupOpen: () => true, chainOpen: () => true }));
