@@ -41,10 +41,53 @@ export function tagSpans(s: string): { start: number; end: number; text: string 
  * 把串的譯文套到某一條：譯文裡的標籤換成這一條原文裡同一種標籤（拿掉數字後一樣的）的實際內容，照出現順序一個一個填。
  * 例如串的譯文「ATK +{A%}」、原文「攻擊力+{124A%}」→「ATK +{124A%}」
  */
-export function fillTemplate(tpl: string, src: string): string {
-  const q = new Map<string, string[]>();
-  for (const t of tagsIn(src)) { const k = stripTagDigits(t); if (!q.has(k)) q.set(k, []); q.get(k)!.push(t); }
-  return tpl.replace(tagRe(), (t) => { const a = q.get(stripTagDigits(t)); return a?.length ? a.shift()! : t; });
+export function fillTemplate(tpl: string, src: string, ref?: { src: string; tgt: string }): string {
+  const tags = tagsIn(src);
+  const used = new Set<number>();
+  // 有參考的條目（原文、譯文都有數字）：照它的對照決定譯文第幾個標籤用原文第幾個，語序調換也不會填錯
+  const byRef = new Map<string, number>();
+  if (ref) {
+    const rt = tagsIn(ref.tgt);
+    const pair = pairTags(tagsIn(ref.src), rt);
+    const n = new Map<string, number>();
+    rt.forEach((t, k) => { const s = stripTagDigits(t); const c = n.get(s) ?? 0; n.set(s, c + 1); if (pair[k] >= 0) byRef.set(s + '#' + c, pair[k]); });
+  }
+  const n = new Map<string, number>();
+  const picks = tagsIn(tpl).map((t) => {
+    const s = stripTagDigits(t); const c = n.get(s) ?? 0; n.set(s, c + 1);
+    const j = byRef.get(s + '#' + c);
+    if (j !== undefined && tags[j] !== undefined && stripTagDigits(tags[j]) === s && !used.has(j)) { used.add(j); return j; }
+    return -1;
+  });
+  // 沒對照到的：同一種標籤（拿掉數字後一樣的）照出現順序填
+  let k = 0;
+  return tpl.replace(tagRe(), (t) => {
+    if (t === '%%') return t;
+    const j0 = picks[k++];
+    if (j0 >= 0) return tags[j0];
+    const s = stripTagDigits(t);
+    const j = tags.findIndex((x, i) => !used.has(i) && stripTagDigits(x) === s);
+    if (j < 0) return t;
+    used.add(j);
+    return tags[j];
+  });
+}
+
+/**
+ * 原文標籤和另一段（譯文、修改）標籤的對照：先配內容完全一樣的（{1A} 對 {1A}），
+ * 剩下的照拿掉數字後一樣、出現順序配；回傳另一段每個標籤對到原文第幾個（對不到是 -1）
+ */
+export function pairTags(src: string[], other: string[]): number[] {
+  const out = other.map(() => -1);
+  const used = new Set<number>();
+  other.forEach((t, k) => { const j = src.findIndex((x, i) => !used.has(i) && x === t); if (j >= 0) { out[k] = j; used.add(j); } });
+  other.forEach((t, k) => {
+    if (out[k] >= 0) return;
+    const s = stripTagDigits(t);
+    const j = src.findIndex((x, i) => !used.has(i) && stripTagDigits(x) === s);
+    if (j >= 0) { out[k] = j; used.add(j); }
+  });
+  return out;
 }
 
 /** 只換掉沒有數字的標籤（例如直接打了串上顯示的 {A%}）；本來就有數字的照舊（順序照樣對齊） */
@@ -120,10 +163,12 @@ export function findChains(entries: Entry[], cuts: ReadonlySet<string>, groupOf:
 export function spreadEdit(entries: Entry[], c: Chain, fromUid: string, text: string, field: 'tgt' | 'src' | 'note'): Map<string, string> {
   const out = new Map<string, string>();
   const tpl = field === 'note' ? text : stripTagDigits(text);
+  const from = entries.find((e) => e.uid === fromUid);
   c.idx.forEach((i) => {
     const e = entries[i];
     if (e.uid === fromUid || c.outliers.has(e.uid)) return;
-    const next = field === 'note' ? tpl : fillTemplate(tpl, e.src);
+    // 改的那條（譯文有數字）當參考：照它的標籤對照填
+    const next = field === 'note' ? tpl : fillTemplate(tpl, e.src, field === 'tgt' ? { src: from?.src ?? '', tgt: text } : undefined);
     if (next !== e[field]) out.set(e.uid, next);
   });
   return out;

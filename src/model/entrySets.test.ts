@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { fillBareTags, absorbVerified, autoName, buildDisplay, createGroup, fillTemplate, findChains, mergeGroups, normalizeGroups, splitGroup, spreadEdit, stripTagDigits, type DisplayOpts } from './entrySets';
+import { fillBareTags, absorbVerified, pairTags, autoName, buildDisplay, createGroup, fillTemplate, findChains, mergeGroups, normalizeGroups, splitGroup, spreadEdit, stripTagDigits, type DisplayOpts } from './entrySets';
 import type { Entry } from './types';
 
 const E = (uid: string, src: string, tgt = '', p: Partial<Entry> = {}): Entry => ({ uid, id: uid, speaker: '', src, src0: '', tgt, tgt0: '', mark: '', pending: false, skipCheck: false, note: '', sugg: '', ...p });
@@ -88,5 +88,18 @@ describe('顯示清單', () => {
     const d = buildDisplay(es, groups, chains, opts({ groupOpen: () => true, chainOpen: () => true }));
     expect(d.items.map((x) => x.t)).toEqual(['row', 'group', 'row', 'row', 'chain', 'row', 'row', 'row']);
     expect(d.rows).toEqual([0, 1, 2, 3, 4, 5]);
+  });
+});
+
+describe('參數照內容配對', () => {
+  it('內容一樣的先配，剩下的照拿掉數字後的順序', () => {
+    expect(pairTags(['{1A}', '{2B}'], ['{2B}', '{1A}'])).toEqual([1, 0]);
+    expect(pairTags(['{1}', '{2}'], ['{2}', '{1}'])).toEqual([1, 0]);
+    expect(pairTags(['{1}', '{2}'], ['{}', '{}'])).toEqual([0, 1]);
+  });
+  it('串的譯文照參考條目的對照填，語序調換也不會填錯', () => {
+    const ref = { src: '第{1}回合，造成{2}傷害', tgt: 'Deal {2} damage on turn {1}' };
+    expect(fillTemplate('Deal {} damage on turn {}', '第{5}回合，造成{9}傷害', ref)).toBe('Deal {9} damage on turn {5}');
+    expect(fillTemplate('Deal {} damage on turn {}', '第{5}回合，造成{9}傷害')).toBe('Deal {5} damage on turn {9}');
   });
 });

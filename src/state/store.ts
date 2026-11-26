@@ -1587,8 +1587,11 @@ export const useStore = create<Store>((set, get) => {
       if (!editSnap) pushUndo();
       const tpl = stripTagDigits(text);
       const idx = new Set(c.idx.filter((i) => !c.outliers.has(sheet.entries[i].uid)));
+      // 代表的那條（改之前的譯文）當參考：照它的標籤對照填，語序調換也不會填錯
+      const rep = sheet.entries[c.rep];
+      const ref = rep?.tgt.trim() ? { src: rep.src, tgt: rep.tgt } : undefined;
       patchEntries(idx, (e) => {
-        const tgt = fillTemplate(tpl, e.src);
+        const tgt = fillTemplate(tpl, e.src, ref);
         if (tgt === e.tgt) return e;
         return { ...e, tgt, pending: false, ...(e.mark === 'ai' ? { mark: '' as const } : {}) };
       });

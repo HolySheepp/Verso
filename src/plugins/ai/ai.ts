@@ -16,8 +16,8 @@ import { wordEdits } from '../../model/wordDiff';
 import { AI_AUTHOR, aiNoteLine } from '../../model/aiNote';
 import { PACK } from '../../i18n/lang';
 import { dictKey, projectTag, type Entry } from '../../model/types';
-import { findHits, foldText } from '../../state/dictHits';
-import { checkText, fileStdFor, currentOf, currentProjectOf, dictEnabledIn, shownSrc, showToast, useStore, withSugg } from '../../state/store';
+import { findHits, findSkillHits, foldText } from '../../state/dictHits';
+import { checkText, fileStdFor, currentOf, currentProjectOf, dictEnabledIn, setsOn, shownSrc, showToast, useStore, withSugg } from '../../state/store';
 
 /** 整句換掉的程度：新舊譯文相似度低於這個，就放進「建議翻譯」，不放修改框 */
 const BIG_CHANGE = 0.5;
@@ -92,6 +92,13 @@ interface Job { fid: string; sheet: number; mode: 'translate' | 'verify'; indice
   reached: number }
 /** 這次 AI 在處理的檔案、頁簽和條目（按下按鈕時記下，中途換頁簽也寫回原本那頁） */
 let job: Job | null = null;
+
+/** 這次處理的是技能檔案：字典比對時標籤裡的數字不算 */
+function skillOf(j: Job) {
+  const s = useStore.getState();
+  const f = s.project?.files.find((x) => x.fid === j.fid);
+  return !!f?.skill && setsOn(s, f);
+}
 
 function sheetOf(j: Job) {
   const p = useStore.getState().project;
@@ -205,6 +212,7 @@ function checksOf(j: Job, e: Entry) {
 function getTask(j: Job, offset = 0, limit = BATCH) {
   const sheet = sheetOf(j)!;
   const { terms, current } = activeTerms();
+  const find = skillOf(j) ? findSkillHits : findHits;
   const from = Math.max(0, Math.min(Math.floor(offset) || 0, j.indices.length));
   const n = Math.max(1, Math.min(Math.floor(limit) || BATCH, BATCH_MAX));
   const ks = j.indices.map((_, k) => k).slice(from, from + n);
@@ -222,11 +230,11 @@ function getTask(j: Job, offset = 0, limit = BATCH) {
       const row = rowOf(j, sheet, k);
       const e = sheet.entries[row];
       if (!e) return null;
-      const hits = findHits(shownSrc(e), terms, current);
+      const hits = find(shownSrc(e), terms, current);
       // 前後文和說話者命中、這條原文沒有的詞條：譯文要補原文沒寫的詞（例如省略的主詞）時用
       const own = new Set(hits.map((h) => h.term.term));
       const around = [e.speaker, ...sheet.entries.slice(Math.max(0, row - CONTEXT), row + 1 + CONTEXT).flatMap((x) => [x.speaker, shownSrc(x)])].filter(Boolean).join('\n');
-      const near = findHits(around, terms, current).filter((h) => !own.has(h.term.term));
+      const near = find(around, terms, current).filter((h) => !own.has(h.term.term));
       return {
         // 有還沒套用的修改：tgt 給修改後的句子（檢查結果也是照這句算），原句另外給
         index: i, id: e.id, speaker: e.speaker, src: shownSrc(e), tgt: editedOf(e) ?? e.tgt,

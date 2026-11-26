@@ -492,8 +492,11 @@ export function importRows(list: Omit<TmRow, 'id' | 'project'>[], project: strin
 /** 從 Verso 裡的檔案匯入：有譯文的條目，照原本的標記判斷已驗證、未驗證 */
 export function rowsFromFile(f: FileDoc, isVerified: (e: Entry) => boolean): Omit<TmRow, 'id' | 'project'>[] {
   const at = Date.now();
+  // 技能檔案：拿掉標籤數字再存（跟平常存進記憶一樣）
+  const skill = !!f.skill && setsOn(useStore.getState(), f);
+  const fix = (t: string) => (skill ? stripTagDigits(t) : t);
   return f.sheets.flatMap((sh) => sh.entries.filter((e) => e.tgt.trim() && shownSrc(e).trim() && !e.pending).map((e) => ({
-    src: shownSrc(e), tgt: e.tgt, verified: isVerified(e), by: '', at, fid: f.fid ?? '', file: f.name, sheet: sh.name, eid: e.id, speaker: e.speaker,
+    src: fix(shownSrc(e)), tgt: fix(e.tgt), verified: isVerified(e), by: '', at, fid: f.fid ?? '', file: f.name, sheet: sh.name, eid: e.id, speaker: e.speaker,
   })));
 }
 

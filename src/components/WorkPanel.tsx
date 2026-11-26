@@ -1,5 +1,5 @@
 import { tx } from '../i18n';
-import { stripTagDigits, tagSpans } from '../model/entrySets';
+import { pairTags, stripTagDigits, tagSpans } from '../model/entrySets';
 import { MAX_CELL_CHARS } from '../model/names';
 import { useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react';
 import { Splitter } from './Splitter';
@@ -43,10 +43,9 @@ function cutOut(sp: { start: number; end: number }, tags: { start: number; end: 
   if (at < sp.end) out.push({ start: at, end: sp.end });
   return out;
 }
-/** 每個參數標籤的對應名稱：拿掉數字後的寫法＋這是第幾個這種標籤（原文、譯文裡同一個名稱的就是對應的） */
-function tagKeysOf(spans: ReturnType<typeof tagSpans>): string[] {
-  const n = new Map<string, number>();
-  return spans.map((t) => { const k = stripTagDigits(t.text); const c = n.get(k) ?? 0; n.set(k, c + 1); return k + '#' + c; });
+/** 譯文、修改框每個參數標籤對到原文第幾個（內容一樣的先配，剩下的照拿掉數字後的順序）；名稱一樣就是對應的 */
+function tagKeysOf(src: ReturnType<typeof tagSpans>, spans: ReturnType<typeof tagSpans>): string[] {
+  return pairTags(src.map((t) => t.text), spans.map((t) => t.text)).map((j, k) => (j >= 0 ? 's' + j : 'x' + k));
 }
 
 const MODE_HINTS: Partial<Record<Mode, string>> = {
@@ -123,10 +122,10 @@ function WorkPanelInner({ height, maxH }: { height: number; maxH: number }) {
   // 原文裡的參數標籤：Ctrl+數字插入第幾個；技能檔案另外加底線、點了插入
   const allTags = useMemo(() => tagSpans(srcShown), [srcShown]);
   const tags = skillTags ? allTags : NO_TAGS;
-  // 技能檔案：原文、譯文、修改框裡對應的參數標籤（拿掉數字後一樣、而且是第幾個也一樣）加底線，滑鼠移到任一個上，三個框裡對應的一起高亮
-  const srcKeys = useMemo(() => tagKeysOf(tags), [tags]);
+  // 技能檔案：原文、譯文、修改框裡對應的參數標籤（內容一樣的先配，剩下的照拿掉數字後的順序）加底線，滑鼠移到任一個上，三個框裡對應的一起高亮
+  const srcKeys = useMemo(() => tags.map((_, k) => 's' + k), [tags]);
   const tgtTags = useMemo(() => (skillTags ? tagSpans(tgtShown) : NO_TAGS), [skillTags, tgtShown]);
-  const tgtKeys = useMemo(() => tagKeysOf(tgtTags), [tgtTags]);
+  const tgtKeys = useMemo(() => tagKeysOf(tags, tgtTags), [tags, tgtTags]);
   const [boxTag, setBoxTag] = useState<string | null>(null);
   const hotTag = hover && hover.hit >= TAG_REF ? srcKeys[hover.hit - TAG_REF] ?? null : boxTag;
   /** 一個框裡要標的標籤：原文裡有對應的才標 */
@@ -211,7 +210,7 @@ function WorkPanelInner({ height, maxH }: { height: number; maxH: number }) {
   const modText = useMemo(() => compose(cur.tgt, edits), [cur.tgt, edits]);
   // 修改框裡的參數標籤（技能檔案）
   const modTags = useMemo(() => (skillTags && verify ? tagSpans(modText) : NO_TAGS), [skillTags, verify, modText]);
-  const modKeys = useMemo(() => tagKeysOf(modTags), [modTags]);
+  const modKeys = useMemo(() => tagKeysOf(tags, modTags), [tags, modTags]);
   const [modEl, setModEl] = useState<HTMLTextAreaElement | null>(null);
   // 滑鼠停在哪一組上、正在編輯哪一組（用這組在譯文的起點認）
   const [vHover, setVHover] = useState<number | null>(null);

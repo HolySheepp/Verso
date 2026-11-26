@@ -275,7 +275,10 @@ function fillChains(sid: string) {
     const fill = new Map<string, string>();
     for (const c of L.chains) {
       if (!c.tpl) continue;
-      c.idx.forEach((i) => { const e = sh.entries[i]; if (!e.tgt.trim() && e.src.trim() && e.mark !== 'ignore') fill.set(e.uid, fillTemplate(c.tpl, e.src)); });
+      // 已經翻好、格式跟大多數一樣的一條當參考（照它的標籤對照填）
+      const r = c.idx.map((i) => sh.entries[i]).find((e) => e.tgt.trim() && !c.outliers.has(e.uid));
+      const ref = r ? { src: r.src, tgt: r.tgt } : undefined;
+      c.idx.forEach((i) => { const e = sh.entries[i]; if (!e.tgt.trim() && e.src.trim() && e.mark !== 'ignore') fill.set(e.uid, fillTemplate(c.tpl, e.src, ref)); });
     }
     if (!fill.size) return sh;
     changed = true;
