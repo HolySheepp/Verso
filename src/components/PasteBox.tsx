@@ -3,7 +3,7 @@ import { memo, useEffect, useMemo, useRef, useState } from 'react';
 import { readColumns } from '../model/clipboard';
 import { hasTooLongCell, MAX_CELL_CHARS, tooLongMsg } from '../model/names';
 import { showToast } from '../state/store';
-import { clearRows, deleteRows, insertRow, setRow, type Col } from '../model/paste';
+import { clearRows, deleteRows, insertRow, setRow, usedLength, type Col } from '../model/paste';
 import { IconWinClose } from './icons';
 import { ContextMenu } from './ContextMenu';
 import { focusOnMount } from './windowDrag';
@@ -29,9 +29,29 @@ interface Props {
   fontSlot?: 'id' | 'speaker';
   /** 標題旁標「＊必填」 */
   required?: boolean;
+  /** 至少顯示幾行（不夠的補空白行，可以直接編輯）；沒給時，還沒貼的欄放 20 行 */
+  minRows?: number;
+  /** 同一組的方框一起捲動 */
+  sync?: ScrollSync;
+  /** 一打開就捲到最下面 */
+  atBottom?: boolean;
 }
 
+/** 一起捲動的一組方框 */
+export type ScrollSync = Set<HTMLDivElement>;
+
 interface Menu { x: number; y: number }
+
+/** 欄裡什麼都沒有時先放的空白行數（看得出來可以一次貼很多行，也能直接點選、右鍵、編輯） */
+const BLANK_ROWS = 20;
+const BLANK_COL: Col = { rows: Array<string>(BLANK_ROWS).fill(''), extra: 0 };
+/** 從補上的空白行改出來的欄：補上的、結尾還是空白的行不算（記成略過的空白行），整欄都空白就還是沒貼 */
+const trimBlank = (c: Col, keep: number): Col | null => {
+  const n = Math.max(keep, usedLength(c.rows));
+  return n ? { ...c, rows: c.rows.slice(0, n), extra: Math.max(c.extra, c.rows.length - n), ids: c.ids?.slice(0, n) } : null;
+};
+/** 一次只畫畫面附近的行（上下各多畫一些），其他的用空白撐住高度：幾萬行時也不卡 */
+const OVERSCAN = 30;
 
 const range = (a: number, b: number) => Array.from({ length: Math.abs(b - a) + 1 }, (_, k) => Math.min(a, b) + k);
 
@@ -48,14 +68,40 @@ const toTsv = (rows: string[]) => rows.map((r) => (/[\n\t"]/.test(r) ? `"${r.rep
  * 傳進來的函式每次都是新的，所以不比較它們（它們用的都是會拿最新狀態的寫法）。
  */
 export const PasteBox = memo(PasteBoxImpl, (a, b) =>
-  a.label === b.label && a.col === b.col && a.selected === b.selected && a.fontSlot === b.fontSlot && a.required === b.required);
+  a.label === b.label && a.col === b.col && a.selected === b.selected && a.fontSlot === b.fontSlot && a.required === b.required && a.minRows === b.minRows && a.sync === b.sync);
 
-function PasteBoxImpl({ label, col, onPaste, onChange, selected, onSelect, fontSlot, required }: Props) {
+function PasteBoxImpl({ label, col: real, onPaste, onChange: change, selected, onSelect, fontSlot, required, minRows, sync, atBottom }: Props) {
+  // 還沒貼：顯示 20 行空白；有給 minRows 時補到那麼多行。補上的行跟一般的行一樣操作，改了之後才變成真的
+  const realN = real?.rows.length ?? 0;
+  const want = minRows ?? (real ? 0 : BLANK_ROWS);
+  const col = useMemo<Col>(() => (want <= realN ? real ?? BLANK_COL : { ...(real ?? BLANK_COL), rows: [...(real?.rows ?? []), ...Array<string>(want - realN).fill('')] }), [real, want, realN]);
+  const padded = col !== real;
+  const onChange = (c: Col | null) => change(c && padded ? trimBlank(c, realN) : c);
   const ovf = useStore((s) => (fontSlot ? overflowOf(s.fonts, fontSlot) : 'ellipsis'));
   // 「縮小字級」用量字寬的方式算，不必每一行都去量畫面（幾千行時量畫面會非常慢）
   const fitFont = useStore((s) => (fontSlot ? cellFontCss(s.fonts, fontSlot) : ''));
   const boxRef = useRef<HTMLDivElement>(null);
   const [boxW, setBoxW] = useState(0);
+  // 只畫畫面附近的行：行高量第一行，捲動位置、方框高度變了才重算
+  const [view, setView] = useState({ top: 0, h: 600 });
+  const [rowH, setRowH] = useState(23);
+  useEffect(() => {
+    const el = boxRef.current;
+    if (!el) return;
+    const ro = new ResizeObserver(() => setView((v) => (v.h === el.clientHeight ? v : { ...v, h: el.clientHeight })));
+    ro.observe(el);
+    if (atBottom) el.scrollTop = el.scrollHeight;
+    setView({ top: el.scrollTop, h: el.clientHeight });
+    sync?.add(el);
+    return () => { ro.disconnect(); sync?.delete(el); };
+  }, []); // eslint-disable-line react-hooks/exhaustive-deps
+  const onScroll = (ev: React.UIEvent<HTMLDivElement>) => {
+    const el = ev.currentTarget;
+    setView((v) => (v.top === el.scrollTop ? v : { ...v, top: el.scrollTop }));
+    // 同一組的方框跟著捲到同一個位置
+    if (sync) for (const o of sync) if (o !== el && o.scrollTop !== el.scrollTop) o.scrollTop = el.scrollTop;
+  };
+  const measureRow = (el: HTMLDivElement | null) => { if (el && el.dataset.editing !== '1' && el.offsetHeight && el.offsetHeight !== rowH) setRowH(el.offsetHeight); };
   useEffect(() => {
     const el = boxRef.current;
     if (!el || ovf !== 'shrink') return;
@@ -64,7 +110,7 @@ function PasteBoxImpl({ label, col, onPaste, onChange, selected, onSelect, fontS
     return () => ro.disconnect();
   }, [ovf]);
   // 行號欄只留最大行號需要的位數（8 行就 1 位數），行號靠右對齊
-  const digits = Math.max(1, String(col?.rows.length ?? 0).length);
+  const digits = Math.max(1, String(col.rows.length).length);
   // 方框寬度扣掉行號欄、間距和內距（原本以 4 位數算 50px，每少一位約少 6.5px）
   const fitW = Math.max(0, boxW - 50 + (4 - digits) * 6.5);
   const font = fontSlot === 'id' ? { family: 'var(--font-id)', size: 'var(--fs-id)' } : fontSlot === 'speaker' ? { family: 'var(--font-spk)', size: 'var(--fs-spk)' } : null;
@@ -73,13 +119,16 @@ function PasteBoxImpl({ label, col, onPaste, onChange, selected, onSelect, fontS
   const [editing, setEditing] = useState<{ i: number; text: string } | null>(null);
   const [menu, setMenu] = useState<Menu | null>(null);
   const dragFrom = useRef<number | null>(null);
-  const rows = col?.rows ?? null;
+  const rows = col.rows;
+  const from = Math.max(0, Math.floor(view.top / rowH) - OVERSCAN);
+  const to = Math.min(rows.length, Math.ceil((view.top + view.h) / rowH) + OVERSCAN);
+  useEffect(() => { const el = boxRef.current; if (atBottom && el) { el.scrollTop = el.scrollHeight; setView((v) => ({ ...v, top: el.scrollTop })); } }, [rowH]); // eslint-disable-line react-hooks/exhaustive-deps
   const selRows = selected && selected !== 'col' ? selected.rows.filter((i) => rows && i < rows.length) : [];
   const selSet = useMemo(() => new Set(selRows), [selected, rows]); // eslint-disable-line react-hooks/exhaustive-deps
   const colSel = selected === 'col';
 
   // 換了內容（例如重新貼上）就結束編輯
-  useEffect(() => { setEditing(null); setMenu(null); }, [col === null]);
+  useEffect(() => { setEditing(null); setMenu(null); }, [real === null]);
   useEffect(() => {
     const up = () => { dragFrom.current = null; };
     window.addEventListener('mouseup', up);
@@ -92,6 +141,7 @@ function PasteBoxImpl({ label, col, onPaste, onChange, selected, onSelect, fontS
     const text = ev.clipboardData.getData('text/plain');
     const cols = readColumns({ html, text });
     if (!cols.length) return;
+    // 還沒貼時點了空白行再貼：照樣從那一行往下貼
     // 有一格超過 Excel 的上限：整次不貼
     if (hasTooLongCell(cols)) { showToast(tooLongMsg()); return; }
     setEditing(null);
@@ -100,7 +150,6 @@ function PasteBoxImpl({ label, col, onPaste, onChange, selected, onSelect, fontS
   };
 
   const handleCopy = (ev: React.ClipboardEvent) => {
-    if (!rows) return;
     const out = colSel ? rows : [...selRows].sort((a, b) => a - b).map((i) => rows[i]);
     if (!out.length) return;
     ev.preventDefault();
@@ -108,7 +157,7 @@ function PasteBoxImpl({ label, col, onPaste, onChange, selected, onSelect, fontS
   };
 
   const commit = () => {
-    if (!editing || !col) return;
+    if (!editing) return;
     if (editing.i < col.rows.length && col.rows[editing.i] !== editing.text) onChange(setRow(col, editing.i, editing.text));
     setEditing(null);
   };
@@ -116,11 +165,9 @@ function PasteBoxImpl({ label, col, onPaste, onChange, selected, onSelect, fontS
   const focusSink = () => input.current?.focus({ preventScroll: true });
 
   const clear = () => {
-    if (!col) return;
     onChange(clearRows(col, colSel ? col.rows.map((_, i) => i) : selRows));
   };
   const remove = () => {
-    if (!col) return;
     if (colSel) { onChange(null); onSelect('col'); return; }
     if (!selRows.length) return;
     const next = deleteRows(col, selRows);
@@ -129,7 +176,7 @@ function PasteBoxImpl({ label, col, onPaste, onChange, selected, onSelect, fontS
     onSelect(at >= 0 ? { rows: [at], anchor: at } : null);
   };
   const insert = () => {
-    if (!col || !selRows.length) return;
+    if (!selRows.length) return;
     const at = maxOf(selRows);
     onChange(insertRow(col, at));
     setEditing({ i: at + 1, text: '' });
@@ -138,7 +185,6 @@ function PasteBoxImpl({ label, col, onPaste, onChange, selected, onSelect, fontS
 
   const act = (kind: string) => {
     setMenu(null);
-    if (!rows) return;
     if (kind === 'edit' && selRows.length) setEditing({ i: selRows[0], text: rows[selRows[0]] });
     if (kind === 'clear') clear();
     if (kind === 'delete') remove();
@@ -173,14 +219,14 @@ function PasteBoxImpl({ label, col, onPaste, onChange, selected, onSelect, fontS
           {label}{required && <span style={{ marginLeft: 6, fontSize: fz(11), color: 'var(--warntx)' }}>{tx('pastebox.002')}</span>}
         </span>
         <span style={{ display: 'flex', alignItems: 'center', gap: 4, fontSize: fz(11.5), color: 'var(--mute)' }}>
-          {rows && <>{tx('pastebox.003', { n: rows.length })}
+          {real && <>{tx('pastebox.003', { n: realN })}
             <button type="button" className="ib" aria-label={tx('pastebox.004', { label })} title={tx('pastebox.005')} onClick={() => onChange(null)}
               style={{ width: 22, height: 22, display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 0, background: 'transparent', border: 0, borderRadius: 5, color: 'var(--mute)' }}>
               <IconWinClose size={10} sw={1.4} />
             </button></>}
         </span>
       </div>
-      <div ref={boxRef} className="paste-box" data-colsel={colSel ? '1' : undefined}
+      <div ref={boxRef} className="paste-box" data-colsel={colSel ? '1' : undefined} onScroll={onScroll}
         onMouseDown={(ev) => {
           // 編輯中的文字框自己處理滑鼠；點到捲軸以外的地方都把焦點交給接收貼上的文字框
           if ((ev.target as HTMLElement).closest('.pb-edit')) return;
@@ -194,19 +240,20 @@ function PasteBoxImpl({ label, col, onPaste, onChange, selected, onSelect, fontS
           }
         }}
         style={{
-          position: 'relative', flexGrow: 1, minHeight: 0, overflow: 'auto', boxSizing: 'border-box', padding: rows ? '6px 0' : 0,
-          background: 'var(--bg0)', border: `1px ${rows ? 'solid' : 'dashed'} var(--line4)`, borderRadius: 8, cursor: 'text',
+          position: 'relative', flexGrow: 1, minHeight: 0, overflow: 'auto', boxSizing: 'border-box', padding: '6px 0',
+          background: 'var(--bg0)', border: `1px ${real ? 'solid' : 'dashed'} var(--line4)`, borderRadius: 8, cursor: 'text',
         }}>
         <textarea ref={input} className="pb-sink" aria-label={label} value="" onChange={() => {}} onPaste={handlePaste} onCopy={handleCopy} spellCheck={false}
           onKeyDown={(ev) => {
-            if (!rows || ev.ctrlKey || ev.altKey || ev.metaKey) return;
+            if (ev.ctrlKey || ev.altKey || ev.metaKey) return;
             if (!colSel && !selRows.length) return;
             if (ev.key === 'Backspace') { ev.preventDefault(); clear(); }
             if (ev.key === 'Delete') { ev.preventDefault(); remove(); }
           }}
           style={{ position: 'absolute', left: 0, top: 0, width: 1, height: 1, padding: 0, border: 0, opacity: 0, resize: 'none', pointerEvents: 'none' }} />
-        {rows ? rows.map((r, i) => (
-          <div key={i} className="pb-row" data-editing={editing?.i === i ? '1' : undefined} data-selected={selSet.has(i) ? '1' : undefined}
+        {from > 0 && <div style={{ height: from * rowH }} />}
+        {rows.slice(from, to).map((r, k) => { const i = from + k; return (
+          <div key={i} ref={k === 0 ? measureRow : undefined} className="pb-row" data-editing={editing?.i === i ? '1' : undefined} data-selected={selSet.has(i) ? '1' : undefined}
             onMouseDown={(ev) => rowDown(ev, i)} onMouseEnter={(ev) => rowEnter(ev, i)}
             onDoubleClick={() => setEditing({ i, text: r })}
             onContextMenu={(ev) => {
@@ -215,8 +262,7 @@ function PasteBoxImpl({ label, col, onPaste, onChange, selected, onSelect, fontS
               if (!selSet.has(i)) onSelect({ rows: [i], anchor: i });
               setMenu({ x: ev.clientX, y: ev.clientY });
             }}
-            // 畫面外的行不排版、不繪製，幾千行時捲動才順
-            style={{ display: 'flex', alignItems: 'center', gap: 6, padding: '2px 8px 2px 4px', fontSize: fz(12.5), lineHeight: 1.5, contentVisibility: 'auto', containIntrinsicSize: 'auto 23px' }}>
+            style={{ display: 'flex', alignItems: 'center', gap: 6, padding: '2px 8px 2px 4px', fontSize: fz(12.5), lineHeight: 1.5 }}>
             <span className="mono" style={{ width: digits + 'ch', flexShrink: 0, textAlign: 'right', fontSize: fz(10.5), color: 'var(--mute3)', lineHeight: '19px' }}>{i + 1}</span>
             {editing?.i === i ? (
               <textarea maxLength={MAX_CELL_CHARS} className="pb-edit" ref={focusOnMount} value={editing.text} spellCheck={false}
@@ -239,11 +285,8 @@ function PasteBoxImpl({ label, col, onPaste, onChange, selected, onSelect, fontS
               </span>
             )}
           </div>
-        )) : (
-          <div style={{ height: '100%', display: 'flex', alignItems: 'center', justifyContent: 'center', color: 'var(--mute3)', fontSize: fz(12.5), userSelect: 'none' }}>
-            Ctrl+V
-          </div>
-        )}
+        ); })}
+        {to < rows.length && <div style={{ height: (rows.length - to) * rowH }} />}
       </div>
 
       {menu && (

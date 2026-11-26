@@ -418,7 +418,7 @@ interface Actions {
   /** clear：一起清掉條目上的這個標記；不清的話保留在檔案裡、畫面不顯示 */
   deleteCustomMark(id: string, clear: boolean): void;
   addFile(f: FileDoc): void;
-  addTerms(project: string, dict: string, pairs: [string, string][]): void;
+  addTerms(project: string, dict: string, pairs: [string, string, string?][]): void;
 
   /** 設定目前檔案的長度標準；undefined 是清掉 */
   setFileStd(std: StdValue | undefined): void;
@@ -1782,8 +1782,8 @@ export const useStore = create<Store>((set, get) => {
       if (!project) return;
       set({ lastDict: { ...get().lastDict, [currentProjectOf(get())]: { proj, dict } }, dictPasteInit: null });
       const base = Date.now().toString(36);
-      const terms: GlossaryTerm[] = pairs.map(([term, en], i) => ({
-        id: 'p' + base + i, term, en, note: '', dict, proj,
+      const terms: GlossaryTerm[] = pairs.map(([term, en, note], i) => ({
+        id: 'p' + base + i, term, en, note: note ?? '', dict, proj,
       }));
       // 只拿這次貼入的跟目標字典比，重複的不加；其他字典完全不動
       const target = project.glossary.filter((g) => g.proj === proj && g.dict === dict);

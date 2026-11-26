@@ -110,7 +110,8 @@ export function PasteDialog() {
   };
   // 什麼都沒貼的頁簽：建立只有一條空白條目的頁簽，讓使用者自己加條目或之後再貼
   const isBlank = (sh: DraftSheet) => !COLS.some((c) => sh.cols[c.key]?.rows.some((x) => x.trim()));
-  const entriesOf = (sh: DraftSheet) => (isBlank(sh) ? [blankEntry()] : columnsToEntries(sh.cols));
+  // 全部欄都空白的行（例如一開始放的空白行）不建立條目
+  const entriesOf = (sh: DraftSheet) => (isBlank(sh) ? [blankEntry()] : columnsToEntries(sh.cols).filter((_, i) => COLS.some((c) => sh.cols[c.key]?.rows[i]?.trim())));
   const results = sheets.map((sh) => (isBlank(sh) ? { ok: true, msg: '' } : checkColumns(sh.cols)));
   const firstBad = results.findIndex((r) => !r.ok);
   const projName = picked(projSel, newProj);

@@ -3,7 +3,7 @@ import { useEffect, useLayoutEffect, useRef, useState } from 'react';
 export interface MarkRange {
   start: number; end: number;
   /** issue：檢查到的問題；hit：字典命中；edit：驗證修改（start === end 時畫成一個小標記） */
-  kind: 'issue' | 'hit' | 'edit';
+  kind: 'issue' | 'hit' | 'edit' | 'pick';
   /** 滑鼠所在的那一段：畫上底色 */
   on?: boolean;
   /** 給外層找出滑鼠在哪一段用 */

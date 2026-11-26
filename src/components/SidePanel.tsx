@@ -1,4 +1,5 @@
 import { useScrollTabs } from './ScrollTabs';
+import { takePicks } from '../state/textPicks';
 import { tx } from '../i18n';
 import { MAX_CELL_CHARS } from '../model/names';
 import { useDeferredValue, useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react';
@@ -159,7 +160,11 @@ function DictTab() {
             placeholder={tx('side.013')} style={{ width: '100%', padding: '0 12px 0 32px' }} />
         </div>
         <button type="button" className="ib" aria-label={tx('side.014')} title={tx('side.014')}
-          onClick={() => useStore.getState().openTerm(q && results.length === 0 ? q : '', '')}
+          onClick={() => {
+            // 工作欄裡選了文字（按住 Ctrl 可以原文、譯文各選一段）：原文那段填原文，譯文那段填譯文
+            const p = takePicks(currentOf(useStore.getState()).entry?.uid ?? '');
+            useStore.getState().openTerm(p ? p.src : q && results.length === 0 ? q : '', p ? p.tgt : '');
+          }}
           style={{ width: 36, height: 36, flexShrink: 0, display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 0, background: 'var(--btn)', border: '1px solid var(--line4)', borderRadius: 8, color: 'var(--text2)' }}>
           <IconPlus size={15} sw={2.2} />
         </button>

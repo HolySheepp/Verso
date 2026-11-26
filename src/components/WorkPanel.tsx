@@ -1,4 +1,5 @@
 import { tx } from '../i18n';
+import { notePick, pickIn, takePicks, usePicks, type PickBox } from '../state/textPicks';
 import { pairTags, stripTagDigits, tagSpans } from '../model/entrySets';
 import { MAX_CELL_CHARS } from '../model/names';
 import { useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react';
@@ -116,6 +117,9 @@ function WorkPanelInner({ height, maxH }: { height: number; maxH: number }) {
     return c;
   });
   const srcShown = chainView ? chainView.src : cur.src;
+  // 按住 Ctrl 在各框選的文字（新增詞條時帶入）：別的框選的也畫出來，看得到選了什麼
+  const picks = usePicks();
+  const pickMark = (box: PickBox, text: string): MarkRange[] => { const p = pickIn(picks, cur.uid, box, text); return p ? [{ start: p.start, end: p.end, kind: 'pick' }] : []; };
   // 目前這一條原文命中的字典詞（只算這一條；收起的技能串比對拿掉標籤數字的原文）
   const hits = useCurrentHits();
   const tgtShown = chainView ? stripTagDigits(cur.tgt) : cur.tgt;
@@ -727,7 +731,7 @@ function WorkPanelInner({ height, maxH }: { height: number; maxH: number }) {
           <div {...boxProps('src')}>
           <textarea maxLength={MAX_CELL_CHARS} id="verso-source" ref={setSrcEl} value={showNewSrc ? newSrc : srcShown} readOnly={!srcEditable || showNewSrc || !!chainView} onFocus={editFocus} onBlur={editBlur}
             onMouseMove={onSrcMove} onMouseLeave={() => { cancelAnimationFrame(moveFrame.current); moveFrame.current = 0; setHover(null); }} onMouseDown={onSrcDown}
-            onChange={(ev) => srcEditable && s.updateEntry({ src: ev.target.value })}
+            onChange={(ev) => srcEditable && s.updateEntry({ src: ev.target.value })} onSelect={(ev) => notePick(cur.uid, 'src', ev.currentTarget)}
             style={{
               flexGrow: 1, minHeight: 0, resize: 'none', boxSizing: 'border-box', padding: srcButtons > 0 ? '10px 44px 10px 12px' : '10px 12px',
               cursor: hover && canInsert ? 'pointer' : undefined,
@@ -736,7 +740,7 @@ function WorkPanelInner({ height, maxH }: { height: number; maxH: number }) {
               borderRadius: 8, fontSize: 'var(--fs-src)', fontFamily: 'var(--font-src)', lineHeight: 1.6, color: 'var(--text)',
             }} />
             {/* 命中字典的詞標色 */}
-            <TextMarks target={srcEl} text={showNewSrc ? newSrc! : srcShown} ranges={showNewSrc ? srcDiffRanges : newSrc !== undefined ? [] : hitRanges} />
+            <TextMarks target={srcEl} text={showNewSrc ? newSrc! : srcShown} ranges={showNewSrc ? srcDiffRanges : newSrc !== undefined ? [] : [...hitRanges, ...pickMark('src', srcShown)]} />
             {srcButtons > 0 && (
               <div role="toolbar" aria-label={tx('work.025')} aria-orientation="vertical" style={{ position: 'absolute', right: 6, top: 6, display: 'flex', flexDirection: 'column', gap: 2 }}>
                 {newSrc !== undefined && <button type="button" className="hb tip" data-tip={tx('work.026')} aria-label={tx('work.026')} aria-pressed={srcPeek}
@@ -790,7 +794,7 @@ function WorkPanelInner({ height, maxH }: { height: number; maxH: number }) {
           <div {...boxProps('tgt')}>
             <textarea maxLength={MAX_CELL_CHARS} id="verso-target" ref={setTgtEl} onFocus={editFocus} onBlur={editBlur} data-hist={tgtHist ? '1' : '0'} value={tgtHist ? texts[slot] : tgtShown}
               readOnly={!tgtEditable || tgtHist}
-              onChange={(ev) => onTarget(ev.target.value)} onPaste={onPaste} placeholder={ghost || undefined}
+              onChange={(ev) => onTarget(ev.target.value)} onPaste={onPaste} placeholder={ghost || undefined} onSelect={(ev) => notePick(cur.uid, 'tgt', ev.currentTarget)}
               onKeyDown={ghost ? (ev) => { if (ev.key === 'Tab' && !ev.ctrlKey && !ev.altKey && !ev.shiftKey && !ev.metaKey && exact) { ev.preventDefault(); applyMatch(exact); } } : undefined}
               onMouseMove={(ev) => { if (edits.length) onVMove(ev); tagMove(ev, tgtKeys); }} onMouseLeave={() => { if (edits.length) onVLeave(); setBoxTag(null); }} onMouseDown={onTgtDown} onContextMenu={onVMenu}
               style={{
@@ -802,7 +806,7 @@ function WorkPanelInner({ height, maxH }: { height: number; maxH: number }) {
               }} />
             {/* QA 問題的位置標色 */}
             {/* 條目串的輸入框是拿掉數字的寫法：問題的位置對不上，只標參數標籤 */}
-            {!tgtHist && <TextMarks target={tgtEl} text={tgtShown} ranges={[...(showEdits ? tgtEditRanges : chainView ? [] : issueRanges), ...tagMarks(tgtTags, tgtKeys)]} />}
+            {!tgtHist && <TextMarks target={tgtEl} text={tgtShown} ranges={[...(showEdits ? tgtEditRanges : chainView ? [] : issueRanges), ...tagMarks(tgtTags, tgtKeys), ...pickMark('tgt', tgtShown)]} />}
             {s.finishLine && !tgtHist && <FinishLine target={tgtEl} text={cur.tgt} std={effectiveStd(cur.lengthStd, currentFileStd(s))} />}
             {!verify && histUI}
           </div>
@@ -829,7 +833,7 @@ function WorkPanelInner({ height, maxH }: { height: number; maxH: number }) {
               <div {...boxProps('mod')}>
                 {/* 翻譯模式：修改框只給譯者看，不能改 */}
                 <textarea maxLength={MAX_CELL_CHARS} id="verso-edit" ref={setModEl} value={modHist ? texts[slot] : modText} readOnly={!verify || modHist} onFocus={verify ? editFocus : undefined} onBlur={verify ? modBlur : undefined}
-                  onChange={(ev) => verify && onModValue(ev.target.value, ev.target.selectionEnd)}
+                  onChange={(ev) => verify && onModValue(ev.target.value, ev.target.selectionEnd)} onSelect={(ev) => notePick(cur.uid, 'mod', ev.currentTarget)}
                   onMouseMove={(ev) => { onVMove(ev); tagMove(ev, modKeys); }} onMouseLeave={() => { onVLeave(); setBoxTag(null); }} onMouseDown={onModDown} onContextMenu={onVMenu}
                   style={{
                     flexGrow: 1, minHeight: 0, resize: 'none', boxSizing: 'border-box', padding: verify ? '10px 44px 10px 12px' : '10px 12px',
@@ -838,7 +842,7 @@ function WorkPanelInner({ height, maxH }: { height: number; maxH: number }) {
                     color: verify ? 'var(--texthi)' : 'var(--textsoft)',
                     fontSize: 'var(--fs-tgt)', fontFamily: 'var(--font-tgt)', lineHeight: 1.6,
                   }} />
-                {!modHist && <TextMarks target={modEl} text={modText} ranges={[...modRanges, ...issueRanges, ...tagMarks(modTags, modKeys)]} />}
+                {!modHist && <TextMarks target={modEl} text={modText} ranges={[...modRanges, ...issueRanges, ...tagMarks(modTags, modKeys), ...pickMark('mod', modText)]} />}
                 {s.finishLine && !modHist && <FinishLine target={modEl} text={modText} std={effectiveStd(cur.lengthStd, currentFileStd(s))} />}
                 {verify && histUI}
               </div>
@@ -866,7 +870,7 @@ function WorkPanelInner({ height, maxH }: { height: number; maxH: number }) {
           )}
           {/* 加入字典：原文、譯文（有修改就是改好的；收起的技能串是拿掉標籤數字的寫法）填進新增詞條 */}
           <button type="button" className="ib btn-side" aria-label={tx('work.addDict')} title={tx('work.addDict')}
-            onClick={() => useStore.getState().openTerm(srcShown, chainView ? stripTagDigits(checkText(cur)) : checkText(cur))}>
+            onClick={() => { const p = takePicks(cur.uid); useStore.getState().openTerm(p ? p.src : srcShown, p ? p.tgt : chainView ? stripTagDigits(checkText(cur)) : checkText(cur)); }}>
             <IconBook size={15} />
           </button>
           {mode === 'view' && (

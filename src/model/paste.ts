@@ -121,6 +121,25 @@ export const deleteRows = (c: Col, idx: number[]): Col => {
 export const insertRow = (c: Col, at: number): Col =>
   withIds(c, [...c.rows.slice(0, at + 1), '', ...c.rows.slice(at + 1)], c.ids && [...c.ids.slice(0, at + 1), null, ...c.ids.slice(at + 1)]);
 
+/**
+ * 某一欄在結尾補上的空白行打了字（變得比其他欄長）：其他已經有內容的欄補空白行到一樣長，條目才對得齊。
+ * 回傳要覆蓋的欄
+ */
+export function alignGrow<K extends string>(cols: Partial<Record<K, Col | null>>, key: K, col: Col | null): Partial<Record<K, Col | null>> {
+  const len = (c: Col | null | undefined) => c?.rows.length ?? 0;
+  const before = Math.max(0, ...Object.values<Col | null | undefined>(cols).map(len));
+  const n = len(col);
+  const out: Partial<Record<K, Col | null>> = { [key]: col } as Partial<Record<K, Col | null>>;
+  if (n <= before) return out;
+  for (const k of Object.keys(cols) as K[]) {
+    const c = cols[k];
+    if (k === key || !c || c.rows.length >= n) continue;
+    const add = n - c.rows.length;
+    out[k] = { ...c, rows: [...c.rows, ...Array<string>(add).fill('')], extra: Math.max(0, c.extra - add), ids: c.ids && [...c.ids, ...Array<null>(add).fill(null)] };
+  }
+  return out;
+}
+
 /** 改一行的內容 */
 export const setRow = (c: Col, i: number, text: string): Col => ({ ...c, rows: c.rows.map((r, j) => (j === i ? text : r)) });
 

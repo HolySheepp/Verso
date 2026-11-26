@@ -63,8 +63,9 @@ input,textarea{font-family:inherit}
 .col-head-sel{color:var(--accent2);background:var(--acc-soft)}
 .col-resize::after{content:'';position:absolute;left:4px;top:9px;bottom:9px;width:1px;background:var(--line3)}
 .col-resize:hover::after{left:3px;top:4px;bottom:4px;width:3px;border-radius:2px;background:var(--accent)}
-.tree-row .tree-act{opacity:0;transition:opacity 120ms}
-.tree-row:hover .tree-act,.tree-row:focus-within .tree-act{opacity:1}
+.tree-row .tree-act{display:none}
+.tree-row:hover .tree-act,.tree-row:focus-within .tree-act{display:flex}
+.tree-row:hover .tree-extra,.tree-row:focus-within .tree-extra{display:none}
 .sr:hover{background:var(--hv2) !important;border-color:var(--line5) !important}
 .stab:hover,.md:hover{color:var(--text) !important}
 textarea:focus,input:focus{outline:none;border-color:var(--accent) !important}
@@ -156,6 +157,7 @@ mark.tm-hit{color:transparent;background:transparent;border-radius:2px;text-deco
 mark.tm-hit[data-on]{background:var(--acc-soft2)}
 mark.tm-edit{color:transparent;background:transparent;border-radius:2px;text-decoration:underline 1.5px var(--accent);text-underline-offset:4px;text-decoration-skip-ink:none}
 mark.tm-edit[data-on]{background:var(--acc-soft2)}
+mark.tm-pick{color:transparent;background:color-mix(in srgb,var(--accent) 34%,transparent);border-radius:2px}
 mark.tm-gap{display:inline-block;width:0;height:1.25em;vertical-align:text-bottom;position:relative;background:none;color:transparent}
 mark.tm-gap::before{content:'';position:absolute;left:-0.5px;bottom:0;width:1px;height:100%;background:var(--accent);opacity:.6}
 mark.tm-gap::after{content:'';position:absolute;left:-4px;bottom:-1px;width:8px;height:2px;border-radius:1px;background:var(--accent)}

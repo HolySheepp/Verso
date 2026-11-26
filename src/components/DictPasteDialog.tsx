@@ -20,10 +20,11 @@ export function DictPasteDialog() {
   const [target, setTarget] = useState(NEW);
   const [newName, setNewName] = useState('');
   // 原文、譯文兩欄的內容可以復原
-  const cols = useUndoable<{ src: Col | null; tgt: Col | null }>({ src: null, tgt: null });
-  const { src, tgt } = cols.value;
+  const cols = useUndoable<{ src: Col | null; tgt: Col | null; note: Col | null }>({ src: null, tgt: null, note: null });
+  const { src, tgt, note } = cols.value;
   const setSrc = (c: Col | null) => cols.commit({ ...cols.current.current, src: c });
   const setTgt = (c: Col | null) => cols.commit({ ...cols.current.current, tgt: c });
+  const setNote = (c: Col | null) => cols.commit({ ...cols.current.current, note: c });
   const [selRow, setSelRow] = useState<{ key: string; sel: BoxSel } | null>(null);
 
   useEffect(() => {
@@ -35,14 +36,14 @@ export function DictPasteDialog() {
       setProjSel(p); setNewProj(''); setTarget(t.dict && t.proj === p ? t.dict : firstDict(p)); setNewName('');
       // 從條目欄右鍵加進字典：原文、譯文先填好
       const init = st.dictPasteInit;
-      cols.reset(init ? { src: { rows: init.src, extra: 0 }, tgt: { rows: init.tgt, extra: 0 } } : { src: null, tgt: null }); setSelRow(null); }
+      cols.reset(init ? { src: { rows: init.src, extra: 0 }, tgt: { rows: init.tgt, extra: 0 }, note: null } : { src: null, tgt: null, note: null }); setSelRow(null); }
   }, [open]);
 
   if (!open) return null;
 
-  // 一次貼兩欄到原文時，譯文一起填上
-  const spread = (from: 'src' | 'tgt', values: string[][], start?: number) => {
-    const out = pasteColumns(['src', 'tgt'], from, values, cols.current.current, start);
+  // 一次貼好幾欄到原文時，譯文、備註一起填上
+  const spread = (from: 'src' | 'tgt' | 'note', values: string[][], start?: number) => {
+    const out = pasteColumns(['src', 'tgt', 'note'], from, values, cols.current.current, start);
     cols.commit({ ...cols.current.current, ...out });
   };
 
@@ -53,19 +54,19 @@ export function DictPasteDialog() {
   let error = nameError('project', projSel, newProj, projects)
     || nameError('dict', target, newName, dicts.filter((d) => d.project === projName).map((d) => d.name));
   if (!error && src && tgt && !fitsRows(tgt, sn)) error = tx('dictpaste.001', { sn, length: tgt.rows.length });
-  // 原文或譯文空白的行略過
-  const pairs: [string, string][] = src && tgt && !error
-    ? src.rows.map((s, i): [string, string] => [s.trim(), (tgt.rows[i] ?? '').trim()]).filter(([a, b]) => a && b)
+  // 原文或譯文空白的行略過（備註可以空白）
+  const pairs: [string, string, string][] = src && tgt && !error
+    ? src.rows.map((s, i): [string, string, string] => [s.trim(), (tgt.rows[i] ?? '').trim(), (note?.rows[i] ?? '').trim()]).filter(([a, b]) => a && b)
     : [];
   // 什麼都沒貼：建立空的字典（之後自己加詞條）；貼了但沒有完整的一行就不能存
-  const blank = !src?.rows.some((x) => x.trim()) && !tgt?.rows.some((x) => x.trim());
+  const blank = !src?.rows.some((x) => x.trim()) && !tgt?.rows.some((x) => x.trim()) && !note?.rows.some((x) => x.trim());
   const canSave = !error && !!projName && !!dictName && (pairs.length > 0 || blank);
 
   return (
     <div className="scrim" style={{ zIndex: 45 }} onMouseDown={dragWindow}
       onKeyDown={(ev) => handleUndoKeys(ev, () => { if (cols.undo()) setSelRow(null); }, () => { if (cols.redo()) setSelRow(null); })}>
       <div role="dialog" aria-modal="true" aria-labelledby="verso-dict-paste-title" className="dialog"
-        style={{ width: 640, height: 560, maxWidth: 'calc(100% - 48px)', maxHeight: 'calc(100% - 48px)', boxShadow: '0 24px 64px rgba(0,0,0,0.5)' }}>
+        style={{ width: 840, height: 560, maxWidth: 'calc(100% - 48px)', maxHeight: 'calc(100% - 48px)', boxShadow: '0 24px 64px rgba(0,0,0,0.5)' }}>
         <div style={{ height: 52, flexShrink: 0, display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '0 10px 0 20px', borderBottom: '1px solid var(--line)' }}>
           <h2 id="verso-dict-paste-title" style={{ margin: 0, fontSize: fz(15), fontWeight: 600 }}>{tx('dictpaste.002')}</h2>
           <button type="button" className="ib" aria-label={tx('dictpaste.003')} onClick={() => set({ dictPasteOpen: false, dictPasteInit: null })}
@@ -83,11 +84,13 @@ export function DictPasteDialog() {
             <label htmlFor="verso-dict-target" style={{ width: 28, fontSize: fz(12), color: 'var(--text2)', flexShrink: 0 }}>{tx('dictpaste.005')}</label>
             <DictPicker id="verso-dict-target" focus={projSel !== NEW} project={projName} sel={target} newName={newName} onSel={setTarget} onNewName={setNewName} width={180} />
           </div>
-          <div style={{ flexGrow: 1, minHeight: 0, display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12 }}>
+          <div style={{ flexGrow: 1, minHeight: 0, display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: 12 }}>
             <PasteBox label={tx('dictpaste.006')} col={src} onChange={setSrc} onPaste={(v, st) => spread('src', v, st)}
               selected={selRow?.key === 'src' ? selRow.sel : null} onSelect={(sel) => setSelRow(sel === null ? null : { key: 'src', sel })} />
             <PasteBox label={tx('dictpaste.007')} col={tgt} onChange={setTgt} onPaste={(v, st) => spread('tgt', v, st)}
               selected={selRow?.key === 'tgt' ? selRow.sel : null} onSelect={(sel) => setSelRow(sel === null ? null : { key: 'tgt', sel })} />
+            <PasteBox label={tx('pastecol.004')} col={note} onChange={setNote} onPaste={(v, st) => spread('note', v, st)}
+              selected={selRow?.key === 'note' ? selRow.sel : null} onSelect={(sel) => setSelRow(sel === null ? null : { key: 'note', sel })} />
           </div>
         </div>
 

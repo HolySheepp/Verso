@@ -1,17 +1,18 @@
 import { tx } from '../i18n';
+import { FadeLabel } from './FilterPanel';
 import { useScrollTabs } from './ScrollTabs';
 import { ProjectSettings } from './ProjectSettings';
 import { NO_SPEAKER, defaultSheetName, fitsCell, freeSheetName, tooLongMsg } from '../model/names';
-import { useEffect, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import { aiAllows, showToast, useStore, type MoveTarget } from '../state/store';
 import { entryFits } from '../model/cellLimit';
 import { requestAutosave, saveNow } from '../state/saver';
 import { SHARED, type Entry, type FileDoc, type Sheet } from '../model/types';
-import { COLS, COLS_GRID, appendNote, checkColumns, fitsRows, newUid, pasteColumns, type Col, type Columns } from '../model/paste';
+import { COLS, COLS_GRID, alignGrow, appendNote, checkColumns, fitsRows, newUid, pasteColumns, type Col, type Columns } from '../model/paste';
 import { fz } from '../model/fonts';
 import { ConfirmDialog } from './ConfirmDialog';
 import { ContextMenu } from './ContextMenu';
-import { PasteBox, type BoxSel } from './PasteBox';
+import { PasteBox, type BoxSel, type ScrollSync } from './PasteBox';
 import { RenameInput } from './RenameInput';
 import { sheetNameError } from '../model/names';
 import { NEW, ProjectPicker, nameError, picked } from './Pickers';
@@ -74,10 +75,11 @@ function TreeRow({ depth, icon, label, extra, selected, open, onToggle, onClick,
       {icon}
       <button type="button" onClick={onClick ?? onToggle} onDoubleClick={onRename}
         style={{ flexGrow: 1, minWidth: 0, height: 30, display: 'flex', alignItems: 'center', gap: 8, padding: 0, background: 'transparent', border: 0, color: 'var(--text)', textAlign: 'left', cursor: 'pointer' }}>
-        <span style={{ minWidth: 0, overflow: 'hidden', whiteSpace: 'nowrap', textOverflow: 'ellipsis', fontSize: fz(13) }}>{label}</span>
-        {extra && <span style={{ flexShrink: 0, fontSize: fz(11.5), color: 'var(--mute)' }}>{extra}</span>}
+        {/* 名稱佔滿剩下的寬度，太長時滑鼠移上去跑馬燈；條數、雲端或本地貼齊右邊 */}
+        <span style={{ fontSize: fz(13), flex: '1 1 0', minWidth: 0, display: 'flex' }}><FadeLabel text={label} /></span>
+        {extra && <span className="tree-extra" style={{ flexShrink: 0, marginLeft: 'auto', fontSize: fz(11.5), color: 'var(--mute)' }}>{extra}</span>}
       </button>
-      <span className="tree-act" style={{ display: 'flex', gap: 2, flexShrink: 0 }}>{actions}</span>
+      {actions && <span className="tree-act" style={{ gap: 2, flexShrink: 0 }}>{actions}</span>}
     </div>
   );
 }
@@ -371,6 +373,8 @@ function FileEditor({ file, index, onDirty, onSaved }: { file: FileDoc; index: n
   const bad = results.findIndex((r) => !r.ok);
   const error = bad < 0 ? '' : (sheets.length > 1 ? tx('common.sheetError', { name: sheets[bad].name, msg: results[bad].msg }) : results[bad].msg);
   const total = sheets.reduce((n, sh) => n + (sh.cols.src?.rows.length ?? 0), 0);
+  const tailRows = Math.max(0, ...FILE_KEYS.map((k) => sheet.cols[k]?.rows.length ?? 0)) + 1;
+  const scrollSync = useMemo<ScrollSync>(() => new Set(), [sheetIdx]);
 
   const save = () => {
     if (error) return;
@@ -415,9 +419,11 @@ function FileEditor({ file, index, onDirty, onSaved }: { file: FileDoc; index: n
       </div>
       <div style={{ flexGrow: 1, minHeight: 0, display: 'grid', gridTemplateColumns: COLS_GRID, gap: 12, padding: '12px 20px', overflowX: 'auto' }}>
         {COLS.map((c) => (
+          // 各欄都補到一樣長、結尾多一行空白（可以直接接著打）；一起捲動，打開時在最下面
           <PasteBox key={sheetIdx + c.key} label={c.label} required={c.key === 'src'} col={sheet.cols[c.key]} fontSlot={c.key === 'id' || c.key === 'speaker' ? c.key : undefined}
+            minRows={tailRows} sync={scrollSync} atBottom
             onPaste={(values, start) => patchSheet(sheetIdx, pasteColumns(FILE_KEYS, c.key, values, draft.current.current[sheetIdx].cols, start))}
-            onChange={(col) => patchSheet(sheetIdx, { [c.key]: col })}
+            onChange={(col) => patchSheet(sheetIdx, alignGrow(draft.current.current[sheetIdx].cols, c.key, col))}
             selected={selRow?.key === c.key ? selRow.sel : null}
             onSelect={(sel) => setSelRow(sel === null ? null : { key: c.key, sel })} />
         ))}
@@ -487,6 +493,8 @@ function ManageDicts() {
 
   const { term, en, note } = cols.value;
   const n = term?.rows.length ?? 0;
+  const dictTail = Math.max(0, ...EDIT_KEYS.map((k) => cols.value[k]?.rows.length ?? 0)) + 1;
+  const dictSync = useMemo<ScrollSync>(() => new Set(), [cur?.project, cur?.name]);
   let error = '';
   if (en && !fitsRows(en, n)) error = tx('manage.046', { n, length: en.rows.length });
   else if (note && note.rows.length > n) error = tx('manage.047', { v1: note.rows.length - n });
@@ -585,8 +593,9 @@ function ManageDicts() {
                 <div style={{ padding: '14px 20px 0', fontSize: fz(13), color: 'var(--text2)' }}>{cur.project} / <span style={{ color: 'var(--text)', fontWeight: 600 }}>{cur.name}</span></div>
                 <div style={{ flexGrow: 1, minHeight: 0, display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: 12, padding: '12px 20px' }}>
                   {EDIT_KEYS.map((k) => (
-                    <PasteBox key={cur.project + '/' + cur.name + k} label={EDIT_LABELS[k]} col={cols.value[k]}
-                      onChange={(c) => cols.commit({ ...cols.current.current, [k]: c })} onPaste={(v, st) => spread(k, v, st)}
+                    // 各欄補到一樣長、結尾多一行空白；一起捲動，打開時在最下面
+                    <PasteBox key={cur.project + '/' + cur.name + k} label={EDIT_LABELS[k]} col={cols.value[k]} minRows={dictTail} sync={dictSync} atBottom
+                      onChange={(c) => cols.commit({ ...cols.current.current, ...alignGrow(cols.current.current, k, c) })} onPaste={(v, st) => spread(k, v, st)}
                       selected={selRow?.key === k ? selRow.sel : null} onSelect={(sel) => setSelRow(sel === null ? null : { key: k, sel })} />
                   ))}
                 </div>
