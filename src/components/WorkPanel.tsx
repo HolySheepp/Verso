@@ -1,5 +1,5 @@
 import { tx } from '../i18n';
-import { notePick, pickIn, takePicks, usePicks, type PickBox } from '../state/textPicks';
+import { notePick, pickIn, takePicks, useCtrlHeld, usePicks, type PickBox } from '../state/textPicks';
 import { pairTags, stripTagDigits, tagSpans } from '../model/entrySets';
 import { MAX_CELL_CHARS } from '../model/names';
 import { useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react';
@@ -117,9 +117,16 @@ function WorkPanelInner({ height, maxH }: { height: number; maxH: number }) {
     return c;
   });
   const srcShown = chainView ? chainView.src : cur.src;
-  // 按住 Ctrl 在各框選的文字（新增詞條時帶入）：別的框選的也畫出來，看得到選了什麼
+  // 按住 Ctrl 在各框選的文字（新增詞條時帶入）：按住 Ctrl 時，不是正在打字的框選的範圍也畫出來（正在打字的框有系統的選取色）
   const picks = usePicks();
-  const pickMark = (box: PickBox, text: string): MarkRange[] => { const p = pickIn(picks, cur.uid, box, text); return p ? [{ start: p.start, end: p.end, kind: 'pick' }] : []; };
+  const ctrlHeld = useCtrlHeld();
+  const pickMark = (box: PickBox, text: string): MarkRange[] => {
+    if (!ctrlHeld) return [];
+    const el = box === 'src' ? srcEl : box === 'tgt' ? tgtEl : modEl;
+    if (el && document.activeElement === el) return [];
+    const p = pickIn(picks, cur.uid, box, text);
+    return p ? [{ start: p.start, end: p.end, kind: 'pick' }] : [];
+  };
   // 目前這一條原文命中的字典詞（只算這一條；收起的技能串比對拿掉標籤數字的原文）
   const hits = useCurrentHits();
   const tgtShown = chainView ? stripTagDigits(cur.tgt) : cur.tgt;

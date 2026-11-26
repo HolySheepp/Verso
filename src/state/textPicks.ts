@@ -14,14 +14,18 @@ interface Picks {
 }
 
 export const usePicks = create<Picks>(() => ({ uid: '' }));
+/** 現在有沒有按住 Ctrl（按住時才把其他框選的範圍畫出來） */
+export const useCtrlHeld = create<boolean>(() => false);
 
 // 選取時有沒有按住 Ctrl（滑鼠、鍵盤選取都看最近一次的狀態）
 let ctrl = false;
 if (typeof window !== 'undefined') {
-  const on = (ev: KeyboardEvent | MouseEvent) => { ctrl = ev.ctrlKey || ev.metaKey; };
+  const on = (ev: KeyboardEvent | MouseEvent) => { ctrl = ev.ctrlKey || ev.metaKey; if (useCtrlHeld.getState() !== ctrl) useCtrlHeld.setState(ctrl, true); };
   window.addEventListener('keydown', on, true);
   window.addEventListener('keyup', on, true);
   window.addEventListener('mousedown', on, true);
+  // 切到別的視窗時放開的 Ctrl 收不到：當作放開
+  window.addEventListener('blur', () => { ctrl = false; useCtrlHeld.setState(false, true); });
 }
 
 /** 某個框的選取範圍變了：有選到字就記下（沒按 Ctrl 時其他框的清掉）；只是點一下，沒按 Ctrl 時全部清掉 */
